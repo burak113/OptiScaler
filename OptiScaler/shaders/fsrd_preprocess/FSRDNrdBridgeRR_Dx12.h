@@ -53,14 +53,51 @@ struct RRWrapperNativeDebugOutputSnapshot
     D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 };
 
+struct RRRecordedOutput;
+using RRRecordedOutputLease = std::shared_ptr<const RRRecordedOutput>;
+// Owned linear, demodulated RGB only. Keep owner alive through every trace/copy submission.
+struct RRRecordedOutputSnapshot
+{
+    ID3D12Resource *rawSpec = nullptr, *rawDiff = nullptr, *selectedSpec = nullptr, *selectedDiff = nullptr;
+    std::shared_ptr<void> owner;
+    ID3D12GraphicsCommandList* recording = nullptr;
+    uint32_t frameSL = UINT32_MAX, width = 0, height = 0, frameIndex = 0;
+    uint64_t contextGeneration = 0, recordingId = 0;
+    bool outputCommitted = false, recoveryActive = false, recoveryFallback = false;
+    D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    // Published only after late native flag capture is recorded; this is an owned snapshot, never the title CBV.
+    ID3D12Resource* encodingFlag = nullptr;
+    bool nativeEncodingCaptured = false;
+    D3D12_RESOURCE_STATES encodingFlagState = D3D12_RESOURCE_STATE_COMMON;
+    // Actual AMD1.2 dispatch tail, not reconstructed FrameParameters (448-byte ABI, offset264).
+    std::array<uint8_t, 184> providerControl {};
+    uint64_t providerVersionId = 0;
+    uint32_t providerApiVersion = 0, providerSignalFlags = 0, providerContextFlags = 0;
+    std::array<char, 128> providerName {};
+};
+
 class RRWrapper
 {
     struct Impl;
     std::shared_ptr<Impl> impl_;
+    bool RecordOwnedImpl(ID3D12GraphicsCommandList*, const ConvertedResources&, const FrameParameters&,
+                         RRRecordedOutputLease&, std::string&, NrdBridgeStagePerf::Sample*, bool prepareNativeCommit);
   public:
     RRWrapper();
     ~RRWrapper();
     bool PrepareFrame(const SLConstantsSnapshot&, bool requestedReset, FrameParameters& out, std::string& error);
+    // Record only into owned RR stages. No title output/Consumer binding is consulted.
+    bool RecordOwned(ID3D12GraphicsCommandList*, const ConvertedResources&, const FrameParameters&,
+                     RRRecordedOutputLease& output, std::string& error, NrdBridgeStagePerf::Sample* profiling = nullptr);
+    // Same native recording/frame/generation, one successful commit; caller holds physical borrow/serialization.
+    bool CommitOwned(ID3D12GraphicsCommandList*, const RRRecordedOutputLease&, ID3D12Resource* outputSpec,
+                     ID3D12Resource* outputDiff, const FrameParameters&, std::string& error,
+                     const OutputCommitGuard& = {}, NrdBridgeStagePerf::Sample* profiling = nullptr);
+    // Caller holds injection serialization, outside coordinator gMutex. Cancelled/unsubmitted work never retires a newer physical generation.
+    void AbandonOwned(const RRRecordedOutputLease&) noexcept;
+    RRRecordedOutputSnapshot GetOwnedOutputSnapshot(const RRRecordedOutputLease&) const noexcept;
+    // Cold, explicitly armed trace only. Empty means this adapter has no actual-route witness.
+    std::string GetOwnedOutputProviderAttestation(const RRRecordedOutputLease&) const noexcept;
     bool Dispatch(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
                   ID3D12Resource* outputDiff, const FrameParameters&, std::string& error,
                   const OutputCommitGuard& = {}, NrdBridgeStagePerf::Sample* profiling = nullptr);
