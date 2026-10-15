@@ -61,6 +61,17 @@ Unknown actual work fails closed. Unknown PSO assignment alone is not work.
 The native omission contract is pinned to the supported complete shader hashes;
 unclassified work outside a pending interval is not a general game-version proof.
 
+An intervening image binding needs a whole-resource exclusion proof, not an image
+snapshot. A native plane-1 stencil SRV can therefore retain its exact live
+resource identity even though the current copy/readback path does not support
+that plane. This purpose is explicit in each retained witness. Source capture,
+commit and ordinary snapshot resolution keep their stricter supported-view
+requirement. Both purposes retain root/table mapping, heap/resource births,
+generation, format, subresource and current descriptor-slot validation. An
+unknown binding or a descriptor changed before submission still rejects the
+required transaction. Only the statically used slots of an attested intervening
+shader are queried; no new resource/heap scan or native denoiser work is added.
+
 Before a required RR interval, an attested execution-only indirect signature
 preserves the CPU root/heap/PSO snapshot even for an unclassified shader. These
 bindings are inherited by the call; only state specified by a command signature
@@ -96,6 +107,10 @@ Invalidated pending work also records the first cause, chain mask and complete
 available shader identities. Submission rejection distinguishes missing output,
 retained texture/constant/pipeline/signature/output proof, and unpublished history
 ordering. Fence callback failures include their phase and exact recording IDs.
+An intervening texture-binding rejection also records its first resolver reason,
+profile, SRV/UAV register and space, root parameter, descriptor offset/address,
+view format and supported-copy/dimension flags. This distinguishes a missing or
+stale binding from a valid native plane that only lacks snapshot support.
 
 The descriptor admission protocol joins each native descriptor mutation with its
 metadata publication. Writers use fixed sharded atomic counters. A participating

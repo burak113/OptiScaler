@@ -1656,12 +1656,16 @@ bool ResolveGraphicsBindings(const ComputeBindings& bindings, UINT parameter,
 { return ResolveTextureBindings(bindings,parameter,requests,out,true); }
 
 static bool ResolveTextureBindingBatch(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
-    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses, bool pixel) noexcept
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses, bool pixel,
+    TextureBindingPurpose purpose, TextureBindingDiagnostic* diagnostic) noexcept
 {
     out.clear(); if (witnesses) witnesses->clear();
+    if(diagnostic)*diagnostic={};
+    const auto fail=[&](const char* reason){if(diagnostic)diagnostic->reason=reason;return false;};
+    const bool exclusion=purpose==TextureBindingPurpose::ResourceExclusion;
     if (!Tracking() || !bindings.root || !bindings.rootBirth || bindings.heaps.size() > 2 || requests.empty() ||
         requests.size() > 16 || bindings.heapBirths.size() != bindings.heaps.size() ||
-        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        !gMetadataHealthy.load(std::memory_order_acquire)) return fail("binding_snapshot");
     try
     {
         std::array<BoundResource,16> resolved {};
@@ -1669,31 +1673,34 @@ static bool ResolveTextureBindingBatch(const ComputeBindings& bindings, std::spa
         {
             NativeSnapshotExclusive metadataSnapshot;
             std::shared_lock catalog(gLifetimeMutex);
-            if (!gMetadataHealthy.load(std::memory_order_acquire) || !BirthAvailable(bindings.rootBirth,bindings.root)) return false;
+            if (!gMetadataHealthy.load(std::memory_order_acquire) || !BirthAvailable(bindings.rootBirth,bindings.root)) return fail("root_birth_or_metadata");
             for (size_t i=0;i<bindings.heaps.size();++i)
-                if (!bindings.heapBirths[i] || !BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return false;
+                if (!bindings.heapBirths[i] || !BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return fail("heap_birth");
             const auto layout = gRootLayouts.find(bindings.root);
-            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth) return false;
+            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth) return fail("root_layout");
             for (size_t i=0;i<requests.size();++i)
             {
                 const auto& row = requests[i]; auto request = row.binding; UINT parameter = UINT_MAX, offset = UINT_MAX;
-                if (!FindTextureRegisterMapping(layout->second,pixel,request,parameter,offset)) return false;
+                if(diagnostic){diagnostic->request=UINT(i);diagnostic->kind=request.kind;diagnostic->shaderRegister=request.shaderRegister;diagnostic->registerSpace=request.registerSpace;
+                    diagnostic->parameter=diagnostic->descriptorOffset=UINT_MAX;diagnostic->descriptorCpu=0;diagnostic->viewFormat=DXGI_FORMAT_UNKNOWN;diagnostic->snapshotSupported=diagnostic->texture2D=false;}
+                if (!FindTextureRegisterMapping(layout->second,pixel,request,parameter,offset)) return fail("register_mapping");
+                if(diagnostic){diagnostic->parameter=parameter;diagnostic->descriptorOffset=offset;}
                 const bool automatic = row.rootParameter == UINT_MAX && request.descriptorOffset == UINT_MAX;
-                if (!automatic && (row.rootParameter != parameter || request.descriptorOffset != offset)) return false;
+                if (!automatic && (row.rootParameter != parameter || request.descriptorOffset != offset)) return fail("requested_mapping");
                 request.descriptorOffset = offset;
                 if ((request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) ||
                     (pixel && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV) ||
-                    !(pixel ? layout->second.pixelVisibleTables : layout->second.computeVisibleTables).contains(parameter)) return false;
+                    !(pixel ? layout->second.pixelVisibleTables : layout->second.computeVisibleTables).contains(parameter)) return fail("range_visibility");
                 const auto table = layout->second.tables.find(parameter);
-                if (table == layout->second.tables.end() || !UniqueComputeMapping(table->second,request)) return false;
+                if (table == layout->second.tables.end() || !UniqueComputeMapping(table->second,request)) return fail("unique_table_mapping");
                 for (size_t j=0;j<i;++j)
                     if ((proof[j].rootParameter == parameter && proof[j].descriptorOffset == request.descriptorOffset) ||
                         (proof[j].kind == request.kind && proof[j].shaderRegister == request.shaderRegister &&
-                         proof[j].registerSpace == request.registerSpace)) return false;
+                         proof[j].registerSpace == request.registerSpace)) return fail("duplicate_request");
                 uint64_t base = 0;
                 for (const auto& [boundParameter,handle] : bindings.tables) if (boundParameter == parameter)
-                { if (base || !handle.ptr) return false; base = handle.ptr; }
-                if (!base) return false;
+                { if (base || !handle.ptr) return fail("duplicate_or_null_table"); base = handle.ptr; }
+                if (!base) return fail("table_unbound");
                 const Heap* heap = nullptr;
                 for (size_t h=0;h<bindings.heaps.size();++h)
                 {
@@ -1704,39 +1711,49 @@ static bool ResolveTextureBindingBatch(const ComputeBindings& bindings, std::spa
                         !candidate.gpu || !candidate.increment || base < candidate.gpu ||
                         base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
                         (base-candidate.gpu)%candidate.increment) continue;
-                    if (heap) return false;
+                    if (heap) return fail("heap_ambiguous");
                     heap = &candidate;
                 }
-                if (!heap) return false;
+                if (!heap) return fail("table_heap");
                 const uint64_t index = (base-heap->gpu)/heap->increment+request.descriptorOffset;
-                if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->cpu) return false;
+                if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->cpu) return fail("descriptor_bounds");
                 const uint64_t cpu = heap->cpu+index*heap->increment;
+                if(diagnostic)diagnostic->descriptorCpu=cpu;
                 const auto view = gViews.find(cpu);
-                if (view == gViews.end() || view->second.kind != uint32_t(request.kind) || !view->second.snapshotSupported ||
-                    !view->second.texture2D || !FreshView(view->second,heap)) return false;
+                if (view == gViews.end()) return fail("view_untracked");
+                if(diagnostic){diagnostic->viewFormat=DXGI_FORMAT(view->second.format);diagnostic->snapshotSupported=view->second.snapshotSupported;diagnostic->texture2D=view->second.texture2D;}
+                if (view->second.kind != uint32_t(request.kind)) return fail("view_kind");
+                if (!view->second.texture2D) return fail("view_dimension");
+                // Exclusion is about the whole resource, including stencil planes.
+                // It never authorizes a readback/copy of an unsupported plane.
+                if (!exclusion && !view->second.snapshotSupported) return fail("snapshot_unsupported");
+                if (!FreshView(view->second,heap)) return fail("view_birth_or_generation");
                 const auto resource = gResources.find(view->second.object);
                 if (resource == gResources.end() || resource->second.id != view->second.resource || !resource->second.birth ||
                     resource->second.desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || resource->second.desc.SampleDesc.Count != 1 ||
-                    !resource->second.desc.MipLevels || view->second.subresource >= resource->second.desc.MipLevels) return false;
+                    !resource->second.desc.MipLevels || view->second.subresource >= resource->second.desc.MipLevels) return fail("resource_identity_or_dimension");
                 resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
                     request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth,resource->second.id};
                 proof[i] = {bindings.root,bindings.rootBirth,parameter,request.descriptorOffset,request.shaderRegister,
                     request.registerSpace,request.kind,pixel,heap->object,heap->birth,base,cpu,resource->first,resource->second.birth,
-                    resource->second.id,DXGI_FORMAT(view->second.format),view->second.subresource};
+                    resource->second.id,DXGI_FORMAT(view->second.format),view->second.subresource,exclusion};
             }
         }
         // Dynamic containers and last-owner release remain outside every metadata guard.
         out.assign(resolved.begin(),resolved.begin()+requests.size());
         if (witnesses) witnesses->assign(proof.begin(),proof.begin()+requests.size());
+        if(diagnostic)diagnostic->reason="resolved";
         return true;
-    } catch (...) { MetadataFailed("Coherent texture-binding allocation failed"); out.clear(); if (witnesses) witnesses->clear(); return false; }
+    } catch (...) { MetadataFailed("Coherent texture-binding allocation failed"); out.clear(); if (witnesses) witnesses->clear(); return fail("allocation"); }
 }
 bool ResolveComputeTextureBindings(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
-    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses) noexcept
-{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,false); }
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses,
+    TextureBindingPurpose purpose, TextureBindingDiagnostic* diagnostic) noexcept
+{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,false,purpose,diagnostic); }
 bool ResolveGraphicsTextureBindings(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
-    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses) noexcept
-{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,true); }
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses,
+    TextureBindingPurpose purpose, TextureBindingDiagnostic* diagnostic) noexcept
+{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,true,purpose,diagnostic); }
 bool ValidateTextureBindingWitnesses(std::span<const TextureBindingWitness> witnesses) noexcept
 {
     if (!Tracking() || witnesses.empty() || witnesses.size() > MaximumTextureBindingWitnesses ||
@@ -1776,7 +1793,8 @@ bool ValidateTextureBindingWitnesses(std::span<const TextureBindingWitness> witn
             const auto view = gViews.find(expected.descriptorCpu);
             if (view == gViews.end() || view->second.object != expected.resource || view->second.resource != expected.resourceGeneration ||
                 view->second.kind != uint32_t(expected.kind) || view->second.format != uint32_t(expected.viewFormat) ||
-                view->second.subresource != expected.subresource || !view->second.snapshotSupported || !view->second.texture2D || !FreshView(view->second,&heap)) return false;
+                view->second.subresource != expected.subresource || (!expected.resourceExclusion && !view->second.snapshotSupported) ||
+                !view->second.texture2D || !FreshView(view->second,&heap)) return false;
             const auto resource = gResources.find(expected.resource);
             if (resource == gResources.end() || resource->second.id != expected.resourceGeneration || resource->second.birth != expected.resourceBirth ||
                 resource->second.desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || resource->second.desc.SampleDesc.Count != 1 ||

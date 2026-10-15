@@ -91,6 +91,7 @@ struct TextureBindingWitness
     uint64_t resourceGeneration = 0;
     DXGI_FORMAT viewFormat = DXGI_FORMAT_UNKNOWN;
     UINT subresource = 0;
+    bool resourceExclusion = false; // All planes of this exact resource are excluded; no image-copy claim.
 };
 // RTV descriptors are copied into the command list at OMSetRenderTargets /
 // BeginRenderPass. Retain those resource identities, not mutable CPU slots.
@@ -185,10 +186,23 @@ bool ResolveComputeBindings(const ComputeBindings&, UINT rootParameter,
                             std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
 // At most sixteen Texture2D slots in ONE coherent snapshot, optionally retaining metadata-only witnesses.
 // Submission revalidation checks only the retained slots; no unrelated descriptor epoch is involved.
+enum class TextureBindingPurpose : uint8_t { SnapshotSupportedView, ResourceExclusion };
+struct TextureBindingDiagnostic
+{
+    const char* reason="unavailable";
+    UINT request=UINT_MAX, parameter=UINT_MAX, descriptorOffset=UINT_MAX;
+    UINT shaderRegister=UINT_MAX, registerSpace=UINT_MAX;
+    D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    uint64_t descriptorCpu=0;
+    DXGI_FORMAT viewFormat=DXGI_FORMAT_UNKNOWN;
+    bool snapshotSupported=false, texture2D=false;
+};
 bool ResolveComputeTextureBindings(const ComputeBindings&, std::span<const TextureTableRequest>,
-    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr) noexcept;
+    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr,
+    TextureBindingPurpose purpose=TextureBindingPurpose::SnapshotSupportedView, TextureBindingDiagnostic* diagnostic=nullptr) noexcept;
 bool ResolveGraphicsTextureBindings(const ComputeBindings&, std::span<const TextureTableRequest>,
-    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr) noexcept;
+    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr,
+    TextureBindingPurpose purpose=TextureBindingPurpose::SnapshotSupportedView, TextureBindingDiagnostic* diagnostic=nullptr) noexcept;
 bool ValidateTextureBindingWitnesses(std::span<const TextureBindingWitness>) noexcept;
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,

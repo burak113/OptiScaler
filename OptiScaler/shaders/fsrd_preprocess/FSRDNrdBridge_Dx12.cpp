@@ -1905,8 +1905,17 @@ bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
     if(requestCount)
     {
         const auto requested=std::span(requests.data(),requestCount);
-        if(!(pixel?FrameSurvey::ResolveGraphicsTextureBindings(bindings,requested,resources,&witnesses):
-            FrameSurvey::ResolveComputeTextureBindings(bindings,requested,resources,&witnesses))||resources.size()!=requestCount)return reject("work_texture_bindings");
+        FrameSurvey::TextureBindingDiagnostic diagnostic;
+        constexpr auto purpose=FrameSurvey::TextureBindingPurpose::ResourceExclusion;
+        if(!(pixel?FrameSurvey::ResolveGraphicsTextureBindings(bindings,requested,resources,&witnesses,purpose,&diagnostic):
+            FrameSurvey::ResolveComputeTextureBindings(bindings,requested,resources,&witnesses,purpose,&diagnostic))||resources.size()!=requestCount)
+        {
+            LOG_ERROR("[NRD_BRIDGE] work texture binding failed reason={} profile={} request={} kind={} register={} space={} root_parameter={} descriptor_offset={} descriptor_cpu={:#x} view_format={} snapshot_supported={} texture2D={}",
+                diagnostic.reason,selected.profile,diagnostic.request,uint32_t(diagnostic.kind),diagnostic.shaderRegister,
+                diagnostic.registerSpace,diagnostic.parameter,diagnostic.descriptorOffset,diagnostic.descriptorCpu,
+                uint32_t(diagnostic.viewFormat),diagnostic.snapshotSupported,diagnostic.texture2D);
+            return reject("work_texture_bindings");
+        }
         for(const auto& resource:resources)for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
             if(resource.resource==target.resource || (resource.resourceBirth&&target.resourceBirth&&
                 resource.resourceBirth->InstanceStamp()&&resource.resourceBirth->InstanceStamp()==target.resourceBirth->InstanceStamp()))return reject("work_texture_overlap");
