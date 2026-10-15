@@ -49,8 +49,8 @@ NrdReferenceHistory ReadReference(float2 position,float expectedDepth,float4 nr)
         if(!NrdRecoverySameGeometry(asfloat(g.x),NrdUnpackNormal(g.y),expectedDepth,nr))continue;
         const float w=(offset.x?f.x:1-f.x)*(offset.y?f.y:1-f.y);
         const float2 oldQ=asfloat(g.zw);
-        const bool2 counted=bool2(s.a>0&&all(isfinite(s))&&all(isfinite(gradient.xy))&&isfinite(oldQ.x)&&oldQ.x>0&&oldQ.x<=1,
-                                  d.a>0&&all(isfinite(d))&&all(isfinite(gradient.zw))&&isfinite(oldQ.y)&&oldQ.y>0&&oldQ.y<=1)&&(w>0);
+        const bool2 counted=bool2(s.a>0&&all(isfinite(s))&&all(isfinite(gradient.xy))&&isfinite(oldQ.x)&&oldQ.x>0&&oldQ.x<=1&&w>0,
+                                  d.a>0&&all(isfinite(d))&&all(isfinite(gradient.zw))&&isfinite(oldQ.y)&&oldQ.y>0&&oldQ.y<=1&&w>0);
         const float2 weights=float2(counted.x?w:0,counted.y?w:0);
         const float2 shift=position-p;
         if(counted.x)
@@ -115,7 +115,7 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
         NrdReferenceHistory h;h.valid=false;h.age=0;h.q=1;h.gradient=0;h.spec=h.diff=0;
         if(NrdRecoveryFlag(NRD_RECOVERY_HISTORY)&&geometry)
             h=ReadReference(float2(p)+(mv.xy-PixelJitters.zw)*FullSize.xy,z+mv.z,nr);
-        h.valid=h.valid&&eligible;
+        h.valid=bool2(h.valid.x&&eligible.x,h.valid.y&&eligible.y);
         float3 valueS=inputS.rgb,valueD=inputD.rgb,referenceS=inputS.rgb,referenceD=inputD.rgb;
         float4 gradient=0;float2 age=float2(eligible.x?1:0,eligible.y?1:0),q=1,innovation=0;
         if(h.valid.x)
