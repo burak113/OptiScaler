@@ -33,8 +33,11 @@ int main()try {
  cleanCase();need(SUCCEEDED(RecordedComputeLease::RequiredSubmissionFailure()),"new process has no fatal denial");
  const auto first=queue->executions;ResTrack_Dx12::hkSurveyExecuteCommandLists(queue.Get(),1,&list);
  need(queue->executions==first+1,"healthy no-participant FG-null queue forwards exactly once");
+ coveredFixtureList=static_cast<ID3D12GraphicsCommandList*>(source.Get());
+ need(!NrdBridgeNativeBirth::ObserveReleaseCoverage(reinterpret_cast<IUnknown*>(uintptr_t(0xfeed0000))),"coverage adapter rejects every foreign opaque address without COM");
  configureMetadataBirth();const auto born=NrdBridgeNativeBirth::Prepare(source.Get());
  need(born&&born->CacheAdmissible()&&!born->RecordingMayExist(),"actual GUID protocol publishes unmarked list birth");
+ need(coverageAccepted==2&&coverageRejected==1,"actual GUID Prepare checks exact owned typed and canonical Release entries via explicit adapter");
  const auto queries=source->queries;need(!HasRetainedSubmissionParticipant(1,&list)&&source->queries==queries,"healthy proven unmarked list takes exact native fastnegative");
  unsigned cases=0;
  for(unsigned route=0;route<3;++route) {
@@ -96,6 +99,14 @@ inline void AfterSubmission(ID3D12CommandQueue*,int) {} }'''
     needle = '#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h"'
     assert fixture.count(needle) == 1
     fixture = fixture.replace(needle, trace)
+    coverage = 'namespace NrdBridgeNativeBirth {bool ObserveReleaseCoverage(IUnknown*) noexcept {return false;}}'
+    assert fixture.count(coverage) == 1
+    fixture = fixture.replace(coverage, '''IUnknown* coveredFixtureList=nullptr;unsigned coverageAccepted=0,coverageRejected=0;
+namespace NrdBridgeNativeBirth {bool ObserveReleaseCoverage(IUnknown* object) noexcept {
+ if(object&&object==coveredFixtureList){++coverageAccepted;return true;}++coverageRejected;return false;}}''', 1)
+    # This CPU fixture never enters SDK-owned recording scopes.
+    fixture = fixture.replace('bool Internal() noexcept {return false;}',
+                              'bool Internal() noexcept {return false;} bool OwnedRelease() noexcept {return false;}', 1)
     sdk = Path(os.environ.get('FSRD_D3D12_SDK_HEADER',
         r'C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um/d3d12.h')).read_text()
     generated = fixture.replace('__ROOT__', ROOT.as_posix()).replace('__PRODUCTION__', '\n'.join(bodies))
