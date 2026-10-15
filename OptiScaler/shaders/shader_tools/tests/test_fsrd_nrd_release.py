@@ -55,6 +55,43 @@ def tracked_resource_cache(source):
     return source[start:end]
 
 
+def tracked_resource_slots(header, heap_type='HeapSlot'):
+    """Actual slot/key/storage types; only the weak heap receiver is adapted.
+
+    The frozen vector control keeps its original storage. Candidate inner maps
+    use the actual ankerl implementation, including its lazy nullable owner.
+    """
+    slot = function(header, 'struct TrackedResourceSlot\n{') + ';'
+    slot = slot.replace('std::weak_ptr<HeapInfo>', 'std::weak_ptr<' + heap_type + '>')
+    lazy = 'using TrackedResourceSlots = std::unique_ptr<TrackedResourceParticipants>;' in header
+    if lazy:
+        start = header.index('struct TrackedResourceSlotKey\n{')
+        end = header.index('inline ankerl::unordered_dense::map<ID3D12Resource*, TrackedResourceSlots>', start)
+        dense = (ROOT/'external/unordered_dense/include/ankerl/unordered_dense.h').as_posix()
+        types = '#include "' + dense + '"\n' + slot + '\n' + header[start:end]
+        seed = '''auto& slots=_trackedResources[resource];
+ if(!slots)slots=std::make_unique<TrackedResourceParticipants>();
+ slots->insert_or_assign(TrackedResourceSlotKey{version,index},TrackedResourceSlot{heap,version,index});'''
+        participants = 'auto& slots=_trackedResources.at(resource);if(!slots)throw std::runtime_error("null fixture participants");return *slots;'
+        find = 'return FixtureTrackedSlots(resource).at(TrackedResourceSlotKey{version,index});'
+    else:
+        types = slot + '\nusing TrackedResourceSlots=std::vector<TrackedResourceSlot>;\n'
+        seed = '_trackedResources[resource].push_back(TrackedResourceSlot{heap,version,index});'
+        participants = 'return _trackedResources.at(resource);'
+        find = '''for(const auto& slot:FixtureTrackedSlots(resource))
+  if(slot.heapVersion==version&&slot.index==index)return slot;
+ throw std::runtime_error("missing exact fixture participant");'''
+    helpers = '''
+// Setup/inspection helpers do not replace any production mutation/release body.
+void FixtureSeedTrackedSlot(ID3D12Resource* resource,std::weak_ptr<''' + heap_type + '''> heap,uint64_t version,UINT index){
+ ''' + seed + '''
+}
+auto& FixtureTrackedSlots(ID3D12Resource* resource){''' + participants + '''}
+const TrackedResourceSlot& FixtureTrackedSlot(ID3D12Resource* resource,uint64_t version,UINT index){''' + find + '''}
+'''
+    return types, helpers
+
+
 ENTRY_PROBE = r'''
 #define NOMINMAX
 #include <d3d12.h>
@@ -201,9 +238,10 @@ namespace FrameSurvey {
  void HeapCreated(ID3D12Device*,ID3D12DescriptorHeap* heap) noexcept {if(Internal())return;++heapPublications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.insert(heap);}
 }
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
-struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; size_t index=0; uint64_t heapVersion=0; };
+__TRACKED_SLOT_TYPES__
 std::mutex _trackedResourcesMutex,gRRResourceStateMutex,gRRPsoMutex;
-std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedResources;
+std::unordered_map<ID3D12Resource*,TrackedResourceSlots> _trackedResources;
+__TRACKED_SLOT_HELPERS__
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRResourcePsoProducers;
 __TRACKED_RESOURCE_CACHE__
 void CleanupRRPsoReferences(void*) { ++psoCleaned; }
@@ -384,7 +422,7 @@ std::shared_ptr<HeapInfo> seedHeap(Probe& object,bool tracked=true){
  {std::scoped_lock lock(heapMetadataMutex);heapMetadata.insert(heap);}
  if(!tracked)return{};
  auto info=std::make_shared<HeapInfo>();info->heap=heap;info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=reinterpret_cast<ID3D12Resource*>(&object);info->occupiedSlots.insert(0);
- _trackedResources[info->info[0].buffer]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};
+ FixtureSeedTrackedSlot(info->info[0].buffer,std::weak_ptr<HeapSlot>{},info->version.load(),0);
  seedHeapRegistry(info);return info;
 }
 bool heapMetadataLive(void* address){std::scoped_lock lock(heapMetadataMutex);return heapMetadata.contains(address);}
@@ -465,7 +503,7 @@ void nativeSharedTests(){
   if(heapFirst){EnsureHeapReleaseHook(heap.Get());ResTrack_Dx12::HookResource(device.Get());}else{ResTrack_Dx12::HookResource(device.Get());EnsureHeapReleaseHook(heap.Get());}
   need(nativeAttaches==1 && gHeapReleaseSharesResource && bool(o_HeapRelease) && bool(o_Release),"actual production installers attach one native detour for both creation orders");need(gHeapOwnsReleaseHook==heapFirst && gResourceReleaseSharesHeap==heapFirst,"native detour ownership/trampoline follows actual first installer");
   need(HeapReleaseObserverCovers(heap.Get()),"both native installer orders prove final Release coverage before borrowed heap admission");publishHeap(heap.Get(),true);
-  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();info->occupiedSlots.insert(0);seedHeapRegistry(info);_trackedResources[resource.Get()]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
+  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();info->occupiedSlots.insert(0);seedHeapRegistry(info);FixtureSeedTrackedSlot(resource.Get(),std::weak_ptr<HeapSlot>{},info->version.load(),0);nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
   heap.Reset();need(!info->active && !info->info && !heapMetadataLive(nativeWatchedHeap) && !_trackedResources.contains(resource.Get()),"real detoured native heap final Release deactivates FG/bridge registries before destruction");need(nativeWatchedNotifications==1 && gHeapGeneration==generation+1,"real shared entry observes heap once without a double-detour chain or recursion");resource.Reset();nativeWatchedHeap=nullptr;
   need(DetourTransactionBegin()==NO_ERROR && DetourUpdateThread(GetCurrentThread())==NO_ERROR,"native teardown transaction starts");
   __RESOURCE_DETACH__
@@ -498,7 +536,7 @@ int main(int argc,char** argv) try {
  need(hkCommandListRelease(&held)==0 && held.destroyed,"later final shared release cleans before destroy");
  Probe resource; seed(resource);
  auto* address=reinterpret_cast<ID3D12Resource*>(&resource);
- auto heap=std::make_shared<HeapSlot>(); _trackedResources[address]={{heap,5}};
+  auto heap=std::make_shared<HeapSlot>(); FixtureSeedTrackedSlot(address,heap,0,5);
  gRRResourceStates.insert(address); gRRResourceActivity.insert(address); SeedFixtureRRCache(address);
  gRRResourcePsoProducers.insert(address); State::Instance().capturedHudlesses.insert(address);
  const auto slots=slotsCleaned;
@@ -565,6 +603,8 @@ int main(int argc,char** argv) try {
 
     replacements = {
         'ROOT':ROOT.as_posix(), 'STATE':state,
+        'TRACKED_SLOT_TYPES':tracked_resource_slots(res_header)[0],
+        'TRACKED_SLOT_HELPERS':tracked_resource_slots(res_header)[1],
         'INTERNAL_IMPL':'\n'.join(function(survey,s) for s in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'ScopedRecording::ScopedRecording()', 'ScopedRecording::~ScopedRecording()', 'bool OwnedRelease() noexcept', 'bool Internal() noexcept')),
         'RESET':function(d3d,'void D3D12Hooks::OnBridgeCommandListReset('),
         'RELEASE':res_function(res,'hkRelease'),
