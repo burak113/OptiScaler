@@ -19,6 +19,23 @@ class ReferenceSettings(Settings):
     negative_limit: float = .25
     bound_projection: str = 'uniform'
     projection_tile: int = 8
+    texture_storage: str = 'fp32'
+
+
+def half_store_rtz(value):
+    """D3D float32-to-half texture store, explicitly toward zero, then FP32 load.
+
+    NumPy's conversion supplies nearest-even first. If it moved away from zero,
+    the adjacent smaller half magnitude is the exact toward-zero result. Signed
+    subnormals, zero and finite overflow are included; no noise-floor clamping.
+    """
+    value=np.asarray(value,np.float32)
+    with np.errstate(over='ignore',invalid='ignore'):
+        rounded=value.astype(np.float16)
+    bits=rounded.view(np.uint16).copy()
+    away=np.isfinite(value)&(np.abs(rounded.astype(np.float32))>np.abs(value))
+    bits[away]-=np.uint16(1)
+    return bits.view(np.float16).astype(np.float32)
 
 
 def gradient_colour(value):
@@ -77,9 +94,14 @@ def finish(rr,correction,supported,settings):
 
 class LobeReferenceRecovery(Recovery):
     def __init__(self,settings=ReferenceSettings()):
+        if settings.texture_storage not in ('fp32','mixed'):
+            raise ValueError('explicit fp32 or mixed texture storage required')
         super().__init__(settings)
         self.reference = None
         self.previous_jitter = None
+
+    def store(self,value):
+        return half_store_rtz(value) if self.settings.texture_storage=='mixed' else value
 
     def reset(self):
         super().reset()
@@ -187,13 +209,13 @@ class LobeReferenceRecovery(Recovery):
                 low = np.minimum(low,np.where(valid[...,None],tap,np.inf))
                 high = np.maximum(high,np.where(valid[...,None],tap,-np.inf))
         reference = np.where((low<=high),np.clip(reference,low,high),reference)
-        levels,innovations,masks,ages,weights = [reference-rr],[innovation],[safe.astype(np.float32)],[age],[q]
+        levels,innovations,masks,ages,weights = [self.store(reference-rr)],[self.store(innovation)],[safe.astype(np.float32)],[self.store(age)],[self.store(q)]
         for _ in range(s.levels):
-            levels.append(down(levels[-1]))
-            innovations.append(down(innovations[-1]))
+            levels.append(self.store(down(levels[-1])))
+            innovations.append(self.store(down(innovations[-1])))
             masks.append(down(masks[-1],minimum=True))
-            ages.append(down(ages[-1],minimum=True))
-            weights.append(-down(-weights[-1],minimum=True))
+            ages.append(self.store(down(ages[-1],minimum=True)))
+            weights.append(self.store(-down(-weights[-1],minimum=True)))
         states,corrections = [],[]
         for level in range(s.levels):
             lh,lw = levels[level].shape[:2]
@@ -230,12 +252,15 @@ class LobeReferenceRecovery(Recovery):
         collapsed = np.zeros_like(corrections[-1])
         for level in reversed(range(s.levels)):
             collapsed = corrections[level]+(up(collapsed,corrections[level].shape[:2]) if level<s.levels-1 else 0)
+            # The next finer pass loads the stored texture. Level0 final RGB
+            # uses its unquantized register before the separate final RNE store.
+            if level>0:collapsed=self.store(collapsed)
         # Exact current noisy==RR provides no measured evidence of lost detail.
         supported = safe&(age>=s.minimum_age)&np.any(signal!=rr,axis=-1)
         correction,statistics = finish(rr,collapsed,supported,s)
         result = denoised.copy()
         result[...,:3] = rr+correction
-        self.reference = dict(value=value,gradient=gradient,age=age,q=q,depth=depth.copy(),normal=normal.copy(),
+        self.reference = dict(value=self.store(value),gradient=self.store(gradient),age=self.store(age),q=q,depth=depth.copy(),normal=normal.copy(),
             roughness=roughness.copy(),material=material.copy())
         self.states,self.last_frame,self.extent,self.previous_jitter = states,frame,depth.shape,jitter
         self.last_stats = dict(**statistics,mature_fraction=float((age>=s.minimum_age).mean()),

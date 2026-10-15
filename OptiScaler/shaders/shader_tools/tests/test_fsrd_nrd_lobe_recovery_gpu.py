@@ -64,7 +64,7 @@ def deterministic_history(directory,shaders,runner,storage='fp32'):
     job = ChainJob(directory,runner)
     width,height = 33,29
     graph = LobeGraph(job,shaders,width,height,prefix='odd',storage=storage)
-    cpu = {signal:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor')) for signal in ('spec','diff')}
+    cpu = {signal:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor',texture_storage=storage)) for signal in ('spec','diff')}
     expected,outputs = [],[]
     yy,xx = np.mgrid[:height,:width]
     for index in range(24):
@@ -86,7 +86,7 @@ def deterministic_history(directory,shaders,runner,storage='fp32'):
             value = actual[outputs[index][signal]]
             need(np.array_equal(value[...,3],reference[...,3]), 'GPU graph preserves opaque RR alpha exactly')
             need(np.isfinite(value).all() and np.all(value[...,:3]>=0), 'finite nonnegative GPU output')
-            need(np.array_equal(value,reference), 'noise-free binary odd-size fullgraph CPU/GPU words exact, including cold/depthjump/R0')
+            need(np.array_equal(value,reference), 'noise-free binary odd-size fullgraph CPU/GPU words exact for declared storage, including cold/depthjump/R0')
     return dict(metadata=metadata,native=runner.runs[-1],frames=24,passes=len(job.passes),checks=CHECKS,
                 packed_native_payload_bytes=graph.allocated_native_bytes())
 
@@ -135,7 +135,7 @@ def real_history(directory,shaders,runner,manifest_path,completed,view,storage='
     width,height = manifest['width'],manifest['height']
     job = ChainJob(directory,runner)
     graph = LobeGraph(job,shaders,width,height,prefix='real',storage=storage)
-    cpu = {s:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor')) for s in ('spec','diff')}
+    cpu = {s:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor',texture_storage=storage)) for s in ('spec','diff')}
     expected,outputs = [],[]
     for index,frame in enumerate(manifest['frames']):
         data = load_case_frame(manifest_path.parent,manifest,physical_root,frame,native,native_directory,view_directory)
