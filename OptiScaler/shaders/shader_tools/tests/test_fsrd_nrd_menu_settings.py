@@ -482,6 +482,11 @@ def run():
     contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('RRSettings','RRSettingsState'))
     contract_origin='actual public RR header; actual public Status header'
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
+    # D06/D07 recovery tiers/reasons plus the exact production name definitions:
+    # the sliced recovery panel calls NrdBridge::LobeRecoveryFallbackReasonName.
+    rr_cpp=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp').read_text()
+    contract+='\n'+rr[rr.index('enum class LobeRecoveryTier'):rr.index('// Optional graph budgets')]
+    contract+='\n'.join(function(rr_cpp,'const char* '+name+'(') for name in ('LobeRecoveryTierName','LobeRecoveryFallbackReasonName'))
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
         load=re.findall(r'^\s*'+field+r'\.set_from_config\([^;\n]*read'+kind+r'\("FSR-RR", "'+key+r'"\)[^;\n]*\);',config,re.M)
