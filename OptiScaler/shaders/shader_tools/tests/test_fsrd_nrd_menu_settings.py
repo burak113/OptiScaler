@@ -20,6 +20,7 @@ KEYS = {
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
     'FfxDenoiserNrdBridgeNativeTemporalMotion': ('NrdBridgeNativeTemporalMotion', 'Bool'),
+    'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeNativeSpecularBlend': ('NrdBridgeNativeSpecularBlend', 'Float'),
     'FfxDenoiserNrdBridgeEnabled': ('NrdBridgeEnabled', 'Bool'),
@@ -64,13 +65,13 @@ __FFX_DEBUG_CONTRACT__
 namespace FSRDSignals {constexpr int Auto=0;}
 namespace NrdBridge {
 __RR_CONTRACT__
-bool startup=false,runtime=true,camera=false,accept=true;unsigned applyCalls=0,resetCalls=0,statusCalls=0;
+bool startup=false,runtime=true,camera=false,accept=true,guidesActive=false;unsigned applyCalls=0,resetCalls=0,statusCalls=0;
 RRSettings last{};bool lastCamera=false;RRSettingsState state;
 enum class DebugMode {Off,RawSignals,RRInputs};DebugMode conversionDebug=DebugMode::Off;
-struct Status {std::string phase="Active",reason="test",resources;};
+struct Status {std::string phase="Active",reason="test",resources;bool nativeMaterialGuidesActive=false;};
 bool StartupEnabled(){return startup;}bool RuntimeEnabled(){return runtime;}
 void SetRuntimeEnabled(bool value){runtime=value;}
-Status GetStatus(){++statusCalls;return {};}
+Status GetStatus(){++statusCalls;Status value;value.nativeMaterialGuidesActive=guidesActive;return value;}
 void RequestHistoryReset(){++resetCalls;}
 DebugMode GetDebugMode(){return conversionDebug;}void SetDebugMode(DebugMode value){conversionDebug=value;}
 bool ApplyRRSettings(const RRSettings& settings,bool motion,std::string& error) noexcept {
@@ -147,8 +148,8 @@ int main(){try{
  for(const char* term:{"Specular lighting","Diffuse lighting","Hit distance","Normal + roughness","Linear VIEWZ","Motion + jitter","Albedo guides","Consumer output encoding","Unused title inputs"})
  need(ImGui::hasText(term),"Every supported/unused input has a human-readable row");
  need(ImGui::hasText("303")&&ImGui::hasText("1212")&&ImGui::hasText("factor 64")&&ImGui::hasText("previous-frame depth"),"Map explains exact Consumer encoding and baseline motion depth");
- need(ImGui::hasText("implementation assumption")&&ImGui::hasText("material/albedo writer has not been verified")&&ImGui::hasText("material/albedo contract is unverified"),
- "Map explains demodulated-lighting assumption and unverified native material contract");
+ need(ImGui::hasText("confirmed by the downstream material compositor")&&ImGui::hasText("does not divide it again")&&ImGui::hasText("omitting material cues"),
+ "Map explains attested demodulation, material remodulation and white-guide limits");
  need(!ImGui::hasText("already-demodulated")&&!ImGui::hasText("albedo division is needed"),
  "Map preserves uncertainty instead of asserting proven demodulation or albedo matching");
  ImGui::frame();ImGui::floats["Max Radiance"]=100;drawBridge(&cfg);need(!NrdBridge::applyCalls&&cfg.FfxDenoiserMaxRadiance.value_or_default()==40000,"OFF custom tuning ignores disabled slider edits");
@@ -274,6 +275,21 @@ int main(){try{
  "Full reset disables native motion in Config and applied snapshot");
  cfg.load("[FSR-RR]\nNrdBridgeNativeTemporalMotion=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion,
  "Malformed native motion setting stays OFF");
+ cfg.load("[FSR-RR]\n");ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&NrdBridge::applyCalls==before,
+ "Native material guidance defaults OFF without idle apply");
+ ImGui::frame();ImGui::bools["Native material albedo guides (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeMaterialGuides&&NrdBridge::last.overrideMask==0,
+ "Native material guidance is an independent coherent runtime snapshot");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeMaterialGuides,
+ "Native material guidance survives actual serialization/reload");
+ ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("waiting for matching writer/state proof"),"Requested native guides show effective white fallback until proven");
+ NrdBridge::guidesActive=true;ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Proven same-writer guides")&&ImGui::hasText("Unknown source state/material"),
+ "Native input map documents actual material model and guarded white fallback");
+ cfg.ResetFfxDenoiserSettings();need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&!NrdBridge::last.nativeMaterialGuides,
+ "Full reset clears native material guidance in Config and runtime");
+ cfg.load("[FSR-RR]\nNrdBridgeNativeMaterialGuides=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides,
+ "Invalid native material key keeps safe OFF default");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -306,7 +322,7 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeNativeMaterialGuides'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1

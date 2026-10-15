@@ -5256,6 +5256,7 @@ void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UIN
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Barrier,gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (FrameSurvey::Internal()) { o_ResourceBarrier(This,NumBarriers,pBarriers); return; }
+    NrdBridge::OnResourceBarriers(This,NumBarriers,pBarriers);
     FrameSurvey::Barrier(This,NumBarriers,pBarriers);
     hkResourceBarrier(This,NumBarriers,pBarriers);
 }
@@ -5296,6 +5297,7 @@ HRESULT ResTrack_Dx12::hkSurveyClose(ID3D12GraphicsCommandList* This)
 {
     const auto result = hkClose(This);
     FrameSurvey::Close(This,result);
+    NrdBridge::OnRecordingClosed(This,result);
     return result;
 }
 

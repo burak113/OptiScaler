@@ -189,6 +189,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeEnabled.reset();
     FfxDenoiserNrdBridgeMotionDepthMode.reset();
     FfxDenoiserNrdBridgeNativeTemporalMotion.reset();
+    FfxDenoiserNrdBridgeNativeMaterialGuides.reset();
     FfxDenoiserNrdBridgeMaterialIDs.reset();
     FfxDenoiserNrdBridgeNativeSpecularBlend.reset();
     FfxDenoiserNrdBridgeUseCustomRR.reset();
@@ -530,6 +531,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeEnabled.set_from_config(readBool("FSR-RR", "NrdBridgeEnabled"));
             FfxDenoiserNrdBridgeMotionDepthMode.set_from_config(readBool("FSR-RR", "NrdBridgeMotionDepthMode"));
             FfxDenoiserNrdBridgeNativeTemporalMotion.set_from_config(readBool("FSR-RR", "NrdBridgeNativeTemporalMotion"));
+            FfxDenoiserNrdBridgeNativeMaterialGuides.set_from_config(readBool("FSR-RR", "NrdBridgeNativeMaterialGuides"));
             FfxDenoiserNrdBridgeMaterialIDs.set_from_config(readBool("FSR-RR", "NrdBridgeMaterialIDs"));
             FfxDenoiserNrdBridgeNativeSpecularBlend.set_from_config(readFloat("FSR-RR", "NrdBridgeNativeSpecularBlend"));
             FfxDenoiserNrdBridgeUseCustomRR.set_from_config(readBool("FSR-RR", "NrdBridgeUseCustomRR"));
@@ -1528,6 +1530,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeEnabled", GetBoolValue(Instance()->FfxDenoiserNrdBridgeEnabled.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMotionDepthMode", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMotionDepthMode.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeTemporalMotion", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeTemporalMotion.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeNativeMaterialGuides", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeMaterialGuides.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMaterialIDs", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMaterialIDs.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeSpecularBlend", GetFloatValue(Instance()->FfxDenoiserNrdBridgeNativeSpecularBlend.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeUseCustomRR", GetBoolValue(Instance()->FfxDenoiserNrdBridgeUseCustomRR.value_for_config()).c_str());

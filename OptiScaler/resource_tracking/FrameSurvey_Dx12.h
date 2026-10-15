@@ -30,6 +30,7 @@ struct BoundResource
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     uint32_t descriptorOffset = UINT32_MAX, descriptorIndex = UINT32_MAX, subresource = 0;
     NrdBridgeBirth::Token resourceBirth; // Metadata only; exact native instance, no COM ownership.
+    uint64_t resourceGeneration = 0; // Monotonic registry identity also protects legacy null-birth bindings from ABA.
 };
 struct BoundConstantBuffer
 {

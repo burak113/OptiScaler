@@ -5,6 +5,7 @@
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdBridge_Shader.h"
+#include "precompile/FSRDNrdBridgeMaterial_Shader.h"
 #include "precompile/FSRDNrdBridgeCopy_Shader.h"
 #include "precompile/FSRDNrdBridgeMotion_Shader.h"
 #include "precompile/FSRDNrdBridgeMotionNative_Shader.h"
@@ -159,14 +160,15 @@ struct ConversionPass::Impl
     uint64_t textureBytes = 0;
     bool historyValid = false;
     std::mutex mutex;
-    Pipeline conversion, copy, motionPass, nativeMotionPass;
+    Pipeline conversion, materialConversion, copy, motionPass, nativeMotionPass;
+    bool materialInitialized = false;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint64_t zeroBytes = 0;
     bool motionInitialized = false, nativeMotionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false, motionCameraProjectedDepthDelta = false;
-    bool motionPreserveNativeMaterialIDs = false, motionNativeTemporal = false;
+    bool motionPreserveNativeMaterialIDs = false, motionNativeTemporal = false, motionNativeMaterial = false;
     bool previousCameraValid = false;
     DirectX::XMFLOAT4X4 previousCameraView {}, motionInverseProjection {};
     DirectX::XMFLOAT4 motionPreviousViewDepthRow {};
@@ -254,8 +256,17 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
+        const bool materialGuides = frame.nativeMaterialGuides && inputs.nativeMaterial;
+        if (materialGuides && !TextureMatches(inputs.nativeMaterial,owner->width,owner->height,DXGI_FORMAT_R16G16B16A16_FLOAT,false))
+        { error="Native material snapshot shape/format differs from same-frame Recon"; return false; }
+        if (materialGuides && !owner->materialInitialized)
+        {
+            owner->materialConversion.Initialize(owner->device.Get(),FSRDNrdBridgeMaterial_cso,sizeof(FSRDNrdBridgeMaterial_cso),5,9);
+            owner->materialInitialized = true;
+        }
+        auto& pipeline = materialGuides ? owner->materialConversion : owner->conversion;
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
-        lease->slot = owner->conversion.Acquire(owner->device.Get());
+        lease->slot = pipeline.Acquire(owner->device.Get());
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
         { error = "NRD conversion GPU lifetime tracking unavailable"; return false; }
         const uint32_t writeIndex = 1 - owner->previousIndex;
@@ -287,8 +298,9 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         { error = "NRD jitter delta overflow"; return false; }
         DirectX::XMStoreFloat4x4(&constants.inverseProjection, inverseProjection);
         DirectX::XMStoreFloat4x4(&constants.worldToView, frame.camera.view);
-        owner->conversion.Describe(owner->device.Get(), *lease->slot,
-            {inputs.normals, inputs.viewDepth, inputs.motion, owner->depth[owner->previousIndex].resource.Get()},
+        std::vector<ID3D12Resource*> srvs {inputs.normals,inputs.viewDepth,inputs.motion,owner->depth[owner->previousIndex].resource.Get()};
+        if (materialGuides) srvs.push_back(inputs.nativeMaterial);
+        pipeline.Describe(owner->device.Get(), *lease->slot, srvs,
             {inputs.reconSpec, inputs.reconDiff, owner->spec.resource.Get(), owner->diff.resource.Get(),
              writeDepth.resource.Get(), owner->motion.resource.Get(), owner->normals.resource.Get(),
              owner->specAlbedo.resource.Get(), owner->diffAlbedo.resource.Get()});
@@ -296,7 +308,20 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         const std::array<OwnedTexture*, 7> outputs {&owner->spec, &owner->diff, &writeDepth, &owner->motion,
                                                    &owner->normals, &owner->specAlbedo, &owner->diffAlbedo};
         for (auto* texture : outputs) texture->Transition(list, kWrite);
-        owner->conversion.Record(list, *lease->slot, &constants, 52, owner->width, owner->height);
+        D3D12_RESOURCE_BARRIER materialBarrier {};
+        if (materialGuides)
+        {
+            materialBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            materialBarrier.Transition = {inputs.nativeMaterial,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                D3D12_RESOURCE_STATE_COMMON,kRead};
+            list->ResourceBarrier(1,&materialBarrier);
+        }
+        pipeline.Record(list, *lease->slot, &constants, 52, owner->width, owner->height);
+        if (materialGuides)
+        {
+            std::swap(materialBarrier.Transition.StateBefore,materialBarrier.Transition.StateAfter);
+            list->ResourceBarrier(1,&materialBarrier);
+        }
         for (auto* texture : outputs) texture->Transition(list, kRead);
         owner->pendingMotion = inputs.motion == nullptr;
         owner->motionPreviousIndex = owner->previousIndex;
@@ -304,6 +329,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
         owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
         owner->motionNativeTemporal = frame.nativeTemporalMotion;
+        owner->motionNativeMaterial = frame.nativeMaterialGuides;
         if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
         {
             owner->motionInverseProjection = constants.inverseProjection;
@@ -333,7 +359,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
         owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
         owner->motionCameraProjectedDepthDelta != frame.cameraProjectedDepthDelta ||
         owner->motionPreserveNativeMaterialIDs != frame.preserveNativeMaterialIDs ||
-        owner->motionNativeTemporal != frame.nativeTemporalMotion ||
+        owner->motionNativeTemporal != frame.nativeTemporalMotion || owner->motionNativeMaterial != frame.nativeMaterialGuides ||
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
         resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
         resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||

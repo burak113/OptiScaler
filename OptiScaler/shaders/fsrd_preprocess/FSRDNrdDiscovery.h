@@ -14,7 +14,8 @@ struct ShaderRole
     std::string_view sha256;
     Role role;
 };
-inline constexpr std::array<ShaderRole,10> ShaderRoles {{
+inline constexpr std::array<ShaderRole,11> ShaderRoles {{
+    {"3e09f2e0d948f77869a0628524c14463e1fdb06fcfb78aa60fc102c78fb0d5ed",Role::MaterialGuide},
     {"87d570aa46a3823e9c4468b0ba2c7050364d95cec8c4f9a04eb282dfa0240f80",Role::PrepLast},
     {"ec37e0d8a2672d515a807ce0712737c1b186adfebf5530dd260d2b624877771e",Role::Recon},
     {"442e2282fcde781030081198a587d168d46b5ab9f89f79d6d6abcbf163b24d9e",Role::PrePass},

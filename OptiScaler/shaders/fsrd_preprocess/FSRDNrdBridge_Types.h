@@ -8,7 +8,7 @@
 
 namespace NrdBridge
 {
-enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer };
+enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer, MaterialGuide };
 enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
 enum class SignalEncoding : uint8_t { Rgb, YCoCg };
 // Optional NRD-assisted specular reference; malformed values disable the hybrid.
@@ -52,6 +52,7 @@ struct ConversionInputs
     ID3D12Resource* normals = nullptr;
     ID3D12Resource* viewDepth = nullptr;
     ID3D12Resource* motion = nullptr;
+    ID3D12Resource* nativeMaterial = nullptr; // Owned same-recording baseColorLinear/metal snapshot.
 };
 // Both resources are borrowed only while recording; constants is bridge-owned and GPU-leased.
 struct NativeMotionSource
@@ -80,6 +81,7 @@ struct FrameParameters
     uint32_t streamlineFrame = UINT32_MAX, frameIndex = 0;
     bool motionVectorsJittered = false, motionVectors3D = false;
     bool reset = true, previousValid = false;
+    bool nativeMaterialGuides = false; // Same-writer material cues; no further lighting demodulation.
     bool nativeTemporalMotion = false; // Same-binding native Temporal surface reprojection, captured with Recon.
     bool cameraProjectedDepthDelta = false; // Experimental camera-only B; capture with the Recon ticket.
     bool preserveNativeMaterialIDs = false; // Experimental native categorical A; capture with the Recon ticket.

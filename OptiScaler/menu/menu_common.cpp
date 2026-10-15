@@ -3279,6 +3279,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     NrdBridge::RRSettings settings;
     settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
+    settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
     settings.nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
@@ -3320,6 +3321,16 @@ static void DrawNrdBridgeRRTuning(Config* config)
     changed |= DrawAmdRRTuning(config, true);
     ImGui::EndDisabled();
     ImGui::PopID();
+    bool nativeGuides = config->FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
+    if (ImGui::Checkbox("Native material albedo guides (experimental)", &nativeGuides))
+    {
+        config->FfxDenoiserNrdBridgeNativeMaterialGuides = nativeGuides;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Captures same-recording native base color and metallic when their compute-read state is proven. "
+                          "Diffuse guide uses baseColor*(1-metal); specular uses AMD's analytic GGX BRDF. "
+                          "Unknown special material/state uses white guides. Lighting stays demodulated. History resets on change. Default off.");
     bool nativeMotion = config->FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     if (ImGui::Checkbox("Native NRD surface reprojection (experimental)", &nativeMotion))
     {
@@ -3402,8 +3413,8 @@ static void DrawNrdBridgeInputMap()
             ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(name);
             ImGui::TableNextColumn(); ImGui::TextWrapped("%s", meaning);
         };
-        row("Specular lighting", "Separate native NRD-domain RGB. The bridge treats it as demodulated specular lighting (an implementation assumption) and sanitizes nonfinite/negative RGB before RR.");
-        row("Diffuse lighting", "Separate native NRD-domain RGB, treated as demodulated diffuse lighting. The original Recon material/albedo writer has not been verified.");
+        row("Specular lighting", "Separate demodulated native NRD RGB, confirmed by the downstream material compositor. The bridge sanitizes nonfinite/negative RGB before RR.");
+        row("Diffuse lighting", "Separate demodulated diffuse lighting. The verified downstream compositor multiplies it by baseColorLinear*(1-metallic); the bridge does not divide it again.");
         row("Hit distance", "Each lobe keeps its native alpha/hit-distance metric, including finite inactive sentinels. The bridge does not normalize it.");
         row("Normal + roughness", NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs
             ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
@@ -3414,7 +3425,11 @@ static void DrawNrdBridgeInputMap()
             : NrdBridge::CameraProjectedDepthEnabled()
             ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
             : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
-        row("Albedo guides", "White RGB guides are supplied for both lobes under that assumption. The native material/albedo contract is unverified. Specular alpha stores normal/view alignment; diffuse alpha is 0. AMD documents guide RGB.");
+        row("Albedo guides", NrdBridge::GetRRSettingsState().requested.nativeMaterialGuides
+            ? (NrdBridge::GetStatus().nativeMaterialGuidesActive
+                ? "Proven same-writer guides use linear baseColor*(1-metal) for diffuse and AMD analytic GGX specular RGB. Unknown source state/material falls back to white. Albedo alpha is unused by AMD RR1.2."
+                : "Requested native material guides: waiting for matching writer/state proof; white guides remain active.")
+            : "White RGB guides preserve the demodulated lighting convention while omitting material cues. Specular alpha stores diagnostic normal/view alignment; AMD RR1.2 ignores albedo alpha.");
         row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
         row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
         ImGui::EndTable();

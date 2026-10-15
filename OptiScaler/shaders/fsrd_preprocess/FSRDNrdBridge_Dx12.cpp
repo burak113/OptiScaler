@@ -4,6 +4,8 @@
 #include "FSRDNrdDiscovery.h"
 #include "FSRDNrdBridgePass_Dx12.h"
 #include "FSRDNrdNativeTemporalConstants_Dx12.h"
+#include "FSRDNrdNativeMaterialCapture_Dx12.h"
+#include "FSRDNrdNativeMaterialStateWitness.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "Config.h"
 #include "Logger.h"
@@ -51,6 +53,7 @@ struct HistoryDomain
     NativeTemporalCapture nativeTemporalCapture;
     RRWrapper rr;
     uint64_t resourceGeneration = 0, id = 0;
+    bool materialGuidesKnown = false, materialGuidesUsed = false;
     std::shared_ptr<RecordingToken> latestRecording; // CPU recording order, under gInjectionMutex.
     std::atomic<bool> uncertain {false}, discardPending {false};
     std::mutex submissionMutex;
@@ -84,6 +87,13 @@ struct ResourceIdentityHash
     { return std::hash<void*>{}(identity.address) ^ (std::hash<const void*>{}(identity.birth.get()) << 1); }
 };
 struct PipelineIdentity { Role role = Role::None; NrdBridgeBirth::Token birth; };
+struct MaterialSnapshot
+{
+    NativeMaterialCapture::SnapshotLease snapshot;
+    ID3D12Resource* normal = nullptr;
+    NrdBridgeBirth::Token normalBirth;
+    uint64_t serial = 0, normalGeneration = 0;
+};
 struct ListState
 {
     Role role = Role::None;
@@ -98,6 +108,8 @@ struct ListState
     FrameParameters parameters {};
     ConvertedResources inputs {};
     NativeTemporalCapture::SnapshotLease nativeMotionSnapshot;
+    MaterialSnapshot pendingMaterial, material;
+    NativeMaterialStateWitness materialStates;
     DebugMode debug = DebugMode::Off;
     std::array<std::weak_ptr<RecordingToken>,4> debugPresentations {};
 };
@@ -109,6 +121,7 @@ struct Service
     std::unordered_map<ResourceIdentity,std::unordered_set<ID3D12GraphicsCommandList*>,ResourceIdentityHash> chainUsers;
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
     DiscoveryCache cache;
+    NativeMaterialCapture nativeMaterialCapture;
     std::array<NrdBridgeBirth::Token,9> cacheBirths {};
     std::shared_ptr<HistoryDomain> history;
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
@@ -135,6 +148,7 @@ std::atomic<const char*> gStartupFailure {nullptr};
 std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
 std::atomic<bool> gNativeDebug {false};
+std::atomic<bool> gNativeMaterials {false};
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
 void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
@@ -202,6 +216,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeNativeSpecularBlend; })
         settings.nativeSpecularBlend = NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
+    if constexpr (requires { config.FfxDenoiserNrdBridgeNativeMaterialGuides; })
+        settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeNativeTemporalMotion; })
         settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     return settings;
@@ -280,7 +296,7 @@ bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
 {
     if (a.overrideMask != b.overrideMask || a.nativeDebugView != b.nativeDebugView ||
         a.nativeDebugViewport != b.nativeDebugViewport || a.preserveNativeMaterialIDs != b.preserveNativeMaterialIDs ||
-        a.nativeTemporalMotion != b.nativeTemporalMotion) return false;
+        a.nativeTemporalMotion != b.nativeTemporalMotion || a.nativeMaterialGuides != b.nativeMaterialGuides) return false;
     for (uint32_t i=0;i<8;++i)
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;
@@ -319,7 +335,7 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
 }
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
-    owner.pendingList = nullptr; owner.status.active = false; ClearNativeDebugSources(owner,retired);
+    owner.pendingList = nullptr; owner.status.active = false; owner.status.nativeMaterialGuidesActive = false; ClearNativeDebugSources(owner,retired);
     for (auto& [cmd,list] : owner.lists) list.converted = list.motionReady = false;
     ++owner.resetSerial; ++owner.cancellationSerial;
 }
@@ -511,6 +527,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
 {
     Resources resources; uint64_t generation = 0, serial = 0; bool reset = false, discard = false;
     RRSettings rrSettings; bool cameraProjectedDepthDelta = false;
+    NativeMaterialCapture::SnapshotLease materialSnapshot;
     {
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
@@ -539,6 +556,15 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
             found->second.chain.Get().viewDepth != resources.viewDepth) return;
         discard = owner->discardRequested;
         rrSettings = owner->rrSettings; cameraProjectedDepthDelta = owner->cameraProjectedDepthDelta;
+        if (rrSettings.nativeMaterialGuides)
+        {
+            const auto& material = found->second.material;
+            if (material.serial != serial || material.normal != resources.normals || !BirthLive(material.normalBirth) ||
+                !material.normalGeneration || material.normalGeneration != found->second.chain.Bindings()[2].resourceGeneration ||
+                (BirthMode() && material.normalBirth != found->second.chain.Bindings()[2].resourceBirth))
+                materialSnapshot.reset(); // White fallback until a fresh state/identity proof exists.
+            else materialSnapshot = material.snapshot;
+        }
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
@@ -574,6 +600,8 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         owner->historyDomains.push_back(history); owner->history = history;
         reset = true;
     }
+    const bool materialApplied = rrSettings.nativeMaterialGuides && NativeMaterialCapture::Resource(materialSnapshot);
+    if (rrSettings.nativeMaterialGuides && history->materialGuidesKnown && history->materialGuidesUsed != materialApplied) reset = true;
     history->latestRecording = recording;
     auto ownership = MakeOwnedShared<RecordingOwnership>(); ownership->history = history; ownership->token = recording;
     RecordedComputeLease::SubmissionCallbacks submission;
@@ -662,6 +690,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (succeeded) succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
         parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
         parameters.nativeTemporalMotion = rrSettings.nativeTemporalMotion;
+        parameters.nativeMaterialGuides = rrSettings.nativeMaterialGuides;
         parameters.preserveNativeMaterialIDs = rrSettings.preserveNativeMaterialIDs;
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
@@ -669,10 +698,15 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (!succeeded && error.empty()) error = "Could not retain NRD recording submission token";
         if (succeeded)
         {
-            const ConversionInputs inputs {resources.reconSpec,resources.reconDiff,resources.normals,resources.viewDepth,nullptr};
+            const ConversionInputs inputs {resources.reconSpec,resources.reconDiff,resources.normals,resources.viewDepth,nullptr,
+                NativeMaterialCapture::Resource(materialSnapshot)};
             succeeded = history->conversion.Dispatch(cmd,inputs,parameters,converted,error);
         }
-        if (succeeded) conventions = Conventions(history->rr);
+        if (succeeded)
+        {
+            history->materialGuidesKnown = true; history->materialGuidesUsed = materialApplied;
+            conventions = Conventions(history->rr);
+        }
     }
     if (!succeeded) { Failure(owner,error.empty() ? "NRD input conversion failed" : error); return; }
     bool logConventions = false;
@@ -690,11 +724,70 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         list.parameters = parameters; list.inputs = converted; list.debug = gDebug.load(std::memory_order_relaxed);
         owner->rrSettingsState = history->rr.GetSettingsState();
         owner->pendingList = cmd; owner->appliedReset = serial;
+        owner->status.nativeMaterialGuidesActive = materialApplied;
         logConventions = !owner->conventionsLogged && !conventions.empty();
         if (logConventions) owner->conventionsLogged = true;
     }
     if (logConventions) LOG_INFO("[NRD_BRIDGE] SL conventions: {}",conventions);
 }
+bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
+{
+    std::shared_ptr<Service> owner; NrdBridgeBirth::Token receiverBirth; uint64_t serial = 0;
+    MaterialSnapshot retiredMaterial;
+    {
+        std::scoped_lock lock(gMutex); owner = gService; if (!owner) return false;
+        const auto found = owner->lists.find(cmd);
+        if (found == owner->lists.end() || found->second.role != Role::MaterialGuide) return false;
+        retiredMaterial = std::move(found->second.pendingMaterial); // Tombstone even if this writer cannot borrow/capture.
+        if (!owner->rrSettings.nativeMaterialGuides || !owner->window || !ListLive(found->second)) return true;
+        receiverBirth = found->second.birth; serial = owner->cancellationSerial;
+    }
+    std::scoped_lock injection(gInjectionMutex);
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return true;
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || found == owner->lists.end() ||
+            found->second.birth != receiverBirth || !ListLive(found->second) ||
+            !owner->rrSettings.nativeMaterialGuides || serial != owner->cancellationSerial) return true;
+    }
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> baseRequest {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,7,7,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> paramRequest {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,9,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> normalRequest {{{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,4,4,0}}};
+    std::vector<FrameSurvey::BoundResource> base,params,normal;
+    if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) ||
+        !FrameSurvey::ResolveComputeBindings(cmd,1,baseRequest,base) ||
+        !FrameSurvey::ResolveComputeBindings(cmd,2,paramRequest,params) ||
+        !FrameSurvey::ResolveComputeBindings(cmd,5,normalRequest,normal) ||
+        base.size()!=1 || params.size()!=1 || normal.size()!=1 || !normal[0].resource ||
+        base[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || params[0].viewFormat!=DXGI_FORMAT_R8G8B8A8_UNORM ||
+        normal[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || base[0].subresource || params[0].subresource || normal[0].subresource)
+    { return true; } // Optional unsupported provenance retains white guides.
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end() || found->second.birth != receiverBirth || serial != owner->cancellationSerial) return true;
+        auto& witness = found->second.materialStates;
+        witness.Select(base[0],params[0]);
+        if (!witness.Readable(serial)) return true; // Optional unknown/pixel-only source: white guides, no GPU read.
+    }
+    const auto extent = normal[0].description;
+    std::string error; NativeMaterialCapture::SnapshotLease snapshot; bool captured = false;
+    {
+        InjectionScope guard(cmd);
+        captured = owner->nativeMaterialCapture.Initialize(owner->device.Get(),uint32_t(extent.Width),extent.Height,error) &&
+            owner->nativeMaterialCapture.Capture(cmd,base[0].resource,params[0].resource,snapshot,error);
+    }
+    if (!captured) return true; // Optional capture failure records no title reads; conversion keeps white guides.
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end() || found->second.birth != receiverBirth || serial != owner->cancellationSerial) return true;
+        auto& pending = found->second.pendingMaterial;
+        pending.snapshot = std::move(snapshot); pending.normal = normal[0].resource;
+        pending.normalBirth = normal[0].resourceBirth; pending.serial = serial;
+        pending.normalGeneration = normal[0].resourceGeneration;
+    }
+    return true;
+}
+
 void CaptureTemporalMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd)
 {
     std::scoped_lock injection(gInjectionMutex);
@@ -766,7 +859,8 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
         constexpr std::array<FrameSurvey::ComputeTableRequest,1> depth {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,4,0}}};
         std::vector<FrameSurvey::BoundResource> resolved;
         native.constants = NativeTemporalCapture::Resource(staged.nativeMotionSnapshot);
-        if (!native.constants || !FrameSurvey::ResolveComputeBindings(cmd,1,depth,resolved) || resolved.size() != 1 || !resolved[0].resource)
+        if (!native.constants || !FrameSurvey::ResolveComputeBindings(cmd,1,depth,resolved) || resolved.size() != 1 ||
+            !NativeTemporalDepthViewSupported(resolved[0],staged.inputs.width,staged.inputs.height))
         { Failure(owner,"Native Temporal motion has no same-recording constants/current ViewZ"); return; }
         native.viewDepth = resolved[0].resource;
     }
@@ -848,6 +942,7 @@ bool Initialize(ID3D12Device* device) noexcept
                 previous = std::move(gService); gService = std::move(owner);
                 gUnavailableReason.clear();
                 gNativeDebug.store(gService->rrSettings.nativeDebugView >= 0,std::memory_order_release);
+                gNativeMaterials.store(gService->rrSettings.nativeMaterialGuides,std::memory_order_release);
                 gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
             }
             // Publish observers under lifecycle serialization, outside the state lock.
@@ -893,6 +988,7 @@ void Shutdown() noexcept
         {
             std::scoped_lock injection(gInjectionMutex);
             gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
+            gNativeMaterials.store(false,std::memory_order_release);
             gNativeDebug.store(false,std::memory_order_release);
             FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBirthReleaseObserver(nullptr); PublishBindingWindow();
             { std::scoped_lock lock(gMutex); previous = std::move(gService); }
@@ -927,12 +1023,13 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             if (role != Role::None) { auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth; }
             else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) { found->second.role = Role::None; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
-                (role == Role::PrepLast || role == Role::Recon) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
+                (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
             {
                 StartWindow(owner); if (!owner.cache.Valid()) owner.status.reason = "NRD pipeline observed; waiting for complete bindings"; open = true;
             }
-            seed = owner.window && (role == Role::PrepLast || role == Role::Recon);
+            seed = owner.window && (role == Role::PrepLast || role == Role::Recon ||
+                (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides));
         }
         if (open) PublishBindingWindow();
         if (seed) SeedForWindow(cmd);
@@ -968,8 +1065,12 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                     if (owner.activeFrame == found->second.frame) owner.status.active = false;
                     ++owner.resetSerial;
                 }
+                NativeMaterialStateWitness rememberedMaterialStates;
+                if (found->second.birth == receiverBirth) rememberedMaterialStates = found->second.materialStates;
+                rememberedMaterialStates.Invalidate(); // Keep bounded selections, never a preceding recording's proof.
                 RemoveChainUsers(owner,cmd,found->second); StopFollowing(owner,cmd,found->second);
-                retiredList.emplace(std::move(found->second)); found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
+                retiredList.emplace(std::move(found->second)); found->second = {};
+                found->second.materialStates = std::move(rememberedMaterialStates); found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
                 found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
@@ -979,7 +1080,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             {
                 owner.lists[cmd].role = role; owner.lists[cmd].birth = receiverBirth; owner.lists[cmd].pipelineBirth = pipelineBirth;
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
-                    (role == Role::PrepLast || role == Role::Recon) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
+                    (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                         (role == Role::Recon && !owner.everRecon)))
                 { StartWindow(owner); open = true; }
             }
@@ -1006,9 +1107,12 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 else if (role == Role::Recon)
                 {
                     auto& list = found->second; RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
+                    auto material = std::move(list.pendingMaterial);
+                    auto materialStates = std::move(list.materialStates);
                     auto recording = std::move(list.recording);
                     auto previousHistory = std::move(list.history); const auto birth = list.birth, pipelineBirth = list.pipelineBirth;
                     list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory); list.birth = birth; list.pipelineBirth = pipelineBirth;
+                    list.material = std::move(material); list.materialStates = std::move(materialStates);
                     // Prior unsubmitted RR work survives a second incomplete Recon.
                     list.role = role; list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
@@ -1067,15 +1171,21 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
-        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false; Role role = Role::None;
+        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false, captureMaterial = false; Role role = Role::None;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             role = found->second.role;
-            if (role != Role::Consumer && role != Role::Temporal) return;
+            if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide) return;
             window = owner->window; following = found->second.followingRecon;
             captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
+            captureMaterial = owner->rrSettings.nativeMaterialGuides;
+        }
+        if (role == Role::MaterialGuide)
+        {
+            if (gRuntime.load(std::memory_order_relaxed) && captureMaterial) CaptureMaterialForCurrentPipeline(cmd);
+            return;
         }
         if (role == Role::Temporal)
         {
@@ -1304,6 +1414,28 @@ void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
         { PublishBindingWindow(); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
     } catch (...) {}
 }
+void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_RESOURCE_BARRIER* barriers) noexcept
+{
+    if (!gNativeMaterials.load(std::memory_order_relaxed) || !gInstalled.load(std::memory_order_relaxed) ||
+        !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !barriers || !count) return;
+    try
+    {
+        std::scoped_lock lock(gMutex); if (!gService) return;
+        const auto found = gService->lists.find(cmd);
+        if (found != gService->lists.end() && ListLive(found->second))
+            found->second.materialStates.Observe(count,barriers,gService->cancellationSerial);
+    } catch (...) {}
+}
+void OnRecordingClosed(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
+{
+    if (!gNativeMaterials.load(std::memory_order_relaxed) || FrameSurvey::Internal() || FAILED(result)) return;
+    try
+    {
+        std::scoped_lock lock(gMutex); if (!gService) return;
+        const auto found = gService->lists.find(cmd);
+        if (found != gService->lists.end()) found->second.materialStates.Invalidate();
+    } catch (...) {}
+}
 void OnReleased(void* object) noexcept
 {
     if (BirthMode()) return; // Native retirement uses its captured exact token; raw late notifications are legacy only.
@@ -1480,12 +1612,14 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
                 owner->rrSettings.nativeTemporalMotion != settings.nativeTemporalMotion;
             const bool debugChanged = owner->rrSettings.nativeDebugView != settings.nativeDebugView ||
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
-            const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs;
+            const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs ||
+                owner->rrSettings.nativeMaterialGuides != settings.nativeMaterialGuides;
             const bool rawDebugCleared = settings.nativeDebugView >= 0 && gDebug.exchange(DebugMode::Off,std::memory_order_acq_rel) != DebugMode::Off;
             if (!SameDebugSettings(owner->rrSettings,settings)) ClearNativeDebugSources(*owner,retired);
             owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
             owner->rrSettingsState = after; owner->rrSettingsState.requested = settings;
             gNativeDebug.store(settings.nativeDebugView >= 0,std::memory_order_release);
+            gNativeMaterials.store(settings.nativeMaterialGuides,std::memory_order_release);
             if (scalarChanged || motionChanged || materialChanged || debugChanged || rawDebugCleared || !configured)
             {
                 DropPending(*owner,retired);

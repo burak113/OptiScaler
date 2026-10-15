@@ -1047,6 +1047,16 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="misc\NrdBridgeDevice_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdSignalConstants_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeMaterialCapture_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeMaterialStateWitness.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMaterialGuides.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMaterialQuantization.hlsli" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeMaterialCapture_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeMaterialCapture.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeMaterialCapture_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterial_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterial.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterial_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeTemporalConstants_Dx12.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporal.hlsli" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.h" />

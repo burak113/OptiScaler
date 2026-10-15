@@ -3,16 +3,26 @@
 #include "FSRDPreprocessCommon.hlsli"
 #include "FSRDNrdMotionCommon.hlsli"
 
+#ifdef FSRD_NRD_MATERIAL_GUIDES
+#include "FSRDNrdMaterialGuides.hlsli"
+#define NrdGuideSrvCount "5"
+#else
+#define NrdGuideSrvCount "4"
+#endif
+
 #define MainRS \
     "RootFlags(0), " \
     "RootConstants(num32BitConstants = 52, b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 4)), " \
+    "DescriptorTable(SRV(t0, numDescriptors = " NrdGuideSrvCount ")), " \
     "DescriptorTable(UAV(u0, numDescriptors = 9))"
 
 Texture2D<float4> InNormalRoughness : register(t0);
 Texture2D<float> InViewDepth : register(t1);
 Texture2D<float4> InMotion : register(t2);
 Texture2D<float> InPreviousDepth : register(t3);
+#ifdef FSRD_NRD_MATERIAL_GUIDES
+Texture2D<float4> InNativeBaseMetal : register(t4);
+#endif
 // Recon just wrote these through UAVs. They must be read as UAVs, never SRVs.
 RWTexture2D<float4> InReconSpec : register(u0);
 RWTexture2D<float4> InReconDiff : register(u1);
@@ -92,6 +102,14 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     const float signW = projected.w < 0.0f ? -1.0f : 1.0f;
     const float3 toCamera = -normalize(projected.xyz * signW);
     const float noV = saturate(dot(viewNormal, toCamera));
+#ifdef FSRD_NRD_MATERIAL_GUIDES
+    const float4 baseMetal = InNativeBaseMetal[p];
+    // Guide outputs keep the provider's preferred RGBA8_UNORM format; its
+    // normalized store clamps/rounds directly, without an intermediate half conversion.
+    OutSpecAlbedo[p] = float4(NrdSpecularMaterialGuide(baseMetal, normalRoughness.a, normalRoughness.b, noV), noV);
+    OutDiffAlbedo[p] = float4(NrdDiffuseMaterialGuide(baseMetal, normalRoughness.a), 0.0f);
+#else
     OutSpecAlbedo[p] = float4(1.0f, 1.0f, 1.0f, noV);
     OutDiffAlbedo[p] = float4(1.0f, 1.0f, 1.0f, 0.0f);
+#endif
 }

@@ -1380,7 +1380,7 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
                 }
                 else if (!view->second.snapshotSupported) return false;
                 resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
-                    request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth};
+                    request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth,resource->second.id};
             }
         }
         out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;

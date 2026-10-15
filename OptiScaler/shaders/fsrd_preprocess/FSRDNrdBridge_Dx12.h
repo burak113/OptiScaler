@@ -8,6 +8,7 @@ namespace NrdBridge
 struct Status
 {
     bool installed = false, runtimeEnabled = false, active = false;
+    bool nativeMaterialGuidesActive = false;
     std::string phase = "Off", reason = "Set [FSR-RR] NrdBridge=true and restart.", resources;
     uint64_t framesBridged = 0, resets = 0;
     uint32_t width = 0, height = 0;
@@ -24,6 +25,8 @@ void OnSetPipeline(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept;
 void AfterDispatch(ID3D12GraphicsCommandList*) noexcept;
+void OnResourceBarriers(ID3D12GraphicsCommandList*, UINT, const D3D12_RESOURCE_BARRIER*) noexcept;
+void OnRecordingClosed(ID3D12GraphicsCommandList*, HRESULT) noexcept;
 void OnReleased(void*) noexcept;
 void OnBirthReleased(const NrdBridgeBirth::Token&) noexcept;
 void OnPresent() noexcept;
