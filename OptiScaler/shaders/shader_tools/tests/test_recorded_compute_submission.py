@@ -173,6 +173,7 @@ PREAMBLE = r'''
 #include <json.hpp>
 #include "__LEDGER__"
 #include "__NATIVE_BIRTH__"
+#include "__SURVEY_HEADER__"
 using Microsoft::WRL::ComPtr;
 using J=nlohmann::json;
 std::atomic<bool> denyAllocations=false;
@@ -196,8 +197,9 @@ void resetRegistry() {
 struct State { bool isShuttingDown=false; static State& Instance() { static State state; return state; } };
 std::atomic<unsigned> unexpectedNativeCoverage=0,unexpectedMetadataFailure=0;
 namespace FrameSurvey {
- thread_local bool internal=false;
- struct ScopedInternal { bool prior=internal; ScopedInternal(){internal=true;} ~ScopedInternal(){internal=prior;} };
+ thread_local bool gInternal=false;
+ thread_local unsigned gRecordingDepth=0;
+__SURVEY_SCOPES__
  void MetadataHookFailed(const char*) noexcept { ++unexpectedMetadataFailure; }
  void FlushMetadataFailure() noexcept {}
 }
@@ -263,6 +265,17 @@ void detach(IUnknown* list) { auto record=RecordedComputeLease::Capture(list);Re
 
 CPU = r'''
 J cpuTests() {
+ need(!FrameSurvey::Internal()&&!FrameSurvey::OwnedRelease(),"scope fixture starts outside helper recording");
+ {
+  FrameSurvey::ScopedInternal helper;
+  need(FrameSurvey::Internal()&&FrameSurvey::OwnedRelease(),"owned helper work remains suppressed");
+  { FrameSurvey::ScopedRecording title;
+   need(FrameSurvey::Internal()&&!FrameSurvey::OwnedRelease(),"explicit title recording stays internal but admits title lifetime");
+   { FrameSurvey::ScopedRecording nested;need(FrameSurvey::Internal()&&!FrameSurvey::OwnedRelease(),"nested title recording keeps exact depth"); }
+  }
+  need(FrameSurvey::Internal()&&FrameSurvey::OwnedRelease(),"title scope restores owned helper suppression");
+ }
+ need(!FrameSurvey::Internal()&&!FrameSurvey::OwnedRelease(),"all scope state restores after helper work");
  resetRegistry();ComPtr<FakeDevice> device;device.Attach(new FakeDevice);
  ComPtr<FakeQueue> qa,qb;qa.Attach(new FakeQueue(device.Get()));qb.Attach(new FakeQueue(device.Get()));
  ComPtr<FakeList> a,b;a.Attach(new FakeList(device.Get()));b.Attach(new FakeList(device.Get()));
@@ -484,7 +497,13 @@ def run():
     production = '\n'.join(function(source, signature) for signature in (
         'std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(',
         'bool ResTrack_Dx12::RefreshComputeHookDevice(', 'bool ResTrack_Dx12::RetainComputeDispatch('))
+    survey = (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_text()
+    scope_signatures = ('ScopedInternal::ScopedInternal(', 'ScopedInternal::~ScopedInternal(',
+                        'ScopedRecording::ScopedRecording(', 'ScopedRecording::~ScopedRecording(',
+                        'bool OwnedRelease(', 'bool Internal(')
+    scopes = '\n'.join(function(survey, signature) for signature in scope_signatures)
     cpp = PREAMBLE.replace('__LEDGER__', (ROOT / 'OptiScaler/misc/RecordedComputeLease_Dx12.h').as_posix()).replace('__NATIVE_BIRTH__', (ROOT / 'OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h').as_posix()).replace('__PRODUCTION__', production)
+    cpp = cpp.replace('__SURVEY_HEADER__', (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.h').as_posix()).replace('__SURVEY_SCOPES__', scopes)
     cpp += fake_com(sdk) + CPU + GPU
     path = output / 'recorded_submission.cpp'
     path.write_text(cpp)
