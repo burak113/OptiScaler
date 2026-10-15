@@ -1,7 +1,7 @@
 """CPU loss/identity controls for the new radiance-domain preparation only."""
 import unittest
 import numpy as np
-from fsrd_nrd_radiance_domain_replay import normalize_output, scale_signal
+from fsrd_nrd_radiance_domain_replay import DEFAULT_REPLAY, canonical_metrics, normalize_output, scale_signal, source_module
 from fsrd_nrd_radiance_unit_source import V3_SCALES, convert_signal
 
 
@@ -77,6 +77,20 @@ class RadianceScaleContracts(unittest.TestCase):
             scaled, _ = scale_signal(unit, scale)
             self.assertTrue(np.array_equal(scaled[..., :3].astype(np.float32) / scale, unit[..., :3]))
             self.assertTrue(np.array_equal(scaled.view(np.uint16)[..., 3], source.view(np.uint16)[..., 3]))
+
+    def test_unchanged_oracle_reveal_support_uses_common_units(self):
+        replay = source_module(DEFAULT_REPLAY, '_radiance_unit_support_oracle')
+        output = np.full((2, 2, 3), .001, np.float64)
+        reference = np.zeros((2, 2, 3), np.float64)
+        ghost = np.full((2, 2, 3), .004, np.float64)
+        age = np.zeros((2, 2), np.uint8)
+        crop = [0, 0, 2, 2]
+        original = canonical_metrics(replay, output, reference, age, ghost, crop, 1)
+        wrong_units = replay.metrics(output / 64, reference / 64, age, ghost / 64, crop)
+        corrected = canonical_metrics(replay, output / 64, reference / 64, age, ghost / 64, crop, 64)
+        self.assertEqual(original['reveal_tail']['0']['pixels'], 4)
+        self.assertNotIn('0', wrong_units['reveal_tail'])
+        self.assertEqual(corrected, original)
 
 
 if __name__ == '__main__':
