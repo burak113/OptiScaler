@@ -454,11 +454,16 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         }
     }
 
-    bool DeactivateAndClear()
+    bool MarkInactive() noexcept
     {
-        if (!active.exchange(false, std::memory_order_acq_rel))
-            return false;
+        return active.exchange(false, std::memory_order_acq_rel);
+    }
 
+    // Caller owns the successful MarkInactive and a pinned HeapInfo. Registry
+    // indexes must already be detached and their global lock released. Drain
+    // every admitted slot writer before moving or destroying descriptor storage.
+    void DrainInactive()
+    {
         std::array<std::unique_lock<std::shared_mutex>, DESCRIPTOR_LOCK_STRIPE_COUNT> locks;
         const auto stripeCount = std::min<size_t>(numDescriptors, DESCRIPTOR_LOCK_STRIPE_COUNT);
         for (size_t i = 0; i < stripeCount; ++i)
@@ -485,7 +490,14 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             occupiedSlots.clear();
             retired = std::move(info);
         }
-        // Bulk descriptor storage destruction is outside the resource/index lock.
+        // Bulk storage destruction is outside both registry/resource index locks.
+    }
+
+    bool DeactivateAndClear()
+    {
+        if (!MarkInactive())
+            return false;
+        DrainInactive();
         return true;
     }
 
