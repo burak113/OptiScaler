@@ -3,6 +3,7 @@
 // adapters are explicit; this does not test detour installation/NativeBirth.
 #include "material_guides_shader.h"
 #include "material_quantization_shader.h"
+#include "FSRDNrdNativeMaterialStateWitness.h"
 
 template<class T> static std::vector<char> MaterialBytes(const std::vector<T>& values)
 {
@@ -139,8 +140,7 @@ static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCaptur
 {
     using Capture=NrdBridge::NativeMaterialCapture;
     constexpr auto nps=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    const std::array<Capture::SourceStates,6> cases {{{D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-        {D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COMMON},
+    const std::array<Capture::SourceStates,5> cases {{{D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
         {D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
         {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,nps},{nps,nps},
         {D3D12_RESOURCE_STATES(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE|nps),nps}}};
@@ -172,7 +172,7 @@ static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCaptur
              "known-state capture retained a title source COM owner");
         const auto beforeReject=gMaterialPrivateBarriers;
         Capture::SnapshotLease invalid;
-        for(const auto unsupported : {D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ,
+        for(const auto unsupported : {D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ,
                                      D3D12_RESOURCE_STATES(nps|D3D12_RESOURCE_STATE_RESOLVE_SOURCE)})
             need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),
                  {unsupported,nps},invalid,error),"unsupported source state admitted");
@@ -190,6 +190,38 @@ static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCaptur
         gMaterialAllowKnownSourceBarriers=false;gMaterialSourceStates.clear();
         gMaterialTitleSources.erase(base.Get());gMaterialTitleSources.erase(params.Get());
     }
+}
+
+static void MaterialCommonPromotion(Fixture& fixture,NrdBridge::NativeMaterialCapture& capture,
+                                    const fs::path& output,uint32_t width,uint32_t height)
+{
+    constexpr auto nps=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    const auto bytes=load(output/"base.bin"),paramsBytes=load(output/"params.bin");
+    auto base=fixture.Texture(width,height,DXGI_FORMAT_R10G10B10A2_UNORM,nps);
+    auto params=fixture.Texture(width,height,DXGI_FORMAT_R8G8B8A8_UNORM,nps,&paramsBytes);
+    auto copySource=fixture.Texture(width,height,DXGI_FORMAT_R10G10B10A2_UNORM,D3D12_RESOURCE_STATE_COPY_SOURCE,&bytes);
+    FrameSurvey::BoundResource boundBase,boundParams;boundBase.resource=base.Get();boundBase.resourceGeneration=901;
+    boundParams.resource=params.Get();boundParams.resourceGeneration=902;
+    NrdBridge::NativeMaterialStateWitness witness;witness.Select(boundBase,boundParams);
+    D3D12_RESOURCE_BARRIER baseCommon{};baseCommon.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    baseCommon.Transition={base.Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,nps,D3D12_RESOURCE_STATE_COMMON};
+    fixture.list->ResourceBarrier(1,&baseCommon);witness.Observe(1,&baseCommon,1);
+    auto paramsNps=baseCommon;paramsNps.Transition={params.Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,D3D12_RESOURCE_STATE_COPY_DEST,nps};
+    witness.Observe(1,&paramsNps,1); // Same actual upload transition emitted by Texture above.
+    D3D12_TEXTURE_COPY_LOCATION src{},dst{};src.pResource=copySource.Get();src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dst.pResource=base.Get();dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    fixture.list->CopyTextureRegion(&dst,0,0,0,&src,nullptr); // Valid implicit COMMON->COPY_DEST promotion.
+    NrdBridge::NativeMaterialCapture::SourceStates states{};
+    need(witness.TryKnownStates(1,states) && states[0]==D3D12_RESOURCE_STATE_COMMON,
+         "barrier-only metadata intentionally cannot see later implicit COPY_DEST promotion");
+    const auto barriers=gMaterialPrivateBarriers,dispatches=gMaterialDispatches;
+    NrdBridge::NativeMaterialCapture::SnapshotLease lease;std::string error;
+    need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),states,lease,error),
+         "stale witnessed COMMON admitted after actual implicit COPY_DEST promotion");
+    need(!lease && gMaterialPrivateBarriers==barriers && gMaterialDispatches==dispatches,
+         "COMMON rejection must precede every injected GPU command");
+    auto read=fixture.Snapshot(base.Get(),D3D12_RESOURCE_STATE_COPY_DEST);
+    fixture.Submit();need(read.Data()==bytes,"rejected COMMON capture disturbed native CopyTextureRegion output");fixture.Reset();
 }
 
 int main(int argc, char** argv) try
@@ -264,6 +296,7 @@ int main(int argc, char** argv) try
     need(RecordedComputeLease::GetRegistry().recordings.empty() &&
          RecordedComputeLease::GetRegistry().submissions.empty(),"material recording leases leaked");
     MaterialKnownStates(fixture,capture,output,width,height);
+    MaterialCommonPromotion(fixture,capture,output,width,height);
     need(RecordedComputeLease::GetRegistry().recordings.empty() &&
          RecordedComputeLease::GetRegistry().submissions.empty(),"known-state recording leases leaked");
     MaterialQuantization(fixture,output);

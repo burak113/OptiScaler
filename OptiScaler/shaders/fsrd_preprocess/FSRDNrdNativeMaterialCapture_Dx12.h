@@ -201,7 +201,9 @@ class NativeMaterialCapture
         for (const auto state : states)
         {
             if ((state & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && type != D3D12_COMMAND_LIST_TYPE_DIRECT) return false;
-            if (state == D3D12_RESOURCE_STATE_COMMON || state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) continue;
+            // COMMON may have silently promoted to a write state after the
+            // observed barrier; this barrier-only witness cannot prove otherwise.
+            if (state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) continue;
             if ((state & ~readMask) != 0 ||
                 !(state & (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE))) return false;
         }

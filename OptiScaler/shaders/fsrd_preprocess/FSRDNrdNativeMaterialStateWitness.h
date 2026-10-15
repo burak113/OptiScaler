@@ -198,6 +198,30 @@ struct NativeMaterialIdentityCache
             if (pair.used && Same(pair.base,base) && Same(pair.params,params)) return;
         pairs_[next_] = {Identity(base),Identity(params),true};
         next_ = (next_ + 1) % pairs_.size();
+        ++revision_;
+    }
+    uint64_t Revision() const noexcept { return revision_; }
+    bool SeedIfChanged(NativeMaterialStateWitness& witness, uint64_t& seenRevision) const noexcept
+    {
+        if (seenRevision == revision_) return false;
+        Seed(witness); seenRevision = revision_; return true;
+    }
+    // Unknown lists are relevant only when an actual supplied transition names
+    // an exact cached live target. Aliases alone establish no state proof.
+    bool MatchesAnyTransition(UINT count, const D3D12_RESOURCE_BARRIER* barriers) const noexcept
+    {
+        if (!barriers) return false;
+        for (UINT index = 0; index != count; ++index)
+        {
+            const auto& barrier = barriers[index];
+            if (barrier.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION ||
+                (barrier.Transition.Subresource != 0 &&
+                 barrier.Transition.Subresource != D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)) continue;
+            for (const auto& pair : pairs_)
+                if (pair.used && (MatchesTransition(pair.base,barrier.Transition.pResource) ||
+                                  MatchesTransition(pair.params,barrier.Transition.pResource))) return true;
+        }
+        return false;
     }
     void Seed(NativeMaterialStateWitness& witness) const noexcept
     {
@@ -205,6 +229,12 @@ struct NativeMaterialIdentityCache
             if (pair.used) witness.Seed(pair.base,pair.params);
     }
   private:
+    static bool MatchesTransition(const FrameSurvey::BoundResource& bound, ID3D12Resource* resource) noexcept
+    {
+        return resource && bound.resource == resource && bound.subresource == 0 &&
+            (bound.resourceBirth ? (bound.resourceBirth->Address() == resource &&
+                                   bound.resourceBirth->CacheAdmissible()) : bound.resourceGeneration != 0);
+    }
     static bool Same(const FrameSurvey::BoundResource& a,
                      const FrameSurvey::BoundResource& b) noexcept
     { return a.resource == b.resource && a.resourceBirth == b.resourceBirth &&
@@ -219,5 +249,6 @@ struct NativeMaterialIdentityCache
     struct Pair { FrameSurvey::BoundResource base,params; bool used = false; };
     std::array<Pair,4> pairs_ {};
     size_t next_ = 0;
+    uint64_t revision_ = 0;
 };
 }
