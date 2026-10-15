@@ -86,7 +86,12 @@ class WorldSurfaceOracle(unittest.TestCase):
             surface = value['motion']['surface'][..., 2].astype(np.float32)
             # This is a geometric history-admission counterexample, not a model
             # of private AMD filtering: legacy B predicts the visible occluder.
-            previous_visible_depth = depth + legacy
+            # The old surface is observed by an independent analytic ray query,
+            # not reconstructed from the legacy B expression being challenged.
+            previous_pose = pose(value['index'] - 1, 128, 128)
+            old_surface = trace(value['previous_uv'].astype(np.float64), previous_pose)
+            previous_visible_depth = np.einsum('...i,i->...', old_surface['point'] - previous_pose['camera'],
+                                               previous_pose['rotation'][2])
             self.assertTrue(np.all(np.abs(previous_visible_depth[mask] - depth[mask]) > 3.))
             false_accepts += int(np.count_nonzero(np.abs(previous_visible_depth[mask] - (depth + legacy)[mask]) < .05))
             surface_rejections += int(np.count_nonzero(np.abs(previous_visible_depth[mask] - (depth + surface)[mask]) > 3.))
