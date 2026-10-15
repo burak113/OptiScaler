@@ -1582,7 +1582,7 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
         bool reset = !reusable || history->resetRevision != stage->resetRevision;
         const bool materialApplied = stage->settings.nativeMaterialGuides && NativeMaterialCapture::Resource(stage->material);
         if (stage->settings.nativeMaterialGuides && history->materialGuidesKnown && history->materialGuidesUsed != materialApplied) reset = true;
-        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive())
+        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive() && FSRDGameTraceSession::WantsNrdBridgeSignal(chain))
         {
             try { if (!owner->trace) owner->trace = std::make_unique<FSRDGameTraceSession>(); } catch (...) {}
             if (owner->trace && FSRDGameTraceSession::TakeNrdBridgeHistoryResetRequest(history->id)) reset = true;
@@ -1929,7 +1929,7 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
             }
         }
         if (!ready) { NativeTransactionFailure(owner,stage,error.empty() ? "Owned raw decode / signed RR recording failed" : error); return; }
-        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive() && owner->trace)
+        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive() && FSRDGameTraceSession::WantsNrdBridgeSignal(stage->chain) && owner->trace)
         {
             const auto snapshot = stage->history->rr.GetOwnedOutputSnapshot(stage->owned);
             stage->traceIdentity = {stage->history->id,snapshot.recordingId,stage->frame,stage->serial,0,stage->parameters.streamlineFrame};
@@ -1938,7 +1938,27 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
                 stage->ownership,stage->parameters,stage->streamline.constants,stage->streamline.frameIndex,stage->streamline.viewport,
                 settings,snapshot,{stage->history->rr.GetOwnedOutputProviderAttestation(stage->owned)},true);
             if (stage->trace)
+            {
                 for (uint32_t i=0;i<stage->skipCount;++i) owner->trace->RecordBridgeSkipped(stage->trace,cmd,stage->traceIdentity,stage->skipped[i]);
+                const auto raw=RawSignalSnapshotPass::GetSnapshot(stage->raw);
+                FSRDGameTraceSession::BridgeControlHeader control;
+                control.profile=stage->chain?FSRDGameTraceSession::BridgeControlHeader::Profile::PrePassB:
+                    FSRDGameTraceSession::BridgeControlHeader::Profile::ReconA;
+                control.image={raw.resource,raw.state};control.owner=raw.owner;control.recordingId=raw.recordingId;
+                control.streamlineFrame=raw.frameSL;control.bridgeFrame=raw.bridgeFrame;
+                constexpr std::array<uint32_t,4> aOffsets{448,452,456,460};
+                constexpr std::array<uint32_t,8> bOffsets{456,460,472,476,516,520,576,580};
+                control.wordCount=stage->chain?uint32_t(bOffsets.size()):uint32_t(aOffsets.size());
+                for(uint32_t index=0;index<control.wordCount;++index)
+                {const auto offset=stage->chain?bOffsets[index]:aOffsets[index];control.words[index]={offset,offset};}
+                control.hasStatus=raw.hasStatus;control.statusByteOffset=raw.statusByteOffset;
+                control.statusObserver=+[](const FSRDGameTraceSession::BridgeIdentity&,uint32_t)noexcept{
+                    RecordedComputeLease::FailUntrackedRequiredSubmission(E_INVALIDARG);
+                };
+                // Optional forensic copies only. Raw B's always-on completion
+                // observer enforces future-fatal status independently of Trace.
+                owner->trace->RecordBridgeControlHeader(stage->trace,cmd,stage->traceIdentity,control);
+            }
         }
         struct Ticket
         {

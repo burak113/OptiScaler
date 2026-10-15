@@ -107,14 +107,25 @@ J Positive(Host& h,NativeTitle& title){J rows=J::array();std::array<std::shared_
   for(UINT c=0;c<2;++c){const auto stage=c?b:a;const auto provider=FfxApiProxy::records[before+c];if(frame==1){histories[c]=stage->history;contexts[c]=provider.context;}need(histories[c]==stage->history&&contexts[c]==provider.context,"continuous A/B histories and physical providers are independent and stable");need(bool(provider.flags&FFX_DENOISER_DISPATCH_RESET)==(frame==1),"only first frame resets each native A/B provider history");}
   rows.push_back({{"SL_frame",frame},{"signed_dispatches",2},{"exact_rr_rgb_words",exact},{"native_filter_gpu_executions",0},{"A_context",uint64_t(uintptr_t(contexts[0]))},{"B_context",uint64_t(uintptr_t(contexts[1]))}});h.reset();
  }
- need(FfxApiProxy::creates==firstCreates+2,"six submitted A/B frames create exactly two physical SDK contexts");return rows;
+ need(FfxApiProxy::creates==firstCreates+2,"six submitted A/B frames create exactly two physical SDK contexts");
+ const auto deniedBefore=h.denied,dispatchBefore=FfxApiProxy::dispatches;
+ title.Begin(7);title.A();title.B();title.ConsumerB();
+ const auto incomplete=NrdBridge::gService->lists.at(h.list.Get()).native;
+ need(incomplete[0]&&!incomplete[0]->committed&&incomplete[1]&&incomplete[1]->committed,"B's successful late RR commit cannot complete A's independent missing-Consumer token");
+ need(!Execute(h)&&h.denied==deniedBefore+1&&FAILED(h.lastOrderingFailure),"actual beforeSubmit explicitly denies original native Execute for missing A Consumer");
+ need(FfxApiProxy::dispatches==dispatchBefore+1,"incomplete denied chain recorded only B's actual signed SDK call");h.reset();
+ title.Begin(8);title.A();title.B();title.ConsumerA();title.ConsumerB();
+ need(Execute(h),"fresh complete native A/B transactions recover after discarded incomplete recording");
+ need(FfxApiProxy::dispatches==dispatchBefore+3,"recovery records exactly one new actual signed call for each chain");
+ for(UINT chain=0;chain<2;++chain){const auto& record=FfxApiProxy::records[dispatchBefore+1+chain];need(record.context!=contexts[chain]&&(record.flags&FFX_DENOISER_DISPATCH_RESET),"unsubmitted discarded predecessor gets physically fresh RESET history, never stale native fallback");}h.reset();
+ return rows;
 }
 }
 int main(int argc,char** argv)try{
  need(argc==3,"scratch output and actual signed AMD DLL");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"actual native metadata registry installed");need(NrdBridge::Initialize(h.device.Get()),"actual production coordinator initialized");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
  J result;{NativeFixture::NativeTitle title(h,false);result["frames"]=NativeFixture::Positive(h,title);NrdBridge::Shutdown();RecordedComputeLease::Poll();}
- need(FfxApiProxy::creates==FfxApiProxy::destroys,"all actual native A/B provider contexts retire after fenced recording detach");NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;
+ need(FfxApiProxy::creates==FfxApiProxy::destroys,"all actual native A/B provider contexts retire after fenced recording detach");NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["missing_A_Consumer_denials"]=h.denied;result["discard_recovery"]=true;
  result["scope"]="actual hardware/coordinator/raw/geometry/motion/signedRR/303compute+36pixel/requiredledger; synthetic shipping role/readiness and caller-strong native Release-coverage adapters, not full title startup/physical Release detour proof";
  std::ofstream(std::filesystem::path(argv[1])/"native-transactions-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;if(emitDebug)emitDebug();return 1;}
