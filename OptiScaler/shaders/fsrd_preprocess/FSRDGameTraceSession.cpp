@@ -99,7 +99,7 @@ struct Session
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
     bool fullContextReference = false, particleLayerDiagnostics = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
-    bool survey = false, bridge = false;
+    bool survey = false, bridge = false, bridgeWaitForReset = false, bridgeResetIssued = false;
     uint64_t bridgeDomain = 0, lastBridgeRecording = 0;
     uint32_t lastBridgeSL = UINT32_MAX;
     bool initialized = false, initializing = false, closing = false;
@@ -205,6 +205,7 @@ std::string PathString(const std::filesystem::path& p)
 Json ManifestSnapshot(Session& s)
 {
     s.manifest["phase"] = s.status.phase;
+    if (s.bridge) s.manifest["history_reset_request_issued_when_ready"] = s.bridgeResetIssued;
     s.manifest["complete"] = s.status.phase == "complete";
     s.manifest["recorded_frames"] = s.status.recorded;
     s.manifest["committed_frames"] = s.status.captured;
@@ -1208,6 +1209,7 @@ struct FSRDGameTraceSession::Impl
             if (f->bridge)
             {
                 packet->row.update(f->bridgeMetadata);
+                packet->row.erase("list_id");
                 packet->row["provider_controls"] = {{"wireformat","ffxDispatchDescDenoiser_native_ABI_suffix_264_184"},
                     {"native_dispatch_bytes",448},{"controls_offset",264},{"controls_bytes",184}};
                 packet->payloads.push_back({"provider_controls.bin",f->constants,-5,0});
@@ -1627,7 +1629,9 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         ReapReadbacks(control);
         auto s = std::make_shared<Session>(); attempted = s;
         if (request.size != TileSize && request.size != 512) throw std::runtime_error("GAME_TRACE region must be 128 or 512 pixels");
-        if (request.frameCount != FrameCount && request.frameCount != 256 && request.frameCount != 512)
+        if (request.frameCount != FrameCount && request.frameCount != 256 && request.frameCount != 512 &&
+            !(request.frameCount == 64 && request.capturePath == Request::CapturePath::NrdBridge &&
+              request.regionMode == Request::RegionMode::FullRender && request.bridgeWaitForReset))
             throw std::runtime_error("GAME_TRACE target must be 128, 256 or 512 frames");
         if (request.delaySeconds > 10) throw std::runtime_error("GAME_TRACE delay must be 0-10 seconds");
         const auto mode = SrModeName(request.srMode);
@@ -1636,7 +1640,9 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         if (request.capturePath != Request::CapturePath::Legacy && request.capturePath != Request::CapturePath::NrdBridge)
             throw std::runtime_error("Invalid GAME_TRACE capture path");
         s->bridge = request.capturePath == Request::CapturePath::NrdBridge;
-        s->bridgeDomain = request.bridgeDomain;
+        s->bridgeDomain = request.bridgeDomain; s->bridgeWaitForReset = request.bridgeWaitForReset;
+        s->status.nrdBridge = s->bridge;
+        if (request.bridgeWaitForReset && !s->bridge) throw std::runtime_error("History reset capture intent requires the NRD bridge path");
         if (s->bridge && (request.srMode != SrMode::Off || request.fullContextReference || request.particleLayerDiagnostics))
             throw std::runtime_error("NRD_BRIDGE trace supports owned RR inputs/stages/encoded commit; legacy SR/reference/particle options must be off");
         s->fullContextReference = request.fullContextReference;
@@ -1690,15 +1696,18 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             {"frames",Json::array()},{"errors",Json::array()}};
         if (s->bridge)
         {
-            s->status.message = "Waiting for an eligible NRD-to-RR domain; capture never resets RR history.";
+            s->status.message = request.bridgeWaitForReset ? "Preparing the explicitly requested full-input history-reset capture." :
+                "Waiting for an eligible NRD-to-RR domain; ordinary capture never requests a history reset.";
             s->manifest["schema"] = "fsrd-nrd-bridge-game-trace-v1";
             s->manifest["capture_path"] = "nrd_bridge";
             s->manifest["output_scope"] = "owned_raw_RR_selected_recovery_and_bridge_encoded_commit_before_original_Consumer";
             s->manifest.erase("native_full1_filename_role");
             s->manifest["source_contract"] = FSRDGameTraceBridgeMetadata::Contract();
             s->manifest["requested_domain"] = request.bridgeDomain;
+            s->manifest["explicit_user_history_reset_requested"] = request.bridgeWaitForReset;
+            s->manifest["history_reset_request_issued_when_ready"] = false;
             s->manifest["domain_policy"] = "explicit_selector_or_first_eligible_domain_only; other_chains_are_not_captured_or_merged";
-            s->manifest["history_replay_scope"] = "full_render_and_actual_first_SDK_RESET_and_consecutive_same_context_required; no_capture_forced_reset; cropped_or_hidden_prior_history_not_reconstructible";
+            s->manifest["history_replay_scope"] = "full_render_and_actual_first_SDK_RESET_and_consecutive_same_context_required; ordinary_arm_no_reset; explicit_USER_reset_intent_recorded_separately; cropped_or_hidden_prior_history_not_reconstructible";
             s->manifest["native_nrd_outputs"] = {{"captured",false},{"used_as_reference",false},{"used_as_correction",false}};
         }
         if (request.fullContextReference)
@@ -1754,6 +1763,17 @@ bool FSRDGameTraceSession::IsActive() noexcept
 { return g_captureActive.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::IsNrdBridgeCaptureActive() noexcept
 { return IsActive() && g_bridgeRequested.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::TakeNrdBridgeHistoryResetRequest(uint64_t domain) noexcept
+{
+    if (!IsNrdBridgeCaptureActive()) return false;
+    std::scoped_lock lock(Global().mutex);
+    const auto& s = Global().current;
+    if (!s || !s->bridge || !s->bridgeWaitForReset || s->bridgeResetIssued || s->bound ||
+        s->stop || s->closing || !s->claimed || !s->initialized || GetTickCount64() < s->startTick ||
+        (s->bridgeDomain && s->bridgeDomain != domain)) return false;
+    s->bridgeResetIssued = true;
+    return true;
+}
 bool FSRDGameTraceSession::WantsSrOutput() noexcept
 { return IsActive() && g_srRequested.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsFullContextReference() noexcept
@@ -1948,6 +1968,13 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
         if (s.bound && identity.streamlineFrame == s.lastBridgeSL) return {}; // FG/repeated SL cannot create a second row.
         if (impl.pending.size() >= MaximumPendingFrames)
             throw std::runtime_error("NRD_BRIDGE trace GPU backlog reached 3 pending frames; no wait performed");
+        uint32_t actualFlags = 0; memcpy(&actualFlags,output.providerControl.data()+NativeFlagsOffset,4);
+        if (s.bridgeWaitForReset && !s.bound && !(actualFlags & FFX_DENOISER_DISPATCH_RESET))
+        {
+            s.status.phase = "waiting_reset";
+            s.status.message = "Waiting for the explicitly requested actual SDK RESET; no trace payload recorded yet.";
+            return {};
+        }
         const auto settingsJson = FSRDGameTraceBridgeMetadata::Settings(settings);
         const auto serialized = settingsJson.dump();
         const auto settingsHash = RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(serialized.data()),serialized.size()});
@@ -2055,7 +2082,7 @@ void FSRDGameTraceSession::RecordBridgeSkipped(const BridgeFrameToken& token, ID
 
 bool FSRDGameTraceSession::CompleteBridgeFrame(const BridgeFrameToken& token, ID3D12GraphicsCommandList* cmd,
     const BridgeIdentity& identity, const std::array<Source,2>& targets,
-    const NrdBridge::RRRecordedOutputSnapshot& output) noexcept
+    const NrdBridge::RRRecordedOutputSnapshot& output, const NrdBridge::TitleSignalConstants& sourceConstants) noexcept
 {
     if (!IsNrdBridgeCaptureActive() || !token) return false;
     std::scoped_lock lock(Global().mutex);
@@ -2079,9 +2106,14 @@ bool FSRDGameTraceSession::CompleteBridgeFrame(const BridgeFrameToken& token, ID
             plans[i] = PlanBridgeImage(impl.device.Get(),*impl.session,11+i,targets[i].resource);
         }
         if (targets[0].resource == targets[1].resource) throw std::runtime_error("NRD_BRIDGE encoded commit targets alias");
+        const bool nativeBinding = sourceConstants.address != 0 || (sourceConstants.nativeHeap && sourceConstants.cbvHandle.ptr);
+        if (nativeBinding != output.nativeEncodingCaptured)
+            throw std::runtime_error("NRD_BRIDGE native encoding binding/capture provenance differs");
         auto& flag = f->surveyImages[f->bridgeRoles[13]];
         if (output.nativeEncodingCaptured)
         {
+            if (sourceConstants.wordIndex != 303 && sourceConstants.wordIndex != 36)
+                throw std::runtime_error("NRD_BRIDGE native encoding source word is not an attested Consumer ABI");
             if (!output.encodingFlag) throw std::runtime_error("NRD_BRIDGE encoding flag marked captured without owned buffer");
             const auto desc = output.encodingFlag->GetDesc();
             if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || desc.Width < 1216)
@@ -2107,7 +2139,12 @@ bool FSRDGameTraceSession::CompleteBridgeFrame(const BridgeFrameToken& token, ID
         }
         f->bridgeMetadata["encoding"] = {{"native_flag_captured",output.nativeEncodingCaptured},
             {"fallback_encoding",f->bridgeMetadata["frame_parameters"]["fallback_output_encoding"]},
-            {"native_flag_scope",output.nativeEncodingCaptured ? "actual_GPU_native_b6_word303_captured_immediately_before_commit" :
+            {"native_source_word",output.nativeEncodingCaptured ? Json(sourceConstants.wordIndex) : Json(nullptr)},
+            {"private_payload_word",303},{"private_payload_byte_offset",1212},
+            {"native_cbv_address",output.nativeEncodingCaptured ? sourceConstants.address : 0},
+            {"native_heap_address_process_local",output.nativeEncodingCaptured ? uint64_t(reinterpret_cast<uintptr_t>(sourceConstants.nativeHeap)) : 0},
+            {"native_cbv_handle",output.nativeEncodingCaptured ? sourceConstants.cbvHandle.ptr : 0},
+            {"native_flag_scope",output.nativeEncodingCaptured ? "actual_GPU_native_b6_source_word_captured_to_private_sink_word303_immediately_before_commit" :
                 "not_used; explicit_fallback_output_encoding"}};
         f->bridgeMetadata["output_committed"] = true;
         impl.Seal(*f);

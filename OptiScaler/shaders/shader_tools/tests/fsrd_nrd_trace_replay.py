@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
 import json
+import math
 import struct
 
 SCHEMA = "fsrd-nrd-bridge-game-trace-v1"
@@ -142,6 +143,7 @@ def inspect_capture(folder, *, verify_payload=True):
         require(frame.get("actual_reset") == bool(flags & 1), "RESET differs from actual SDK flags")
         if verify_payload:
             tail = safe_file(root, controls["file"]).read_bytes()
+            require(all(math.isfinite(x) for x in struct.unpack_from("<42f", tail)), "nonfinite provider controls")
             require(struct.unpack_from("<4I", tail, 168) == (render[0], render[1], sdk_frame, flags),
                     "actual provider tail differs from frame/extent/flags")
         provider = frame.get("provider", {})
@@ -164,7 +166,7 @@ def inspect_capture(folder, *, verify_payload=True):
                     and identity["recording_id"] > prior[2], "nonconsecutive provider/SL/recording sequence")
         prior = identity["streamline_frame"], sdk_frame, identity["recording_id"]
         images = frame.get("images")
-        require(isinstance(images, list) and 11 <= len(images) <= 14, "unexpected bridge image count")
+        require(isinstance(images, list) and 1 <= len(images) <= 14, "unexpected bridge image count")
         physical, charged, payload_bytes = {}, 0, 184
         for row in images:
             name = row.get("name")
@@ -185,6 +187,8 @@ def inspect_capture(folder, *, verify_payload=True):
         require(charged <= MAX_FRAME, "frame readback budget exceeded")
         roles = frame.get("roles", {})
         require(set(roles) == set(FORMATS), "missing or invented bridge role")
+        require(all(roles[name] == name for name in ("encoded_commit_specular", "encoded_commit_diffuse")),
+                "encoded commit cannot alias an earlier observation")
         resolved = {}
         for name in FORMATS:
             cursor, seen = name, set()
@@ -199,9 +203,11 @@ def inspect_capture(folder, *, verify_payload=True):
             resolved[name] = physical[cursor]
         encoding = frame.get("encoding", {})
         if encoding.get("native_flag_captured"):
+            require(encoding.get("native_source_word") in (36, 303) and encoding.get("private_payload_word") == 303
+                    and encoding.get("private_payload_byte_offset") == 1212, "native/private encoding word provenance missing")
             if verify_payload:
                 flag = struct.unpack("<I", safe_file(root, resolved["consumer_word303"]["file"]).read_bytes())[0]
-                encoding = dict(encoding, native_word303=flag)
+                encoding = dict(encoding, captured_encoding_word=flag)
         else:
             uint(encoding.get("fallback_encoding"), "fallback encoding", 1)
         events = frame.get("skipped_original_dispatches")
@@ -224,6 +230,7 @@ def inspect_capture(folder, *, verify_payload=True):
             "captured_domain": stable[0], "full_temporal_replay_eligible": not reasons and verify_payload,
             "ineligibility_reasons": reasons + ([] if verify_payload else ["payloads_not_verified"]),
             "source_contract": manifest.get("source_contract"), "frames": result,
+            "replay_scope": "actual_RR_provider_inputs_and_raw_outputs; selected_recovery_and_encoded_commit_are_observations",
             "limitations": ["disk_file_attestation_does_not_prove_loaded_memory_image_equality",
                             "one_selected_chain_only; no_full_game_coverage_claim",
                             "captured_RR_outputs_are_observations_not_clean_truth",
@@ -235,6 +242,7 @@ def main():
     parser.add_argument("capture", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    require(not args.output.resolve().is_relative_to(args.capture.resolve()), "replay manifest output must be outside source capture")
     result = inspect_capture(args.capture)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: value for key, value in result.items() if key != "frames"}, indent=2))

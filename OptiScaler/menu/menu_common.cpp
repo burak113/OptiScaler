@@ -3605,7 +3605,8 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         {
             ScopedIndent indent;
             const auto capture = FSRDGameTraceSession::GetStatus();
-            const bool bridgeTrace = NrdBridge::StartupEnabled() && NrdBridge::RuntimeEnabled();
+            const bool bridgeTrace = capture.active ? capture.nrdBridge :
+                NrdBridge::StartupEnabled() && NrdBridge::RuntimeEnabled();
             ImGui::TextWrapped(bridgeTrace ?
                 "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. First eligible chain only; no native NRD output/reference." :
                 "Ordinary RR: configured pre-SR composition and original conversion inputs.");
@@ -3617,8 +3618,14 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             static int regionChoice = 2, frameCountChoice = 2, srMode = 0;
             static char outputRoot[1024] {};
             static bool initialCenter = true, folderOpenFailed = false;
-            static bool fullContextReference = false;
+            static bool fullContextReference = false, bridgeResetCapture = false;
             ImGui::BeginDisabled(capture.active);
+            if (bridgeTrace)
+            {
+                ImGui::Checkbox("Full inputs from RR history reset (64 frames)##GameTrace", &bridgeResetCapture);
+                ImGui::TextWrapped("This explicit option requests one RR history reset after the destination and delay are ready, then records 64 full render frames beginning at an actual SDK RESET. Ordinary recording preserves current history.");
+            }
+            ImGui::BeginDisabled(bridgeTrace && bridgeResetCapture);
             if (ImGui::Combo("Capture region##GameTrace", &regionChoice,
                     "128 x 128\0" "512 x 512\0" "128 wide, full height\0"
                     "512 wide, full height\0" "Full render frame\0"))
@@ -3626,25 +3633,26 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 initialCenter = true;
             }
             ImGui::Combo("Frames to record##GameTrace", &frameCountChoice, "128\0" "256\0" "512\0");
+            ImGui::EndDisabled();
             ImGui::BeginDisabled(bridgeTrace);
             ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
             bool particleDiagnostics = config->FfxDenoiserParticleLayerDiagnostics.value_or_default();
             if (ImGui::Checkbox("Particle layer diagnostic guides##GameTrace", &particleDiagnostics))
                 config->FfxDenoiserParticleLayerDiagnostics = particleDiagnostics;
-            if (particleDiagnostics)
+            if (!bridgeTrace && particleDiagnostics)
                 ImGui::TextWrapped("Records original ColorBeforeParticles / ColorBeforeTransparency if bound. Capture only; no particle bypass. Adds up to two guide snapshots per recorded frame.");
             ImGui::Checkbox("Full-context RESET_each reference (diagnostic only)##GameTrace", &fullContextReference);
-            if (fullContextReference)
+            if (!bridgeTrace && fullContextReference)
                 ImGui::TextWrapped("Diagnostic, not a solution. Records two extra RR heads from a separate full-render context with RESET each frame. Adds GPU work and memory; the game keeps its normal RR history and composition. Te\xc5\x9fhis kayd\xc4\xb1; \xc3\xa7\xc3\xb6z\xc3\xbcm de\xc4\x9fil.");
             ImGui::EndDisabled();
             ImGui::InputTextWithHint("Output root##GameTrace", "Blank: DLL folder / GAME_TRACE", outputRoot, sizeof(outputRoot));
             using RegionMode = FSRDGameTraceSession::Request::RegionMode;
-            const RegionMode regionMode = regionChoice == 4 ? RegionMode::FullRender :
+            const RegionMode regionMode = (bridgeTrace && bridgeResetCapture) || regionChoice == 4 ? RegionMode::FullRender :
                 (regionChoice >= 2 ? RegionMode::FullHeightStrip : RegionMode::Square);
             const uint32_t tile = regionChoice == 1 || regionChoice == 3 ? 512 : FSRDGameTraceSession::TileSize;
             const uint32_t regionWidth = regionMode == RegionMode::FullRender ? width : tile;
             const uint32_t regionHeight = regionMode == RegionMode::Square ? tile : height;
-            const uint32_t targetFrames = 128u << std::clamp(frameCountChoice, 0, 2);
+            const uint32_t targetFrames = bridgeTrace && bridgeResetCapture ? 64u : 128u << std::clamp(frameCountChoice, 0, 2);
             const bool fits = regionWidth && regionHeight && width >= regionWidth && height >= regionHeight;
             const int maxX = fits ? int(std::min(width - regionWidth, uint32_t(INT_MAX))) : 0;
             const int maxY = fits ? int(std::min(height - regionHeight, uint32_t(INT_MAX))) : 0;
@@ -3688,11 +3696,12 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
                 request.capturePath = bridgeTrace ? FSRDGameTraceSession::Request::CapturePath::NrdBridge :
                     FSRDGameTraceSession::Request::CapturePath::Legacy;
+                request.bridgeWaitForReset = bridgeTrace && bridgeResetCapture;
                 request.fullContextReference = !bridgeTrace && fullContextReference;
                 request.particleLayerDiagnostics = !bridgeTrace && particleDiagnostics;
                 request.srMode = bridgeTrace || srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
                     (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
-                FSRDGameTraceSession::RequestStart(request);
+                FSRDGameTraceSession::RequestStart(request); // Coordinator consumes explicit reset intent only when ready.
             }
             ImGui::EndDisabled();
             ImGui::EndDisabled();
@@ -3715,7 +3724,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             }
             ImGui::TextWrapped("Use an absolute output root to choose another drive. Large captures need fast storage; a full queue stops recording without waiting for disk or GPU. A full-height strip follows vertical motion; a full render frame also records horizontal context.");
             if (bridgeTrace)
-                ImGui::TextWrapped("256 MiB per frame, 512 MiB retained, at most 3 pending. Overflow stops before trace copies. Full temporal replay also needs the first captured SDK invocation to have a real RESET; capture never forces one. Cropped captures and prior hidden history are not complete replay inputs.");
+                ImGui::TextWrapped("256 MiB per frame, 512 MiB retained, at most 3 pending. Overflow stops before trace copies. Full temporal replay also needs the first captured SDK invocation to have a real RESET; ordinary recording never requests one. Cropped captures and prior hidden history are not complete replay inputs.");
             ImGui::TextWrapped("Close the menu during the delay. Let several seconds of history record before reproducing the camera turn or lighting change. History from before recording is not saved.");
             if (capture.active)
             {

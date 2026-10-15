@@ -87,6 +87,6 @@ inline Json Contract()
         {"selected_rr","owned_linear_demodulated_RGBA16; recovery_or_alias_of_raw"},
         {"encoded_commit","bridge_commit_result_before_original_Consumer; not_native_NRD_output"},
         {"geometry_guide","actual_owned_normal_depth_MV_payloads; no_guide_reconstruction"},
-        {"history","capture_never_resets_or_changes_primary_RR_history; prior_hidden_SDK_history_is_unavailable"}};
+        {"history","ordinary_capture_does_not_request_reset; explicit_USER_reset_intent_is_separately_recorded; prior_hidden_SDK_history_is_unavailable"}};
 }
 }
