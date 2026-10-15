@@ -73,6 +73,30 @@ def run():
     qd, qs = diffuse, ggx_albedo(linear, metal_value, roughness, .8)
     noisy = (rgb*qd+spec*qs)
     require(np.array_equal(noisy*64, rgb*(qd*64)+spec*(qs*64)), 'common factor64 is post-RR composition, never input gain')
+    from fsrd_nrd_rr_material_compare import masked_detail, summarize
+    yy, xx = np.indices((8, 8))
+    reference = np.repeat((xx+2*yy)[..., None], 3, axis=-1).astype(float)
+    material_id = np.zeros((8, 8), dtype='u1')
+    material_id[:, 4:] = 1
+    for gain in (0., .5, 1.):
+        stats = masked_detail(reference*gain, reference, material_id, [0, 0, 8, 8])
+        require(abs(stats['gradient_projection_ratio']-gain) < 1e-15, 'demod detail projection measures retained lighting contrast')
+    false_edge = reference.copy()
+    false_edge[:, 4:] += 100
+    stats = masked_detail(false_edge, reference, material_id, [0, 0, 8, 8])
+    require(stats['gradient_projection_ratio'] == 1 and stats['rgb_gradient_rmse'] == 0,
+            'material boundary contrast cannot masquerade as restored lighting detail')
+    require(stats['adjacent_pairs'] == 104, 'only known different-material adjacent pairs excluded')
+    template = dict(rgb_rmse=.1, chroma_rmse=.2, detail_gradient_rmse=.3,
+                    gradient_projection_ratio=.4, reveal_tail={})
+    rows = [dict(domains=dict(combined=dict(white=template.copy()))) for _ in range(2)]
+    rows[1]['domains']['combined']['white']['reveal_tail'] = {'0':dict(pixels=7, rgb_rmse=.6,
+        positive_stale_energy=.7, mean_signed_stale_fraction=.8)}
+    summary = summarize(rows, ['white'])['white']['combined']
+    require(summary['reveal_tail']['0']['pixels'] == 7 and summary['reveal_tail']['0']['rgb_rmse'] == .6,
+            'missing first-frame reveal cohort does not fabricate support or dilute later error')
+    require(summary['rgb_rmse'] == .1 and summary['gradient_projection_ratio'] == .4,
+            'all original numeric rows retained in material summary')
     return dict(schema='fsrd-material-quality-cpu-properties-v1', checks=CHECKS,
                 max_f64_vector_scalar_error=max_vector_scalar_error, max_f32_scalar_error=max_f32_scalar_error,
                 gpu_executed=False, compiler_executed=False, quality_claimed=False)
