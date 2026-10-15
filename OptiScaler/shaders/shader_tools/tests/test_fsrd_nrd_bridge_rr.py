@@ -244,7 +244,7 @@ def main():
     result = dict(mode=args.mode, native_checks=int(match.group(1)), native_summary=match.group(0),
                   executable=str(exe), native_log=str(log), peak_resident_bytes=peak, seconds=elapsed)
     if args.mode in ('mock', 'real'):
-        assert 'native_blend cases=14 endpoints_exact=1 native_nan_alpha_no_store=1 live_root_and_table=1 fallback_wrong=1 closed_recording_immutable=1 extra_dispatches=0 extra_owned_bytes=0 history_resets_on_change=0' in text
+        assert 'native_blend cases=14 policy_zero=1 rr_rgb_exact=1 native_rgb_ignored=1 alpha_bits_exact=1 live_root_and_table=1 fallback_wrong=1 closed_recording_immutable=1 extra_dispatches=0 extra_owned_bytes=0 history_resets_on_change=0' in text
         assert 'runtime_settings effective_changes=' in text
         assert 'unchanged_calls=0 debug_bounds_count=1 material_key_calls=0' in text
         assert 'native_debug views=13 ' in text
