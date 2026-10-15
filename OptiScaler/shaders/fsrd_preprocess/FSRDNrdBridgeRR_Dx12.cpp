@@ -8,6 +8,7 @@
 #include <hooks/Streamline_Hooks.h>
 #endif
 #include "misc/NrdBridgeOwned_Dx12.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
@@ -16,6 +17,8 @@
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
+#include <atomic>
+#include <cstring>
 #include <bit>
 #include <cstdio>
 #include <sstream>
@@ -35,6 +38,15 @@ namespace
 using Microsoft::WRL::ComPtr;
 static_assert(FFX_DENOISER_VERSION_MAJOR == 1 && FFX_DENOISER_VERSION_MINOR == 2);
 static_assert(sizeof(ffxDispatchDescDenoiser) == 448u);
+static_assert(offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 264u);
+static_assert(sizeof(ffxDispatchDescDenoiser) - offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 184u);
+
+template<class Proxy> std::string OwnedProviderAttestation(ffxContext context) noexcept
+{
+    if constexpr (requires { Proxy::DenoiserRouteAttestationDx12(context); })
+        return Proxy::DenoiserRouteAttestationDx12(context);
+    return {}; // Minimal test proxies cannot attest an actual module route.
+}
 
 bool Fail(std::string& error, const char* operation, ffxReturnCode_t code)
 {
@@ -59,6 +71,38 @@ bool SameDevice(ID3D12Device* device, ID3D12Device* other)
     return device && other && SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&first))) &&
         SUCCEEDED(other->QueryInterface(IID_PPV_ARGS(&second))) && first.Get() == second.Get();
 }
+// Validation is kept separate so legacy Dispatch can reject bad borrowed targets before any provider work.
+bool ValidateCommitTarget(ID3D12GraphicsCommandList* list, uint32_t width, uint32_t height,
+                          const std::array<ID3D12Resource*, 7>& inputs, ID3D12Resource* outputSpec,
+                          ID3D12Resource* outputDiff, const FrameParameters& frame,
+                          ID3D12Device* expectedDevice, std::string& error)
+{
+    const auto reject = [&](const char* reason) { error = reason; return false; };
+    if (!list || (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT && list->GetType() != D3D12_COMMAND_LIST_TYPE_COMPUTE))
+        return reject("RR command list is missing or unsupported");
+    if (frame.outputEncoding != SignalEncoding::Rgb && frame.outputEncoding != SignalEncoding::YCoCg)
+        return reject("NRD output encoding is unsupported");
+    if (!width || !height || outputSpec == outputDiff)
+        return reject("RR dimensions or title output pair are invalid");
+    for (auto* output : {outputSpec,outputDiff})
+        if (!TextureMatches(output,width,height,DXGI_FORMAT_R16G16B16A16_FLOAT) ||
+            !(output->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+            return reject("RR title output format, size or UAV flags are invalid");
+    for (auto* input : inputs)
+        if (input == outputSpec || input == outputDiff)
+            return reject("RR bridge resource format, size or output alias is invalid");
+    ComPtr<ID3D12Device> device, other;
+    if (FAILED(list->GetDevice(IID_PPV_ARGS(&device))) || (expectedDevice && !SameDevice(device.Get(),expectedDevice)))
+        return reject("RR command list and owned output devices do not match");
+    for (auto* output : {outputSpec,outputDiff})
+    {
+        other.Reset();
+        if (FAILED(output->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(),other.Get()))
+            return reject("RR title output devices do not match the command list");
+    }
+    return ValidateTitleSignalConstants(frame.outputConstants,device.Get(),error);
+}
+
 struct Context
 {
     ffxContext handle = nullptr;
@@ -70,6 +114,7 @@ struct Context
     ffxCreateContextDescDenoiser create {};
     uint32_t width = 0, height = 0;
     uint64_t generation = 0;
+    std::array<char, 128> providerName {};
     bool debugEnabled = false;
     struct Slot
     {
@@ -88,6 +133,7 @@ struct Context
     ComPtr<ID3D12PipelineState> commitPso;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
+    uint8_t flagReadyMask = 0;
     std::optional<LobeRecovery> recovery;
     ComPtr<ID3D12RootSignature> nativeDebugRoot;
     ComPtr<ID3D12PipelineState> nativeDebugPso;
@@ -224,12 +270,20 @@ struct Context
         for (uint32_t i = 0; i < 4; ++i) if (!NewSlot(error)) return false;
         return InitializeNativeDebug(error);
     }
-    bool PrepareTableFlags(std::string& error)
+    bool PrepareTableFlags(std::string& error, uint32_t wordIndex = 303)
     {
-        // Both native table and direct root-VA routes capture into a leased snapshot.
-        if (!flagCapture.Initialize(device.Get(), error)) return false;
+        const uint8_t profile = wordIndex == 303 ? 1u : wordIndex == 36 ? 2u : 0u;
+        if (!profile) { error = "RR native encoding word is unsupported"; return false; }
+        // Capture owns both profile PSO/root pairs for this entire context generation.
+        if (!flagCapture.Initialize(device.Get(), error, wordIndex)) return false;
         for (const auto& slot : slots) if (!slot->flag.Initialize(device.Get(), error)) return false;
+        flagReadyMask |= profile;
         return true;
+    }
+    bool TableFlagsReady(const Slot& slot, uint32_t wordIndex) const noexcept
+    {
+        const uint8_t profile = wordIndex == 303 ? 1u : wordIndex == 36 ? 2u : 0u;
+        return profile && (flagReadyMask & profile) && bool(slot.flag.resource);
     }
     uint64_t AuxiliaryBytes() const noexcept
     {
@@ -291,26 +345,30 @@ struct Context
             std::swap(barriers[1].Transition.StateBefore, barriers[1].Transition.StateAfter);
         list->ResourceBarrier(2, barriers);
     }
-    std::shared_ptr<Slot> AcquireSlot(ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, std::string& error)
+    std::shared_ptr<Slot> AcquireOwnedSlot(std::string& error)
     {
         std::shared_ptr<Slot> slot;
         for (const auto& candidate : slots) if (candidate.use_count() == 1) { slot = candidate; break; }
         if (!slot) slot = NewSlot(error);
         if (!slot) return nullptr;
-        auto cpu = slot->descriptors->GetCPUDescriptorHandleForHeapStart();
-        for (auto* input : {slot->spec.Get(), slot->diff.Get()})
-        {
-            D3D12_SHADER_RESOURCE_VIEW_DESC desc {}; desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-            desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; desc.Texture2D.MipLevels = 1;
-            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            device->CreateShaderResourceView(input, &desc, cpu); cpu.ptr += descriptorStride;
-        }
+        SetCommitInputs(*slot,slot->spec.Get(),slot->diff.Get());
+        return slot;
+    }
+    void SetCommitOutputs(const Slot& slot, ID3D12Resource* outputSpec, ID3D12Resource* outputDiff) noexcept
+    {
+        auto cpu = slot.descriptors->GetCPUDescriptorHandleForHeapStart();
+        cpu.ptr += uint64_t(2) * descriptorStride;
         for (auto* output : {outputSpec, outputDiff})
         {
             D3D12_UNORDERED_ACCESS_VIEW_DESC desc {}; desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
             desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
             device->CreateUnorderedAccessView(output, nullptr, &desc, cpu); cpu.ptr += descriptorStride;
         }
+    }
+    std::shared_ptr<Slot> AcquireSlot(ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, std::string& error)
+    {
+        auto slot = AcquireOwnedSlot(error);
+        if (slot) SetCommitOutputs(*slot,outputSpec,outputDiff);
         return slot;
     }
     void SetCommitInputs(const Slot& slot, ID3D12Resource* spec, ID3D12Resource* diff) noexcept
@@ -342,7 +400,7 @@ struct Context
             flagCapture.Record(list, titleConstants, slot.flag);
         }
         const auto address = nativeConstants ? slot.flag.resource->GetGPUVirtualAddress() : zeroConstants->GetGPUVirtualAddress();
-        // Every fallible allocation and lease admission precedes the provider.
+        // Every fallible allocation and lease admission precedes the guarded commit.
         // Title resources only receive UAV barriers; transitions belong to staging.
         std::array<D3D12_RESOURCE_BARRIER, 4> barriers {};
         for (uint32_t i = 0; i < 2; ++i)
@@ -462,6 +520,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     fresh->width = width;
     fresh->height = height;
     fresh->debugEnabled = debugEnabled;
+    std::snprintf(fresh->providerName.data(),fresh->providerName.size(),"%s",providerName);
     if (!fresh->InitializeCommit(error)) return false;
     fresh->overrideVersion.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
     fresh->overrideVersion.versionId = versionId;
@@ -517,6 +576,22 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     return true;
 }
 } // namespace
+
+struct RRRecordedOutput
+{
+    static constexpr uint8_t Recorded = 0, Preparing = 1, Committed = 2, Abandoned = 3;
+    mutable std::atomic<uint8_t> phase {Recorded};
+    std::weak_ptr<void> wrapper;
+    std::weak_ptr<RecordedComputeLease::Recording> nativeRecording; // Never form a registry ownership cycle.
+    std::shared_ptr<DispatchLease> lease;
+    ID3D12GraphicsCommandList* source = nullptr; // Borrowed identity, never AddRef the title list.
+    ID3D12Resource *selectedSpec = nullptr, *selectedDiff = nullptr;
+    uint32_t frameIndex = 0, frameSL = UINT32_MAX;
+    uint64_t contextGeneration = 0, recordingId = 0;
+    bool recoveryFallback = false, nativeCommitPrepared = false;
+    mutable bool nativeEncodingCaptured = false;
+    std::array<uint8_t, 184> providerControl {};
+};
 
 struct RRWrapper::Impl
 {
@@ -800,107 +875,80 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
     return true;
 }
 
-bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
-                         ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
-                         const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard,
-                         NrdBridgeStagePerf::Sample* profiling)
+bool RRWrapper::RecordOwned(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
+                            const FrameParameters& frame, RRRecordedOutputLease& output, std::string& error,
+                            NrdBridgeStagePerf::Sample* profiling)
 {
-    error.clear();
-    // Every failed/current dispatch replaces the published observation. Recorded
-    // presentation leases retain their image independently through completion.
-    if (impl_) { impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false; }
-    if (frame.outputEncoding != SignalEncoding::Rgb && frame.outputEncoding != SignalEncoding::YCoCg)
-    {
-        if (impl_) impl_->resetPending = true;
-        error = "NRD output encoding is unsupported";
-        return false;
-    }
+    return RecordOwnedImpl(list,input,frame,output,error,profiling,true);
+}
+
+bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
+                                const FrameParameters& frame, RRRecordedOutputLease& output, std::string& error,
+                                NrdBridgeStagePerf::Sample* profiling, bool prepareNativeCommit)
+{
+    error.clear(); output.reset();
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
+    impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false;
     const auto reject = [&](const char* reason) {
-        impl_->resetPending = true;
-        error = reason;
-        return false;
+        impl_->resetPending = true; error = reason; return false;
     };
-    if (!list || (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT &&
-                  list->GetType() != D3D12_COMMAND_LIST_TYPE_COMPUTE))
+    if (!list || (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT && list->GetType() != D3D12_COMMAND_LIST_TYPE_COMPUTE))
         return reject("RR command list is missing or unsupported");
     if (!frame.camera.Complete() || frame.motionVectors3D || frame.frameIndex != impl_->nextFrame)
         return reject("RR frame parameters are missing, unsupported or stale");
-    if (!input.width || !input.height || outputSpec == outputDiff)
-        return reject("RR dimensions or title output pair are invalid");
-    const std::array<ID3D12Resource*, 7> inputs { input.spec, input.diff, input.linearDepth, input.motion,
-        input.normals, input.specAlbedo, input.diffAlbedo };
-    const std::array<DXGI_FORMAT, 7> formats { DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
-        DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R10G10B10A2_UNORM,
-        DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM };
+    if (!input.width || !input.height) return reject("RR dimensions are invalid");
+    const std::array<ID3D12Resource*, 7> inputs {input.spec,input.diff,input.linearDepth,input.motion,
+        input.normals,input.specAlbedo,input.diffAlbedo};
+    const std::array<DXGI_FORMAT, 7> formats {DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
+        DXGI_FORMAT_R32_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R10G10B10A2_UNORM,
+        DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R8G8B8A8_UNORM};
     for (size_t i = 0; i < inputs.size(); ++i)
-        if (!TextureMatches(inputs[i], input.width, input.height, formats[i]) ||
-            inputs[i] == outputSpec || inputs[i] == outputDiff)
-            return reject("RR bridge resource format, size or output alias is invalid");
-    for (auto* output : { outputSpec, outputDiff })
-        if (!TextureMatches(output, input.width, input.height, DXGI_FORMAT_R16G16B16A16_FLOAT) ||
-            !(output->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
-            return reject("RR title output format, size or UAV flags are invalid");
+        if (!TextureMatches(inputs[i],input.width,input.height,formats[i]))
+            return reject("RR bridge resource format or size is invalid");
     ComPtr<ID3D12Device> device, other;
-    if (FAILED(outputSpec->GetDevice(IID_PPV_ARGS(&device))) ||
-        FAILED(list->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
-        return reject("RR command list and output devices do not match");
+    if (FAILED(list->GetDevice(IID_PPV_ARGS(&device)))) return reject("RR command list device is unavailable");
     for (auto* resource : inputs)
     {
         other.Reset();
-        if (FAILED(resource->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
-            return reject("RR bridge resource device does not match the title output");
+        if (FAILED(resource->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(),other.Get()))
+            return reject("RR bridge resource device does not match the command list");
     }
-    other.Reset();
-    if (FAILED(outputDiff->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
-        return reject("RR title output devices do not match");
-    if (!ValidateTitleSignalConstants(frame.outputConstants, device.Get(), error))
-    { impl_->resetPending = true; return false; }
-    const bool nativeConstants = HasNativeTitleSignalConstants(frame.outputConstants);
     const bool recreate = !impl_->context || impl_->context->width != input.width ||
-        impl_->context->height != input.height || !SameDevice(device.Get(), impl_->context->device.Get());
+        impl_->context->height != input.height || !SameDevice(device.Get(),impl_->context->device.Get());
     if (recreate)
     {
         std::shared_ptr<Context> fresh;
-        if (!CreateContext(device.Get(), input.width, input.height, fresh, error, impl_->settings.nativeDebugView != -1))
-        {
-            impl_->resetPending = true;
-            return false;
-        }
+        if (!CreateContext(device.Get(),input.width,input.height,fresh,error,impl_->settings.nativeDebugView != -1))
+        { impl_->resetPending = true; return false; }
         bool lightingChanged = false;
         try
         {
-            if (!fresh->ApplySettings(impl_->settings, lightingChanged, error))
+            if (!fresh->ApplySettings(impl_->settings,lightingChanged,error))
             { DiscardRecordingHistory(); return false; }
         }
         catch (...) { DiscardRecordingHistory(); throw; }
         fresh->generation = ++impl_->generation;
-        // Recorded/submitted leases own the previous generation through GPU completion.
-        impl_->context = std::move(fresh);
+        impl_->context = std::move(fresh); // Old GPU leases retain their exact physical generation.
         impl_->resetPending = true;
     }
-    if (nativeConstants && !impl_->context->PrepareTableFlags(error))
-    { impl_->resetPending = true; return false; }
-    auto lease = MakeOwnedShared<DispatchLease>();
-    lease->context = impl_->context;
-    lease->slot = impl_->context->AcquireSlot(outputSpec, outputDiff, error);
+    auto lease = MakeOwnedShared<DispatchLease>(); lease->context = impl_->context;
+    lease->slot = lease->context->AcquireOwnedSlot(error);
     if (!lease->slot) { impl_->resetPending = true; return false; }
+    // Deferred native recording must know every late capture object exists before provider/suppression.
+    if (prepareNativeCommit && (!lease->context->PrepareTableFlags(error,303) ||
+        !lease->context->PrepareTableFlags(error,36))) { impl_->resetPending = true; return false; }
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
     const bool reset = frame.reset || impl_->resetPending || recreate;
-    auto* committedSpec = lease->slot->spec.Get();
-    auto* committedDiff = lease->slot->diff.Get();
+    auto* committedSpec = lease->slot->spec.Get(); auto* committedDiff = lease->slot->diff.Get();
     bool recoveryFallback = false;
     const bool requestRecovery = impl_->settings.lobeRecovery && !lease->context->debugEnabled &&
         (impl_->settings.recoverySpecular > 0.0f || impl_->settings.recoveryDiffuse > 0.0f);
     if (requestRecovery)
     {
-        // Optional preparation is entirely before provider recording and lifetime admission.
-        // All fallback paths leave the exact raw RR pair and RR history intact.
         bool prepared = false;
         try
         {
-            if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily)
-                impl_->recoveryFamily = CreateRRRecoveryFamily();
+            if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily) impl_->recoveryFamily = CreateRRRecoveryFamily();
             if (impl_->recoveryFamily)
             {
                 if (!lease->context->recovery) lease->context->recovery.emplace();
@@ -909,14 +957,12 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
                 LobeRecoveryFrame recoveryFrame;
                 recoveryFrame.frameIndex = frame.frameIndex; recoveryFrame.reset = reset;
                 recoveryFrame.jitterPixels = {frame.jitter.x,frame.jitter.y};
-                // Primary RR motion includes jitter whether supplied by the title or added by conversion.
                 recoveryFrame.jitterDeltaUv = {(frame.previousJitter.x-frame.jitter.x)/input.width,
                     (frame.previousJitter.y-frame.jitter.y)/input.height};
                 recoveryFrame.strength = {impl_->settings.recoverySpecular,impl_->settings.recoveryDiffuse};
                 std::string optionalError;
                 const std::shared_ptr<LobeRecovery::Family> family(impl_->recoveryFamily,&impl_->recoveryFamily->budget);
-                prepared = lease->context->recovery->Prepare(device.Get(),list,recoveryInputs,recoveryFrame,
-                    family,lease->recovery,optionalError);
+                prepared = lease->context->recovery->Prepare(device.Get(),list,recoveryInputs,recoveryFrame,family,lease->recovery,optionalError);
             }
         }
         catch (...) { prepared = false; }
@@ -925,15 +971,21 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
             committedSpec = lease->recovery.specular; committedDiff = lease->recovery.diffuse;
             lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
         }
-        else
-        {
-            lease->recovery = {}; lease->context->recovery.reset();
-            recoveryFallback = true;
-        }
+        else { lease->recovery = {}; lease->context->recovery.reset(); recoveryFallback = true; }
     }
     else lease->context->recovery.reset();
-    if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
+    // Allocate the public opaque owner before any provider commands can be recorded.
+    auto recorded = MakeOwnedShared<RRRecordedOutput>();
+    recorded->wrapper = impl_; recorded->lease = lease; recorded->source = list;
+    recorded->selectedSpec = committedSpec; recorded->selectedDiff = committedDiff;
+    recorded->frameIndex = frame.frameIndex; recorded->frameSL = frame.streamlineFrame;
+    recorded->contextGeneration = lease->context->generation; recorded->recoveryFallback = recoveryFallback;
+    recorded->nativeCommitPrepared = prepareNativeCommit;
+    if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(),list,lease))
         return reject("RR recorded-dispatch lifetime tracking is unavailable");
+    const auto nativeRecording = RecordedComputeLease::Capture(list);
+    if (!nativeRecording || !nativeRecording->id) return reject("RR native recording identity is unavailable");
+    recorded->nativeRecording = nativeRecording; recorded->recordingId = nativeRecording->id;
     ffxDispatchDescDenoiserDirectDiffuse diffuse {};
     diffuse.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
     diffuse.signal.input = ffxApiGetResourceDX12(input.diff, FFX_API_RESOURCE_STATE_COMPUTE_READ);
@@ -975,65 +1027,158 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     dispatch.renderSize = { input.width, input.height };
     dispatch.frameIndex = frame.frameIndex;
     dispatch.flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | (reset ? FFX_DENOISER_DISPATCH_RESET : 0);
+    std::memcpy(recorded->providerControl.data(),reinterpret_cast<const uint8_t*>(&dispatch) +
+        offsetof(ffxDispatchDescDenoiser,motionVectorScale),recorded->providerControl.size());
     ScopedSkipHeapCapture skipHeapCapture;
     ffxReturnCode_t result;
     try
     {
         NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);
-        result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle, &dispatch.header);
+        result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle,&dispatch.header);
     }
-    catch (...) { DiscardRecordingHistory(); throw; }
+    catch (...) { AbandonOwned(recorded); throw; }
     if (result != FFX_API_RETURN_OK)
-    {
-        DiscardRecordingHistory();
-        return Fail(error, "RR dispatch", result);
-    }
-    // These passes touch only private resources, outside the title-admission gMutex.
-    // Guard denial below retires the entire physical context and speculative graph history.
+    { AbandonOwned(recorded); return Fail(error,"RR dispatch",result); }
     if (lease->recovery.owner) lease->context->recovery->Record(list,lease->recovery);
+    // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
+    impl_->recoveryActive = bool(lease->recovery.owner); impl_->recoveryFallback = recoveryFallback;
+    impl_->previous = frame; impl_->previous.reset = reset;
+    impl_->previous.outputConstants = {}; impl_->previous.nativeSpecularBlend = 0.0f;
+    impl_->historyValid = true; impl_->resetPending = false; ++impl_->nextFrame;
+    output = std::move(recorded);
+    return true;
+}
+
+void RRWrapper::AbandonOwned(const RRRecordedOutputLease& output) noexcept
+{
+    if (!output || !impl_ || output->wrapper.lock().get() != impl_.get()) return;
+    output->phase.store(RRRecordedOutput::Abandoned,std::memory_order_release);
+    const auto context = output->lease ? output->lease->context : nullptr;
+    if (context && impl_->context == context && context->generation == output->contextGeneration)
+        DiscardRecordingHistory(); // Outside coordinator/registry locks; GPU leases retain old work.
+}
+
+RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutputLease& output) const noexcept
+{
+    RRRecordedOutputSnapshot result;
+    if (!output || !impl_ || output->wrapper.lock().get() != impl_.get() ||
+        output->phase.load(std::memory_order_acquire) == RRRecordedOutput::Abandoned || !output->lease) return result;
+    const auto& lease = output->lease;
+    result.rawSpec = lease->slot->spec.Get(); result.rawDiff = lease->slot->diff.Get();
+    result.selectedSpec = output->selectedSpec; result.selectedDiff = output->selectedDiff; result.owner = lease;
+    result.recording = output->source; result.recordingId = output->recordingId;
+    result.frameSL = output->frameSL; result.frameIndex = output->frameIndex;
+    result.width = lease->context->width; result.height = lease->context->height;
+    result.contextGeneration = output->contextGeneration;
+    result.outputCommitted = output->phase.load(std::memory_order_acquire) == RRRecordedOutput::Committed;
+    result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
+    if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
+    result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
+    result.providerControl = output->providerControl;
+    result.providerVersionId = lease->context->overrideVersion.versionId;
+    result.providerApiVersion = lease->context->create.version;
+    result.providerSignalFlags = lease->context->create.signalFlags; result.providerContextFlags = lease->context->create.flags;
+    result.providerName = lease->context->providerName;
+    return result;
+}
+
+std::string RRWrapper::GetOwnedOutputProviderAttestation(const RRRecordedOutputLease& output) const noexcept
+{
+    if (!output || !impl_ || output->wrapper.lock().get() != impl_.get() || !output->lease ||
+        output->phase.load(std::memory_order_acquire) == RRRecordedOutput::Abandoned) return {};
+    return OwnedProviderAttestation<FfxApiProxy>(output->lease->context->handle);
+}
+
+bool RRWrapper::CommitOwned(ID3D12GraphicsCommandList* list, const RRRecordedOutputLease& output,
+                            ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, const FrameParameters& frame,
+                            std::string& error, const OutputCommitGuard& guard, NrdBridgeStagePerf::Sample* profiling)
+{
+    error.clear();
+    const auto reject = [&](const char* reason) { error = reason; return false; };
+    if (!output || !impl_ || output->wrapper.lock().get() != impl_.get() || !output->lease)
+        return reject("RR owned output belongs to no live matching wrapper");
+    uint8_t expected = RRRecordedOutput::Recorded;
+    if (!output->phase.compare_exchange_strong(expected,RRRecordedOutput::Preparing,std::memory_order_acq_rel))
+        return reject("RR owned output is already committed, preparing or abandoned");
+    struct Claim
+    {
+        RRWrapper* wrapper; const RRRecordedOutputLease* output; bool committed = false;
+        ~Claim() { if (!committed) wrapper->AbandonOwned(*output); }
+    } claim {this,&output};
+    const auto& lease = output->lease;
+    if (impl_->context != lease->context || lease->context->generation != output->contextGeneration)
+        return reject("RR owned output context generation is stale");
+    if (list != output->source || frame.frameIndex != output->frameIndex || frame.streamlineFrame != output->frameSL)
+        return reject("RR owned output requires its exact source recording and frame; cross-list commit is unsupported");
+    const auto originalRecording = output->nativeRecording.lock();
+    const auto currentRecording = RecordedComputeLease::Capture(list);
+    if (!RecordedComputeLease::Available() || !originalRecording || !currentRecording ||
+        currentRecording != originalRecording || !output->recordingId || currentRecording->id != output->recordingId)
+        return reject("RR owned output native recording identity expired or changed");
+    const std::array<ID3D12Resource*, 7> inputs {lease->inputs[0].Get(),lease->inputs[1].Get(),lease->inputs[2].Get(),
+        lease->inputs[3].Get(),lease->inputs[4].Get(),lease->inputs[5].Get(),lease->inputs[6].Get()};
+    if (!ValidateCommitTarget(list,lease->context->width,lease->context->height,inputs,outputSpec,outputDiff,
+        frame,lease->context->device.Get(),error)) return false;
+    for (auto* owned : {lease->slot->spec.Get(),lease->slot->diff.Get(),output->selectedSpec,output->selectedDiff,lease->slot->nativeDebug.Get()})
+        if (owned && (owned == outputSpec || owned == outputDiff)) return reject("RR title output aliases owned stages");
+    if (HasNativeTitleSignalConstants(frame.outputConstants))
+    {
+        if (output->nativeCommitPrepared)
+        {
+            if (!lease->context->TableFlagsReady(*lease->slot,frame.outputConstants.wordIndex))
+                return reject("RR deferred native capture was not prepared before the provider");
+        }
+        else if (!lease->context->PrepareTableFlags(error,frame.outputConstants.wordIndex)) return false;
+    }
+    // This exact live recording already owns the early DispatchLease. Its owned slot
+    // covers late flag/descriptor objects too; never create an opaque-owner/registry cycle.
+    lease->context->SetCommitOutputs(*lease->slot,outputSpec,outputDiff);
     struct PreparedCommit
     {
-        Context* context;
-        ID3D12GraphicsCommandList* list;
-        Context::Slot* slot;
-        ID3D12Resource *spec, *diff, *committedSpec, *committedDiff;
-        SignalEncoding encoding;
-        TitleSignalConstants constants;
-        float nativeSpecularBlend;
-        NrdBridgeStagePerf::Sample* profiling;
-    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, committedSpec, committedDiff, frame.outputEncoding, frame.outputConstants,
-        NormalizeNativeSpecularBlend(frame.nativeSpecularBlend),profiling};
+        Context* context; ID3D12GraphicsCommandList* list; Context::Slot* slot;
+        ID3D12Resource *spec,*diff,*selectedSpec,*selectedDiff;
+        SignalEncoding encoding; TitleSignalConstants constants;
+        const RRRecordedOutput* output; NrdBridgeStagePerf::Sample* profiling;
+    } prepared {lease->context.get(),list,lease->slot.get(),outputSpec,outputDiff,output->selectedSpec,output->selectedDiff,
+        frame.outputEncoding,frame.outputConstants,output.get(),profiling};
     const auto record = +[](void* state) noexcept {
-        const auto& prepared = *static_cast<PreparedCommit*>(state);
-        NrdBridgeStagePerf::StackTimer outputCommit(prepared.profiling,NrdBridgeStagePerf::Stage::OutputCommit);
-        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants,
-            prepared.nativeSpecularBlend,prepared.committedSpec,prepared.committedDiff);
+        const auto& action = *static_cast<PreparedCommit*>(state);
+        NrdBridgeStagePerf::StackTimer outputCommit(action.profiling,NrdBridgeStagePerf::Stage::OutputCommit);
+        action.context->Commit(action.list,*action.slot,action.spec,action.diff,action.encoding,action.constants,
+            0.0f,action.selectedSpec,action.selectedDiff);
+        action.output->nativeEncodingCaptured = HasNativeTitleSignalConstants(action.constants);
+        action.output->phase.store(RRRecordedOutput::Committed,std::memory_order_release);
     };
-    if (guard.admit && !guard.admit(guard.state, record, &commit))
+    if (guard.admit && !guard.admit(guard.state,record,&prepared))
+        return reject("RR output ticket expired before owned commit");
+    if (!guard.admit) record(&prepared);
+    claim.committed = true;
+    // An older successful commit cannot overwrite newer private SDK camera/history.
+    if (impl_->previous.frameIndex == output->frameIndex && impl_->previous.streamlineFrame == output->frameSL && lease->context->debugEnabled)
     {
-        // SDK work stays leased, but an expired title ticket never receives it.
-        DiscardRecordingHistory();
-        error = "NRD output ticket expired before RR commit";
-        return false;
-    }
-    if (!guard.admit) record(&commit);
-    if (lease->context->debugEnabled)
-    {
-        impl_->nativeDebug.resource = lease->slot->nativeDebug.Get();
-        impl_->nativeDebug.owner = lease;
-        impl_->nativeDebug.recording = list;
-        impl_->nativeDebug.frameSL = frame.streamlineFrame;
-        impl_->nativeDebug.width = input.width; impl_->nativeDebug.height = input.height;
+        impl_->nativeDebug.resource = lease->slot->nativeDebug.Get(); impl_->nativeDebug.owner = lease;
+        impl_->nativeDebug.recording = list; impl_->nativeDebug.frameSL = output->frameSL;
+        impl_->nativeDebug.width = lease->context->width; impl_->nativeDebug.height = lease->context->height;
         impl_->nativeDebug.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     }
-    impl_->recoveryActive = bool(lease->recovery.owner);
-    impl_->recoveryFallback = recoveryFallback;
-    impl_->previous = frame;
-    impl_->previous.reset = reset;
-    impl_->historyValid = true;
-    impl_->resetPending = false;
-    ++impl_->nextFrame;
     return true;
+}
+
+bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
+                         ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
+                         const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard,
+                         NrdBridgeStagePerf::Sample* profiling)
+{
+    error.clear();
+    if (impl_) { impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false; }
+    const std::array<ID3D12Resource*, 7> inputs {input.spec,input.diff,input.linearDepth,input.motion,
+        input.normals,input.specAlbedo,input.diffAlbedo};
+    if (!ValidateCommitTarget(list,input.width,input.height,inputs,outputSpec,outputDiff,frame,nullptr,error))
+    { if (impl_) impl_->resetPending = true; return false; }
+    RRRecordedOutputLease output;
+    // Legacy standalone path keeps its existing optional-flag allocation behavior.
+    return RecordOwnedImpl(list,input,frame,output,error,profiling,false) &&
+        CommitOwned(list,output,outputSpec,outputDiff,frame,error,guard,profiling);
 }
 void RRWrapper::ResetHistory() noexcept
 {
