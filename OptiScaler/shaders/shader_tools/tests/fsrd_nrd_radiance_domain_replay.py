@@ -173,6 +173,15 @@ def normalize_output(actual, scale):
     return normalized
 
 
+def canonical_metrics(replay, output, reference, age, ghost, crop, unit_to_v1):
+    # The existing oracle has an absolute ghost-direction support threshold.
+    # Restore common reference units BEFORE calling it, rather than changing
+    # that threshold or comparing different support between unit domains.
+    return replay.metrics(np.asarray(output, np.float64)[..., :3] * unit_to_v1,
+        np.asarray(reference, np.float64) * unit_to_v1, age,
+        np.asarray(ghost, np.float64) * unit_to_v1, crop)
+
+
 def published_quantiles(loader_path, index_path):
     loader = source_module(loader_path, '_radiance_published_loader')
     index = json.loads(index_path.read_text(encoding='utf-8'))
@@ -234,7 +243,7 @@ def normalized_metrics(replay, inputs, manifest, raw_runs, unit_to_v1=1):
             reference = replay.load(origin, frame['payloads']['reference_' + signal]).astype(np.float64)
             ghost = replay.load(origin, frame['payloads']['ghost_' + signal]).astype(np.float64)
             noisy = replay.load(origin, frame['payloads'][signal])
-            values = {'noisy_input': replay.metrics(noisy, reference, age, ghost, manifest['comparison_crop'])}
+            values = {'noisy_input': canonical_metrics(replay, noisy, reference, age, ghost, manifest['comparison_crop'], unit_to_v1)}
             outputs = {'noisy_input': noisy[..., :3].astype(np.float64)}
             for name, run in raw_runs.items():
                 path = Path(run['directory']) / frame['directory'] / (signal + '.bin')
@@ -245,18 +254,19 @@ def normalized_metrics(replay, inputs, manifest, raw_runs, unit_to_v1=1):
                 # No extra FP16 quantization after inversion. Alpha remains the
                 # actual raw provider output, never divided by radiance scale.
                 normalized = normalize_output(actual, run['rgb_scale'])
-                values[name] = replay.metrics(normalized, reference, age, ghost, manifest['comparison_crop'])
+                values[name] = canonical_metrics(replay, normalized, reference, age, ghost, manifest['comparison_crop'], unit_to_v1)
                 outputs[name] = normalized[..., :3]
             x, y, width, height = manifest['comparison_crop']
             cut = np.s_[y:y + height, x:x + width]
-            ref = reference[cut]
+            ref = reference[cut] * unit_to_v1
             ref_energy = float(np.sum(ref))
             for name, output in outputs.items():
-                current = output[cut]
+                current = output[cut] * unit_to_v1
                 values[name].update(reference_rgb_sum=ref_energy, output_rgb_sum=float(np.sum(current)),
                     signed_mean_rgb_error=float(np.mean(current - ref)),
                     energy_ratio=float(np.sum(current) / ref_energy) if ref_energy else None,
-                    consumer_rgb_rmse=values[name]['rgb_rmse'] * 64)
+                    input_unit_rgb_rmse=values[name]['rgb_rmse'] / unit_to_v1,
+                    consumer_rgb_rmse=values[name]['rgb_rmse'] / unit_to_v1 * 64)
             row['signals'][signal] = values
         frames.append(row)
     for name in list(raw_runs) + ['noisy_input']:
@@ -271,15 +281,44 @@ def normalized_metrics(replay, inputs, manifest, raw_runs, unit_to_v1=1):
             total_energy_ratio=float(sum(v['output_rgb_sum'] for v in rows) / sum(v['reference_rgb_sum'] for v in rows)),
             mean_signed_rgb_error=float(np.mean([v['signed_mean_rgb_error'] for v in rows])),
             mean_consumer_rgb_rmse=float(np.mean([v['consumer_rgb_rmse'] for v in rows])),
-            canonical_v1_mean_frame_rgb_rmse=float(np.mean([v['rgb_rmse'] for v in rows])) * unit_to_v1,
-            canonical_v1_mean_frame_chroma_rmse=float(np.mean([v['chroma_rmse'] for v in rows])) * unit_to_v1,
-            canonical_v1_mean_detail_gradient_rmse=float(np.mean([v['detail_gradient_rmse'] for v in rows])) * unit_to_v1,
+            canonical_v1_mean_frame_rgb_rmse=float(np.mean([v['rgb_rmse'] for v in rows])),
+            canonical_v1_mean_frame_chroma_rmse=float(np.mean([v['chroma_rmse'] for v in rows])),
+            canonical_v1_mean_detail_gradient_rmse=float(np.mean([v['detail_gradient_rmse'] for v in rows])),
             reveal_age_curve=replay.tail_summary(rows))
     return dict(frames=frames, summaries=summaries, inverse_scale_before_all_metrics=True,
         input_unit_to_canonical_v1=unit_to_v1,
+        metric_units='canonical V1 before unchanged oracle, including its absolute reveal-support predicate',
         normalization_dtype='float64 exact power-of-two; alpha untouched',
         consumer_metric_scope='Derived from already inverse-scaled actual RR RGB using native Consumer64 with unity exposure in the unchanged C++ fixture. Its .75/2 values are title alpha sentinels, not exposures. Game exposure is not serialized.',
         no_quality_improvement_assertion=True, no_game_temporal_claim=True)
+
+
+def analyze_saved(replay, output):
+    source = output / 'comparison.json'
+    source_sha = file_sha(source)
+    result = json.loads(source.read_text(encoding='utf-8'))
+    require(result['gpu_executed'] and result['compiler_executed'], 'analysis uses completed actual signed-RR evidence')
+    for domain in result['domains'].values():
+        require(file_sha(Path(domain['inputs']) / 'sequence.json') == domain['source_manifest_sha256'],
+                'selected unit source manifest remains sealed')
+        domain['comparison'] = normalized_metrics(replay, Path(domain['inputs']), domain['manifest'],
+                                                  domain['runs'], domain['unit_to_canonical_v1'])
+    if 'v1' in result['domains'] and 'v3' in result['domains']:
+        left = result['domains']['v1']['comparison']['frames']
+        right = result['domains']['v3']['comparison']['frames']
+        for a, b in zip(left, right):
+            for signal in ('spec', 'diff'):
+                def support(row):
+                    return {key: value['pixels'] for key, value in row['reveal_tail'].items()}
+                expected = support(a['signals'][signal]['scale_1'])
+                for value in b['signals'][signal].values():
+                    require(support(value) == expected, 'identical per-frame/per-signal reveal support in both unit domains')
+    require(file_sha(source) == source_sha, 'original raw-run comparison evidence is never overwritten')
+    result.update(canonical_analysis_of_sha256=source_sha, canonical_analysis_python_checks=CHECKS,
+                  canonical_analysis_source_sha256=file_sha(Path(__file__)))
+    write_json(output / 'canonical-comparison.json', result)
+    print(json.dumps(dict(canonical_result=str(output / 'canonical-comparison.json'), checks=CHECKS,
+        gpu_or_compiler_executed_by_analysis=False, original_result_unchanged=True), indent=2))
 
 
 def run_gpu(replay, inputs, manifest, prepared, output, settings_contract, settings_text, unit_to_v1=1):
@@ -319,12 +358,17 @@ def main():
     parser.add_argument('--survey-index', type=Path, default=Path('F:/FSRD/sol_batch/15d-guides/index.json'))
     parser.add_argument('--domain', choices=('v1', 'v3', 'both'), default='both')
     parser.add_argument('--run', action='store_true')
+    parser.add_argument('--analyze-only', action='store_true')
     args = parser.parse_args()
     output = safe_output(args.output)
     output.mkdir(parents=True, exist_ok=True)
     before = file_sha(args.inputs / 'sequence.json')
     require(before == V1_SHA, 'exact sealed V1 source; never regenerate the old oracle')
     replay = source_module(args.replay_source, '_radiance_actual_root_replay')
+    if args.analyze_only:
+        require(not args.run, 'CPU saved-output analysis never starts a native job')
+        analyze_saved(replay, output)
+        return
     manifest = replay.validate(args.inputs)
     require(manifest['submitted_frames'] == 64 and manifest['seed'] == 22945830, 'exact sealed64 samples and seed')
     settings, text = sealed_settings(args.settings_source)
