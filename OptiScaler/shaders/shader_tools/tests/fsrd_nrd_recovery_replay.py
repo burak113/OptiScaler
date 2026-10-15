@@ -359,7 +359,7 @@ def main():
     parser.add_argument('--completed',type=Path,required=True)
     parser.add_argument('--view',required=True)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--oracle-source',type=Path,default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    parser.add_argument('--oracle-source',type=Path,default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     args = parser.parse_args()
     result = replay(args.manifest,args.completed,args.view,args.output,args.oracle_source)
     brief = {name:{signal:{key:values[key] for key in ('rgb_rmse','chroma_rmse','same_surface_gradient_projection')}

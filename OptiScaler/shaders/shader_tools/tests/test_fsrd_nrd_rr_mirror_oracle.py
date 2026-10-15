@@ -149,7 +149,9 @@ def validate(prepared, camera_source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepared', type=Path)
-    parser.add_argument('--camera-source', type=Path, default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    # The sealed v1 manifest pins the original generator bytes; the live oracle
+    # evolves, so the default is a frozen v1 copy (sha256 d245c128...).
+    parser.add_argument('--camera-source', type=Path, default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     parser.add_argument('--output', type=Path, default=Path('E:/FSRD/sol_batch/15c-rr/mirror-properties.json'))
     args = parser.parse_args()
     result = validate(args.prepared, args.camera_source) if args.prepared else properties(args.camera_source)

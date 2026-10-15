@@ -38,7 +38,11 @@ def sources():
     bridge=(SHADERS/'FSRDNrdBridgePass_Dx12.cpp').read_bytes()
     begin=bridge.index(b'bool ConversionPass::Dispatch(ID3D12GraphicsCommandList*')
     end=bridge.index(b'bool ConversionPass::DispatchGeometry(')
-    need(hashlib.sha256(bridge[begin:end]).hexdigest()=='6d1f265dc484da7be3130d392170f4317900faba57b2b467bce3324f1a30954a','legacy lighting conversion byte-identical')
+    # Pinned after the sanctioned D01/WP04 motion-Z provenance change (commit
+    # 8dcda3a6): the previous-surface Z estimate is camera-only by default and
+    # the legacy visible-surface path is an explicit rollback. Update this hash
+    # only together with a reported semantic change to the legacy conversion.
+    need(hashlib.sha256(bridge[begin:end]).hexdigest()=='67c42b4b623e4d9fe90d59214c01bcb2ccaddc2cf390546a05a6c3cbc685d977','legacy lighting conversion pinned to sanctioned provenance shape')
     need('NativeRawSpec[tid.xy]' in capture and 'NativeRawDiff[tid.xy]' in capture,'Recon direct local DTid color addressing')
     need('PackNativeHalf4' in capture and capture.count('NrdNearestHalfBits(value.')==4,'all4 raw half components packed')
     need('clamp(' not in capture and 'max(' not in capture,'no raw RGB clamp before codec')

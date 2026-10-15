@@ -136,7 +136,7 @@ def run(source, oracle_source, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, default=Path('F:/FSRD/sol_batch/15e-quality/inputs'))
-    parser.add_argument('--oracle-source', type=Path, default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    parser.add_argument('--oracle-source', type=Path, default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     parser.add_argument('--output', type=Path, default=Path('E:/FSRD/sol_batch/15c-rr/specular-oracle-contract-probe.json'))
     args = parser.parse_args()
     run(args.source, args.oracle_source, args.output)

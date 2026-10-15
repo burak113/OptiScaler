@@ -220,7 +220,7 @@ def real_history(directory,shaders,runner,manifest_path,completed,view,storage='
             if signal=='spec':ids+=data['secondary_object']
             masks = analysis.evaluation_masks(data,replicas['mean'],signal,manifest['comparison_crop'])
             metric_sha = next(v for k,v in manifest['source_files'].items() if Path(k).name=='fsrd_nrd_motion_quality_oracle.py')
-            metric = analysis.original_metrics(Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'),metric_sha)
+            metric = analysis.original_metrics(Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py',metric_sha)
             row['signals'][signal] = {name:dict(original=metric(image,replicas['mean'],data['reveal_age'],data['ghost_'+signal],manifest['comparison_crop']),
                 same_surface=analysis.same_surface_detail(image,replicas['mean'],ids,manifest['comparison_crop']),
                 cohorts=analysis.cohort_metrics(image,replicas['mean'],masks)) for name,image in (('rr',rr),('recovery_gpu',value),('recovery_cpu',reference))}

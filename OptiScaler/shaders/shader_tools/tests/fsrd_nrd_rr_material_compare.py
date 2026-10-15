@@ -224,7 +224,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepared', type=Path, default=TASK/'material-v2')
     parser.add_argument('--output', type=Path, default=TASK/'material-v2-rr')
-    parser.add_argument('--oracle-source', type=Path, default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    parser.add_argument('--oracle-source', type=Path, default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     parser.add_argument('--native-exe', type=Path)
     parser.add_argument('--native-exe-sha')
     parser.add_argument('--run', action='store_true')

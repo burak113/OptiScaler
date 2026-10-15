@@ -265,7 +265,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--inputs', type=Path, default=Path('F:/FSRD/sol_batch/15e-quality/inputs'))
     parser.add_argument('--output', type=Path, default=Path('F:/FSRD/sol_batch/15c-rr/material-v2'))
-    parser.add_argument('--oracle-source', type=Path, default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    parser.add_argument('--oracle-source', type=Path, default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     args = parser.parse_args()
     result = prepare(args.inputs, args.output, args.oracle_source)
     print(json.dumps({k:v for k,v in result.items() if k != 'frames'}, indent=2))

@@ -28,7 +28,7 @@ PIXEL_BATCH = 1024
 SAMPLE_BATCH = 64
 INPUT_SEED = 0x15C5100
 REFERENCE_SEEDS = (0x15C5A001, 0x15C5B002)
-CAMERA_SOURCE = Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py')
+CAMERA_SOURCE = Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py'
 
 
 def nearest_emission(origins, directions, pose):

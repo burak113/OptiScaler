@@ -295,7 +295,8 @@ def write_sequence(destination, camera_source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=BASE / 'mirror-v4')
-    parser.add_argument('--camera-source', type=Path, default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
+    # Frozen v1 generator source; the sealed manifest pins these bytes.
+    parser.add_argument('--camera-source', type=Path, default=Path(__file__).resolve().parent / 'fsrd_nrd_motion_quality_oracle_v1_frozen.py')
     args = parser.parse_args()
     write_sequence(args.output, args.camera_source)
 
