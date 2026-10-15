@@ -3495,11 +3495,11 @@ static void DrawNrdBridgeInputMap()
         row("Post-RR lobe detail", NrdBridge::GetRRSettingsState().requested.lobeRecovery
             ? "Requested separate lobe recovery uses noise-gated lost detail, temporal warm-up, disocclusion rejection and a local anchor. Zero strength leaves that lobe unchanged; both zero skip recovery work. Independent of ordinary Recovery controls."
             : "Separate lobe detail recovery is requested off. Ordinary FSR-RR Recovery controls are independent of this bridge path.");
-        row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
-        row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
+        row("Consumer output encoding", "A tiny GPU shader reads the current consumer's exact b6/space0 binding: compute word303 or pixel-composition word36. It selects RGB or YCoCg; the game keeps its lighting scale, exposure and composition.");
+        row("Other NRD inputs", "NRD history, confidence and checkerboard controls have no equivalent bound AMD input here. They are not reinterpreted as lighting or fabricated. Ordinary DLSS-input conversion and Recovery controls are independent.");
         ImGui::EndTable();
     }
-    ImGui::TextWrapped("Both noisy lighting lobes go through AMD RR. The title composites the denoised outputs with its water, fog and transparent layers.");
+    ImGui::TextWrapped("Both noisy lighting lobes go through AMD RR. Native NRD denoised color never corrects or replaces the RR result. The title keeps its final material, water, fog and transparent-layer composition.");
 }
 
 // Denoiser selection. FSR-RR's own settings appear inside it only while FSR-RR is the
@@ -3550,13 +3550,20 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
     {
         ScopedIndent indent;
         const auto bridge = NrdBridge::GetStatus();
-        bool enabled = NrdBridge::RuntimeEnabled();
+        bool enabled = NrdBridge::RuntimeEnabled() && !bridge.runtimeDisablePending;
         if (ImGui::Checkbox("FSR RR on the game's NRD signals", &enabled))
         {
             config->FfxDenoiserNrdBridgeEnabled = enabled;
             NrdBridge::SetRuntimeEnabled(enabled);
         }
         ImGui::TextWrapped("%s: %s", bridge.phase.c_str(), bridge.reason.c_str());
+        if (bridge.nativeHistoryDirty)
+        {
+            ImGui::TextWrapped("Native NRD history is paused. Returning to native NRD requires restarting the game.");
+            ImGui::Text("Native denoising dispatches omitted: %llu", static_cast<unsigned long long>(bridge.nativeDispatchesSkipped));
+        }
+        if (bridge.runtimeDisablePending)
+            ImGui::TextWrapped("OFF is saved for the next launch. RR remains active this session; enable the checkbox to cancel this request.");
         if (!bridge.resources.empty()) ImGui::TextWrapped("%s", bridge.resources.c_str());
         if (ImGui::Button("Reset RR history")) NrdBridge::RequestHistoryReset();
         int debug = int(NrdBridge::GetDebugMode());
