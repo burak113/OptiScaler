@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "misc/NrdBridgeStagePerf_Dx12.h"
 #if defined(FSRD_NRD_BRIDGE_RR_TEST_BACKEND)
 #include "../shader_tools/tests/nrd_bridge_rr_test_support.h"
 #else
@@ -754,7 +755,8 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
 
 bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
                          ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
-                         const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard)
+                         const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard,
+                         NrdBridgeStagePerf::Sample* profiling)
 {
     error.clear();
     // Every failed/current dispatch replaces the published observation. Recorded
@@ -883,7 +885,11 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     dispatch.flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | (reset ? FFX_DENOISER_DISPATCH_RESET : 0);
     ScopedSkipHeapCapture skipHeapCapture;
     ffxReturnCode_t result;
-    try { result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle, &dispatch.header); }
+    try
+    {
+        NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);
+        result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle, &dispatch.header);
+    }
     catch (...) { DiscardRecordingHistory(); throw; }
     if (result != FFX_API_RETURN_OK)
     {
@@ -899,10 +905,12 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         SignalEncoding encoding;
         TitleSignalConstants constants;
         float nativeSpecularBlend;
+        NrdBridgeStagePerf::Sample* profiling;
     } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, frame.outputEncoding, frame.outputConstants,
-        NormalizeNativeSpecularBlend(frame.nativeSpecularBlend)};
+        NormalizeNativeSpecularBlend(frame.nativeSpecularBlend),profiling};
     const auto record = +[](void* state) noexcept {
         const auto& prepared = *static_cast<PreparedCommit*>(state);
+        NrdBridgeStagePerf::StackTimer outputCommit(prepared.profiling,NrdBridgeStagePerf::Stage::OutputCommit);
         prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants,
             prepared.nativeSpecularBlend);
     };
