@@ -16,7 +16,7 @@ import time
 import numpy as np
 
 from fsrd_gpu_chain import ChainJob
-from fsrd_nrd_lobe_recovery_graph import LobeGraph,compile_shaders,PRE
+from fsrd_nrd_lobe_recovery_graph import LobeGraph,compile_shaders,PRE,STORAGE
 from fsrd_nrd_lobe_reference_prototype import LobeReferenceRecovery,ReferenceSettings
 from fsrd_nrd_recovery_uncertainty import PairedMSE
 import fsrd_nrd_recovery_replay as analysis
@@ -60,10 +60,10 @@ def checked_run(job,runner,repetitions=1,warmup=0):
     return outputs,metadata
 
 
-def deterministic_history(directory,shaders,runner):
+def deterministic_history(directory,shaders,runner,storage='fp32'):
     job = ChainJob(directory,runner)
     width,height = 33,29
-    graph = LobeGraph(job,shaders,width,height,prefix='odd')
+    graph = LobeGraph(job,shaders,width,height,prefix='odd',storage=storage)
     cpu = {signal:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor')) for signal in ('spec','diff')}
     expected,outputs = [],[]
     yy,xx = np.mgrid[:height,:width]
@@ -129,12 +129,12 @@ def load_case_frame(prepared,manifest,physical_root,frame,native,native_director
     return data
 
 
-def real_history(directory,shaders,runner,manifest_path,completed,view):
+def real_history(directory,shaders,runner,manifest_path,completed,view,storage='fp32',baseline=None):
     contract = case_contract(manifest_path,completed,view)
     manifest,case,seal,native,physical_root,physical,native_directory,view_directory,jitters = contract
     width,height = manifest['width'],manifest['height']
     job = ChainJob(directory,runner)
-    graph = LobeGraph(job,shaders,width,height,prefix='real')
+    graph = LobeGraph(job,shaders,width,height,prefix='real',storage=storage)
     cpu = {s:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor')) for s in ('spec','diff')}
     expected,outputs = [],[]
     for index,frame in enumerate(manifest['frames']):
@@ -146,10 +146,12 @@ def real_history(directory,shaders,runner,manifest_path,completed,view):
             reset=index==0,jitter=jitters[index]) for s in cpu})
     actual,metadata = checked_run(job,runner)
     uncertainty = {signal:PairedMSE(manifest['comparison_crop']) for signal in ('spec','diff','physical_spec')}
+    storage_uncertainty = {signal:PairedMSE(manifest['comparison_crop']) for signal in uncertainty} if baseline else {}
     rows = []
     for index,frame in enumerate(manifest['frames']):
         data = load_case_frame(manifest_path.parent,manifest,physical_root,frame,native,native_directory,view_directory)
         row = dict(frame=frame['frame'],signals={},cpu_comparison={})
+        prior_outputs = {}
         for signal in ('spec','diff'):
             value,reference = actual[outputs[index][signal]],expected[index][signal]
             rr = data['rr_'+signal]
@@ -166,6 +168,18 @@ def real_history(directory,shaders,runner,manifest_path,completed,view):
             for suffix in ('a','b'):
                 if 'reference_'+signal+'_'+suffix in data:replicas[suffix]=data['reference_'+signal+'_'+suffix]
             uncertainty[signal].update(index,rr,value,replicas)
+            if baseline:
+                prior_case=baseline['result']['cases'][str(int(view.split('-')[1][1:]))]
+                prior_row=prior_case['frames'][index]
+                prior_path=baseline['root']/('demod-r%d'%int(view.split('-')[1][1:]))/(frame['directory']+'_'+signal+'_recovered.bin')
+                need(prior_row['frame']==frame['frame'] and analysis.file_sha(prior_path)==prior_row['output_sha256'][signal], 'sealed FP32 output chronology/hash unchanged')
+                prior=np.fromfile(prior_path,'<f2').reshape(value.shape)
+                need(np.array_equal(value[...,3],prior[...,3]), 'storage experiment never changes opaque FP32 baseline alpha')
+                prior_outputs[signal]=prior
+                delta=value[...,:3].astype(np.float64)-prior[...,:3].astype(np.float64)
+                row.setdefault('fp32_comparison',{})[signal]=dict(rgb_rmse=float(np.sqrt(np.mean(delta*delta))),
+                    max_abs_error=float(np.max(np.abs(delta))),equal_rgb_words=int(np.sum(value[...,:3].view('<u2')==prior[...,:3].view('<u2'))))
+                storage_uncertainty[signal].update(index,prior,value,replicas)
             ids = data['object'].astype(np.int32)*(3 if signal=='spec' else 1)
             if signal=='spec':ids+=data['secondary_object']
             masks = analysis.evaluation_masks(data,replicas['mean'],signal,manifest['comparison_crop'])
@@ -183,19 +197,36 @@ def real_history(directory,shaders,runner,manifest_path,completed,view):
         qs = data['spec_albedo'][...,:3].astype(np.float64)/255
         uncertainty['physical_spec'].update(index,data['rr_spec'][...,:3]*qs,actual[outputs[index]['spec']][...,:3]*qs,
             dict(mean=physical_data['reference_spec'],a=physical_data['reference_spec_a'],b=physical_data['reference_spec_b']))
+        if baseline:storage_uncertainty['physical_spec'].update(index,prior_outputs['spec'][...,:3]*qs,actual[outputs[index]['spec']][...,:3]*qs,
+            dict(mean=physical_data['reference_spec'],a=physical_data['reference_spec_a'],b=physical_data['reference_spec_b']))
         rows.append(row)
     result = dict(schema='fsrd-separate-nrd-native-recovery-graph-v1',manifest_sha256=analysis.file_sha(manifest_path),
         signed_run_seal_sha256=analysis.file_sha(completed/'runs.json'),signal_domain=case['signal_domain'],
         native_provider_sha256=seal['provider_dll_sha256'],native_baseline_executable_sha256=seal['executable_sha256'],
-        frames=rows,paired_uncertainty={s:u.summarize() for s,u in uncertainty.items()},
+        frames=rows,storage=storage,storage_formats=graph.formats,paired_uncertainty={s:u.summarize() for s,u in uncertainty.items()},
+        storage_paired_uncertainty={s:u.summarize() for s,u in storage_uncertainty.items()},
         summaries=analysis.aggregate(rows,['rr','recovery_gpu','recovery_cpu']),
         graph=metadata,native=runner.runs[-1],passes=len(job.passes),packed_native_payload_bytes=graph.allocated_native_bytes(),
         all_light_passed_rr=True,oracle_inputs_enter_recovery=False,game_quality_claimed=False,checks=CHECKS)
+    if baseline:
+        prior_case=baseline['result']['cases'][str(int(view.split('-')[1][1:]))]
+        result['noise_and_reveal_comparison_to_fp32']={}
+        for signal in ('spec','diff'):
+            old=prior_case['summaries']['recovery_gpu'][signal]
+            new=result['summaries']['recovery_gpu'][signal]
+            pairs={name:(old[name],new[name]) for name in ('chroma_rmse','chroma_absolute_p99')}
+            for cohort in ('flat_reference','below_hemisphere','real_miss','reveal_first_two','reveal_tail_9_16'):
+                if cohort in old['cohorts']:
+                    pairs.update({cohort+'.'+name:(old['cohorts'][cohort][name],new['cohorts'][cohort][name])
+                        for name in ('rgb_rmse','chroma_rmse','absolute_rgb_p99_frame_mean','absolute_chroma_p99_frame_mean')})
+            pairs.update({'stale_age'+age:(old['reveal_tail'][age]['positive_stale_energy'],new['reveal_tail'][age]['positive_stale_energy'])
+                for age in old['reveal_tail']})
+            result['noise_and_reveal_comparison_to_fp32'][signal]={name:dict(fp32=a,mixed=b,delta=b-a,increased=b>a) for name,(a,b) in pairs.items()}
     write_json(directory/'comparison.json',result)
     return result
 
 
-def measure(directory,shaders,runner,width,height):
+def measure(directory,shaders,runner,width,height,storage='fp32'):
     yy,xx = np.mgrid[:height,:width]
     rr = np.full((height,width,4),.5,'<f2');rr[...,3]=7
     raw = rr.copy();raw[...,:3] += np.where((xx+yy)%2,.0625,-.0625)[...,None].astype('<f2');raw[...,3]=9
@@ -205,7 +236,7 @@ def measure(directory,shaders,runner,width,height):
         normals=np.full((height,width),512|(512<<10)|(123<<20),'<u4'),motion=motion)
     job = ChainJob(directory,runner)
     inputs = texture_inputs(job,'timing',arrays)
-    graph = LobeGraph(job,shaders,width,height,prefix='timing')
+    graph = LobeGraph(job,shaders,width,height,prefix='timing',storage=storage)
     for index in range(2):graph.record(index,inputs,history_valid=True,readback=False)
     need(graph.allocated_native_bytes()<1_600_000_000, 'packed GPU+upload payload known before native allocation; bounded single job')
     _,metadata = checked_run(job,runner,repetitions=16,warmup=4)
@@ -213,42 +244,65 @@ def measure(directory,shaders,runner,width,height):
     names = [p['name'] for p in job.passes]
     need(all(name in samples for name in names), 'every actual dispatch timestamp sample present')
     total = np.stack([samples[name] for name in names]).sum(0)/2
-    result = dict(width=width,height=height,thirteen_pass_median_ms=float(np.median(total)),
+    result = dict(width=width,height=height,storage=storage,storage_formats=graph.formats,thirteen_pass_median_ms=float(np.median(total)),
         thirteen_pass_p95_ms=float(np.quantile(total,.95)),samples_ms=total.tolist(),graph=metadata,native=runner.runs[-1],
         packed_native_payload_bytes=graph.allocated_native_bytes(),scope='actual all-active synthetic compute graph cost; no provider/Commit/title/hook/FPS timing claim')
     write_json(directory/'timing-summary.json',result)
     return result
 
 
+def reuse_artifacts(path):
+    need(path.resolve().is_relative_to(TASK.resolve()), 'reuse only sealed own-task native artifacts')
+    result=json.loads(path.read_bytes())
+    need(result['gpu_executed'] and result.get('storage','fp32')=='fp32', 'controlled storage experiment uses completed FP32 baseline')
+    shaders=result['shaders']
+    for role,record in shaders.items():
+        need(analysis.file_sha(Path(record['output']))==record['dxil_sha256'], 'same immutable compiled '+role+' CSO')
+        need(all(analysis.file_sha(Path(source))==digest for source,digest in record['source_sha256'].items()), 'shader arithmetic/source snapshots unchanged')
+    executable=path.parent.parent/'fsrd_gpu_runner.exe'
+    need(analysis.file_sha(executable)==result['runner_sha256'], 'same immutable native runner executable')
+    return shaders,executable,dict(root=path.parent,result=result,manifest=str(path),sha256=analysis.file_sha(path))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run',action='store_true')
     parser.add_argument('--skip-timing',action='store_true')
+    parser.add_argument('--storage',choices=tuple(STORAGE),default='fp32')
+    parser.add_argument('--reuse-fp32',type=Path)
     parser.add_argument('--output',type=Path)
     args = parser.parse_args()
     if not args.run:
-        print(json.dumps(dict(source_only=True,graph_passes=13,cb_bytes=128,
+        reused = reuse_artifacts(args.reuse_fp32)[2] if args.reuse_fp32 else None
+        print(json.dumps(dict(source_only=True,graph_passes=13,cb_bytes=128,storage=args.storage,storage_formats=STORAGE[args.storage],
+            reused_fp32_manifest_sha256=reused['sha256'] if reused else None,
             source_sha256={str(path):analysis.file_sha(path) for path in sorted(PRE.glob('FSRDNrdLobeRecovery*.*'))},
             compiler_executed=False,gpu_executed=False),indent=2));return
     need('FSRD_GPU_TEST_OUTPUT' in os.environ, 'explicit lead wrapper GPU output required; no unguarded native execution')
     output = args.output or Path(os.environ['FSRD_GPU_TEST_OUTPUT'])/'recovery-graph'
     need(output.resolve().is_relative_to(TASK.resolve()) and not output.exists(), 'fresh own scratch keeps all negative artifacts')
     output.mkdir(parents=True)
-    import run_fsrd_gpu_tests as native_runner
-    native_runner.build_runner()
-    shaders = compile_shaders(output/'compiled')
-    runner = BoundedRunner(native_runner.runner)
+    need((args.storage=='mixed')==(args.reuse_fp32 is not None), 'mixed experiment requires explicit immutable FP32 artifact reuse; baseline remains fresh')
+    if args.reuse_fp32:
+        shaders,executable,baseline=reuse_artifacts(args.reuse_fp32)
+    else:
+        import run_fsrd_gpu_tests as native_runner
+        native_runner.build_runner()
+        shaders=compile_shaders(output/'compiled')
+        executable,baseline=native_runner.runner,None
+    runner = BoundedRunner(executable)
     result = dict(schema='fsrd-nrd-lobe-recovery-full-native-v1',shaders=shaders,
-        runner_sha256=analysis.file_sha(native_runner.runner),script_sha256=analysis.file_sha(Path(__file__)),
-        toy=deterministic_history(output/'binary-odd-history',shaders,runner),cases={},timings=[])
+        runner_sha256=analysis.file_sha(executable),script_sha256=analysis.file_sha(Path(__file__)),storage=args.storage,storage_formats=STORAGE[args.storage],
+        reused_fp32_manifest=(dict(path=baseline['manifest'],sha256=baseline['sha256']) if baseline else None),
+        toy=deterministic_history(output/'binary-odd-history',shaders,runner,args.storage),cases={},timings=[])
     for code in (123,307):
         root = Path('F:/FSRD/sol_batch/15c-rr')
         result['cases'][str(code)] = real_history(output/('demod-r%d'%code),shaders,runner,
-            root/('ggx-v5-demod/r%d/ggx-sequence.json'%code),root/('ggx-v5-rr-run1/demod-r%d'%code),'ggx-r%d-demod'%code)
+            root/('ggx-v5-demod/r%d/ggx-sequence.json'%code),root/('ggx-v5-rr-run1/demod-r%d'%code),'ggx-r%d-demod'%code,args.storage,baseline)
     if not args.skip_timing:
         for width,height in ((1505,847),(2560,1440)):
-            result['timings'].append(measure(output/('cost-%dx%d'%(width,height)),shaders,runner,width,height))
-    result.update(checks=CHECKS,gpu_executed=True,compiler_executed=True)
+            result['timings'].append(measure(output/('cost-%dx%d'%(width,height)),shaders,runner,width,height,args.storage))
+    result.update(checks=CHECKS,gpu_executed=True,compiler_executed=baseline is None)
     write_json(output/'result.json',result)
     print(json.dumps(dict(output=str(output),checks=CHECKS,toy_passes=result['toy']['passes'],
         cases={k:v['paired_uncertainty'] for k,v in result['cases'].items()},

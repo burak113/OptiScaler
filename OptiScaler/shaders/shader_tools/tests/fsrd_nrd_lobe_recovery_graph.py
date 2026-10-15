@@ -13,6 +13,10 @@ from fsrd_gpu_chain import FORMATS,compile_shader
 
 PRE = Path(__file__).resolve().parents[2]/'fsrd_preprocess/precompile'
 HISTORY,COARSEST,FINAL = 1,2,4
+STORAGE = {
+    'fp32':dict(reference=2,gradient=2,pyramid=2,correction=2,geometry=3,noise=2,output=10),
+    'mixed':dict(reference=10,gradient=10,pyramid=10,correction=10,geometry=3,noise=2,output=10),
+}
 
 
 def constants(width,height,level_size,level,flags,frame,jitter=(0,0),jitter_delta_uv=(0,0),strength=(1,1,4,.25)):
@@ -53,7 +57,10 @@ def zero_texture(job,name,size,format=2,readback=False):
 
 
 class LobeGraph:
-    def __init__(self,job,shaders,width,height,prefix='recovery',readback_history=False):
+    def __init__(self,job,shaders,width,height,prefix='recovery',readback_history=False,storage='fp32'):
+        if storage not in STORAGE:
+            raise ValueError('explicit fp32 or controlled mixed storage required')
+        self.storage,self.formats = storage,dict(STORAGE[storage])
         self.job,self.shaders,self.width,self.height,self.prefix = job,shaders,width,height,prefix
         self.sizes = [(width,height)]
         for _ in range(6):
@@ -62,14 +69,14 @@ class LobeGraph:
         self.history = []
         for ping in range(2):
             group = {name:zero_texture(job,'%s_hist%d_%s'%(prefix,ping,name),(width,height),
-                format=3 if name=='geometry' else 2,readback=readback_history)
+                format=self.formats['geometry' if name=='geometry' else 'gradient' if name=='gradient' else 'reference'],readback=readback_history)
                 for name in ('spec','diff','geometry','gradient')}
-            group['noise'] = [zero_texture(job,'%s_hist%d_noise%d'%(prefix,ping,level),self.sizes[level],readback=readback_history)
+            group['noise'] = [zero_texture(job,'%s_hist%d_noise%d'%(prefix,ping,level),self.sizes[level],format=self.formats['noise'],readback=readback_history)
                               for level in range(6)]
             self.history.append(group)
-        self.levels = [{name:zero_texture(job,'%s_level%d_%s'%(prefix,level,name),size)
+        self.levels = [{name:zero_texture(job,'%s_level%d_%s'%(prefix,level,name),size,format=self.formats['pyramid'])
                         for name in ('spec','diff','metadata')} for level,size in enumerate(self.sizes)]
-        self.corrections = [{name:zero_texture(job,'%s_correction%d_%s'%(prefix,level,name),self.sizes[level])
+        self.corrections = [{name:zero_texture(job,'%s_correction%d_%s'%(prefix,level,name),self.sizes[level],format=self.formats['correction'])
                              for name in ('spec','diff')} for level in range(6)]
 
     def record(self,index,inputs,jitter=(0,0),jitter_delta_uv=(0,0),history_valid=None,readback=True,
@@ -80,7 +87,7 @@ class LobeGraph:
         previous,self_next = self.history[1-(index&1)],self.history[index&1]
         level0 = self.levels[0]
         prefix = output_prefix or '%s_frame%03d'%(self.prefix,index)
-        output = {signal:zero_texture(job,prefix+'_'+signal,(self.width,self.height),format=10,readback=readback)
+        output = {signal:zero_texture(job,prefix+'_'+signal,(self.width,self.height),format=self.formats['output'],readback=readback)
                   for signal in ('spec','diff')}
         flag = HISTORY if (index>0 if history_valid is None else history_valid) else 0
         def cb(level,size,flags=flag):
