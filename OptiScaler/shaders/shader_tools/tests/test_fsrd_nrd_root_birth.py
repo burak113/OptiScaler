@@ -187,7 +187,8 @@ void bindingBirthCases(){
   const uint32_t a[]={11,99,33,66},b[]={77,88};hkSetComputeRoot32BitConstants(watched,2,4,a,0);hkSetComputeRoot32BitConstantsLate(watched,2,2,b,5);
   hkSetComputeRootConstantBufferView(watched,3,0x8000);hkSetComputeRootShaderResourceView(watched,4,0x9000);hkSetComputeRootUnorderedAccessView(watched,6,0xa000);
  };
- bind();const auto listBirth=NrdBridgeBirth::Capture(watched),rootBirth=NrdBridgeBirth::Capture(root),heapBirth=NrdBridgeBirth::Capture(heap),psoBirth=NrdBridgeBirth::Capture(pipeline);
+ bind();D3D12Hooks::OnBridgeSetPredication(watched,false); // Explicit title SetPredication(nullptr) observation.
+ const auto listBirth=NrdBridgeBirth::Capture(watched),rootBirth=NrdBridgeBirth::Capture(root),heapBirth=NrdBridgeBirth::Capture(heap),psoBirth=NrdBridgeBirth::Capture(pipeline);
  const auto reads=listObject.reads+rootObject.reads+heapObject.reads+psoObject.reads,coverage=coverageCalls,factories=factoryCalls;
  FrameSurvey::ComputeBindings current;
  {NrdBridgeLifetime::ScopedBorrow borrow;

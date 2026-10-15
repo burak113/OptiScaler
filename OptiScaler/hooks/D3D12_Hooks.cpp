@@ -1564,6 +1564,86 @@ static void hkSetGraphicsRootUnorderedAccessViewLate(ID3D12GraphicsCommandList* 
     lateInProgressSetGraphicsRootUnorderedAccessView = false;
 }
 
+// These six argument hooks are a bridge-only extension. Do not add new
+// default-OFF detours merely because legacy graphics restoration is selected.
+static bool bridgeGraphicsEarlyAttached = false, bridgeGraphicsLateAttached = false;
+static void ReadBridgeGraphicsArgumentHooks(PVOID* table, bool late)
+{
+    if (!gNrdBridgeDeviceWrappers) return;
+    if (late)
+    {
+        s_SetGraphicsRootDescriptorTable.o_lateHook = (PFN_SetGraphicsRootDescriptorTable) table[32];
+        s_SetGraphicsRoot32BitConstant.o_lateHook = (PFN_SetGraphicsRoot32BitConstant) table[34];
+        s_SetGraphicsRoot32BitConstants.o_lateHook = (PFN_SetGraphicsRoot32BitConstants) table[36];
+        s_SetGraphicsRootConstantBufferView.o_lateHook = (PFN_SetGraphicsRootConstantBufferView) table[38];
+        s_SetGraphicsRootShaderResourceView.o_lateHook = (PFN_SetGraphicsRootShaderResourceView) table[40];
+        s_SetGraphicsRootUnorderedAccessView.o_lateHook = (PFN_SetGraphicsRootUnorderedAccessView) table[42];
+    }
+    else
+    {
+        s_SetGraphicsRootDescriptorTable.o_earlyHook = (PFN_SetGraphicsRootDescriptorTable) table[32];
+        s_SetGraphicsRoot32BitConstant.o_earlyHook = (PFN_SetGraphicsRoot32BitConstant) table[34];
+        s_SetGraphicsRoot32BitConstants.o_earlyHook = (PFN_SetGraphicsRoot32BitConstants) table[36];
+        s_SetGraphicsRootConstantBufferView.o_earlyHook = (PFN_SetGraphicsRootConstantBufferView) table[38];
+        s_SetGraphicsRootShaderResourceView.o_earlyHook = (PFN_SetGraphicsRootShaderResourceView) table[40];
+        s_SetGraphicsRootUnorderedAccessView.o_earlyHook = (PFN_SetGraphicsRootUnorderedAccessView) table[42];
+    }
+}
+static void ClearBridgeGraphicsArgumentHooks(bool late)
+{
+    auto clear = [late](auto& hooks) { (late ? hooks.o_lateHook : hooks.o_earlyHook) = nullptr; };
+    clear(s_SetGraphicsRootDescriptorTable); clear(s_SetGraphicsRoot32BitConstant); clear(s_SetGraphicsRoot32BitConstants);
+    clear(s_SetGraphicsRootConstantBufferView); clear(s_SetGraphicsRootShaderResourceView); clear(s_SetGraphicsRootUnorderedAccessView);
+    (late ? bridgeGraphicsLateAttached : bridgeGraphicsEarlyAttached) = false;
+}
+static LONG AttachBridgeGraphicsArgumentHooks(bool late)
+{
+    if (!gNrdBridgeDeviceWrappers) return NO_ERROR;
+    LONG result = NO_ERROR;
+    auto attach = [&](auto& hooks, auto early, auto delayed) {
+        auto& target = late ? hooks.o_lateHook : hooks.o_earlyHook;
+        const LONG next = target ? DetourAttach(reinterpret_cast<PVOID*>(&target),
+            reinterpret_cast<PVOID>(late ? delayed : early)) : ERROR_INVALID_PARAMETER;
+        if (result == NO_ERROR) result = next;
+    };
+    attach(s_SetGraphicsRootDescriptorTable,hkSetGraphicsRootDescriptorTable,hkSetGraphicsRootDescriptorTableLate);
+    attach(s_SetGraphicsRoot32BitConstant,hkSetGraphicsRoot32BitConstant,hkSetGraphicsRoot32BitConstantLate);
+    attach(s_SetGraphicsRoot32BitConstants,hkSetGraphicsRoot32BitConstants,hkSetGraphicsRoot32BitConstantsLate);
+    attach(s_SetGraphicsRootConstantBufferView,hkSetGraphicsRootConstantBufferView,hkSetGraphicsRootConstantBufferViewLate);
+    attach(s_SetGraphicsRootShaderResourceView,hkSetGraphicsRootShaderResourceView,hkSetGraphicsRootShaderResourceViewLate);
+    attach(s_SetGraphicsRootUnorderedAccessView,hkSetGraphicsRootUnorderedAccessView,hkSetGraphicsRootUnorderedAccessViewLate);
+    return result;
+}
+static LONG DetachBridgeGraphicsArgumentHooks(bool late)
+{
+    if (!(late ? bridgeGraphicsLateAttached : bridgeGraphicsEarlyAttached)) return NO_ERROR;
+    LONG result = NO_ERROR;
+    auto detach = [&](auto& hooks, auto early, auto delayed) {
+        auto& target = late ? hooks.o_lateHook : hooks.o_earlyHook;
+        const LONG next = target ? DetourDetach(reinterpret_cast<PVOID*>(&target),
+            reinterpret_cast<PVOID>(late ? delayed : early)) : ERROR_INVALID_PARAMETER;
+        if (result == NO_ERROR) result = next;
+    };
+    detach(s_SetGraphicsRootDescriptorTable,hkSetGraphicsRootDescriptorTable,hkSetGraphicsRootDescriptorTableLate);
+    detach(s_SetGraphicsRoot32BitConstant,hkSetGraphicsRoot32BitConstant,hkSetGraphicsRoot32BitConstantLate);
+    detach(s_SetGraphicsRoot32BitConstants,hkSetGraphicsRoot32BitConstants,hkSetGraphicsRoot32BitConstantsLate);
+    detach(s_SetGraphicsRootConstantBufferView,hkSetGraphicsRootConstantBufferView,hkSetGraphicsRootConstantBufferViewLate);
+    detach(s_SetGraphicsRootShaderResourceView,hkSetGraphicsRootShaderResourceView,hkSetGraphicsRootShaderResourceViewLate);
+    detach(s_SetGraphicsRootUnorderedAccessView,hkSetGraphicsRootUnorderedAccessView,hkSetGraphicsRootUnorderedAccessViewLate);
+    return result;
+}
+static void UnhookBridgeGraphicsArguments()
+{
+    if (!bridgeGraphicsEarlyAttached && !bridgeGraphicsLateAttached) return;
+    DetourTransactionBegin(); DetourUpdateThread(GetCurrentThread());
+    // Reverse installation order also supports nested early/late decorators.
+    const LONG late = DetachBridgeGraphicsArgumentHooks(true), early = DetachBridgeGraphicsArgumentHooks(false);
+    LONG result = late != NO_ERROR ? late : early;
+    if (result != NO_ERROR) DetourTransactionAbort(); else result = DetourTransactionCommit();
+    if (result == NO_ERROR) { ClearBridgeGraphicsArgumentHooks(false); ClearBridgeGraphicsArgumentHooks(true); }
+    else LOG_ERROR("Failed to unhook bridge graphics argument methods, error: {:X}", result);
+}
+
 void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
 {
     if (s_SetComputeRootSignature.o_lateHook || s_SetGraphicsRootSignature.o_lateHook)
@@ -1572,9 +1652,9 @@ void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
     // Get the vtable pointer
     PVOID* pVTable = *(PVOID**) commandList;
 
-    const bool restoreComputeSignature = Config::Instance()->RestoreComputeSignature.value_or_default();
-    const bool restoreGraphicSignature = Config::Instance()->RestoreGraphicSignature.value_or_default();
-    const bool extendedRestoreSignature = Config::Instance()->ExtendedStateRestore.value_or_default();
+    const bool restoreComputeSignature = gNrdBridgeDeviceWrappers || Config::Instance()->RestoreComputeSignature.value_or_default();
+    const bool restoreGraphicSignature = gNrdBridgeDeviceWrappers || Config::Instance()->RestoreGraphicSignature.value_or_default();
+    const bool extendedRestoreSignature = gNrdBridgeDeviceWrappers || Config::Instance()->ExtendedStateRestore.value_or_default();
 
     s_SetPipelineState.o_lateHook = (PFN_SetPipelineState) pVTable[25];
     s_SetDescriptorHeaps.o_lateHook = (PFN_SetDescriptorHeaps) pVTable[28];
@@ -1586,6 +1666,7 @@ void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
     s_SetComputeRootConstantBufferView.o_lateHook = (PFN_SetComputeRootConstantBufferView) pVTable[37];
     s_SetComputeRootShaderResourceView.o_lateHook = (PFN_SetComputeRootShaderResourceView) pVTable[39];
     s_SetComputeRootUnorderedAccessView.o_lateHook = (PFN_SetComputeRootUnorderedAccessView) pVTable[41];
+    ReadBridgeGraphicsArgumentHooks(pVTable,true);
 
     if (s_SetPipelineState.o_lateHook || s_SetDescriptorHeaps.o_lateHook || s_SetComputeRootSignature.o_lateHook ||
         s_SetGraphicsRootSignature.o_lateHook || s_SetComputeRootDescriptorTable.o_lateHook ||
@@ -1596,6 +1677,7 @@ void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
 
+        LONG bridgeGraphicsResult = NO_ERROR;
         // Common
         if (extendedRestoreSignature)
         {
@@ -1656,49 +1738,15 @@ void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
             if (s_SetGraphicsRootSignature.o_lateHook != nullptr)
                 DetourAttach(&(PVOID&) s_SetGraphicsRootSignature.o_lateHook, hkSetGraphicsRootSignatureLate);
 
-            if (extendedRestoreSignature)
-            {
-
-                if (s_SetGraphicsRootDescriptorTable.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRootDescriptorTable.o_lateHook,
-                                 hkSetGraphicsRootDescriptorTableLate);
-                }
-
-                if (s_SetGraphicsRoot32BitConstant.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRoot32BitConstant.o_lateHook,
-                                 hkSetGraphicsRoot32BitConstantLate);
-                }
-
-                if (s_SetGraphicsRoot32BitConstants.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRoot32BitConstants.o_lateHook,
-                                 hkSetGraphicsRoot32BitConstantsLate);
-                }
-
-                if (s_SetGraphicsRootConstantBufferView.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRootConstantBufferView.o_lateHook,
-                                 hkSetGraphicsRootConstantBufferViewLate);
-                }
-
-                if (s_SetGraphicsRootShaderResourceView.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRootShaderResourceView.o_lateHook,
-                                 hkSetGraphicsRootShaderResourceViewLate);
-                }
-
-                if (s_SetGraphicsRootUnorderedAccessView.o_lateHook != nullptr)
-                {
-                    DetourAttach(&(PVOID&) s_SetGraphicsRootUnorderedAccessView.o_lateHook,
-                                 hkSetGraphicsRootUnorderedAccessViewLate);
-                }
-            }
+            if (extendedRestoreSignature && gNrdBridgeDeviceWrappers)
+                bridgeGraphicsResult = AttachBridgeGraphicsArgumentHooks(true);
         }
 
-        if (DetourTransactionCommit() == NO_ERROR)
+        LONG detourResult = bridgeGraphicsResult;
+        if (detourResult != NO_ERROR) DetourTransactionAbort(); else detourResult = DetourTransactionCommit();
+        if (detourResult == NO_ERROR)
         {
+            bridgeGraphicsLateAttached = gNrdBridgeDeviceWrappers;
             LOG_DEBUG("Hooked RootSignature functions Late");
         }
         else
@@ -1714,6 +1762,7 @@ void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
             s_SetComputeRootShaderResourceView.o_lateHook = nullptr;
             s_SetComputeRootUnorderedAccessView.o_lateHook = nullptr;
 
+            ClearBridgeGraphicsArgumentHooks(true);
             LOG_WARN("Hooking RootSignature Late failed");
         }
     }
@@ -1739,7 +1788,7 @@ static void HookToCommandList(ID3D12Device* InDevice)
             // Get the vtable pointer
             PVOID* pVTable = *(PVOID**) commandList;
 
-            const bool extendedRestoreSignature = Config::Instance()->ExtendedStateRestore.value_or_default();
+            const bool extendedRestoreSignature = gNrdBridgeDeviceWrappers || Config::Instance()->ExtendedStateRestore.value_or_default();
 
             s_SetPipelineState.o_earlyHook = (PFN_SetPipelineState) pVTable[25];
             s_SetDescriptorHeaps.o_earlyHook = (PFN_SetDescriptorHeaps) pVTable[28];
@@ -1751,6 +1800,7 @@ static void HookToCommandList(ID3D12Device* InDevice)
             s_SetComputeRootConstantBufferView.o_earlyHook = (PFN_SetComputeRootConstantBufferView) pVTable[37];
             s_SetComputeRootShaderResourceView.o_earlyHook = (PFN_SetComputeRootShaderResourceView) pVTable[39];
             s_SetComputeRootUnorderedAccessView.o_earlyHook = (PFN_SetComputeRootUnorderedAccessView) pVTable[41];
+            ReadBridgeGraphicsArgumentHooks(pVTable,false);
 
             if (s_SetPipelineState.o_earlyHook || s_SetDescriptorHeaps.o_earlyHook ||
                 s_SetComputeRootSignature.o_earlyHook || s_SetGraphicsRootSignature.o_earlyHook ||
@@ -1801,8 +1851,11 @@ static void HookToCommandList(ID3D12Device* InDevice)
                                  gSurveyDeviceWrappers ? hkSurveySetComputeRootUnorderedAccessView : hkSetComputeRootUnorderedAccessView);
                 }
 
-                if (DetourTransactionCommit() == NO_ERROR)
+                LONG detourResult = AttachBridgeGraphicsArgumentHooks(false);
+                if (detourResult != NO_ERROR) DetourTransactionAbort(); else detourResult = DetourTransactionCommit();
+                if (detourResult == NO_ERROR)
                 {
+                    bridgeGraphicsEarlyAttached = gNrdBridgeDeviceWrappers;
                     LOG_DEBUG("Hooked RootSignature functions");
                 }
                 else
@@ -1818,6 +1871,7 @@ static void HookToCommandList(ID3D12Device* InDevice)
                     s_SetComputeRootShaderResourceView.o_earlyHook = nullptr;
                     s_SetComputeRootUnorderedAccessView.o_earlyHook = nullptr;
 
+                    ClearBridgeGraphicsArgumentHooks(false);
                     LOG_WARN("Hooking RootSignature failed");
                 }
             }
@@ -2917,6 +2971,7 @@ void D3D12Hooks::HookAgility(HMODULE module)
 
 void D3D12Hooks::Unhook()
 {
+    UnhookBridgeGraphicsArguments();
     if (o_D3D12CreateDevice == nullptr)
         return;
 

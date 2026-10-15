@@ -26,7 +26,8 @@ def function(source, signature):
 
 def run():
     source = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
-    state = source[source.index('enum class RootEntryType'):source.index('enum class SignatureEntryType')]
+    state = source[source.index('// Common'):source.index('// Intel Atomic Extension')]
+    state = state.replace('ankerl::unordered_dense::map', 'std::unordered_map')
     names = ('hkSetComputeRoot32BitConstants', 'hkSetComputeRoot32BitConstant',
              'hkSetComputeRoot32BitConstantsLate', 'hkSetComputeRoot32BitConstantLate',
              'hkSetComputeRootSignature', 'hkSetComputeRootSignatureLate')
@@ -172,6 +173,22 @@ int main() {
  std::cout << "PASS: " << checks << " production root restore checks\n";
 }
 '''
+    # Reuse the modern metadata-only declaration adapter, keeping every original
+    # assertion below unchanged. NativeBirth is intentionally unconfigured here;
+    # the activated exact-generation suite is test_fsrd_nrd_root_birth.py.
+    import test_fsrd_nrd_restore_locks as declarations
+    prefix = declarations.CPP.split('__STATE__', 1)[0] + '__STATE__\n'
+    prefix += ('struct Option { bool current=true; bool value_or_default() const { return current; } };\n'
+               'struct Config { Option RestoreComputeSignature; static Config* Instance() { static Config value; return &value; } };\n'
+               'UINT GetRootParameterCount(ID3D12RootSignature*, const NrdBridgeBirth::Token&) { return 6; }\n')
+    cpp = prefix + cpp[cpp.index('void many('):]
+    for declaration in (
+        'struct { decltype(&many) o_earlyHook = many, o_lateHook = many; } s_SetComputeRoot32BitConstants;',
+        'struct { decltype(&one) o_earlyHook = one, o_lateHook = one; } s_SetComputeRoot32BitConstant;',
+        'struct { decltype(&bindRoot) o_earlyHook = bindRoot, o_lateHook = bindRoot; } s_SetComputeRootSignature;'):
+        assert cpp.count(declaration) == 1
+        cpp = cpp.replace(declaration, '')
+    cpp = cpp.replace('int main() {', 'int main() {\n s_SetComputeRoot32BitConstants={many,many}; s_SetComputeRoot32BitConstant={one,one}; s_SetComputeRootSignature={bindRoot,bindRoot};')
     cpp = cpp.replace('__ROOT__', ROOT.as_posix()).replace('__STATE__', state).replace('__BODIES__', bodies).replace('__CONTROL__', control)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
