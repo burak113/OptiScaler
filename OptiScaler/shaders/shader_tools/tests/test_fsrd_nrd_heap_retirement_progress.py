@@ -34,7 +34,7 @@ void progressSRV(ID3D12Device* d,ID3D12Resource* r,D3D12_SHADER_RESOURCE_VIEW_DE
 
 template<class Predicate> bool eventually(Predicate predicate){
  const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
- while(!predicate()){if(std::chrono::steady_clock::now()>=deadline)return false;std::this_thread::yield();}return true;
+ while(!predicate()){if(std::chrono::steady_clock::now()>=deadline)return false;std::this_thread::sleep_for(std::chrono::milliseconds(1));}return true;
 }
 std::shared_ptr<HeapInfo> trackedHeap(Host& host,ID3D12DescriptorHeap* heap,UINT count){
  const auto description=heap->GetDesc();const auto cpu=heap->GetCPUDescriptorHandleForHeapStart().ptr;
@@ -56,7 +56,7 @@ void populatedHeapProgress(Host& host){
  for(UINT index=0;index<count;++index)retiring->SetByCpuHandle(retiring->cpuStart+uint64_t(index)*retiring->increment,item);
  need(retiring->occupiedSlots.size()==count&&_trackedResources.at(item.buffer)->size()==count,"all100k actual HeapInfo descriptor slots and reverse edges are populated");
  need(item.birth&&item.birth->CacheAdmissible(),"populated metadata uses a live retained real WARP texture");
- const auto version=retiring->version.load(),generation=gHeapGeneration.load();
+ const auto version=retiring->version.load();
  const auto oldAddress=retiring->heap;
  // Select real objects before the barrier. A deliberately held Birth shard is
  // unrelated to the registry convoy being tested; do not let a random hash
@@ -79,6 +79,7 @@ void populatedHeapProgress(Host& host){
  }
  need(otherResource&&otherHeap,"real unrelated release controls have complete aliases in disjoint Birth shards");
  auto otherOwner=trackedHeap(host,otherHeap.Get(),1);
+ const auto generation=gHeapGeneration.load();
  std::promise<void> releaseStarted;auto started=releaseStarted.get_future();
  std::atomic<bool> finished=false;std::atomic<ULONG> releaseResult=ULONG(-1);
  std::exception_ptr releasingFailure;std::array<std::exception_ptr,5> workerFailures{};
@@ -95,19 +96,20 @@ void populatedHeapProgress(Host& host){
   // No callback touches the retiring heap. Every worker uses a fresh thread/TLS
   // cache, so the indexed registry cannot be hidden by a previous cache hit.
   const auto cbvBefore=nativeCbvCalls.load(),srvBefore=nativeSrvCalls.load();
-  workers.emplace_back([&]{try{hkSurveyCreateConstantBufferView(host.device.Get(),&host.cbv,host.handle(0));cbvDone=true;}catch(...){workerFailures[0]=std::current_exception();}});
-  workers.emplace_back([&]{try{hkSurveyCreateShaderResourceView(host.device.Get(),host.texture.Get(),&host.srvDesc,host.handle(8));srvDone=true;}catch(...){workerFailures[1]=std::current_exception();}});
-  workers.emplace_back([&]{try{
+  auto probe0=[&]{try{hkSurveyCreateConstantBufferView(host.device.Get(),&host.cbv,host.handle(0));cbvDone=true;}catch(...){workerFailures[0]=std::current_exception();}};
+  auto probe1=[&]{try{hkSurveyCreateShaderResourceView(host.device.Get(),host.texture.Get(),&host.srvDesc,host.handle(8));srvDone=true;}catch(...){workerFailures[1]=std::current_exception();}};
+  auto probe2=[&]{try{
    if(hkRelease(otherResource.Detach())!=0)throw std::runtime_error("unrelated native resource final count");resourceDone=true;
-  }catch(...){workerFailures[2]=std::current_exception();}});
-  workers.emplace_back([&]{try{
+  }catch(...){workerFailures[2]=std::current_exception();}};
+  auto probe3=[&]{try{
    if(hkHeapRelease(otherHeap.Detach())!=0||otherOwner->active||otherOwner->info)throw std::runtime_error("unrelated native heap did not fully retire");heapDone=true;
-  }catch(...){workerFailures[3]=std::current_exception();}});
-  workers.emplace_back([&]{try{
+  }catch(...){workerFailures[3]=std::current_exception();}};
+  auto probe4=[&]{try{
    auto current=GetHeapByCpuHandleSRV(host.handle(9).ptr);if(current!=unrelated)throw std::runtime_error("cold unrelated lookup owner mismatch");
    indexGone=!FindTrackedHeapByAddress(oldAddress);cacheGone=!GetHeapByCpuHandleCBV(retiring->cpuStart);
    if(gHeapGeneration.load()<=generation)throw std::runtime_error("retirement did not publish a new cache generation");lookupDone=true;
-  }catch(...){workerFailures[4]=std::current_exception();}});
+  }catch(...){workerFailures[4]=std::current_exception();}};
+  workers.emplace_back([probe0,probe1,probe2,probe3,probe4]{probe0();probe1();probe2();probe3();probe4();});
   beforeDrain=eventually([&]{return cbvDone&&srvDone&&resourceDone&&heapDone&&lookupDone;});
   releaseStillWaiting=!finished.load();
   storagePinned=bool(retiring->info)&&retiring->occupiedSlots.size()==count;
@@ -280,6 +282,7 @@ def run(execute, legacy_registry=False):
     for folder in ('proxies','inputs'):
         (stubs/folder).mkdir(parents=True,exist_ok=True)
     (stubs/'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n#define LOG_TRACK(...) ((void)0)\n')
+    (stubs/'SysUtils.h').write_text('#pragma once\n#include <windows.h>\n#include <mutex>\n')
     (stubs/'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util {inline std::filesystem::path DllPath(){return g_dllPath;}}\n')
     (stubs/'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs/'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy {inline auto D3D12CreateVersionedRootSignatureDeserializer_(){return &D3D12CreateVersionedRootSignatureDeserializer;}inline auto D3D12SerializeVersionedRootSignature_(){return &D3D12SerializeVersionedRootSignature;}}\n')
