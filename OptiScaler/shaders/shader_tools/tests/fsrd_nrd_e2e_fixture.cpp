@@ -932,6 +932,7 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
   {"scope",manifest["scope"]},{"timestamp_scope","synthetic original-title shader chain + probes + production bridge; excludes uploads/readback; not game FPS or real NRD cost"}};
 }
 #include "__ROOT__/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_native_motion_e2e_case.h"
+#include "__ROOT__/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_native_material_e2e_case.h"
 namespace NativeBlendCapture {
 Title* title=nullptr;std::array<Readback,2> native;float pending=0.f;unsigned gapApplies=0;
 void Capture() {native={title->readback(7),title->readback(8)};}
@@ -1151,11 +1152,12 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table" || std::string(argv[3])=="--native-material-guides" || std::string(argv[3])=="--native-material-guides-off")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
  const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
  const bool nativeBlend=argc==4 && (std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table"),nativeBlendTable=argc==4 && std::string(argv[3])=="--native-blend-table";
  const bool nativeMotionQuality=argc==4&&(std::string(argv[3])=="--native-motion-quality"||std::string(argv[3])=="--native-motion-quality-baseline"||std::string(argv[3])=="--native-motion-quality-table");
  const bool nativeMotionTable=argc==4&&std::string(argv[3])=="--native-motion-quality-table";
+ const bool nativeMaterial=argc==4&&(std::string(argv[3])=="--native-material-guides"||std::string(argv[3])=="--native-material-guides-off");
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"standalone signed-provider fixture uses legacy metadata tracking without native retirement coverage");
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
@@ -1182,6 +1184,12 @@ int main(int argc,char** argv) try {
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
  Title title(h,128,128,true,cbvLifetime||nativeBlendTable||nativeMotionTable,nativeMotionQuality);
+ if(nativeMaterial) {
+  nativeMaterialGuideCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])=="--native-material-guides");
+  NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"native material shutdown retires every actual signed context after GPU leases");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"native-material-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_material checks="<<checks<<'\n';return 0;
+ }
  if(nativeMotionQuality) {
   nativeMotionQualityCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])!="--native-motion-quality-baseline");
   NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"native-motion shutdown retires every actual signed context after all captured GPU recording leases");
