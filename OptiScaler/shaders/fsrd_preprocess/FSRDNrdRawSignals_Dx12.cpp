@@ -74,7 +74,7 @@ struct RawSlot
     NrdBridgeCaptureBudget::Permit slotPermit;
     RawSlot(RawBytes&& bytes,NrdBridgeCaptureBudget::Permit&& slots) noexcept
         :bytePermit(std::move(bytes)),slotPermit(std::move(slots)){}
-    ComPtr<ID3D12Resource> resource;
+    ComPtr<ID3D12Resource> resource,statusReadback;
     ComPtr<ID3D12DescriptorHeap> decodeViews,prePassDecodeViews;
     SignalFlagSnapshot flag;
     D3D12_GPU_VIRTUAL_ADDRESS rawAddress=0,flagAddress=0;
@@ -112,12 +112,12 @@ struct RawContext
         views.NumDescriptors=4;views.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         RawCheck(device->CreateDescriptorHeap(&views,IID_PPV_ARGS(&slot.prePassDecodeViews)),"Raw PrePass decode view allocation failed");
     }
-    std::shared_ptr<RawSlot> Acquire()
+    std::shared_ptr<RawSlot> Acquire(bool prePass)
     {
         {
             std::lock_guard lock(mutex);
             if (retired.load(std::memory_order_acquire)) throw std::runtime_error("Raw noisy capture generation is retired");
-            for (const auto& slot:slots) if(slot.use_count()==1)return slot;
+            for (const auto& slot:slots) if(slot.use_count()==1&&bool(slot->statusReadback)==prePass)return slot;
         }
         auto familySlots=std::shared_ptr<NrdBridgeCaptureBudget::Family>(family,&family->slots);
         auto permit=NrdBridgeCaptureBudget::Permit::TryAcquire(familySlots);
@@ -128,15 +128,25 @@ struct RawContext
         auto flag=raw;flag.Width=1536;
         const auto rawBytes=device->GetResourceAllocationInfo(0,1,&raw).SizeInBytes;
         const auto flagBytes=device->GetResourceAllocationInfo(0,1,&flag).SizeInBytes;
-        if(!rawBytes||rawBytes==UINT64_MAX||!flagBytes||flagBytes==UINT64_MAX||rawBytes>kRawByteLimit||flagBytes>kRawByteLimit-rawBytes)
+        auto status=raw;status.Width=4;status.Flags=D3D12_RESOURCE_FLAG_NONE;
+        const auto statusBytes=prePass?device->GetResourceAllocationInfo(0,1,&status).SizeInBytes:0;
+        if(!rawBytes||rawBytes==UINT64_MAX||!flagBytes||flagBytes==UINT64_MAX||rawBytes>kRawByteLimit||flagBytes>kRawByteLimit-rawBytes||
+           (prePass&&(!statusBytes||statusBytes==UINT64_MAX||statusBytes>kRawByteLimit-rawBytes-flagBytes)))
             throw std::runtime_error("Raw noisy snapshot allocation size is invalid");
+        const auto totalBytes=rawBytes+flagBytes+statusBytes;
         RawBytes bytes;
-        if(!bytes.Reserve(family,rawBytes+flagBytes)||!permit.SetBytes(rawBytes+flagBytes))
+        if(!bytes.Reserve(family,totalBytes)||!permit.SetBytes(totalBytes))
             throw std::runtime_error("Raw noisy capture family exceeds2GiB of retained owned buffers");
         auto slot=MakeOwnedShared<RawSlot>(std::move(bytes),std::move(permit));
         D3D12_HEAP_PROPERTIES heap {};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
         RawCheck(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&raw,D3D12_RESOURCE_STATE_COMMON,nullptr,
             IID_PPV_ARGS(&slot->resource)),"Raw noisy snapshot allocation failed");
+        if(prePass)
+        {
+            heap.Type=D3D12_HEAP_TYPE_READBACK;
+            RawCheck(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&status,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,
+                IID_PPV_ARGS(&slot->statusReadback)),"Raw PrePass mandatory status readback allocation failed");
+        }
         std::string error;if(!slot->flag.Initialize(device.Get(),error))throw std::runtime_error(error);
         slot->rawAddress=slot->resource->GetGPUVirtualAddress();slot->flagAddress=slot->flag.resource->GetGPUVirtualAddress();
         D3D12_DESCRIPTOR_HEAP_DESC views {};views.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -148,6 +158,74 @@ struct RawContext
             slots.push_back(slot);
         }
         return slot;
+    }
+};
+struct RawStatusObservation
+{
+    std::shared_ptr<RawSlot> slot;
+    std::mutex mutex;
+    std::array<uint64_t,RecordedComputeLease::PollBudget> active {};
+    bool failed=false;
+    uint64_t completedCount=0,mapCount=0;
+    uint32_t lastStatus=0;
+    explicit RawStatusObservation(std::shared_ptr<RawSlot> value):slot(std::move(value)){}
+    bool Remove(uint64_t id) noexcept
+    {
+        if(!id)return false;
+        for(auto& pending:active)if(pending==id){pending=0;return true;}
+        return false;
+    }
+    bool Before(const RecordedComputeLease::SubmissionInfo& info) noexcept
+    {
+        bool admitted=false;
+        try
+        {
+            std::lock_guard lock(mutex);
+            if(!failed&&!info.snapshotFallback&&info.submissionId)
+            {
+                bool duplicate=false;for(const auto id:active)duplicate|=id==info.submissionId;
+                if(!duplicate)for(auto& id:active)if(!id){id=info.submissionId;admitted=true;break;}
+            }
+            if(!admitted)failed=true;
+        }
+        catch(...){}
+        if(!admitted)
+        {
+            RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+            RecordedComputeLease::DenySubmission(E_FAIL);
+        }
+        return admitted;
+    }
+    void Failed(const RecordedComputeLease::SubmissionInfo& info) noexcept
+    {
+        try{std::lock_guard lock(mutex);Remove(info.submissionId);failed=true;}catch(...){}
+        RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+    }
+    void Complete(const RecordedComputeLease::SubmissionInfo& info) noexcept
+    {
+        HRESULT failure=S_OK;
+        try
+        {
+            // BeforeSubmit must take this same mutex before a new Execute can
+            // overwrite the readback. Only the final concurrent completion maps.
+            std::lock_guard lock(mutex);++completedCount;
+            if(!Remove(info.submissionId)){failed=true;failure=E_FAIL;}
+            bool pending=false;for(const auto id:active)pending|=id!=0;
+            if(!failed&&!pending)
+            {
+                FrameSurvey::ScopedInternal internal;ScopedSkipHeapCapture skip;
+                void* data=nullptr;D3D12_RANGE read{0,4};
+                failure=slot->statusReadback?slot->statusReadback->Map(0,&read,&data):E_POINTER;
+                if(SUCCEEDED(failure))
+                {
+                    ++mapCount;memcpy(&lastStatus,data,4);D3D12_RANGE empty{0,0};slot->statusReadback->Unmap(0,&empty);
+                    if(lastStatus)failure=E_INVALIDARG;
+                }
+                if(FAILED(failure))failed=true;
+            }
+        }
+        catch(...){failure=E_FAIL;}
+        if(FAILED(failure))RecordedComputeLease::FailUntrackedRequiredSubmission(failure);
     }
 };
 bool RawHeapMatches(ID3D12Device* device,ID3D12DescriptorHeap* heap,
@@ -198,6 +276,7 @@ struct RawSignalRecord
 {
     std::shared_ptr<RawContext> context;
     std::shared_ptr<RawSlot> slot;
+    std::shared_ptr<RawStatusObservation> statusObservation;
     std::weak_ptr<RawSignalSnapshotPass::Impl> wrapper;
     std::weak_ptr<RecordedComputeLease::Recording> nativeRecording;
     ID3D12GraphicsCommandList* recording=nullptr;
@@ -261,10 +340,18 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         FrameSurvey::ScopedInternal internal;ScopedSkipHeapCapture skip;
         const bool prePass=source.profile==NativeRawProfile::PrePass;
         if(prePass)context->PreparePrePass();
-        auto record=MakeOwnedShared<RawSignalRecord>();record->context=context;record->slot=context->Acquire();record->wrapper=owner;
+        auto record=MakeOwnedShared<RawSignalRecord>();record->context=context;record->slot=context->Acquire(prePass);record->wrapper=owner;
         if(prePass)context->PreparePrePassSlot(*record->slot);
         record->recording=list;record->frameSL=frameSL;record->bridgeFrame=bridgeFrame;record->profile=source.profile;
-        if(!ResTrack_Dx12::RetainComputeDispatch(context->device.Get(),list,record))
+        RecordedComputeLease::SubmissionCallbacks callbacks;
+        if(prePass)
+        {
+            auto observation=MakeOwnedShared<RawStatusObservation>(record->slot);record->statusObservation=observation;
+            callbacks.beforeSubmit=[observation](const auto& info){return observation->Before(info);};
+            callbacks.failed=[observation](const auto& info,auto){observation->Failed(info);};
+            callbacks.completed=[observation](const auto& info){observation->Complete(info);};
+        }
+        if(!ResTrack_Dx12::RetainComputeDispatch(context->device.Get(),list,record,{},std::move(callbacks)))
         {error="Raw noisy snapshot GPU lifetime tracking unavailable";return false;}
         const auto native=RecordedComputeLease::Capture(list);
         if(!native||!native->id){error="Raw noisy snapshot native recording identity unavailable";return false;}
@@ -283,6 +370,12 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         list->SetComputeRootUnorderedAccessView(4,record->slot->rawAddress);
         list->Dispatch((context->width+7)/8,(context->height+7)/8,1);
         RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COMMON);
+        if(prePass)
+        {
+            RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COPY_SOURCE);
+            list->CopyBufferRegion(record->slot->statusReadback.Get(),0,record->slot->resource.Get(),0,4);
+            RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_COMMON);
+        }
         out=std::move(record);error.clear();return true;
     }
     catch(const std::exception& exception){error=exception.what();return false;}
