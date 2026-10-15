@@ -560,6 +560,10 @@ class Config
     CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
     // Optional NRD-assisted specular hybrid after RR; 0 keeps the complete RR output.
     CustomOptional<float> FfxDenoiserNrdBridgeNativeSpecularBlend {0.0f};
+    // Independent post-RR lobe detail recovery; disabled by default.
+    CustomOptional<bool> FfxDenoiserNrdBridgeLobeRecovery {false};
+    CustomOptional<float> FfxDenoiserNrdBridgeRecoverySpecular {1.0f};
+    CustomOptional<float> FfxDenoiserNrdBridgeRecoveryDiffuse {1.0f};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};
