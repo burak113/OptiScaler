@@ -53,6 +53,7 @@ struct ConversionInputs
     ID3D12Resource* viewDepth = nullptr;
     ID3D12Resource* motion = nullptr;
     ID3D12Resource* nativeMaterial = nullptr; // Owned same-recording baseColorLinear/metal snapshot.
+    ID3D12Resource* nativeMaterialRoughness = nullptr; // Optional owned R16F raw materialParams.G, COMMON before/after conversion.
 };
 // Both resources are borrowed only while recording; constants is bridge-owned and GPU-leased.
 struct NativeMotionSource

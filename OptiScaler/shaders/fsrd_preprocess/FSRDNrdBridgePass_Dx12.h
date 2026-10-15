@@ -12,6 +12,7 @@ class ConversionPass
     ConversionPass();
     ~ConversionPass();
     bool Initialize(ID3D12Device*, uint32_t width, uint32_t height, std::string& error);
+    // Optional nativeMaterialRoughness selects the six-SRV material guide variant; only analytic Qs uses it.
     bool Dispatch(ID3D12GraphicsCommandList*, const ConversionInputs&, const FrameParameters&,
                   ConvertedResources& out, std::string& error);
     // When ConversionInputs::motion is null, Recon never reads a cached title MV.
