@@ -320,7 +320,7 @@ def run():
     cpp=cpp.replace('return0;','return 0;').replace('return1;','return 1;')
     fixture=output/'fixture.cpp';fixture.write_text(cpp,encoding='utf-8');exe=output/'fixture.exe'
     compile_cpp(fixture,exe,('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),
-     (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/resource_tracking',ROOT/'OptiScaler/include',ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+     (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/resource_tracking',ROOT/'OptiScaler/include',ROOT/'external/streamline', ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe),str(output)],check=True,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result=json.loads((output/'host-result.json').read_text());result['production_helper_sha256']=hashlib.sha256(original.encode()).hexdigest()
     result['production_source_sha256']=hashlib.sha256(source_path.read_bytes()).hexdigest()

@@ -554,7 +554,7 @@ def main():
         if exe.exists():
             raise ValueError('Compiled evidence exists; use its verified executable or prepare a fresh output')
         compile_cpp(output/'fsrd_full_context_reference_warp.cpp', exe, ('d3d12.lib', 'dxgi.lib', 'bcrypt.lib'),
-                    (output/'stubs', ROOT/'external/nlohmann', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                    (output/'stubs', ROOT/'OptiScaler', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
         report = dict(status='COMPILED_ONLY', gpu_work=0, sdk_dispatches=0, executable_sha256=digest(exe),
                       source_sha256=prepared['source_sha256'], prepared_receipt_sha256=digest(output/'prepared_receipt.json'))
         (output/'build_receipt.json').write_text(json.dumps(report, indent=2)+'\n')

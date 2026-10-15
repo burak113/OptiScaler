@@ -137,7 +137,7 @@ def run():
     text=(survey_fixture.CPP.split('// GetStatus()')[0]+CPP).replace('__TRACE__',(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__',(ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix())
     source=output/'fixture.cpp'; source.write_text(text,encoding='utf-8'); exe=output/'fixture.exe'
     compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),
-        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/streamline', ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe),str(output)],check=True,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result=json.loads((output/'host-result.json').read_text()); report=Path('E:/FSRD/sol_batch/12a-discovery'); report.mkdir(parents=True,exist_ok=True)
     (report/'register-bindings-result.json').write_text(json.dumps(result,indent=2)+'\n')
