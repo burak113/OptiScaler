@@ -38,10 +38,33 @@ void stageNoEarlyReport(uint32_t accepted,const char* context){
  need(NrdBridge::gStageCollector.Accepted()==accepted,context);
  need(stageLogCalls==0&&stageFlushCalls==0&&!NrdBridge::gStagesStopped.load(std::memory_order_acquire),"stages reporter remains silent before one hundred committed unique Consumer IDs");
 }
+void stageFailureState(Host& host,uint32_t frame,uint32_t accepted,unsigned beforeProvider,uint64_t beforeFrames) {
+ J state{{"requested_sl",frame},{"snapshot_sl",StreamlineHooks::snapshot.frameIndex},{"expected_accepted",accepted},
+  {"provider_before",beforeProvider},{"provider_actual",FfxApiProxy::dispatches},{"provider_expected",beforeProvider+1},
+  {"frames_before",beforeFrames},{"frames_expected",beforeFrames+1},{"collector_actual",NrdBridge::gStageCollector.Accepted()},
+  {"stage_logs",stageLogCalls},{"stage_clocks",stageCounterCalls.load()},{"partial_failure",FfxApiProxy::partialFailure},
+  {"after_sdk_callback_set",FfxApiProxy::afterRealDispatch!=nullptr},{"metadata_healthy",FrameSurvey::MetadataHealthy()}};
+ std::shared_ptr<NrdBridge::Service> owner;
+ {
+  std::scoped_lock lock(NrdBridge::gMutex);owner=NrdBridge::gService;
+  if(owner){state["owner"]={{"active",owner->status.active},{"runtime",owner->status.runtimeEnabled},{"frames_actual",owner->status.framesBridged},
+    {"phase",owner->status.phase},{"reason",owner->status.reason},{"window",owner->window},{"failures",owner->failures},{"attempts",owner->attempts},
+    {"reset_serial",owner->resetSerial},{"cancel_serial",owner->cancellationSerial},{"cache_valid",owner->cache.Valid()},{"cache_generation",owner->cache.Generation()}};
+   const auto found=owner->lists.find(host.list.Get());if(found!=owner->lists.end()){const auto& list=found->second;
+    state["list"]={{"frame",list.frame},{"generation",list.generation},{"reset_serial",list.resetSerial},{"converted",list.converted},
+     {"motion_ready",list.motionReady},{"following",list.followingRecon},{"temporal",list.temporal},{"atrous",list.atrous},{"recording",bool(list.recording)}};
+    if(list.recording)state["recording"]={{"submitted",list.recording->submitted.load()},{"committed",list.recording->outputCommitted.load()},
+     {"phase",uint32_t(list.recording->phase.load())},{"samples_enabled",list.recording->needsStageSamples},{"sample_clock_enabled",list.recording->stages.Enabled()}};}}
+ }
+ std::cerr<<"StagePerf success diagnostic "<<state.dump()<<'\n';std::cerr.flush();
+}
 void stageSuccess(Host& host,Title& title,uint32_t frame,uint32_t accepted,bool stopped){
  const auto provider=FfxApiProxy::dispatches,restore=restores;const auto bridged=NrdBridge::GetStatus().framesBridged;
+ std::cerr<<"StagePerf success begin SL="<<frame<<" expected_accepted="<<accepted<<" provider_before="<<provider<<" frames_before="<<bridged<<'\n';std::cerr.flush();
  title.frame(frame);
- need(FfxApiProxy::dispatches==provider+1&&NrdBridge::GetStatus().active&&NrdBridge::GetStatus().framesBridged==bridged+1,"StagePerf success records actual signed RR and exactly one title output commit");
+ const bool successful=FfxApiProxy::dispatches==provider+1&&NrdBridge::GetStatus().active&&NrdBridge::GetStatus().framesBridged==bridged+1;
+ if(!successful)stageFailureState(host,frame,accepted,provider,bridged);
+ need(successful,"StagePerf success records actual signed RR and exactly one title output commit");
  need(restores==restore+3,"StagePerf success executes the actual Recon/motion/RR restore paths");
  const auto& list=NrdBridge::gService->lists.at(host.list.Get());
  need(list.recording&&list.recording->outputCommitted.load(std::memory_order_acquire),"successful sample has an actual production committed recording token");
@@ -82,6 +105,12 @@ int main(int argc,char** argv)try{
  const auto menuClocks=stageCounterCalls.load();for(UINT menu=0;menu<64;++menu)NrdBridge::OnPresent();
  need(stageCounterCalls==menuClocks,"retry/loading Presents do not execute stage clocks");stageNoEarlyReport(2,"retry/loading Presents never fill failed samples");
  NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);
+ // Failure invalidates the resource cache. Runtime ON opens discovery; only
+ // another original title chain can republish its current resource profile.
+ const auto discoveryProvider=FfxApiProxy::dispatches;const auto discoveryFrames=NrdBridge::GetStatus().framesBridged;
+ title.frame(1003);need(title.sentinel(title.finish()),"partial-provider failure recovery first executes untouched native discovery output");
+ need(FfxApiProxy::dispatches==discoveryProvider&&NrdBridge::GetStatus().framesBridged==discoveryFrames&&NrdBridge::gService->cache.Valid(),"recovery discovery validates current bindings with zero provider work or title output commits");
+ stageNoEarlyReport(2,"recovery discovery never accepts a successful-output sample");
  uint64_t stoppedClocks=0,stoppedFrequency=0;J frames=J::array();
  for(UINT index=0;index<103;++index){const UINT sl=1004+index,accepted=std::min(100u,index+3);const bool stopped=accepted==100;
   const auto clocks=stageCounterCalls.load();stageSuccess(host,title,sl,accepted,stopped);
