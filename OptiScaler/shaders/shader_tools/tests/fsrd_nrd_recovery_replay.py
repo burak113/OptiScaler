@@ -18,6 +18,7 @@ import time
 import numpy as np
 
 from fsrd_nrd_recovery_prototype import Recovery, Settings, neighbourhood
+from fsrd_nrd_lobe_reference_prototype import LobeReferenceRecovery, ReferenceSettings
 
 
 PROVIDER_SHA = '48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3'
@@ -26,6 +27,8 @@ VARIANTS = {
     'paired-3sigma-anchor4': Settings(),
     'paired-3sigma-no-anchor': Settings(anchor=0),
     'paired-luma-3sigma-anchor4': Settings(luma_only=True),
+    'lobe-gradient-threshold3-anchor4': ReferenceSettings(),
+    'lobe-gradient-threshold3-no-anchor': ReferenceSettings(anchor=0),
 }
 CHECKS = 0
 
@@ -177,7 +180,12 @@ def peak_resident_bytes():
              'QuotaPeakNonPagedPoolUsage','QuotaNonPagedPoolUsage','PagefileUsage','PeakPagefileUsage')]
     value = Counters()
     value.cb = ctypes.sizeof(value)
-    okay = ctypes.windll.psapi.GetProcessMemoryInfo(ctypes.windll.kernel32.GetCurrentProcess(),ctypes.byref(value),value.cb)
+    current = ctypes.windll.kernel32.GetCurrentProcess
+    current.restype = wintypes.HANDLE
+    query = ctypes.windll.psapi.GetProcessMemoryInfo
+    query.argtypes = (wintypes.HANDLE,ctypes.POINTER(Counters),wintypes.DWORD)
+    query.restype = wintypes.BOOL
+    okay = query(current(),ctypes.byref(value),value.cb)
     return int(value.PeakWorkingSetSize) if okay else None
 
 
@@ -195,7 +203,14 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     need(native['debug_errors'] == native['debug_warnings'] == 0, 'baseline native debug errors/warnings zero')
     need(native['effective_words'] == run_info['probe']['effective_words'], 'same sealed SDK setting bits')
     view, prepared = Path(manifest['views'][view_name]), manifest_path.parent
-    models = {name:{signal:Recovery(settings) for signal in ('spec','diff')} for name,settings in VARIANTS.items()}
+    models = {name:{signal:(LobeReferenceRecovery(settings) if isinstance(settings,ReferenceSettings) else Recovery(settings))
+        for signal in ('spec','diff')} for name,settings in VARIANTS.items()}
+    replay_bytes = (view/'native-replay.txt').read_bytes()
+    need(sha(replay_bytes) == manifest['native_replay']['sha256'], 'sealed whole-history camera/jitter table')
+    replay_rows = [line.split() for line in replay_bytes.decode('ascii').splitlines() if line.strip()]
+    need([int(word) for word in replay_rows[0]] == [64,manifest['width'],manifest['height']], 'complete declared replay extent')
+    need([int(row[0]) for row in replay_rows[1:]] == [f['frame'] for f in manifest['frames']], 'camera rows align with every submitted frame')
+    jitters = {int(row[0]):tuple(float(word) for word in row[-2:]) for row in replay_rows[1:]}
     rows,images = [],[]
     output.mkdir(parents=True)
     for index,frame in enumerate(manifest['frames']):
@@ -225,7 +240,8 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
             lighting['rr'][signal] = rr
             for name,by_signal in models.items():
                 begin = time.perf_counter()
-                recovered = by_signal[signal].step(data[signal],rr,data['depth'],data['normals'],data['motion'],frame['frame'],reset=index==0)
+                kwargs = dict(jitter=jitters[frame['frame']]) if isinstance(by_signal[signal],LobeReferenceRecovery) else {}
+                recovered = by_signal[signal].step(data[signal],rr,data['depth'],data['normals'],data['motion'],frame['frame'],reset=index==0,**kwargs)
                 seconds = time.perf_counter()-begin
                 need(np.array_equal(recovered[...,3],rr[...,3]), 'recovery never changes opaque destination alpha')
                 need(np.isfinite(recovered).all() and np.all(recovered[...,:3]>=0), 'finite nonnegative recovered linear lobe')
@@ -248,7 +264,8 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     names = ['noisy_input','rr',*VARIANTS]
     phases = dict(first_reset=rows[:1],cold_history=rows[:7],jittered_static=rows[1:16],
         camera_and_object=rows[16:48],camera_only=rows[48:56],settled_tail=rows[56:])
-    paths = [Path(__file__),Path(__file__).with_name('fsrd_nrd_recovery_prototype.py')]
+    paths = [Path(__file__),Path(__file__).with_name('fsrd_nrd_recovery_prototype.py'),
+        Path(__file__).with_name('fsrd_nrd_lobe_reference_prototype.py')]
     result = dict(schema='fsrd-separate-nrd-lobe-recovery-cpu-v1',manifest=str(manifest_path),manifest_sha256=file_sha(manifest_path),
         actual_signed_runs=str(completed/'runs.json'),actual_signed_runs_sha256=file_sha(completed/'runs.json'),
         native_provider_sha256=PROVIDER_SHA,native_executable_sha256=run_info['executable_sha256'],
@@ -273,7 +290,10 @@ def main():
     parser.add_argument('--oracle-source',type=Path,default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_motion_quality_oracle.py'))
     args = parser.parse_args()
     result = replay(args.manifest,args.completed,args.view,args.output,args.oracle_source)
-    print(json.dumps({key:result[key] for key in ('view','checks','elapsed_seconds','peak_resident_bytes','qualification','summaries')},indent=2))
+    brief = {name:{signal:{key:values[key] for key in ('rgb_rmse','chroma_rmse','same_surface_gradient_projection')}
+        for signal,values in signals.items()} for name,signals in result['summaries'].items()}
+    print(json.dumps(dict(view=result['view'],checks=result['checks'],elapsed_seconds=result['elapsed_seconds'],
+        peak_resident_bytes=result['peak_resident_bytes'],qualification=result['qualification'],summaries=brief),indent=2))
 
 
 if __name__ == '__main__':
