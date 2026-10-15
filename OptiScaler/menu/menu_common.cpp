@@ -3287,7 +3287,8 @@ static bool DrawNrdBridgeLobeRecovery(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Restores noise-gated detail lost after RR, with temporal warm-up, disocclusion rejection and a local anchor. "
                           "All noisy lighting still goes through RR. A strength of 0 leaves that lobe unchanged; both 0 skip recovery allocation and dispatches. "
-                          "Independent of ordinary FSR-RR Recovery controls. Experimental; in-game quality is unmeasured. Default off.");
+                          "Independent of ordinary FSR-RR Recovery controls. Adds GPU work and temporary VRAM; cost depends on resolution and hardware. "
+                          "Experimental; in-game quality is unmeasured. Default off.");
     ImGui::BeginDisabled(!enabled);
     float specular = NrdBridge::NormalizeLobeRecoveryStrength(config->FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
     if (ImGui::SliderFloat("Bridge specular detail strength", &specular, 0.0f, 1.0f))
@@ -3418,6 +3419,18 @@ static void DrawNrdBridgeRRTuning(Config* config)
     ImGui::Text("Requested lobe recovery: %s (specular %.3f, diffuse %.3f)",
                 state.requested.lobeRecovery ? "On" : "Off", state.requested.recoverySpecular, state.requested.recoveryDiffuse);
     ImGui::TextWrapped("Requested settings alone do not confirm recovery ran on a Consumer frame. Both zero strengths leave RR unchanged and skip recovery work.");
+    if (!state.requested.lobeRecovery)
+        ImGui::TextDisabled("Lobe recovery: Off.");
+    else if (state.requested.nativeDebugView >= 0)
+        ImGui::TextWrapped("Lobe recovery: Requested; native AMD DebugView bypasses it and shows raw RR.");
+    else if (state.requested.recoverySpecular == 0.0f && state.requested.recoveryDiffuse == 0.0f)
+        ImGui::TextWrapped("Lobe recovery: Requested; both strengths are zero, so the graph is skipped.");
+    else if (state.lobeRecoveryFallback)
+        ImGui::TextWrapped("Lobe recovery: Fallback on the last successful Consumer; the optional graph was unavailable, so RR passed through without lobe recovery.");
+    else if (state.lobeRecoveryActive)
+        ImGui::TextWrapped("Lobe recovery: Graph ran and committed on the last successful Consumer. Per-pixel gates can still leave pixels unchanged.");
+    else
+        ImGui::TextWrapped("Lobe recovery: Requested; waiting for a successful Consumer commit.");
     if (!state.ready)
         ImGui::TextDisabled("Provider values are not available yet.");
     else if (ImGui::BeginTable("NrdBridgeRRValues", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
