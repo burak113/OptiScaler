@@ -5,6 +5,7 @@
 #include <wrl/client.h>
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -42,6 +43,19 @@ struct SubmissionDecision
     bool allowed = true;
     HRESULT orderingFailure = S_OK;
 };
+// A mandatory RR recording can fail before its first lease/callback is retained.
+// Such work has no registry participant to reject at submission. Keep this fatal
+// condition allocation-free and independent of Service lifetime/runtime toggles;
+// every native queue forwarding gate checks it before its unmarked-list bypass.
+inline std::atomic<HRESULT> gUntrackedRequiredSubmissionFailure {S_OK};
+inline HRESULT RequiredSubmissionFailure() noexcept
+{ return gUntrackedRequiredSubmissionFailure.load(std::memory_order_acquire); }
+inline void FailUntrackedRequiredSubmission(HRESULT reason = E_OUTOFMEMORY) noexcept
+{
+    HRESULT expected = S_OK;
+    gUntrackedRequiredSubmissionFailure.compare_exchange_strong(expected,FAILED(reason) ? reason : E_FAIL,
+        std::memory_order_acq_rel,std::memory_order_acquire);
+}
 inline thread_local SubmissionDecision* gSubmissionDecision = nullptr;
 struct DecisionScope
 {
