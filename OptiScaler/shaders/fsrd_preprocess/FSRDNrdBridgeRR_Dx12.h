@@ -17,6 +17,7 @@ struct RRSettings
     uint32_t nativeDebugViewport = 0;
     bool preserveNativeMaterialIDs = false;
     bool nativeTemporalMotion = false;
+    bool nativeMaterialGuides = false;
     float nativeSpecularBlend = 0.0f; // NRD-assisted hybrid after RR; never changes RR inputs or history.
 };
 struct RRSettingsState
