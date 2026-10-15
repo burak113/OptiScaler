@@ -3363,9 +3363,10 @@ static void DrawNrdBridgeRRTuning(Config* config)
         changed = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Captures same-recording native base color and metallic when their compute-read state is proven. "
+        ImGui::SetTooltip("Captures same-recording native base color and metallic when safe source access is proven. "
                           "Diffuse guide uses baseColor*(1-metal); specular uses AMD's analytic GGX BRDF. "
-                          "Unknown special material/state uses white guides. Lighting stays demodulated. History resets on change. Default off.");
+                          "Unknown special material/state uses white guides. Lighting stays demodulated. History resets on change. "
+                          "Default on; disabling requests white guides. Separate lobe detail recovery stays off by default.");
     bool nativeMotion = config->FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     if (ImGui::Checkbox("Native NRD surface reprojection (experimental)", &nativeMotion))
     {

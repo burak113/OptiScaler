@@ -279,8 +279,15 @@ int main(){try{
  cfg.load("[FSR-RR]\nNrdBridgeNativeTemporalMotion=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion,
  "Malformed native motion setting stays OFF");
  cfg.load("[FSR-RR]\n");ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
- need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&NrdBridge::applyCalls==before,
- "Native material guidance defaults OFF without idle apply");
+ need(ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&NrdBridge::applyCalls==before,
+ "User-requested native albedo guidance defaults ON without idle apply");
+ need(!NrdBridge::RRSettings{}.nativeMaterialGuides,"Direct RRSettings API keeps its neutral false default independently of Config policy");
+ ImGui::frame();ImGui::bools["Native material albedo guides (experimental)"]=false;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&!NrdBridge::last.nativeMaterialGuides,
+ "Native guides can be explicitly disabled by one coherent snapshot despite the new ON default");
+ saved=cfg.save();reload.load(saved);need(!ReadNrdBridgeRRSettings(reload).nativeMaterialGuides,
+ "Explicit white-guide preference survives actual save/reload instead of being replaced by the ON default");
+ before=NrdBridge::applyCalls;
  ImGui::frame();ImGui::bools["Native material albedo guides (experimental)"]=true;drawBridge(&cfg);
  need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeMaterialGuides&&NrdBridge::last.overrideMask==0,
  "Native material guidance is an independent coherent runtime snapshot");
@@ -289,10 +296,12 @@ int main(){try{
  ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("waiting for matching writer/state proof"),"Requested native guides show effective white fallback until proven");
  NrdBridge::guidesActive=true;ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Proven same-writer guides")&&ImGui::hasText("Unknown source state/material"),
  "Native input map documents actual material model and guarded white fallback");
- cfg.ResetFfxDenoiserSettings();need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&!NrdBridge::last.nativeMaterialGuides,
- "Full reset clears native material guidance in Config and runtime");
- cfg.load("[FSR-RR]\nNrdBridgeNativeMaterialGuides=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides,
- "Invalid native material key keeps safe OFF default");
+ cfg.ResetFfxDenoiserSettings();need(ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides&&NrdBridge::last.nativeMaterialGuides,
+ "Full reset restores the user-requested native albedo ON default in Config and runtime");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeMaterialGuides,
+ "Reset/save/reload preserves native albedo ON while the runtime bridge remains OFF after complete reset");
+ cfg.load("[FSR-RR]\nNrdBridgeNativeMaterialGuides=invalid\n");need(ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides,
+ "Invalid native material key uses the user-requested ON default with guarded white fallback");
 
  cfg.load("[FSR-RR]\n");NrdBridge::accept=true;ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
  const auto recoveryDefaults=ReadNrdBridgeRRSettings(cfg);
@@ -449,8 +458,9 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeNativeMaterialGuides','NrdBridgeLobeRecovery'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeLobeRecovery'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
+    assert len(re.findall(r'^NrdBridgeNativeMaterialGuides=true\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeSpecularBlend=0\.0\s*$',template,re.M))==1

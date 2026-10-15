@@ -555,7 +555,8 @@ class Config
     // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
     CustomOptional<bool> FfxDenoiserNrdBridgeNativeTemporalMotion {false};
-    CustomOptional<bool> FfxDenoiserNrdBridgeNativeMaterialGuides {false};
+    // Native material albedo cues are the bridge default; unavailable captures use white guides.
+    CustomOptional<bool> FfxDenoiserNrdBridgeNativeMaterialGuides {true};
     // A/B hypothesis: retain native categorical normal A instead of material ID 0.
     CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
     // Optional NRD-assisted specular hybrid after RR; 0 keeps the complete RR output.

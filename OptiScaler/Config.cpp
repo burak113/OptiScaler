@@ -208,8 +208,10 @@ bool Config::ResetFfxDenoiserSettings()
     NrdBridge::SetRuntimeEnabled(false);
     if (NrdBridge::StartupEnabled())
     {
+        NrdBridge::RRSettings bridgeSettings;
+        bridgeSettings.nativeMaterialGuides = FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
         std::string bridgeSettingsError;
-        if (!NrdBridge::ApplyRRSettings({}, false, bridgeSettingsError))
+        if (!NrdBridge::ApplyRRSettings(bridgeSettings, false, bridgeSettingsError))
             LOG_WARN("[NRD_BRIDGE] reset settings failed: {}", bridgeSettingsError);
     }
     FfxDenoiserFrameSurveyPassHashes.reset();
