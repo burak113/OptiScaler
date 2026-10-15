@@ -40,14 +40,20 @@ CPP = r'''
 #define LOG_INFO(...) ((void)0)
 #define LOG_ERROR(...) ((void)0)
 #define LOG_DEBUG(...) ((void)0)
+#define LOG_WARN(...) ((void)0)
 unsigned checks=0;
 void need(bool value,const char* message) { if(!value) throw std::runtime_error(message); ++checks; }
 std::filesystem::path executable;
 GUID streamlineRiid {};
 namespace Util { std::filesystem::path ExePath(){return executable;} __UNWRAP__ }
 #include "__ROOT__/OptiScaler/misc/NrdBridgeDevice_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
+#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h"
+#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h"
+#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
+#include <algorithm>
+#include <format>
 __OPTIONAL__
-namespace NrdBridge { void SetRuntimeEnabled(bool) noexcept; }
 namespace FSRDSignals { constexpr int Auto=0; }
 struct Config {
  __DECLARATIONS__
@@ -55,42 +61,93 @@ struct Config {
  bool ResetFfxDenoiserSettings();
 };
 __RESET__
+void FlushLogger() noexcept {}
+bool gNrdBridgeWrappers=false,gSurveyWrappers=false;
 void checkObserverPublication();
 bool observerPublicationSerialized=true;
+unsigned refreshCalls=0; ID3D12Device* refreshed=nullptr; bool refreshAvailable=true;
+struct ResTrack_Dx12 {
+ static void HookDevice(ID3D12Device*);
+ static bool RefreshComputeHookDevice(ID3D12Device* device,const char** reason=nullptr) noexcept {
+  need(gNrdBridgeWrappers && gSurveyWrappers,"refresh sees latched bridge/survey detour selection");
+  if(reason) *reason="Selected title device has unsupported native compute hook entries; restart required";
+  ++refreshCalls; refreshed=device; return refreshAvailable;
+ }
+};
 namespace FrameSurvey {
  thread_local unsigned internalDepth=0;
  bool Internal(){return internalDepth!=0;}
  struct ScopedInternal { ScopedInternal(){++internalDepth;} ~ScopedInternal(){--internalDepth;} };
  unsigned observers=0,creationTracking=0; bool window=false;
  template<class F> void SetPipelineObserver(F) {++observers;checkObserverPublication();}
+ template<class F> void SetGraphicsPipelineObserver(F) {++observers;checkObserverPublication();}
  template<class F> void SetReleaseObserver(F) {}
+ template<class F> void SetBirthReleaseObserver(F) {}
  void SetBindingWindow(bool value) {window=value;}
  void BeginCreationTracking(bool) {++creationTracking;}
+ void MetadataHookFailed(const char*) noexcept {}
 }
 unsigned serviceDestructions=0; bool destructionUnlocked=true,destructionInternal=true;
 void checkDestruction();
 namespace NrdBridge {
-struct Status { bool installed=false,runtimeEnabled=false,active=false; std::string phase="Off",reason="restart",resources; };
-struct List { bool converted=false,motionReady=false; };
+struct RecordingToken {
+ std::atomic<bool> submitted{false},outputCommitted{false},abandoned{false},commitRequired{false},skipInvalidated{false},submissionRetained{false};
+ std::atomic<const char*> invalidationGate{nullptr};
+};
+struct HistoryDomain { std::atomic<bool> uncertain{false},discardPending{false}; };
+struct NativeTransaction {
+ std::shared_ptr<HistoryDomain> history; std::shared_ptr<RecordingToken> recording;
+ std::atomic<bool> committed{false},invalidated{false};
+};
+struct NativeDebugSource;
+struct ListState {
+ bool converted=false,motionReady=false,ownedReady=false;
+ std::shared_ptr<RecordingToken> recording; std::shared_ptr<HistoryDomain> history;
+ std::array<std::shared_ptr<NativeTransaction>,4> native;
+};
 struct Cache { bool valid=false; bool Valid()const{return valid;} };
 struct Service {
  Microsoft::WRL::ComPtr<ID3D12Device> device; Status status; Cache cache;
- std::unordered_map<void*,unsigned> roles; std::unordered_map<void*,List> lists;
+ std::unordered_map<void*,unsigned> roles; std::unordered_map<void*,ListState> lists;
  void* pendingList=nullptr; uint64_t resetSerial=1,cancellationSerial=1;
  bool window=false,windowSawRecon=false; unsigned windowPresents=0,retryPresents=0,attempts=0,failures=0;
+ bool discardRequested=false; std::array<std::shared_ptr<NativeDebugSource>,4> nativeDebugSources;
+ unsigned nextNativeDebugSource=0; unsigned nativeDebugLastLag=UINT32_MAX;
+ RRSettings rrSettings; RRSettingsState rrSettingsState; bool cameraProjectedDepthDelta=false;
  ~Service(){checkDestruction();}
 };
+std::atomic<bool> gNativeDebug{false},gNativeMaterials{false},gNativeTransactions{false};
+std::atomic<const char*> gStartupFailure{nullptr};
+enum class NativeRetirementStartup { LegacyAdapter, Ready, Failed };
+unsigned applyRRSettingsCalls=0; RRSettings lastAppliedRRSettings; bool lastAppliedCameraDepth=false;
+// The real ApplyRRSettings drives live histories; this lifecycle fixture records the
+// reset-path apply call and accepts it, so ResetFfxDenoiserSettings' best-effort
+// settings publication stays observable.
+bool ApplyRRSettings(const RRSettings& settings,bool cameraProjectedDepthDelta,std::string& error) noexcept {
+ ++applyRRSettingsCalls; lastAppliedRRSettings=settings; lastAppliedCameraDepth=cameraProjectedDepthDelta;
+ error.clear(); return true;
+}
+using RetiredDebugSources = std::array<std::shared_ptr<NativeDebugSource>,4>;
 std::mutex gMutex,gInjectionMutex,gWindowMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled{false},gRuntime{false};
 std::atomic<int> gStartupSelection{-1};
 std::string gUnavailableReason;
-void OnPipelineCreated(ID3D12PipelineState*,const char*){} void OnReleased(void*){}
+void OnPipelineCreated(ID3D12PipelineState*,const char*) noexcept {} void OnReleased(void*) noexcept {}
+void OnGraphicsPipelineCreated(ID3D12PipelineState*,const char*) noexcept {}
+void OnBirthReleased(const NrdBridgeBirth::Token&) noexcept {}
 void CoordinatorException(const char*){}
+void RefreshNativeTransactions(const Service&) noexcept {}
+void ClearNativeDebugSources(Service& owner, RetiredDebugSources& retired) noexcept
+{
+ for (size_t i=0;i<owner.nativeDebugSources.size();++i)
+  if (owner.nativeDebugSources[i]) retired[i] = std::move(owner.nativeDebugSources[i]);
+ owner.nextNativeDebugSource = 0; owner.nativeDebugLastLag = UINT32_MAX;
+}
 __COORDINATOR__
 unsigned tags=0,presents=0,work=0;
-void OnTitleTag(ID3D12GraphicsCommandList*,const char*,ID3D12Resource*){++tags;}
-void OnPresent(){++presents;}
+void OnTitleTag(ID3D12GraphicsCommandList*,const char*,ID3D12Resource*) noexcept {++tags;}
+void OnPresent() noexcept {++presents;}
 void dispatchGate(){ __DISPATCH_GUARD__ ++work; }
 }
 void checkObserverPublication() {
@@ -116,17 +173,7 @@ struct State {
 using PVOID=void*;
 void* o_CreateSampler=reinterpret_cast<void*>(1);
 bool gNrdBridgeDeviceWrappers=false,gSurveyDeviceWrappers=false;
-bool gNrdBridgeWrappers=false,gSurveyWrappers=false;
 void* o_CreateDescriptorHeap=reinterpret_cast<void*>(2);
-unsigned refreshCalls=0; ID3D12Device* refreshed=nullptr; bool refreshAvailable=true;
-struct ResTrack_Dx12 {
- static void HookDevice(ID3D12Device*);
- static bool RefreshComputeHookDevice(ID3D12Device* device,const char** reason=nullptr) noexcept {
-  need(gNrdBridgeWrappers && gSurveyWrappers,"refresh sees latched bridge/survey detour selection");
-  if(reason) *reason="Selected title device has unsupported native compute hook entries; restart required";
-  ++refreshCalls; refreshed=device; return refreshAvailable;
- }
-};
 __RESTRACK_HOOK__
 __DEVICE_HOOK__
 unsigned originals=0;
@@ -233,12 +280,28 @@ int main(int argc,char** argv) try {
   need(config->FfxDenoiserNrdBridgeEnabled.value_or_default(),"temporary device failure preserves persisted runtime preference");
   refreshAvailable=true;HookToDevice(third.device());
   need(NrdBridge::gService && NrdBridge::gService->device.Get()==third.device() && NrdBridge::gUnavailableReason.empty(),"supported replacement reinitializes and clears unavailable reason");
-  owner=NrdBridge::gService.get();owner->cache.valid=true;owner->status.active=true;owner->pendingList=reinterpret_cast<void*>(9);
-  owner->lists[owner->pendingList]={true,true};const auto serial=owner->resetSerial;
+  owner=NrdBridge::gService.get();owner->cache.valid=true;owner->status.active=true;owner->status.nativeMaterialGuidesActive=true;owner->pendingList=reinterpret_cast<void*>(9);
+  auto& pendingListState=owner->lists[owner->pendingList];pendingListState={true,true};
+  pendingListState.recording=std::make_shared<NrdBridge::RecordingToken>();pendingListState.recording->commitRequired.store(true);
+  pendingListState.history=std::make_shared<NrdBridge::HistoryDomain>();
+  pendingListState.native[0]=std::make_shared<NrdBridge::NativeTransaction>();
+  pendingListState.native[0]->recording=std::make_shared<NrdBridge::RecordingToken>();
+  pendingListState.native[0]->history=std::make_shared<NrdBridge::HistoryDomain>();
+  pendingListState.native[1]=std::make_shared<NrdBridge::NativeTransaction>();
+  pendingListState.native[1]->recording=std::make_shared<NrdBridge::RecordingToken>();
+  pendingListState.native[1]->history=std::make_shared<NrdBridge::HistoryDomain>();
+  pendingListState.native[1]->committed.store(true); // An already committed stage must not be re-invalidated.
+  const auto serial=owner->resetSerial;
   config->ResetFfxDenoiserSettings();NrdBridge::dispatchGate();
   need(!config->FfxDenoiserNrdBridge.value_or_default() && config->FfxDenoiserNrdBridgeEnabled.value_for_config()==false && GetBoolValue(config->FfxDenoiserNrdBridgeEnabled.value_for_config())=="false","complete actual ResetAll clears next-start key and serializes runtime false");
   need(NrdBridge::StartupEnabled() && NrdBridge::gInstalled && NrdBridge::gService.get()==owner,"ResetAll preserves installed startup selection and service");
   need(!NrdBridge::RuntimeEnabled() && !owner->status.active && !FrameSurvey::window && !owner->pendingList && !owner->lists.begin()->second.converted && owner->resetSerial>serial && NrdBridge::work==0,"ResetAll immediately cancels pending injections and closes binding window");
+  need(!owner->status.nativeMaterialGuidesActive && owner->discardRequested &&
+   pendingListState.native[0]->invalidated && pendingListState.native[0]->recording->skipInvalidated.load() &&
+   pendingListState.native[0]->history->uncertain.load() && pendingListState.native[0]->history->discardPending.load() &&
+   !pendingListState.native[1]->invalidated && pendingListState.recording->skipInvalidated.load() &&
+   pendingListState.history->uncertain.load() && owner->cancellationSerial>serial,
+   "ResetAll invalidates every uncommitted native stage, spares the committed one, marks required recordings skipped and latches the discard request");
   tag();present(DXGI_PRESENT_TEST);present(0);
   need(NrdBridge::tags==1 && NrdBridge::presents==1 && menuAvailable(),"actual SL/Present/menu predicates remain available after ResetAll and exclude TEST Presents");
   NrdBridge::ConfigureStartup(false);need(NrdBridge::StartupEnabled(),"later bootstrap cannot remove installed selection");
@@ -305,11 +368,19 @@ def run():
         'OPTIONAL': hdr[hdr.index('enum HasDefaultValue'):hdr.index('constexpr inline int UnboundKey')],
         'DECLARATIONS': '\n'.join(declarations), 'RESET': reset,
         'COORDINATOR': '\n'.join(function(bridge, sig) for sig in (
-            'bool SupportedExecutable() noexcept', 'void ConfigureStartup(bool enabled) noexcept',
-            'bool StartupEnabled() noexcept', 'void PublishBindingWindow()', 'bool Initialize(ID3D12Device* device) noexcept',
+            'void PublishBindingWindow()', 'void RequireRestoreFlags()',
+            'template<class Configuration> RRSettings ReadStartupSettings(const Configuration& config)',
+            'template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)',
+            'void InvalidateSkippedRecording(ListState& list, const char* gate="recording_invalidated") noexcept',
+            'void DropPending(Service& owner, RetiredDebugSources& retired)',
+            'void StartWindow(Service& owner)',
+            'bool SupportedExecutable() noexcept',
+            'template<class Tracker> NativeRetirementStartup ConfigureNativeRetirement() noexcept',
+            'void ConfigureStartup(bool enabled) noexcept',
+            'bool StartupEnabled() noexcept', 'bool Initialize(ID3D12Device* device) noexcept',
             'void Shutdown() noexcept', 'void ReportUnavailable(const char* reason) noexcept',
-            'Status GetStatus()', 'void RequireRestoreFlags()', 'void DropPending(Service& owner)',
-            'void StartWindow(Service& owner)', 'void SetRuntimeEnabled(bool enabled) noexcept', 'bool RuntimeEnabled() noexcept')),
+            'Status GetStatus()',
+            'void SetRuntimeEnabled(bool enabled) noexcept', 'bool RuntimeEnabled() noexcept')),
         'DEVICE_HOOK': root_hook, 'RESTRACK_HOOK': metadata_hook,
         'DISPATCH_GUARD': after[after.index('    if ('):after.index('return;')+7],
         'CREATE_GUARD': create_guard, 'FACTORY_GUARD': factory_guard,
@@ -327,7 +398,7 @@ def run():
     (stubs/'Util.h').write_text('#pragma once\n#include <unknwn.h>\n#include <string>\nnamespace Util { bool CheckForRealObject(std::string,IUnknown*,IUnknown**); }\n')
     source, exe = out/'nrd_startup.cpp', out/'nrd_startup.exe'
     source.write_text(cpp)
-    compile_cpp(source, exe, ('ole32.lib', 'dxguid.lib'), (stubs,))
+    compile_cpp(source, exe, ('ole32.lib', 'dxguid.lib'), (stubs, ROOT / 'OptiScaler', ROOT / 'external/streamline', ROOT / 'external/streamline1'))
     rows = []
     for name, selection in (('cyberpunk2077.exe','on'), ('CYBERPUNK2077.EXE','on'),
                             ('cyberpunk2077.exe','off'), ('CYBERPUNK2077.EXE','off'),

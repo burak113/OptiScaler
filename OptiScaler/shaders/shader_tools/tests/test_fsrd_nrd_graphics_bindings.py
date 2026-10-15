@@ -22,16 +22,19 @@ PRELUDE = r'''
 #define NOMINMAX
 #include <d3d12.h>
 #include <cstring>
-// Explicit adapter for the unexercised opaque-command observer in this metadata
-// translation unit. The separate actual-hook fixture verifies that observer.
-class D3D12Hooks {public:static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool)noexcept{}};
+// The real hooks/D3D12_Hooks.h arrives with the surveyed translation unit; the
+// unexercised opaque-command observer gets its no-op definition in the driver.
 '''
 
 DRIVER = r'''
+void D3D12Hooks::OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool) noexcept {}
 namespace NrdBridge {
 bool StartupEnabled()noexcept{return false;}
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*,DispatchKind)noexcept{return DispatchDisposition::Forward;}
-void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
+void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*,const char*)noexcept{}
+// Recovery naming is presentation vocabulary; the POD metadata fixture never records a recovery chain.
+const char* LobeRecoveryTierName(uint32_t)noexcept{return "fixture";}
+const char* LobeRecoveryFallbackReasonName(uint32_t)noexcept{return "fixture";}
 }
 struct BlobRoot:ID3D12RootSignature {
  std::vector<uint8_t> bytes;unsigned queries=0;
@@ -160,7 +163,7 @@ def run():
         return
     exe = output/'graphics_bindings.exe'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT/'OptiScaler/library/detours/detours.lib')),
-                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/spdlog/include', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     process = subprocess.run([str(exe), str(output/'result.json')], capture_output=True, text=True, timeout=90,
                              creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     (output/'native.log').write_text(process.stdout+process.stderr)
