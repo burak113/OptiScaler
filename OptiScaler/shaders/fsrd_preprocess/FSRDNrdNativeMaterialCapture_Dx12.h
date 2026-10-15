@@ -15,6 +15,7 @@
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdNativeMaterialCapture_Shader.h"
+#include "precompile/FSRDNrdNativeMaterialParamsCapture_Shader.h"
 
 namespace NrdBridge
 {
@@ -34,7 +35,7 @@ class NativeMaterialCapture
         // First member dies last: permits account resources through native Release.
         NrdBridgeCaptureBudget::Permit permit;
         explicit Slot(NrdBridgeCaptureBudget::Permit&& reservation) noexcept : permit(std::move(reservation)) {}
-        ComResource resource;
+        ComResource resource, roughness;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptors;
         uint64_t bytes = 0;
     };
@@ -44,7 +45,7 @@ class NativeMaterialCapture
         Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
         uint32_t width = 0, height = 0, stride = 0;
-        bool retired = false;
+        bool retired = false, captureParams = false; // Immutable profile after publication.
         std::shared_ptr<NrdBridgeCaptureBudget::Family> budget;
         std::vector<std::shared_ptr<Slot>> slots;
         std::mutex mutex;
@@ -77,16 +78,33 @@ class NativeMaterialCapture
         desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
         desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         const auto allocation = context.device->GetResourceAllocationInfo(0,1,&desc);
-        if (!candidate->permit.SetBytes(allocation.SizeInBytes))
+        if (!allocation.SizeInBytes || allocation.SizeInBytes == UINT64_MAX)
             throw std::runtime_error("Native material snapshot allocation size is invalid");
-        candidate->bytes = allocation.SizeInBytes;
+        auto bytes = allocation.SizeInBytes;
+        auto roughnessDesc = desc; roughnessDesc.Format = DXGI_FORMAT_R16_FLOAT;
+        if (context.captureParams)
+        {
+            const auto roughnessAllocation = context.device->GetResourceAllocationInfo(0,1,&roughnessDesc);
+            if (!roughnessAllocation.SizeInBytes || roughnessAllocation.SizeInBytes == UINT64_MAX ||
+                roughnessAllocation.SizeInBytes >= UINT64_MAX - bytes)
+                throw std::runtime_error("Native material roughness allocation size is invalid");
+            bytes += roughnessAllocation.SizeInBytes;
+        }
+        // One immutable permit accounts BOTH resources until their actual slot destruction.
+        if (!candidate->permit.SetBytes(bytes))
+            throw std::runtime_error("Native material snapshot allocation size is invalid");
+        candidate->bytes = bytes;
         D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
         Check(context.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,
             D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&candidate->resource)),
             "Native material snapshot allocation failed");
+        if (context.captureParams)
+            Check(context.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&roughnessDesc,
+                D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&candidate->roughness)),
+                "Native material roughness snapshot allocation failed");
         D3D12_DESCRIPTOR_HEAP_DESC descriptors {};
         descriptors.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        descriptors.NumDescriptors = 3; descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        descriptors.NumDescriptors = context.captureParams ? 4 : 3; descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         Check(context.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&candidate->descriptors)),
             "Native material snapshot descriptor allocation failed");
         context.slots.push_back(candidate);
@@ -112,6 +130,13 @@ class NativeMaterialCapture
     using SnapshotLease = std::shared_ptr<Snapshot>;
     bool Initialize(ID3D12Device* device, uint32_t width, uint32_t height,
                     std::string& error) noexcept
+    { return InitializeMode(device,width,height,false,error); }
+    bool InitializeParams(ID3D12Device* device, uint32_t width, uint32_t height,
+                          std::string& error) noexcept
+    { return InitializeMode(device,width,height,true,error); }
+  private:
+    bool InitializeMode(ID3D12Device* device, uint32_t width, uint32_t height,
+                        bool captureParams, std::string& error) noexcept
     {
         if (!device || !width || !height || width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
             height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -124,28 +149,31 @@ class NativeMaterialCapture
             std::vector<std::shared_ptr<Slot>> retiredSlots;
             {
                 std::lock_guard lock(mutex_);
-                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
+                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height &&
+                    context_->captureParams == captureParams)
                 { error.clear(); return true; }
                 if (!budget_) budget_ = MakeOwnedShared<NrdBridgeCaptureBudget::Family>();
                 budget = budget_;
             }
             // Native creation and every losing/failed candidate die outside helper locks.
             next = MakeOwnedShared<Context>(); next->device = device; next->budget = budget;
-            next->width = width; next->height = height;
+            next->width = width; next->height = height; next->captureParams = captureParams;
             next->stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             if (!next->stride) throw std::runtime_error("Native material descriptor stride is zero");
-            Check(device->CreateRootSignature(0,FSRDNrdNativeMaterialCapture_cso,
-                sizeof(FSRDNrdNativeMaterialCapture_cso),IID_PPV_ARGS(&next->root)),
+            const auto* bytecode = captureParams ? FSRDNrdNativeMaterialParamsCapture_cso : FSRDNrdNativeMaterialCapture_cso;
+            const auto bytecodeSize = captureParams ? sizeof(FSRDNrdNativeMaterialParamsCapture_cso) : sizeof(FSRDNrdNativeMaterialCapture_cso);
+            Check(device->CreateRootSignature(0,bytecode,bytecodeSize,IID_PPV_ARGS(&next->root)),
                 "Native material capture root creation failed");
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc {}; desc.pRootSignature = next->root.Get();
-            desc.CS = {FSRDNrdNativeMaterialCapture_cso,sizeof(FSRDNrdNativeMaterialCapture_cso)};
+            desc.CS = {bytecode,bytecodeSize};
             Check(device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&next->pso)),
                 "Native material capture pipeline creation failed");
             next->slots.reserve(NrdBridgeCaptureBudget::Family::Capacity);
             {
                 std::lock_guard lock(mutex_);
                 // A concurrent same-extent initializer may already have published.
-                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
+                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height &&
+                    context_->captureParams == captureParams)
                 { error.clear(); return true; }
                 previous = std::move(context_);
                 if (previous)
@@ -164,6 +192,7 @@ class NativeMaterialCapture
         catch (const std::exception& exception) { error = exception.what(); return false; }
         catch (...) { error = "Native material capture initialization allocation failed"; return false; }
     }
+  public:
     using SourceStates = std::array<D3D12_RESOURCE_STATES,2>;
     static bool CanCaptureStates(const SourceStates& states, D3D12_COMMAND_LIST_TYPE type) noexcept
     {
@@ -194,6 +223,21 @@ class NativeMaterialCapture
     bool Capture(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
                  ID3D12Resource* materialParams, const SourceStates& sourceStates,
                  SnapshotLease& out, std::string& error) noexcept
+    { return CaptureMode(list,baseColor,materialParams,sourceStates,false,out,error); }
+    bool CaptureParams(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
+                       ID3D12Resource* materialParams, SnapshotLease& out, std::string& error) noexcept
+    {
+        return CaptureParams(list,baseColor,materialParams,
+            {D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},out,error);
+    }
+    bool CaptureParams(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
+                       ID3D12Resource* materialParams, const SourceStates& sourceStates,
+                       SnapshotLease& out, std::string& error) noexcept
+    { return CaptureMode(list,baseColor,materialParams,sourceStates,true,out,error); }
+  private:
+    bool CaptureMode(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
+                     ID3D12Resource* materialParams, const SourceStates& sourceStates, bool captureParams,
+                     SnapshotLease& out, std::string& error) noexcept
     {
         out.reset();
         if (!list) { error = "Native material capture command list is null"; return false; }
@@ -205,6 +249,8 @@ class NativeMaterialCapture
             std::shared_ptr<Context> owner;
             { std::lock_guard lock(mutex_); owner = context_; }
             if (!owner) { error = "Native material capture is not initialized"; return false; }
+            if (owner->captureParams != captureParams)
+            { error = "Native material capture profile does not match Initialize/InitializeParams"; return false; }
             if (!TextureMatches(baseColor,*owner,DXGI_FORMAT_R10G10B10A2_UNORM) ||
                 !TextureMatches(materialParams,*owner,DXGI_FORMAT_R8G8B8A8_UNORM))
             { error = "Native material source format/extent/device does not match the exact profile"; return false; }
@@ -229,6 +275,11 @@ class NativeMaterialCapture
             D3D12_UNORDERED_ACCESS_VIEW_DESC uav {}; uav.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
             uav.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
             owner->device->CreateUnorderedAccessView(lease->slot->resource.Get(),nullptr,&uav,cpu);
+            if (captureParams)
+            {
+                cpu.ptr += owner->stride; uav.Format = DXGI_FORMAT_R16_FLOAT;
+                owner->device->CreateUnorderedAccessView(lease->slot->roughness.Get(),nullptr,&uav,cpu);
+            }
             std::array<D3D12_RESOURCE_BARRIER,2> sourceBefore {},sourceAfter {},sourceUav {};
             UINT transitionCount = 0, uavCount = 0;
             const std::array sources {baseColor,materialParams};
@@ -256,6 +307,8 @@ class NativeMaterialCapture
             barrier.Transition = {lease->slot->resource.Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                 D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
             list->ResourceBarrier(1,&barrier);
+            auto roughnessBarrier = barrier; roughnessBarrier.Transition.pResource = lease->slot->roughness.Get();
+            if (captureParams) list->ResourceBarrier(1,&roughnessBarrier);
             list->SetPipelineState(owner->pso.Get()); list->SetComputeRootSignature(owner->root.Get());
             ID3D12DescriptorHeap* heaps[] = {lease->slot->descriptors.Get()}; list->SetDescriptorHeaps(1,heaps);
             const uint32_t extent[] = {owner->width,owner->height}; list->SetComputeRoot32BitConstants(0,2,extent,0);
@@ -266,14 +319,23 @@ class NativeMaterialCapture
             // Snapshot and every borrowed source are restored before exposing the lease.
             barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
             barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON; list->ResourceBarrier(1,&barrier);
+            if (captureParams)
+            {
+                roughnessBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+                roughnessBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+                list->ResourceBarrier(1,&roughnessBarrier);
+            }
             if (transitionCount) list->ResourceBarrier(transitionCount,sourceAfter.data());
             out = std::move(lease); error.clear(); return true;
         }
         catch (const std::exception& exception) { error = exception.what(); return false; }
         catch (...) { error = "Native material snapshot allocation failed"; return false; }
     }
+  public:
     static ID3D12Resource* Resource(const SnapshotLease& lease) noexcept
     { return lease && lease->slot ? lease->slot->resource.Get() : nullptr; }
+    static ID3D12Resource* RoughnessResource(const SnapshotLease& lease) noexcept
+    { return lease && lease->slot ? lease->slot->roughness.Get() : nullptr; }
     uint64_t OwnedAuxiliaryBytes() const noexcept
     {
         try

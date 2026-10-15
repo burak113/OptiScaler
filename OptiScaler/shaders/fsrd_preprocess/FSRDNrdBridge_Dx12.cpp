@@ -794,7 +794,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (succeeded)
         {
             const ConversionInputs inputs {resources.reconSpec,resources.reconDiff,resources.normals,resources.viewDepth,nullptr,
-                NativeMaterialCapture::Resource(materialSnapshot)};
+                NativeMaterialCapture::Resource(materialSnapshot),NativeMaterialCapture::RoughnessResource(materialSnapshot)};
             NrdBridgeStagePerf::StackTimer conversion(profile,NrdBridgeStagePerf::Stage::ReconConvert);
             succeeded = history->conversion.Dispatch(cmd,inputs,parameters,converted,error);
         }
@@ -885,8 +885,8 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
     std::string error; NativeMaterialCapture::SnapshotLease snapshot; bool captured = false;
     {
         InjectionScope guard(cmd);
-        captured = owner->nativeMaterialCapture.Initialize(owner->device.Get(),uint32_t(extent.Width),extent.Height,error) &&
-            owner->nativeMaterialCapture.Capture(cmd,base[0].resource,params[0].resource,sourceStates,snapshot,error);
+        captured = owner->nativeMaterialCapture.InitializeParams(owner->device.Get(),uint32_t(extent.Width),extent.Height,error) &&
+            owner->nativeMaterialCapture.CaptureParams(cmd,base[0].resource,params[0].resource,sourceStates,snapshot,error);
     }
     if (!captured)
     {
