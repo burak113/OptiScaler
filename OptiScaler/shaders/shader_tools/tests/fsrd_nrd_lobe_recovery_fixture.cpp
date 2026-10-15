@@ -159,6 +159,24 @@ void failures(Host& host,LobeObservedList& list)
  need(family->graphBytes==bytes,"GPU recording lease keeps the old graph alive after every caller owner is dropped");
  host.submit();host.reset();need(family->graphBytes==0&&family->slots.allocatedSlots==0&&family->slots.allocatedBytes==0,"fence completion and recording detach release all graph/slot storage");tickOffset+=1001;
 }
+void replay(Host& host,LobeObservedList& list)
+{
+ Scene scene(host,64,64);host.submit();host.reset();const auto in=inputs(scene);std::string error;
+ auto family=MakeOwnedShared<LobeRecovery::Family>();LobeRecovery helper;
+ for(unsigned frame=0;frame<2;++frame)
+ {
+  LobeRecoveryFrame parameters;parameters.frameIndex=frame;parameters.reset=frame==0;LobeRecovery::Prepared prepared;
+  const bool ready=helper.Prepare(host.device.Get(),&list,in,parameters,family,prepared,error);need(ready,error.c_str());
+  need(ResTrack_Dx12::RetainComputeDispatch(host.device.Get(),&list,prepared.owner),"lease cold/warm replay resources");
+  helper.Record(&list,prepared);Readback spec(host,prepared.specular),diff(host,prepared.diffuse);host.submit();
+  const auto firstSpec=spec.values(64,64),firstDiff=diff.values(64,64);
+  ComPtr<IUnknown> identity;hr(host.list.As(&identity));auto submission=RecordedComputeLease::BeforeSubmission(host.queue.Get(),{identity.Get()});
+  need(bool(submission),"closed replay keeps an actual recorded lease participant");
+  ID3D12CommandList* commands[]={host.list.Get()};host.queue->ExecuteCommandLists(1,commands);RecordedComputeLease::AfterSubmission(submission);host.finish();
+  need(spec.values(64,64)==firstSpec&&diff.values(64,64)==firstDiff,"cold and warm closed-list replay repeat exact GPU outputs with stable UAV/NPS boundary states");
+  need(helper.RecordedFrames()==frame+1,"GPU list replay does not fabricate another CPU history advance");host.reset();
+ }
+}
 }
 int main(int argc,char** argv)try
 {
@@ -166,7 +184,7 @@ int main(int argc,char** argv)try
  const std::filesystem::path output=argv[2];std::filesystem::create_directories(output);
  const auto data=LobeFixture::file(argv[1]);const auto manifest=J::parse(data.begin(),data.end());
  need(!NrdBridgeNativeBirth::Ready(),"standalone helper explicitly has unconfigured native-birth coverage");
- Host host;ComPtr<LobeObservedList> observed;observed.Attach(new LobeObservedList(host.list.Get()));LobeFixture::failures(host,*observed.Get());
+ Host host;ComPtr<LobeObservedList> observed;observed.Attach(new LobeObservedList(host.list.Get()));LobeFixture::failures(host,*observed.Get());LobeFixture::replay(host,*observed.Get());
  const auto storage=manifest.at("storage")=="mixed"?LobeRecovery::Storage::MixedPrecision:LobeRecovery::Storage::FullPrecision;
  J rows=J::array();for(const auto& value:manifest.at("cases"))rows.push_back(LobeFixture::parity(host,*observed.Get(),value,storage));
  host.checkDebug();need(unexpectedCoverage==0,"no fake native coverage success was used");

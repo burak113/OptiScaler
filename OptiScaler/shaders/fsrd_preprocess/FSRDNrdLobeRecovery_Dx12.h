@@ -13,7 +13,9 @@
 #include <utility>
 #include "misc/NrdBridgeCaptureSlotBudget_Dx12.h"
 #include "misc/NrdBridgeOwned_Dx12.h"
+#if !defined(FSRD_NRD_BRIDGE_RR_TEST_BACKEND)
 #include "State.h"
+#endif
 #include "precompile/FSRDNrdLobeRecoveryReference_Shader.h"
 #include "precompile/FSRDNrdLobeRecoveryDown_Shader.h"
 #include "precompile/FSRDNrdLobeRecoveryBand_Shader.h"
@@ -131,7 +133,7 @@ class LobeRecovery
         std::array<ComResource,7> inputs;
         ID3D12GraphicsCommandList* list = nullptr; // Recording-only borrow.
         uint32_t frame = 0, current = 0;
-        bool recorded = false, firstOutput = false;
+        bool recorded = false;
     };
     struct Context
     {
@@ -142,7 +144,7 @@ class LobeRecovery
         Pipeline reference, down, band;
         uint32_t width = 0, height = 0, stride = 0, previous = 1, lastFrame = 0;
         uint64_t recordedFrames = 0;
-        bool historyValid = false, outputInitialized = false;
+        bool historyValid = false;
         DXGI_FORMAT floatStorage = FloatFormat;
         std::array<std::array<ComResource,4>,2> history; // spec,diff,gradient,UINT geometry.
         std::array<std::array<ComResource,3>,Levels+1> pyramid;
@@ -221,7 +223,9 @@ class LobeRecovery
             }
             w = (w+1)/2; h = (h+1)/2;
         }
-        for (auto& out : context->output) append(out,width,height,DXGI_FORMAT_R16G16B16A16_FLOAT,D3D12_RESOURCE_STATE_COMMON);
+        // A closed list may be executed again after its fence. Every recorded
+        // boundary must therefore have the same first-use and warm-use state.
+        for (auto& out : context->output) append(out,width,height,DXGI_FORMAT_R16G16B16A16_FLOAT,WriteState);
         uint64_t bytes = 0;
         for (const auto& item : plan)
         {
@@ -347,7 +351,7 @@ class LobeRecovery
     {
         auto& slot = *recording.slot;
         const uint32_t previous = context.previous,current = previous^1u;
-        recording.current = current; recording.firstOutput = !context.outputInitialized;
+        recording.current = current;
         const bool history = context.historyValid && !frame.reset && frame.frameIndex==uint32_t(context.lastFrame+1u);
         Constants base; base.fullSize = {float(in.width),float(in.height),1.f/in.width,1.f/in.height};
         base.levelSize = {float(in.width),float(in.height),float((in.width+1)/2),float((in.height+1)/2)};
@@ -477,12 +481,7 @@ class LobeRecovery
         {
             before[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             before[i].Transition = {recording->inputs[5+i].Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,WriteState,ReadState};
-            if (recording->firstOutput)
-            {
-                before[2+i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-                before[2+i].Transition = {context.output[i].Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,D3D12_RESOURCE_STATE_COMMON,WriteState};
-            }
-            else { before[2+i].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV; before[2+i].UAV.pResource = context.output[i].Get(); }
+            before[2+i].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV; before[2+i].UAV.pResource = context.output[i].Get();
         }
         list->ResourceBarrier(4,before.data());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1,heaps);
@@ -503,7 +502,7 @@ class LobeRecovery
         }
         list->ResourceBarrier(4,after.data());
         context.previous = recording->current; context.lastFrame = recording->frame;
-        context.historyValid = context.outputInitialized = recording->recorded = true; ++context.recordedFrames;
+        context.historyValid = recording->recorded = true; ++context.recordedFrames;
     }
     uint64_t OwnedTextureBytes() const noexcept { return context_ ? context_->charge.bytes : 0; }
     uint64_t OwnedAuxiliaryBytes() const noexcept
