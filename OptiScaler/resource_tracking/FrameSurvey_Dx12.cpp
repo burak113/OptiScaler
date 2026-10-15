@@ -3422,9 +3422,11 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
     NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Indirect,bridge);
     if (forwarding.Nested())
     { InternalScope internal; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); return; }
-    if (bridge)
+    const bool preserve = bridge && NrdBridge::PreserveIndirectRecording(cmd,signature);
+    if (bridge && !preserve)
     {
-        // Opaque signatures can replace root arguments. They are never suppressed.
+        // Only exact no-root-argument signatures with current pipeline/resource
+        // proofs preserve bindings. Every indirect invocation still forwards.
         NrdBridge::OriginalDispatchDisposition(cmd,NrdBridge::DispatchKind::Indirect);
         D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
     }
@@ -3495,7 +3497,7 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
     // Observe this public invocation once; helper recordings are not separate
     // title submissions and must not allocate unfenced survey payloads.
     { InternalScope internal; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); }
-    if (bridge)
+    if (bridge && !preserve)
     {
         D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
         NrdBridge::InvalidateRecordingProof(cmd,"ExecuteIndirect invalidated the current root/dispatch proof");
