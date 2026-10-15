@@ -380,6 +380,42 @@ int main(){try{
  ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Separate lobe detail recovery is requested off")&&
  ImGui::hasText("Ordinary FSR-RR Recovery controls are independent"),
  "Input map distinguishes the new bridge recovery from the ordinary combined-path Recovery settings");
+
+ cfg.load("[FSR-RR]\n");NrdBridge::state.requested={};NrdBridge::state.ready=false;
+ NrdBridge::state.lobeRecoveryActive=true;NrdBridge::state.lobeRecoveryFallback=true;
+ ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Lobe recovery: Off.")&&!ImGui::hasText("Graph ran and committed")&&!ImGui::hasText("Lobe recovery: Fallback"),
+ "Requested OFF takes precedence over stale last-Consumer recovery observations");
+ NrdBridge::state.requested.lobeRecovery=true;NrdBridge::state.lobeRecoveryActive=false;NrdBridge::state.lobeRecoveryFallback=false;
+ ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Lobe recovery: Requested; waiting for a successful Consumer commit.")&&
+ !ImGui::hasText("Graph ran and committed"),"Before first Consumer the UI shows requested/waiting, independently of provider readiness");
+ NrdBridge::state.ready=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("waiting for a successful Consumer commit.")&&!ImGui::hasText("Graph ran and committed"),
+ "Queried provider readiness alone never implies the optional recovery graph ran");
+ NrdBridge::state.lobeRecoveryActive=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Graph ran and committed on the last successful Consumer")&&
+ ImGui::hasText("Per-pixel gates can still leave pixels unchanged")&&!ImGui::hasText("Lobe recovery: Fallback"),
+ "Actual cached graph success is distinguished from a claim that every pixel received correction");
+ NrdBridge::state.lobeRecoveryActive=false;NrdBridge::state.lobeRecoveryFallback=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Lobe recovery: Fallback on the last successful Consumer")&&
+ ImGui::hasText("RR passed through without lobe recovery")&&!ImGui::hasText("Graph ran and committed"),
+ "Actual cached optional-graph fallback is visible and describes retained RR");
+ NrdBridge::state.requested.nativeDebugView=0;NrdBridge::state.lobeRecoveryActive=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("native AMD DebugView bypasses it and shows raw RR")&&
+ !ImGui::hasText("Graph ran and committed")&&!ImGui::hasText("Lobe recovery: Fallback"),
+ "Requested native AMD DebugView explicitly bypasses recovery even with an older cached observation");
+ NrdBridge::state.requested.nativeDebugView=-1;NrdBridge::state.requested.recoverySpecular=0.f;
+ NrdBridge::state.requested.recoveryDiffuse=0.f;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("both strengths are zero, so the graph is skipped")&&
+ !ImGui::hasText("Graph ran and committed")&&!ImGui::hasText("Lobe recovery: Fallback"),
+ "Both accepted zero strengths show a skipped graph rather than a stale active/fallback observation");
+ NrdBridge::state.requested.recoveryDiffuse=.5f;NrdBridge::state.lobeRecoveryFallback=false;
+ ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Graph ran and committed on the last successful Consumer"),
+ "A single zero lobe does not hide a successful graph for the remaining nonzero lobe");
+ ImGui::frame();ImGui::hovered=true;drawBridge(&cfg);
+ need(ImGui::hasText("Adds GPU work and temporary VRAM")&&ImGui::hasText("cost depends on resolution and hardware"),
+ "Experimental recovery tooltip explains variable GPU/VRAM cost without a hardware-independent timing claim");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
