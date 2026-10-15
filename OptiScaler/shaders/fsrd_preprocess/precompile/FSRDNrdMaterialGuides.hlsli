@@ -1,9 +1,9 @@
 #ifndef FSRD_NRD_MATERIAL_GUIDES_HLSLI
 #define FSRD_NRD_MATERIAL_GUIDES_HLSLI
 
-// Category1 corresponds to the title's model1, whose compositor can replace
-// BaseColor with white using a later, different CB6. That branch is unavailable
-// at Recon; retain the existing white cue for this category instead of guessing.
+// Native A==1 (integer material ID3) is emitted for title model q==1. Its late
+// compositor may replace BaseColor with white using a different CB6. That
+// branch is unavailable at Recon, so retain white guides for this category.
 bool NrdNativeMaterialKnown(float4 baseMetal, float nativeCategory)
 {
     const bool knownCategory = nativeCategory == 0.0f || nativeCategory == (1.0f / 3.0f) ||
