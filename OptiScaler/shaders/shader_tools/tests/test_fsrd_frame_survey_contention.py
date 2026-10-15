@@ -424,6 +424,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
    if(i%64==63){UINT count=burst;auto from=h.handle(UINT(2048+t*2048)),to=h.handle(UINT(3072+t*2048));const auto copyBegin=qpc();
     gOriginalTicks=0;gLastWaits={};{
      NrdBridgePerf::Scope copyProfile(NrdBridgePerf::Hook::CopyDescriptors,wrappers&&gNrdBridgeWrappers&&!FrameSurvey::Internal());PerCallWaitSnapshot snapshot;
+__NATIVE_DESCRIPTOR_COPY_ADMISSION__
      {OriginalForwardTimer original;h.device->CopyDescriptorsSimple(count,to,from,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}
      if(wrappers)FrameSurvey::CopyDescriptors(h.device.Get(),1,&to,&count,1,&from,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
@@ -449,7 +450,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  std::vector<uint64_t> finalValues,nonfinalValues;for(const auto& record:records){finalValues.insert(finalValues.end(),record.finalTicks.begin(),record.finalTicks.end());nonfinalValues.insert(nonfinalValues.end(),record.nonfinalTicks.begin(),record.nonfinalTicks.end());}
  J perCallWaits=J::array(),nonNative=J::array(),metadataLocks=J::array();
  const std::array<const char*,7> metadataNames{"catalog_shared","catalog_exclusive","descriptor_shard","identity_shard","interval_index","snapshot_gate","mirror"};
- const std::array<const char*,4> waitNames{"metadata","physical_lifetime_gate","tracking","coordinator"};
+ const std::array<const char*,size_t(NrdBridgePerf::WaitKind::Count)> waitNames{"metadata","physical_lifetime_gate","tracking","coordinator","descriptor_admission"};
  if(profile)for(size_t e=0;e<Events;++e){
   std::vector<uint64_t> own;for(size_t t=0;t<threadCount;++t){need(records[t].ticks[e].size()==originals[t].ticks[e].size(),"paired original timings match every event");for(size_t i=0;i<records[t].ticks[e].size();++i)own.push_back(records[t].ticks[e][i]>=originals[t].ticks[e][i]?records[t].ticks[e][i]-originals[t].ticks[e][i]:0);}
   auto row=percentile(std::move(own));row["event"]=eventNames[e];nonNative.push_back(row);
@@ -460,7 +461,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  }
  J waits=J::array();const std::array<const char*,4> hooks{"CBV","SRV","UAV","Release"};
  for(size_t i=0;i<hooks.size();++i){const auto calls=after[i].calls-before[i].calls;J row{{"hook",hooks[i]},{"actual_profiled_calls",calls}};
-  const std::array<const char*,4> categories{"metadata","physical_lifetime_gate","tracking","coordinator"};
+  const std::array<const char*,size_t(NrdBridgePerf::WaitKind::Count)> categories{"metadata","physical_lifetime_gate","tracking","coordinator","descriptor_admission"};
   for(size_t j=0;j<categories.size();++j){const auto ticks=after[i].waitTicks[j]-before[i].waitTicks[j];row[std::string(categories[j])+"_total_us"]=double(ticks)*1000000.0/double(frequency());row[std::string(categories[j])+"_mean_us"]=calls?double(ticks)*1000000.0/double(frequency())/calls:0.0;}
   row["profiled_total_us"]=double(after[i].ticks-before[i].ticks)*1000000.0/double(frequency());waits.push_back(row);
  }
@@ -606,6 +607,11 @@ int main(int argc,char** argv)try{
  }
  need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");
  hr(h.list->Close());releaseNativeHost(h);need(peakRss()<2ull*1024*1024*1024,"measured peak process working set below2GB");
+ if(candidate){
+  bool admissionDrained=NrdBridgeDescriptorAdmission::Healthy()&&!NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread()&&!NrdBridgeDescriptorAdmission::Detail::gate.value.load();
+  for(const auto& writer:NrdBridgeDescriptorAdmission::Detail::writers)admissionDrained=admissionDrained&&!writer.value.load();
+  need(admissionDrained,"actual native descriptor admission is healthy and every fixed writer shard drains after original workloads");
+ }
   J result{{"variant","__VARIANT__"},{"profile",profile},{"adapter",gUseHardware?"hardware":"WARP"},{"checks",checks},{"rows",rows},{"common_native_release_allocations",allocations},
   {"gpu_dispatches",0},{"ExecuteCommandLists_calls",0},{"synthetic_objects_passed_to_com",false},{"logical_registry_records",logicalRecords},
   {"descriptor_shards",FrameSurveyMetadata::DescriptorShards},{"descriptor_layout_bytes",{{"handles_per_owner",sizeof(FrameSurveyMetadata::DescriptorHandles)},{"owner_wrapper",sizeof(FrameSurveyMetadata::DescriptorHandleOwner)},{"global_slot_mutexes",sizeof(FrameSurvey::gViewMutexes)},{"heap_legal_mask",sizeof(FrameSurveyMetadata::DescriptorShardMask)}}},{"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
@@ -700,6 +706,7 @@ def run():
     cpp = native.CPP[:native.CPP.index('#if __INDEXED__\n// Opaque')]
     cpp = cpp.replace('#include <thread>', '#include <thread>\n#include <future>\n#define FSRD_NRD_BRIDGE_TEST\nbool gUseHardware=false;')
     cpp = cpp.replace('#include "__SURVEY__"', '#include "'+metadata_path.as_posix()+'"\n#include "__SURVEY__"')
+    cpp = cpp.replace('#include "__SURVEY__"', '#include "__SURVEY__"\n#include "misc/RecordedComputeLease_Dx12.h"\n#include "misc/NrdBridgeDescriptorAdmission_Dx12.h"')
     cpp = cpp.replace('debug->EnableDebugLayer();', '(void)debug;')
     cpp = cpp.replace('hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));', 'if(gUseHardware)hr(factory->EnumAdapters(0,&warp));else hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));')
     cpp = cpp.replace('BeginCreationTracking(true)', 'BeginCreationTracking(false)').replace('hd.NumDescriptors=16', 'hd.NumDescriptors=65536')
@@ -744,6 +751,22 @@ struct OriginalForwardTimer {
     gates = 'static std::atomic<bool> gRRInspectorLifetimeProtection{false};\n' + function(current_hooks, 'static bool NeedsNativeReleaseGate(') + '\n' + function(current_hooks, 'static bool UseNrdNativeRetirement(')
     rr_helpers = tracked_resource_cache(current_hooks) + '\n// Optional inspector proof map is inactive; no proof is published in this fixture.\nvoid ForgetRRRecording(void*,const NrdBridgeBirth::Token& = NrdBridgeBirth::Token()) noexcept {}\n'
     adapter = ADAPTER.replace('__RELEASE_HEADER__', measured_helper.as_posix()).replace('__USE_NATIVE__', gates).replace('__RR_RELEASE_HELPERS__', rr_helpers)
+    if not args.baseline:
+        inactive_callbacks = r'''
+// This contention fixture records no bridge dispatch/queue. These callbacks are
+// explicit inactive integration seams; NativeBirth/Lifetime/lease remain actual.
+void D3D12Hooks::OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*){}
+void D3D12Hooks::OnBridgeObjectReleased(const NrdBridgeBirth::Token&)noexcept{}
+void D3D12Hooks::OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool)noexcept{}
+namespace NrdBridge {
+bool StartupEnabled()noexcept{return false;}
+DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*,DispatchKind)noexcept{return DispatchDisposition::Forward;}
+void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
+}
+'''
+        assert adapter.count('namespace D3D12Hooks {inline void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*){}inline void OnBridgeObjectReleased(const NrdBridgeBirth::Token&)noexcept{}}') == 1
+        adapter = adapter.replace('namespace D3D12Hooks {inline void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*){}inline void OnBridgeObjectReleased(const NrdBridgeBirth::Token&)noexcept{}}', inactive_callbacks)
+
     slot_header = snapshot('OptiScaler/resource_tracking/ResTrack_dx12.h', args.baseline)
     adapter = adapter.replace('__TRACKED_SLOT_TYPES__', tracked_resource_slots(slot_header, 'HeapInfo')[0])
     adapter = adapter.replace('__BASELINE_FAILURE_ADAPTER__', 'namespace FrameSurvey {void FlushMetadataFailure() noexcept{}}' if args.baseline else '')
@@ -781,12 +804,22 @@ struct OriginalForwardTimer {
         # the genuinely new SAMPLER identity fixture belongs only to the candidate.
         driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")
         driver = driver.replace(function(driver, "void nativeMetadataPendingReleaseRegressions("), "void nativeMetadataPendingReleaseRegressions(Host&) {}")
+    native_copy_admission = ''
+    if not args.baseline:
+        admission = 'NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());\n    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);'
+        assert all(body.count(admission) == 1 for name, body in bodies.items() if name.startswith('hkSurvey'))
+        copy_body = function(hook_source, 'void ResTrack_Dx12::hkSurveyCopyDescriptorsSimple(')
+        assert copy_body.count(admission) == 1
+        native_copy_admission = admission.replace('descriptorMutation(gNrdBridgeWrappers', 'descriptorMutation(wrappers && gNrdBridgeWrappers')
+        variant += '-native-admission'
+    driver = driver.replace('__NATIVE_DESCRIPTOR_COPY_ADMISSION__', native_copy_admission)
     cpp += adapter+driver.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant).replace('__CANDIDATE__', 'false' if args.baseline else 'true').replace('__BORN__', 'false' if args.baseline else 'true')
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', surveyed.as_posix()).replace('__INDEXED__', '1').replace('__HOOKS__', hooks)
     stubs = out/'stubs'
     for folder in ('proxies', 'inputs'):
         (stubs/folder).mkdir(parents=True, exist_ok=True)
     (stubs/'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
+    (stubs/'SysUtils.h').write_text('#pragma once\n#include <windows.h>\n#include <mutex>\n')
     (stubs/'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util {inline std::filesystem::path DllPath(){return g_dllPath;}}\n')
     (stubs/'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs/'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy {inline auto D3D12CreateVersionedRootSignatureDeserializer_(){return &D3D12CreateVersionedRootSignatureDeserializer;}inline auto D3D12SerializeVersionedRootSignature_(){return &D3D12SerializeVersionedRootSignature;}}\n')
@@ -810,6 +843,9 @@ struct OriginalForwardTimer {
         report['periodic_snapshot_reader_variant'] = args.snapshot_readers
         report['measurement_instrumentation'] = 'same-call native AddRef/Release/View/Copy QPC; profiler TLS snapshot before outer Scope destructor; copy native+callback boundary uses Hook::CopyDescriptors Scope'
         report['native_release_helper_sha256'] = hashlib.sha256(helper.encode()).hexdigest()
+        report['descriptor_admission_header_sha256'] = hashlib.sha256((ROOT/'OptiScaler/misc/NrdBridgeDescriptorAdmission_Dx12.h').read_bytes()).hexdigest()
+        report['descriptor_admission_scope'] = 'disabled frozen baseline' if args.baseline else 'actual header and enabled current extracted CBV/SRV/UAV Mutation guards; same guard spans manual native Copy plus actual FrameSurvey callback; legacy copy/HUD tail and queue submission absent; fixed64 writer counters, no resource/heap walk'
+
         report['release_adapter_helpers_sha256'] = hashlib.sha256((gates+rr_helpers).encode()).hexdigest()
         report['optional_inspector_scope'] = 'actual direct resource-cache erase and sticky release gate; inspector proof map inactive, ForgetRRRecording seam; no HUD/RR inspector active-path claim'
         report['source_commit'] = BASELINE if args.baseline else subprocess.check_output(['git', 'log', '-1', '--format=%H'], cwd=ROOT, text=True).strip()
