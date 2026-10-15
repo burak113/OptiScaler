@@ -18,6 +18,12 @@ def digest(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 def prepare(output):
     # Preserve exactly the original production include/audit adapter and its assertions.
     base.prepare(output)
+    raw=(output/'production_nrd_raw.cpp').read_text()
+    need(raw.count('ResTrack_Dx12::RetainComputeDispatch(')==1,'exact single application Retain seam only')
+    (output/'production_nrd_raw.cpp').write_text(raw.replace('ResTrack_Dx12::RetainComputeDispatch(','RawPrePassRetainComputeDispatch('))
+    original=(HERE/'nrd_raw_signal_fixture.cpp').read_text();at=original.index('#undef main')
+    need(original[at:].count('int main(int argc,char** argv)')==1,'standalone A main after inner undef only')
+    (output/'raw_a_fixture_support.cpp').write_text(original[:at]+original[at:].replace('int main(int argc,char** argv)','int RawAStandaloneMain(int argc,char** argv)'))
     rng=np.random.default_rng(0x15B);sample=rng.uniform(.125,2,(8,12,4)).astype('<f2');normal=np.full((6,9,2),.5);z=np.ones((6,9),'f4')*5;z[:,5:]=100
     for mode in [0,1,2]:
         scalar,active=independent.reconstruct(sample,9,6,(1,2),mode,1,True,normal,z)

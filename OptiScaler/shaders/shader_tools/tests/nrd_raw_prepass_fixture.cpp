@@ -1,7 +1,22 @@
 // Actual owned B capture/geometry/decode; no native NRD or provider dispatch.
-#define main RawAStandaloneMain
-#include "nrd_raw_signal_fixture.cpp"
-#undef main
+#include "dx12_shader_test_support.h"
+// Application Retain hook seam only. Device/list checks match the original fixture
+// and callbacks run through the actual production native-queue/fence registry.
+static bool RawPrePassRetainComputeDispatch(ID3D12Device* device,ID3D12GraphicsCommandList* list,
+    const std::shared_ptr<void>& lease,std::function<void(ID3D12CommandQueue*)> beforeSubmit,
+    RecordedComputeLease::SubmissionCallbacks callbacks)
+{
+    if(!device||!list||!lease||!RecordedComputeLease::Available())return false;
+    if(list->GetType()!=D3D12_COMMAND_LIST_TYPE_DIRECT&&list->GetType()!=D3D12_COMMAND_LIST_TYPE_COMPUTE)return false;
+    Microsoft::WRL::ComPtr<ID3D12Device> listDevice;
+    Microsoft::WRL::ComPtr<IUnknown> deviceIdentity,listDeviceIdentity,identity;
+    if(FAILED(list->GetDevice(IID_PPV_ARGS(&listDevice)))||FAILED(device->QueryInterface(IID_PPV_ARGS(&deviceIdentity)))||
+       FAILED(listDevice.As(&listDeviceIdentity))||listDeviceIdentity.Get()!=deviceIdentity.Get()||
+       FAILED(list->QueryInterface(IID_PPV_ARGS(&identity))))return false;
+    return RecordedComputeLease::Track(identity.Get(),{list,static_cast<ID3D12CommandList*>(list),identity.Get()},
+        lease,std::move(beforeSubmit),std::move(callbacks));
+}
+#include "raw_a_fixture_support.cpp"
 #include <thread>
 namespace RawPrePassFixture
 {
