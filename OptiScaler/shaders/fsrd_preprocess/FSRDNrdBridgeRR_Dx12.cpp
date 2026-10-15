@@ -882,6 +882,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     const bool reset = frame.reset || impl_->resetPending || recreate;
     auto* committedSpec = lease->slot->spec.Get();
     auto* committedDiff = lease->slot->diff.Get();
+    bool recoveryFallback = false;
     const bool requestRecovery = impl_->settings.lobeRecovery && !lease->context->debugEnabled &&
         (impl_->settings.recoverySpecular > 0.0f || impl_->settings.recoveryDiffuse > 0.0f);
     if (requestRecovery)
@@ -920,7 +921,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         else
         {
             lease->recovery = {}; lease->context->recovery.reset();
-            impl_->recoveryFallback = true;
+            recoveryFallback = true;
         }
     }
     else lease->context->recovery.reset();
@@ -1019,6 +1020,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         impl_->nativeDebug.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     }
     impl_->recoveryActive = bool(lease->recovery.owner);
+    impl_->recoveryFallback = recoveryFallback;
     impl_->previous = frame;
     impl_->previous.reset = reset;
     impl_->historyValid = true;
