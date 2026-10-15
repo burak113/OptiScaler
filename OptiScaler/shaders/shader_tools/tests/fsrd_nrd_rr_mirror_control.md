@@ -78,3 +78,49 @@ local pinned denoising.md2.5.10,4.1,5.1,5.2 and5.3. The SDK says low-roughness
 virtual-hit debug information can validate camera and ray length; it does not
 publish the proprietary reprojection implementation. A reflection-motion
 diagnostic cannot justify a new production field by itself.
+
+## Signed result
+
+The complete V4 run passed:193dispatches (one probe plus three64-frame fresh
+histories),24853 retained native checks, four creates/four deferred destroys,
+strict zero D3D12 errors and warnings, and bit-identical eight default/effective
+configuration words. No compiler was invoked. Comparison checks3605 and sealed
+payload checks7721 are recorded separately. The lead_ops GPU-lock job took
+14.137s; outer bounded elapsed14.5585s. Native peak resident89923584B, driver
+45477888B; stable owned staging1048576B plus auxiliary327680B.
+
+The coherent rough0 case preserves more ideal-mirror detail than the deliberate
+rough.12 mismatch: original-crop projection .1925248 versus .00278717, and
+same-primary/secondary-surface pairs .1930307 versus .00271502. This proves a
+large model-conditioning effect in this synthetic control. It does not justify
+overriding the title's real roughness. Rough0 still blurs detail and retains
+colored residuals: specular RMSE .0348224/chroma .0265212, age9..16 positive
+stale energy .00288866 compared with raw noisy .00112806. The mismatched
+rough.12 result has lower RMSE .0312561/chroma .0103567 while nearly removing
+the pattern; lower error alone is not a detail solution.
+
+The reflected-motion diagnostic only raises projection to .2027498, with worse
+first-reveal RMSE .0653571 versus .0632816 for valid primary motion. It also
+worsens diffuse full-history RMSE .0239343 versus .0230203. There is no case for
+silently replacing the valid SDK primary field. All worse rows remain present.
+
+At the first reset, the rough0 specular output equals all49152 raw input RGB
+half words exactly; the real SDK was called and received every noisy signal.
+This is observed provider behavior for this fixture, not an integration bypass
+or a general SDK guarantee. Later it reduces noise but retains only .2292685
+gradient projection during static jitter and .1636097 in the settled tail.
+The reference remains an instantaneous point sample rather than pixel-area
+filtered truth; subpixel reflection detail should not be called a measured game
+quality defect solely from this experiment.
+
+All64 GPU timestamp samples per history are in runs.json. They measure128x128
+RR plus the normal RGB-only commit, including first reset: mean/medianms
+rough0 .37407/.36520, mismatch .39476375/.41110, diagnostic .404708125/.39280.
+No1505x847/2560x1440 cost or game FPS was measured for this test-only control.
+
+`analyze_fsrd_nrd_rr_mirror_quality.py` validates actual output hashes and makes
+fixed-exposure spec/diff previews at the predetermined2/17/33/49/65samples.
+It is CPU only and reports raw first-reset RGB bit identity rather than guessing
+passthrough from a screenshot. Its62 integrity checks passed. The remaining
+detail/chroma/stale tradeoff motivates a separately noise-gated recovery test;
+the analytic reference must never become a production recovery input.
