@@ -93,4 +93,28 @@ bool NrdOrdinaryRecoverySurface(float signedDepth, float roughness,
            all(isfinite(primaryMotion)) && primaryMotion.w >= 0.5f;
 }
 
+// Faithful final local bound: the caller has already removed each weighted
+// band's upsampled next-level mean. No global mean/gain/reduction is applied.
+// One distant dark pixel therefore cannot attenuate this pixel's recovery.
+float3 NrdRecoveryLocalAnchor(float3 correction, float3 currentRR,
+                              float3 neighbourhoodMean, float3 neighbourhoodVariance,
+                              float anchor, float negativeLimit)
+{
+    float3 low = 0.0f;
+    float3 high = 65504.0f;
+    if (anchor > 0.0f)
+    {
+        const float3 deviation = anchor * sqrt(max(neighbourhoodVariance, 0.0f) +
+                                               1e-4f * neighbourhoodMean * neighbourhoodMean);
+        low = max(min(neighbourhoodMean - deviation, currentRR), 0.0f);
+        high = min(max(neighbourhoodMean + deviation, currentRR), 65504.0f);
+    }
+    if (negativeLimit > 0.0f)
+        low = max(low, currentRR * (1.0f - negativeLimit));
+    float3 lower = low - currentRR;
+    if (negativeLimit > 0.0f)
+        lower = max(lower, -negativeLimit * currentRR);
+    return min(max(correction, lower), high - currentRR);
+}
+
 #endif

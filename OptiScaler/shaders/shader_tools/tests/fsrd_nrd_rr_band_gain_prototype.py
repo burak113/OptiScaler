@@ -16,6 +16,8 @@ from fsrd_nrd_lobe_reference_prototype import finish
 class BandGainSettings(Settings):
     maximum_gain: float = 4
     negative_limit: float = .25
+    bound_projection: str = 'uniform'
+    projection_tile: int = 8
 
 
 class RRBandGainRecovery(Recovery):

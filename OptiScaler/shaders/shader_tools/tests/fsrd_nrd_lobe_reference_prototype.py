@@ -17,6 +17,8 @@ class ReferenceSettings(Settings):
     band_threshold: float = 3
     noise_response: float = 1/16
     negative_limit: float = .25
+    bound_projection: str = 'uniform'
+    projection_tile: int = 8
 
 
 def gradient_colour(value):
@@ -32,9 +34,13 @@ def smoothstep(a,b,value):
 def finish(rr,correction,supported,settings):
     """DC-neutral projection + one uniform bound; never clip RGB independently."""
     mask = supported[...,None]&np.isfinite(correction)&(correction != 0)&(rr > 0)
-    count = mask.sum((0,1))
-    offset = np.sum(np.where(mask,correction,0),axis=(0,1))/np.maximum(count,1)
-    correction = np.where(mask,correction-offset,0).astype(np.float32)
+    projection = getattr(settings,'bound_projection','uniform')
+    if projection == 'uniform':
+        count = mask.sum((0,1))
+        offset = np.sum(np.where(mask,correction,0),axis=(0,1))/np.maximum(count,1)
+        correction = np.where(mask,correction-offset,0).astype(np.float32)
+    else:
+        correction = np.where(mask,correction,0).astype(np.float32)
     low,high = np.zeros_like(rr),np.full_like(rr,65504)
     if settings.anchor > 0:
         mean = neighbourhood(rr)
@@ -44,6 +50,22 @@ def finish(rr,correction,supported,settings):
         high = np.minimum(np.maximum(mean+deviation,rr),65504)
     if settings.negative_limit > 0:
         low = np.maximum(low,rr*(1-settings.negative_limit))
+    if projection in ('local_anchor','local_box_zero_dc'):
+        lower = low-rr
+        if settings.negative_limit > 0:
+            lower = np.maximum(lower,-settings.negative_limit*rr)
+        if projection == 'local_anchor':
+            projected = np.minimum(np.maximum(correction,lower),high-rr)
+            extra = dict(bound_projection=projection,uniform_bound_scale=None,
+                projection_clipped_component_fraction=float(np.mean(projected!=correction)))
+        else:
+            from fsrd_nrd_recovery_local_bounds import project_local_box
+            projected,extra = project_local_box(correction,lower,high-rr,mask,settings.projection_tile)
+        return projected,dict(**extra,correction_rms=float(np.sqrt(np.mean(projected**2))),
+            active_fraction=float(mask.any(-1).mean()),
+            correction_rgb_sum=np.sum(projected.astype(np.float64),axis=(0,1)).tolist())
+    if projection != 'uniform':
+        raise ValueError('unknown correction bound projection')
     ratios = np.ones_like(rr)
     np.divide(high-rr,correction,out=ratios,where=correction>0)
     np.divide(rr-low,-correction,out=ratios,where=correction<0)
