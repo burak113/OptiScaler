@@ -90,7 +90,8 @@ def native():
         assert values==['0'],(name,values)
         compiled[name]={'source_cbuffer_rows':rows,'source_components':values,'sha256':sha(PRE/(name+'_Shader.cso'))}
     pure.OUT=OUT
-    assert OUT.is_dir() and not list(OUT.glob('stage-*.bin'))
+    OUT.mkdir(parents=True,exist_ok=True)
+    assert not list(OUT.glob('stage-*.bin'))
     for signal,data in zip(('spec','diff'),pure.stage_data()):data.tofile(OUT/('stage-'+signal+'.bin'))
     for variant in range(5):
         for signal,data in zip(('spec','diff'),pure.title_data(variant)):data.tofile(OUT/('title%d-'%variant+signal+'.bin'))
