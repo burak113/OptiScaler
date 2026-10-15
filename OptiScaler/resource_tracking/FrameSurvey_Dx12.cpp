@@ -128,6 +128,7 @@ struct ViewInfo
     uint64_t constantBytes = 0;
     std::shared_ptr<NativeResourceNode> resourceOwner;
     std::shared_ptr<NativeHeapNode> heapOwner;
+    bool texture2D = false; // Exact view dimension; snapshotSupported also admits a single array slice.
 };
 struct Heap
 {
@@ -244,7 +245,7 @@ bool SameViewContent(const ViewInfo& a, const ViewInfo& b) noexcept
     return a.object == b.object && a.resource == b.resource && a.kind == b.kind && a.format == b.format &&
         a.subresource == b.subresource && a.snapshotSupported == b.snapshotSupported && a.descriptorGpu == b.descriptorGpu &&
         a.rootVa == b.rootVa && a.descriptorIndex == b.descriptorIndex && a.rootIndex == b.rootIndex &&
-        a.constantBytes == b.constantBytes && a.resourceOwner == b.resourceOwner;
+        a.constantBytes == b.constantBytes && a.resourceOwner == b.resourceOwner && a.texture2D == b.texture2D;
 }
 bool SameView(const ViewInfo& a, const ViewInfo& b) noexcept
 {
@@ -420,6 +421,8 @@ struct RootDescriptor
 {
     uint32_t kind = 0, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
 };
+struct TextureRegisterMapping { UINT parameter = UINT_MAX; Range range; bool table = false; };
+using TextureRegisterIndex = std::map<std::pair<uint32_t,uint32_t>,std::map<uint32_t,TextureRegisterMapping>>;
 struct RootLayout
 {
     std::string hash;
@@ -429,11 +432,14 @@ struct RootLayout
     std::set<uint32_t> pixelTables, pixelVisibleTables;
     std::map<uint32_t,RootDescriptor> pixelDescriptors;
     bool complete = false, directIndexed = false;
+    TextureRegisterIndex computeTextureRegisters, pixelTextureRegisters;
+    bool computeTextureRegistersComplete = false, pixelTextureRegistersComplete = false;
     NrdBridgeBirth::Token birth;
 };
 std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
-struct PipelineMetadata { Json description; NrdBridgeBirth::Token birth; };
+struct PipelineMetadata { Json description; NrdBridgeBirth::Token birth; PipelineShaderIdentity identity; };
 std::unordered_map<ID3D12PipelineState*,PipelineMetadata> gPipelineMetadata;
+std::unordered_map<ID3D12CommandSignature*,IndirectSignatureInfo> gIndirectSignatures;
 struct RootState
 {
     uint64_t identity = 0;
@@ -686,6 +692,64 @@ bool UniqueComputeMapping(const std::vector<Range>& ranges, const ComputeTableRe
         match->registerSpace == request.registerSpace &&
         uint64_t(match->shaderRegister)+request.descriptorOffset-match->offset == request.shaderRegister;
 }
+bool BuildTextureRegisterIndex(const RootLayout& layout, bool pixel, TextureRegisterIndex& out)
+{
+    out.clear();
+    const auto add = [&](UINT parameter, const Range& range, bool table) {
+        if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) return true;
+        if (!ValidComputeRange(range)) return false;
+        auto& group = out[{range.kind,range.registerSpace}];
+        const auto after = group.lower_bound(range.shaderRegister);
+        const uint64_t end = range.count == UINT_MAX ? uint64_t(UINT_MAX)+1 : uint64_t(range.shaderRegister)+range.count;
+        if (after != group.end() && after->first < end) return false;
+        if (after != group.begin())
+        {
+            const auto& previous = std::prev(after)->second.range;
+            const uint64_t previousEnd = previous.count == UINT_MAX ? uint64_t(UINT_MAX)+1 : uint64_t(previous.shaderRegister)+previous.count;
+            if (previousEnd > range.shaderRegister) return false;
+        }
+        group.emplace_hint(after,range.shaderRegister,TextureRegisterMapping{parameter,range,table}); return true;
+    };
+    for (const auto parameter : pixel ? layout.pixelVisibleTables : layout.computeVisibleTables)
+    {
+        const auto table = layout.tables.find(parameter);
+        if (table == layout.tables.end()) return false;
+        std::map<uint32_t,uint64_t> occupied;
+        for (const auto& range : table->second)
+        {
+            if (!ValidComputeRange(range)) return false;
+            const auto after = occupied.lower_bound(range.offset);
+            const uint64_t end = range.count == UINT_MAX ? uint64_t(UINT_MAX)+1 : uint64_t(range.offset)+range.count;
+            if ((after != occupied.end() && after->first < end) ||
+                (after != occupied.begin() && std::prev(after)->second > range.offset) || !add(parameter,range,true)) return false;
+            occupied.emplace_hint(after,range.offset,end);
+        }
+    }
+    for (const auto& [parameter,descriptor] : pixel ? layout.pixelDescriptors : layout.computeDescriptors)
+        if (!add(parameter,{descriptor.kind,0,1,descriptor.shaderRegister,descriptor.registerSpace},false)) return false;
+    return layout.complete;
+}
+void BuildTextureRegisterIndexes(RootLayout& layout)
+{
+    layout.computeTextureRegistersComplete = BuildTextureRegisterIndex(layout,false,layout.computeTextureRegisters);
+    layout.pixelTextureRegistersComplete = BuildTextureRegisterIndex(layout,true,layout.pixelTextureRegisters);
+}
+bool FindTextureRegisterMapping(const RootLayout& layout, bool pixel, const ComputeTableRequest& request,
+    UINT& parameter, UINT& offset)
+{
+    if (!(pixel ? layout.pixelTextureRegistersComplete : layout.computeTextureRegistersComplete)) return false;
+    const auto& index = pixel ? layout.pixelTextureRegisters : layout.computeTextureRegisters;
+    const auto group = index.find({uint32_t(request.kind),request.registerSpace});
+    if (group == index.end()) return false;
+    auto after = group->second.upper_bound(request.shaderRegister);
+    if (after == group->second.begin()) return false;
+    const auto& mapping = std::prev(after)->second; const auto& range = mapping.range;
+    if (!mapping.table || request.shaderRegister < range.shaderRegister ||
+        (range.count != UINT_MAX && uint64_t(request.shaderRegister)-range.shaderRegister >= range.count)) return false;
+    const uint64_t derived = uint64_t(range.offset)+request.shaderRegister-range.shaderRegister;
+    if (derived > UINT_MAX) return false;
+    parameter = mapping.parameter; offset = UINT(derived); return true;
+}
 RootLayout ReadRoot(ID3D12RootSignature* root)
 {
     RootLayout result; if (!root) return result;
@@ -740,6 +804,7 @@ RootLayout ReadRoot(ID3D12RootSignature* root)
             result.computeTables.insert(i);
         if (pixelVisible && UnambiguousComputeRanges(result.tables[i])) result.pixelTables.insert(i);
     }
+    BuildTextureRegisterIndexes(result);
     return result;
 }
 Json ReadPipeline(ID3D12PipelineState* pso)
@@ -782,6 +847,7 @@ struct RetiredMetadata
     decltype(gHeaps)::node_type heap;
     decltype(gRootLayouts)::node_type root;
     decltype(gPipelineMetadata)::node_type pipeline;
+    decltype(gIndirectSignatures)::node_type signature;
     decltype(gMirror)::node_type list;
     decltype(gMirrorOwners)::node_type references;
     std::shared_ptr<NativeResourceNode> nativeResource;
@@ -854,14 +920,40 @@ bool PublishPipelineBirth(ID3D12PipelineState* pso)
     NativeSnapshotShared snapshot; if (!Tracking()) return false;
     std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation; gPipelineBirths[pso] = birth; return true;
 }
+PipelineShaderIdentity PipelineIdentity(ID3D12PipelineState* pso, const Json& description)
+{
+    PipelineShaderIdentity result; result.pipeline = pso;
+    if (!description.value("hash_known",false) ||
+        (description.contains("stream_parse_hresult") && FAILED(HRESULT(description["stream_parse_hresult"].get<int64_t>())))) return result;
+    const auto& hashes = description.at("shader_hashes");
+    if (!hashes.is_object()) return result;
+    const auto add = [&](const char* name, uint32_t bit, std::array<char,65>* target) {
+        if (!hashes.contains(name)) return true;
+        if (!hashes[name].is_string()) return false;
+        const auto& hash = hashes[name].get_ref<const std::string&>();
+        if (hash.size() != 64 || !std::all_of(hash.begin(),hash.end(),[](char c) {
+            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })) return false;
+        if (target) std::copy(hash.begin(),hash.end(),target->begin());
+        result.presentStages |= bit; return true;
+    };
+    if (!add("CS",PipelineCS,&result.compute) || !add("VS",PipelineVS,&result.vertex) ||
+        !add("PS",PipelinePS,&result.pixel) || !add("HS",PipelineHS,nullptr) ||
+        !add("DS",PipelineDS,nullptr) || !add("GS",PipelineGS,nullptr)) return result;
+    // The complete native legacy descriptor or successful stream parser proves
+    // absent stages. Unsupported stream subobjects make the parser fail above.
+    result.complete = result.presentStages == PipelineCS ||
+        (!(result.presentStages&PipelineCS) && (result.presentStages&PipelineVS));
+    return result;
+}
 void StorePipelineMetadata(ID3D12PipelineState* pso, const std::string& text)
 {
-    auto description = Json::parse(text); NrdBridgeBirth::Token birth;
+    auto description = Json::parse(text); auto identity = PipelineIdentity(pso,description); NrdBridgeBirth::Token birth;
     { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gPipelineBirths.find(pso); found != gPipelineBirths.end()) birth = found->second; }
     NrdBridgeBirth::CurrentGuard current(birth);
     if (birth && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return;
     NativeSnapshotShared snapshot; if (!Tracking()) return;
-    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation; gPipelineMetadata[pso] = {std::move(description),birth};
+    identity.pipelineBirth = birth;
+    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation; gPipelineMetadata[pso] = {std::move(description),birth,std::move(identity)};
 }
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
 {
@@ -928,7 +1020,7 @@ bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t min
 // finishes before slot locking, then exact birth/epoch/range proofs are rechecked
 // inside the slot. No catalog, COM, Birth guard or callback is entered there.
 void NativeStoreResourceView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
-    uint32_t mip, uint32_t slice, bool supported)
+    uint32_t mip, uint32_t slice, bool supported, bool texture2D)
 {
     auto resource = NativeStrongResource(object);
     const auto type = kind == 4 ? D3D12_DESCRIPTOR_HEAP_TYPE_RTV : D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -944,6 +1036,8 @@ void NativeStoreResourceView(ID3D12Resource* object, uint64_t handle, uint32_t k
         if (!object || !strong || !NativeNodeMetadataCurrent(heap)) { NativeEraseView(handle); return; }
         ViewInfo view {object,resource->id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource->description.Format : format),
             mip+slice*resource->description.MipLevels,supported};
+        view.texture2D = texture2D && resource->description.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D &&
+            resource->description.DepthOrArraySize == 1 && resource->description.SampleDesc.Count == 1;
         view.descriptorCpu=handle; view.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown=true;
         view.resourceOwner=std::move(resource); view.heapOwner=std::move(heap); NativeReplaceView(view); return;
     }
@@ -1055,7 +1149,7 @@ void NativeCopyDescriptors(UINT stride, UINT nd, const D3D12_CPU_DESCRIPTOR_HAND
     }
 }
 bool StoreKnownView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
-    uint32_t mip, uint32_t slice, bool supported, const NrdBridgeBirth::Token* proven = nullptr)
+    uint32_t mip, uint32_t slice, bool supported, const NrdBridgeBirth::Token* proven = nullptr, bool texture2D = false)
 {
     NrdBridgeBirth::CurrentGuard current(proven ? *proven : NrdBridgeBirth::Token{});
     if (proven && *proven && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return false;
@@ -1068,6 +1162,8 @@ bool StoreKnownView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI
     const auto& metadata = resource->second;
     ViewInfo view {object,metadata.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? metadata.desc.Format : format),
         mip+slice*metadata.desc.MipLevels,supported};
+    view.texture2D = texture2D && metadata.desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D &&
+        metadata.desc.DepthOrArraySize == 1 && metadata.desc.SampleDesc.Count == 1;
     view.descriptorCpu = handle;
     if (const auto heap = HeapAtCpu(handle))
     {
@@ -1076,13 +1172,13 @@ bool StoreKnownView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI
     ReplaceView(view); return true;
 }
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
-    uint32_t mip, uint32_t slice, bool supported)
+    uint32_t mip, uint32_t slice, bool supported, bool texture2D = false)
 {
     if (!Tracking() || gInternal) return;
-    if (NativeTracking()) { NativeStoreResourceView(object,handle,kind,format,mip,slice,supported); return; }
-    if (StoreKnownView(object,handle,kind,format,mip,slice,supported)) return;
+    if (NativeTracking()) { NativeStoreResourceView(object,handle,kind,format,mip,slice,supported,texture2D); return; }
+    if (StoreKnownView(object,handle,kind,format,mip,slice,supported,nullptr,texture2D)) return;
     const auto proven = EnsureResourceRegistered(object);
-    if (!StoreKnownView(object,handle,kind,format,mip,slice,supported,&proven))
+    if (!StoreKnownView(object,handle,kind,format,mip,slice,supported,&proven,texture2D))
     {
         // A competing final Release may retire a first observation before publication.
         // Tombstone the destination instead of leaving an older live resource accepted.
@@ -1254,6 +1350,84 @@ void SetPipelineObserver(PipelineObserver observer) noexcept { gPipelineObserver
 void SetGraphicsPipelineObserver(GraphicsPipelineObserver observer) noexcept { gGraphicsPipelineObserver.store(observer,std::memory_order_release); }
 void SetReleaseObserver(ReleaseObserver observer) noexcept { gReleaseObserver.store(observer,std::memory_order_release); }
 void SetBirthReleaseObserver(BirthReleaseObserver observer) noexcept { gBirthReleaseObserver.store(observer,std::memory_order_release); }
+static IndirectSignatureKind ClassifyIndirectSignature(const D3D12_COMMAND_SIGNATURE_DESC& desc, ID3D12RootSignature* root) noexcept
+{
+    if (!root && desc.NumArgumentDescs == 1 && desc.pArgumentDescs)
+    {
+        const auto type = desc.pArgumentDescs[0].Type;
+        if (type == D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH && desc.ByteStride == sizeof(D3D12_DISPATCH_ARGUMENTS))
+            return IndirectSignatureKind::Dispatch;
+        if (type == D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED && desc.ByteStride == sizeof(D3D12_DRAW_INDEXED_ARGUMENTS))
+            return IndirectSignatureKind::DrawIndexed;
+    }
+    return IndirectSignatureKind::Unknown;
+}
+static bool PublishIndirectSignatureMetadata(IndirectSignatureInfo info)
+{
+    if (!Tracking() || !info.signature || !info.birth || info.birth->Address() != info.signature) return false;
+    NrdBridgeBirth::CurrentGuard current(info.birth);
+    if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
+    NativeSnapshotShared snapshot; if (!Tracking()) return false;
+    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
+    gIndirectSignatures[info.signature] = std::move(info); return true;
+}
+void CommandSignatureCreated(ID3D12CommandSignature* signature, const D3D12_COMMAND_SIGNATURE_DESC& desc,
+    ID3D12RootSignature* root) noexcept
+{
+    if (!Tracking() || gInternal || !signature || !NativeTracking()) return;
+    try
+    {
+        IndirectSignatureInfo info {signature,ClassifyIndirectSignature(desc,root),desc.ByteStride,{}};
+        // The creating caller owns the native reference. Every native operation
+        // precedes the Birth/catalog scopes; the map owns metadata tokens only.
+        if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(signature)) { MetadataFailed("Indirect signature Release coverage failed"); return; }
+        info.birth = NrdBridgeNativeBirth::Prepare(signature);
+        if (!PublishIndirectSignatureMetadata(std::move(info))) MetadataFailed("Indirect signature publication was denied");
+    } catch (...) { MetadataFailed("Indirect signature publication failed"); }
+}
+bool ResolveIndirectSignature(ID3D12CommandSignature* signature, IndirectSignatureInfo& out) noexcept
+{
+    out = {};
+    if (!Tracking() || !signature || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::shared_lock catalog(gLifetimeMutex);
+        const auto found = gIndirectSignatures.find(signature);
+        if (!gMetadataHealthy.load(std::memory_order_acquire) || found == gIndirectSignatures.end() ||
+            found->second.kind == IndirectSignatureKind::Unknown || !found->second.birth ||
+            !BirthAvailable(found->second.birth,signature)) return false;
+        out = found->second; return true;
+    } catch (...) { return false; }
+}
+bool ValidateIndirectSignature(const IndirectSignatureInfo& expected) noexcept
+{
+    IndirectSignatureInfo current;
+    return expected.birth && ResolveIndirectSignature(expected.signature,current) && current.birth == expected.birth &&
+        current.kind == expected.kind && current.byteStride == expected.byteStride;
+}
+bool ResolvePipelineShaderIdentity(ID3D12PipelineState* pipeline, PipelineShaderIdentity& out) noexcept
+{
+    out = {};
+    if (!Tracking() || !pipeline || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::shared_lock catalog(gLifetimeMutex);
+        const auto found = gPipelineMetadata.find(pipeline);
+        if (!gMetadataHealthy.load(std::memory_order_acquire) || found == gPipelineMetadata.end()) return false;
+        const auto& identity = found->second.identity;
+        if (!identity.complete || !identity.pipelineBirth || identity.pipelineBirth != found->second.birth ||
+            !BirthAvailable(identity.pipelineBirth,pipeline)) return false;
+        out = identity; return true;
+    } catch (...) { return false; }
+}
+bool ValidatePipelineShaderIdentity(const PipelineShaderIdentity& expected) noexcept
+{
+    PipelineShaderIdentity current;
+    return expected.pipelineBirth && ResolvePipelineShaderIdentity(expected.pipeline,current) &&
+        current.pipelineBirth == expected.pipelineBirth && current.complete == expected.complete &&
+        current.presentStages == expected.presentStages && current.compute == expected.compute &&
+        current.vertex == expected.vertex && current.pixel == expected.pixel;
+}
 void FlushMetadataFailure() noexcept
 {
     if (NrdBridgeBirth::InMetadataScope()) return;
@@ -1475,6 +1649,137 @@ bool ResolveComputeBindings(const ComputeBindings& bindings, UINT parameter,
 bool ResolveGraphicsBindings(const ComputeBindings& bindings, UINT parameter,
     std::span<const ComputeTableRequest> requests, std::vector<BoundResource>& out) noexcept
 { return ResolveTextureBindings(bindings,parameter,requests,out,true); }
+
+static bool ResolveTextureBindingBatch(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses, bool pixel) noexcept
+{
+    out.clear(); if (witnesses) witnesses->clear();
+    if (!Tracking() || !bindings.root || !bindings.rootBirth || bindings.heaps.size() > 2 || requests.empty() ||
+        requests.size() > 16 || bindings.heapBirths.size() != bindings.heaps.size() ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::array<BoundResource,16> resolved {};
+        std::array<TextureBindingWitness,16> proof {};
+        {
+            NativeSnapshotExclusive metadataSnapshot;
+            std::shared_lock catalog(gLifetimeMutex);
+            if (!gMetadataHealthy.load(std::memory_order_acquire) || !BirthAvailable(bindings.rootBirth,bindings.root)) return false;
+            for (size_t i=0;i<bindings.heaps.size();++i)
+                if (!bindings.heapBirths[i] || !BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return false;
+            const auto layout = gRootLayouts.find(bindings.root);
+            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth) return false;
+            for (size_t i=0;i<requests.size();++i)
+            {
+                const auto& row = requests[i]; auto request = row.binding; UINT parameter = UINT_MAX, offset = UINT_MAX;
+                if (!FindTextureRegisterMapping(layout->second,pixel,request,parameter,offset)) return false;
+                const bool automatic = row.rootParameter == UINT_MAX && request.descriptorOffset == UINT_MAX;
+                if (!automatic && (row.rootParameter != parameter || request.descriptorOffset != offset)) return false;
+                request.descriptorOffset = offset;
+                if ((request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) ||
+                    (pixel && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV) ||
+                    !(pixel ? layout->second.pixelVisibleTables : layout->second.computeVisibleTables).contains(parameter)) return false;
+                const auto table = layout->second.tables.find(parameter);
+                if (table == layout->second.tables.end() || !UniqueComputeMapping(table->second,request)) return false;
+                for (size_t j=0;j<i;++j)
+                    if ((proof[j].rootParameter == parameter && proof[j].descriptorOffset == request.descriptorOffset) ||
+                        (proof[j].kind == request.kind && proof[j].shaderRegister == request.shaderRegister &&
+                         proof[j].registerSpace == request.registerSpace)) return false;
+                uint64_t base = 0;
+                for (const auto& [boundParameter,handle] : bindings.tables) if (boundParameter == parameter)
+                { if (base || !handle.ptr) return false; base = handle.ptr; }
+                if (!base) return false;
+                const Heap* heap = nullptr;
+                for (size_t h=0;h<bindings.heaps.size();++h)
+                {
+                    const auto found = gHeaps.find(bindings.heaps[h]);
+                    if (found == gHeaps.end()) continue;
+                    const auto& candidate = found->second;
+                    if (candidate.birth != bindings.heapBirths[h] || candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
+                        !candidate.gpu || !candidate.increment || base < candidate.gpu ||
+                        base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                        (base-candidate.gpu)%candidate.increment) continue;
+                    if (heap) return false;
+                    heap = &candidate;
+                }
+                if (!heap) return false;
+                const uint64_t index = (base-heap->gpu)/heap->increment+request.descriptorOffset;
+                if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->cpu) return false;
+                const uint64_t cpu = heap->cpu+index*heap->increment;
+                const auto view = gViews.find(cpu);
+                if (view == gViews.end() || view->second.kind != uint32_t(request.kind) || !view->second.snapshotSupported ||
+                    !view->second.texture2D || !FreshView(view->second,heap)) return false;
+                const auto resource = gResources.find(view->second.object);
+                if (resource == gResources.end() || resource->second.id != view->second.resource || !resource->second.birth ||
+                    resource->second.desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || resource->second.desc.SampleDesc.Count != 1 ||
+                    !resource->second.desc.MipLevels || view->second.subresource >= resource->second.desc.MipLevels) return false;
+                resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
+                    request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth,resource->second.id};
+                proof[i] = {bindings.root,bindings.rootBirth,parameter,request.descriptorOffset,request.shaderRegister,
+                    request.registerSpace,request.kind,pixel,heap->object,heap->birth,base,cpu,resource->first,resource->second.birth,
+                    resource->second.id,DXGI_FORMAT(view->second.format),view->second.subresource};
+            }
+        }
+        // Dynamic containers and last-owner release remain outside every metadata guard.
+        out.assign(resolved.begin(),resolved.begin()+requests.size());
+        if (witnesses) witnesses->assign(proof.begin(),proof.begin()+requests.size());
+        return true;
+    } catch (...) { MetadataFailed("Coherent texture-binding allocation failed"); out.clear(); if (witnesses) witnesses->clear(); return false; }
+}
+bool ResolveComputeTextureBindings(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses) noexcept
+{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,false); }
+bool ResolveGraphicsTextureBindings(const ComputeBindings& bindings, std::span<const TextureTableRequest> requests,
+    std::vector<BoundResource>& out, std::vector<TextureBindingWitness>* witnesses) noexcept
+{ return ResolveTextureBindingBatch(bindings,requests,out,witnesses,true); }
+bool ValidateTextureBindingWitnesses(std::span<const TextureBindingWitness> witnesses) noexcept
+{
+    if (!Tracking() || witnesses.empty() || witnesses.size() > MaximumTextureBindingWitnesses ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        NativeSnapshotExclusive metadataSnapshot;
+        std::shared_lock catalog(gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        for (const auto& expected : witnesses)
+        {
+            if (!expected.root || !expected.rootBirth || !expected.heap || !expected.heapBirth || !expected.resource ||
+                !expected.resourceBirth || !expected.resourceGeneration || !expected.tableBase ||
+                !BirthAvailable(expected.rootBirth,expected.root) || !BirthAvailable(expected.heapBirth,expected.heap) ||
+                !BirthAvailable(expected.resourceBirth,expected.resource)) return false;
+            const auto layout = gRootLayouts.find(expected.root);
+            const ComputeTableRequest request {expected.kind,expected.descriptorOffset,expected.shaderRegister,expected.registerSpace};
+            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != expected.rootBirth ||
+                (expected.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && expected.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) ||
+                (expected.pixel && expected.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV) ||
+                !(expected.pixel ? layout->second.pixelVisibleTables : layout->second.computeVisibleTables).contains(expected.rootParameter)) return false;
+            UINT parameter = UINT_MAX, offset = UINT_MAX;
+            if (!FindTextureRegisterMapping(layout->second,expected.pixel,request,parameter,offset) ||
+                parameter != expected.rootParameter || offset != expected.descriptorOffset) return false;
+            const auto table = layout->second.tables.find(expected.rootParameter);
+            if (table == layout->second.tables.end() || !UniqueComputeMapping(table->second,request)) return false;
+            const auto heapFound = gHeaps.find(expected.heap);
+            if (heapFound == gHeaps.end()) return false;
+            const auto& heap = heapFound->second;
+            if (heap.birth != expected.heapBirth || heap.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !heap.gpu ||
+                !heap.increment || expected.tableBase < heap.gpu ||
+                expected.tableBase-heap.gpu >= uint64_t(heap.count)*heap.increment ||
+                (expected.tableBase-heap.gpu)%heap.increment) return false;
+            const uint64_t index = (expected.tableBase-heap.gpu)/heap.increment+expected.descriptorOffset;
+            if (index >= heap.count || index*heap.increment > UINT64_MAX-heap.cpu ||
+                heap.cpu+index*heap.increment != expected.descriptorCpu) return false;
+            const auto view = gViews.find(expected.descriptorCpu);
+            if (view == gViews.end() || view->second.object != expected.resource || view->second.resource != expected.resourceGeneration ||
+                view->second.kind != uint32_t(expected.kind) || view->second.format != uint32_t(expected.viewFormat) ||
+                view->second.subresource != expected.subresource || !view->second.snapshotSupported || !view->second.texture2D || !FreshView(view->second,&heap)) return false;
+            const auto resource = gResources.find(expected.resource);
+            if (resource == gResources.end() || resource->second.id != expected.resourceGeneration || resource->second.birth != expected.resourceBirth ||
+                resource->second.desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || resource->second.desc.SampleDesc.Count != 1 ||
+                !resource->second.desc.MipLevels || view->second.subresource >= resource->second.desc.MipLevels) return false;
+        }
+        return true;
+    } catch (...) { return false; }
+}
 
 bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
 {
@@ -1986,12 +2291,13 @@ bool PublishRootMetadata(const PreparedRoot& prepared, const NrdBridgeBirth::Tok
     if (!Tracking() || !prepared.object || !prepared.layout || !birth || birth->Address() != prepared.object) return false;
     try
     {
+        auto layout = *std::static_pointer_cast<RootLayout>(prepared.layout); layout.birth = birth;
+        BuildTextureRegisterIndexes(layout); // Cold allocation precedes all Birth/catalog scopes.
         NrdBridgeBirth::CurrentGuard current(birth);
         if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
         NativeSnapshotShared snapshot; if (!Tracking()) return false;
         std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
         if (const auto found = gRootLayouts.find(prepared.object); found != gRootLayouts.end() && found->second.birth && found->second.birth != birth) return false;
-        auto layout = *std::static_pointer_cast<RootLayout>(prepared.layout); layout.birth = birth;
         gRootLayouts[prepared.object] = std::move(layout); return true;
     } catch (...) { MetadataFailed("Prepared root publication failed"); return false; }
 }
@@ -2064,6 +2370,8 @@ bool DetachReleaseMetadata(const NrdBridgeBirth::Token& birth, RetirementEffects
             auto* pso = reinterpret_cast<ID3D12PipelineState*>(effects.object);
             if (const auto found = gPipelineBirths.find(pso); found != gPipelineBirths.end() && found->second == birth) gPipelineBirths.erase(found);
             if (const auto found = gPipelineMetadata.find(pso); found != gPipelineMetadata.end() && found->second.birth == birth) detached.pipeline = gPipelineMetadata.extract(found);
+            auto* signature = reinterpret_cast<ID3D12CommandSignature*>(effects.object);
+            if (const auto found = gIndirectSignatures.find(signature); found != gIndirectSignatures.end() && found->second.birth == birth) detached.signature = gIndirectSignatures.extract(found);
         }
         if (native)
         {
@@ -2299,7 +2607,9 @@ void Released(void* object) noexcept
         std::shared_lock catalog(gLifetimeMutex);
         lifetimeEntry = gResources.contains(reinterpret_cast<ID3D12Resource*>(object)) ||
             gHeaps.contains(reinterpret_cast<ID3D12DescriptorHeap*>(object)) ||
-            gRootLayouts.contains(reinterpret_cast<ID3D12RootSignature*>(object));
+            gRootLayouts.contains(reinterpret_cast<ID3D12RootSignature*>(object)) ||
+            gPipelineMetadata.contains(reinterpret_cast<ID3D12PipelineState*>(object)) ||
+            gIndirectSignatures.contains(reinterpret_cast<ID3D12CommandSignature*>(object));
     } catch (...) { MetadataFailed("Release catalog lookup failed"); }
     try
     {
@@ -2327,6 +2637,7 @@ void Released(void* object) noexcept
         gRootLayouts.erase(reinterpret_cast<ID3D12RootSignature*>(object));
         gPipelineBirths.erase(reinterpret_cast<ID3D12PipelineState*>(object));
         gPipelineMetadata.erase(reinterpret_cast<ID3D12PipelineState*>(object));
+        gIndirectSignatures.erase(reinterpret_cast<ID3D12CommandSignature*>(object));
         auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(object);
         if (const auto found = gHeaps.find(heap); found != gHeaps.end())
         {
@@ -2427,7 +2738,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2D) { mip = desc->Texture2D.MostDetailedMip; supported = desc->Texture2D.PlaneSlice == 0; }
         if (desc && desc->ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MostDetailedMip; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
-        StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
+        StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported,!desc || desc->ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2D);
     } catch (...) { MetadataFailed("SRV metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc) noexcept
@@ -2438,7 +2749,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_UAV_DIMENSION_TEXTURE2D) { mip = desc->Texture2D.MipSlice; supported = desc->Texture2D.PlaneSlice == 0; }
         if (desc && desc->ViewDimension == D3D12_UAV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MipSlice; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
-        StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
+        StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported,!desc || desc->ViewDimension == D3D12_UAV_DIMENSION_TEXTURE2D);
     } catch (...) { MetadataFailed("UAV metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_RENDER_TARGET_VIEW_DESC* desc) noexcept
@@ -2449,7 +2760,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_RTV_DIMENSION_TEXTURE2D) { mip = desc->Texture2D.MipSlice; supported = desc->Texture2D.PlaneSlice == 0; }
         if (desc && desc->ViewDimension == D3D12_RTV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MipSlice; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
-        StoreView(resource,handle.ptr,4,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
+        StoreView(resource,handle.ptr,4,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported,!desc || desc->ViewDimension == D3D12_RTV_DIMENSION_TEXTURE2D);
     } catch (...) { MetadataFailed("RTV metadata allocation failed"); }
 }
 void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_HANDLE* dst, const UINT* dn,
@@ -3241,6 +3552,7 @@ HRESULT STDMETHODCALLTYPE Signature(ID3D12Device* device, const D3D12_COMMAND_SI
     const auto result = oSignature(device,desc,root,iid,output);
     if (SUCCEEDED(result) && desc && output && *output)
     {
+        CommandSignatureCreated(static_cast<ID3D12CommandSignature*>(*output),*desc,root);
         uint32_t graphics = 0;
         for (UINT i=0;i<desc->NumArgumentDescs;++i)
             if (desc->pArgumentDescs[i].Type == D3D12_INDIRECT_ARGUMENT_TYPE_DRAW ||
@@ -3414,7 +3726,7 @@ void Shutdown() noexcept
         std::scoped_lock lock(gLifetimeMutex); gNativeMetadataEpoch.fetch_add(1,std::memory_order_acq_rel);
         gNativeResources.Clear(); gNativeHeaps.Clear(); gNativeBuffers.Clear();
         for (auto& ranges : gNativeHeapRanges) ranges.Clear();
-        gViews.clear(); gResources.clear(); gAddresses.clear(); gBufferAddresses.Clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear(); gPipelineBirths.clear(); gPipelineMetadata.clear();
+        gViews.clear(); gResources.clear(); gAddresses.clear(); gBufferAddresses.Clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear(); gPipelineBirths.clear(); gPipelineMetadata.clear(); gIndirectSignatures.clear();
         }
         gCreationDevice.Reset(); gStatus.installed = false;
         gMetadataHealthy.store(true,std::memory_order_release);

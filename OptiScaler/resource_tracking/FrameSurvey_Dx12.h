@@ -69,6 +69,7 @@ struct ComputeTableRequest
     UINT descriptorOffset = UINT_MAX, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
 };
 // A single coherent native table snapshot can span compute SRV/UAV parameters.
+// UINT_MAX for BOTH parameter and descriptorOffset derives the unique visible register mapping.
 struct TextureTableRequest
 {
     UINT rootParameter = UINT_MAX;
