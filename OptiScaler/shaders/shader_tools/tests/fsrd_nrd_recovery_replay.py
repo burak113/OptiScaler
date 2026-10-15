@@ -19,6 +19,8 @@ import numpy as np
 
 from fsrd_nrd_recovery_prototype import Recovery, Settings, neighbourhood
 from fsrd_nrd_lobe_reference_prototype import LobeReferenceRecovery, ReferenceSettings
+from fsrd_nrd_rr_band_gain_prototype import RRBandGainRecovery, BandGainSettings
+from fsrd_nrd_recovery_uncertainty import PairedMSE
 
 
 PROVIDER_SHA = '48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3'
@@ -29,6 +31,7 @@ VARIANTS = {
     'paired-luma-3sigma-anchor4': Settings(luma_only=True),
     'lobe-gradient-threshold3-anchor4': ReferenceSettings(),
     'lobe-gradient-threshold3-no-anchor': ReferenceSettings(anchor=0),
+    'rr-band-gain3sigma-anchor4': BandGainSettings(),
 }
 CHECKS = 0
 
@@ -116,6 +119,9 @@ def evaluation_masks(data, reference, signal, crop):
         reveal_first_two=inside&(data['reveal_age'] <= 1), reveal_tail_9_16=inside&(data['reveal_age'] >= 9)&(data['reveal_age'] <= 16))
     if 'outliers_'+signal in data:
         masks['input_noise_event'] = inside&(data['outliers_'+signal] > 0)
+    for name in ('below_hemisphere','real_miss'):
+        if name in data:
+            masks[name] = inside&(data[name] > 0)
     return masks
 
 
@@ -198,12 +204,19 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     need(run_info['provider_dll_sha256'] == PROVIDER_SHA, 'actual signed AMD1.2 baseline')
     need(view_name in manifest['views'] and view_name in run_info['runs'], 'explicit measured view exists in sealed inputs and signed outputs')
     need(len(manifest['frames']) == 64, 'complete original64-frame history, no selected easy phase')
-    metric = original_metrics(oracle_source,manifest['camera_source_sha256'])
+    metric_sha = manifest.get('camera_source_sha256')
+    if metric_sha is None:
+        matches = [value for path,value in manifest['source_files'].items()
+            if Path(path).name == oracle_source.name]
+        need(len(matches) == 1, 'one sealed original camera/metric source')
+        metric_sha = matches[0]
+    metric = original_metrics(oracle_source,metric_sha)
     native = run_info['runs'][view_name]
     need(native['debug_errors'] == native['debug_warnings'] == 0, 'baseline native debug errors/warnings zero')
     need(native['effective_words'] == run_info['probe']['effective_words'], 'same sealed SDK setting bits')
     view, prepared = Path(manifest['views'][view_name]), manifest_path.parent
-    models = {name:{signal:(LobeReferenceRecovery(settings) if isinstance(settings,ReferenceSettings) else Recovery(settings))
+    models = {name:{signal:(RRBandGainRecovery(settings) if isinstance(settings,BandGainSettings) else
+        LobeReferenceRecovery(settings) if isinstance(settings,ReferenceSettings) else Recovery(settings))
         for signal in ('spec','diff')} for name,settings in VARIANTS.items()}
     replay_bytes = (view/'native-replay.txt').read_bytes()
     need(sha(replay_bytes) == manifest['native_replay']['sha256'], 'sealed whole-history camera/jitter table')
@@ -212,6 +225,7 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     need([int(row[0]) for row in replay_rows[1:]] == [f['frame'] for f in manifest['frames']], 'camera rows align with every submitted frame')
     jitters = {int(row[0]):tuple(float(word) for word in row[-2:]) for row in replay_rows[1:]}
     rows,images = [],[]
+    uncertainty = {name:{signal:PairedMSE(manifest['comparison_crop']) for signal in ('spec','diff')} for name in VARIANTS}
     output.mkdir(parents=True)
     for index,frame in enumerate(manifest['frames']):
         folder = prepared/'dataset'/frame['directory']
@@ -254,6 +268,12 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
             if signal == 'spec' and 'secondary_object' in data:
                 ids = ids*3+data['secondary_object']
             masks = evaluation_masks(data,references[signal],signal,manifest['comparison_crop'])
+            replicas = dict(mean=references[signal])
+            for label in ('a','b'):
+                if 'reference_'+signal+'_'+label in data:
+                    replicas[label] = data['reference_'+signal+'_'+label]
+            for name in VARIANTS:
+                uncertainty[name][signal].update(index,lighting['rr'][signal],lighting[name][signal],replicas)
             for name,by_signal in lighting.items():
                 row['signals'][signal][name] = dict(original=metric(by_signal[signal],references[signal],data['reveal_age'],
                     data['ghost_'+signal],manifest['comparison_crop']), same_surface=same_surface_detail(by_signal[signal],
@@ -265,18 +285,22 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     phases = dict(first_reset=rows[:1],cold_history=rows[:7],jittered_static=rows[1:16],
         camera_and_object=rows[16:48],camera_only=rows[48:56],settled_tail=rows[56:])
     paths = [Path(__file__),Path(__file__).with_name('fsrd_nrd_recovery_prototype.py'),
-        Path(__file__).with_name('fsrd_nrd_lobe_reference_prototype.py')]
+        Path(__file__).with_name('fsrd_nrd_lobe_reference_prototype.py'),
+        Path(__file__).with_name('fsrd_nrd_rr_band_gain_prototype.py'),
+        Path(__file__).with_name('fsrd_nrd_recovery_uncertainty.py')]
     result = dict(schema='fsrd-separate-nrd-lobe-recovery-cpu-v1',manifest=str(manifest_path),manifest_sha256=file_sha(manifest_path),
         actual_signed_runs=str(completed/'runs.json'),actual_signed_runs_sha256=file_sha(completed/'runs.json'),
         native_provider_sha256=PROVIDER_SHA,native_executable_sha256=run_info['executable_sha256'],
-        view=view_name,seed=manifest['seed'],variants={name:asdict(settings) for name,settings in VARIANTS.items()},
+        view=view_name,seed=manifest.get('seed',manifest.get('input_seed')),variants={name:asdict(settings) for name,settings in VARIANTS.items()},
+        paired_reference_uncertainty={name:{signal:value.summarize() for signal,value in by_signal.items()} for name,by_signal in uncertainty.items()},
+        dataset_contract={key:manifest[key] for key in ('schema','roughness','noisy_sampling','reference_sampling','albedo_guide','units','native_nrd_paired') if key in manifest},
         scripts={str(path):file_sha(path) for path in paths},summaries=aggregate(rows,names),
         phases={name:aggregate(values,names) for name,values in phases.items()},frames=rows,crops=images,
         checks=CHECKS,elapsed_seconds=time.perf_counter()-start,peak_resident_bytes=peak_resident_bytes(),
         gpu_executed=False,compiler_executed=False,native_parity_measured=False,game_fps_measured=False,
         all_light_passed_through_rr=True,oracle_arrays_used_by_operator=False,quality_improvement_asserted=False,
         scope='CPU FP32 history with half final outputs over hashed actual signed-RR RGB; native output alpha preserved. This is not a native shader or game-quality measurement.',
-        qualification=('diagnostic_only_zero_roughness_or_mismatched_mirror' if 'mirror-v4' in str(manifest_path) else 'verify_nonzero_GGX_reference_before_quality_claim'))
+        qualification=('diagnostic_only_zero_roughness_or_mismatched_mirror' if 'mirror-v4' in str(manifest_path) else 'synthetic_positive_GGX_domain_declared_in_dataset_contract_not_nativeRecon_parity'))
     (output/'comparison.json').write_text(json.dumps(result,indent=2,allow_nan=False)+'\n',encoding='utf-8')
     return result
 
