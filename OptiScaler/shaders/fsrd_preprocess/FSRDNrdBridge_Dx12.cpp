@@ -1835,11 +1835,15 @@ struct NativeInjectionScope
     }
 };
 thread_local const char* gNativeWorkFailure="unclassified_work";
+// Narrow sub-reason detail for the last rejected gate. Diagnostic/audit only:
+// it is never read by an admission decision and no whitelist is derived from it.
+thread_local const char* gNativeWorkDetail=nullptr;
 bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd,
     ID3D12CommandSignature* signature, bool pixel)
 {
-    gNativeWorkFailure="unclassified_work";
+    gNativeWorkFailure="unclassified_work";gNativeWorkDetail=nullptr;
     const auto reject=[](const char* gate){gNativeWorkFailure=gate;return false;};
+    const auto rejectDetail=[](const char* gate,const char* detail){gNativeWorkFailure=gate;gNativeWorkDetail=detail;return false;};
     // Caller owns injection serialization and physical Borrow. Only recognized
     // pipeline candidates reach binding vectors/metadata snapshots.
     std::array<std::shared_ptr<NativeTransaction>,2> pending;
@@ -1848,7 +1852,12 @@ bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
         std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
         if(gService!=owner||found==owner->lists.end()||!ListLive(found->second))return reject("work_list_birth");
         const auto& list=found->second;pipeline=list.currentPipeline;selected=list.intervening;
-        if(!pipeline||selected.profile<0||selected.birth!=list.pipelineBirth)return reject("work_pipeline_profile");
+        // Fail-closed: every sub-reason below still rejects the unknown work. The
+        // full-hash identity/overlap contract for this pipeline is never inferred
+        // from selection state alone.
+        if(!pipeline)return rejectDetail("work_pipeline_profile","pipeline_absent");
+        if(selected.profile<0)return rejectDetail("work_pipeline_profile","profile_unclassified");
+        if(selected.birth!=list.pipelineBirth)return rejectDetail("work_pipeline_profile","pipeline_birth_changed");
         for(const auto& stage:list.native)if(stage&&!stage->committed&&!stage->invalidated)pending[count++]=stage;
     }
     if(!count)return true;
@@ -2593,9 +2602,21 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
         lock.unlock();
         if(pending)
         {
-            FrameSurvey::PipelineShaderIdentity identity;FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity);
-            LOG_ERROR("[NRD_BRIDGE] recording invalidated gate={} pending_chain_mask={} cmd={:#x} pipeline={:#x} CS={} VS={} PS={} reason={}",
-                gate ? gate : "recording_invalidated",pending,reinterpret_cast<uintptr_t>(cmd),reinterpret_cast<uintptr_t>(pipeline),
+            // Cold reject path only. The identity record is already retained by the
+            // creation observer; resolve it here for this exact pipeline hash set
+            // (no DXIL parse, no descriptor scan, no new admission input).
+            FrameSurvey::PipelineShaderIdentity identity;
+            const bool identityRecorded=FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity);
+            const int knownComputeProfile=identityRecorded&&identity.presentStages==FrameSurvey::PipelineCS?
+                InterveningComputeProfile(identity.compute.data()):-1;
+            const int knownGraphicsProfile=identityRecorded&&
+                identity.presentStages==(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS)?
+                InterveningGraphicsProfile(identity.pixel.data()):-1;
+            const char* detail=gNativeWorkDetail;gNativeWorkDetail=nullptr;
+            LOG_ERROR("[NRD_BRIDGE] recording invalidated gate={} subreason={} identity_recorded={} stages={} known_compute_profile={} known_graphics_profile={} pending_chain_mask={} cmd={:#x} pipeline={:#x} CS={} VS={} PS={} reason={}",
+                gate ? gate : "recording_invalidated",detail ? detail : "none",
+                identityRecorded,identity.presentStages,knownComputeProfile,knownGraphicsProfile,pending,
+                reinterpret_cast<uintptr_t>(cmd),reinterpret_cast<uintptr_t>(pipeline),
                 identity.compute.data(),identity.vertex.data(),identity.pixel.data(),reason ? reason : "unavailable");
         }
     } catch (...) {}
@@ -2671,7 +2692,7 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
 }
 bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSignature* signature) noexcept
 {
-    gNativeWorkFailure="work_indirect_signature_or_state";
+    gNativeWorkFailure="work_indirect_signature_or_state";gNativeWorkDetail=nullptr;
     if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady())return false;
     bool required = false;
     try
