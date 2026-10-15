@@ -73,6 +73,27 @@ float3 Bilinear3(float3 a,float3 b,float3 c,float3 d,float2 f)
 {
     return lerp(lerp(a,b,f.x),lerp(c,d,f.x),f.y);
 }
+float4 ApplyRecovery(float4 rr,float3 correction,bool supported,float strength,float3 mean,float3 variance)
+{
+    float4 output=rr;
+    const bool eligible=supported&&strength>0&&all(isfinite(correction));
+    const bool3 candidate=bool3(eligible&&correction.x!=0&&rr.x>0,
+                               eligible&&correction.y!=0&&rr.y>0,
+                               eligible&&correction.z!=0&&rr.z>0);
+    if(!any(candidate))return output;
+    const float3 bounded=NrdRecoveryLocalAnchor(correction,rr.rgb,mean,variance,LobeStrength.z,LobeStrength.w);
+    const bool3 applied=bool3(candidate.x&&isfinite(bounded.x)&&bounded.x!=0,
+                             candidate.y&&isfinite(bounded.y)&&bounded.y!=0,
+                             candidate.z&&isfinite(bounded.z)&&bounded.z!=0);
+    float3 updated=clamp(rr.rgb+bounded,0.0f,65504.0f);
+#if NRD_RECOVERY_HALF_OUTPUT
+    updated=NrdRoundMaterialHalfNearestEven(float4(updated,0)).rgb;
+#endif
+    // No arithmetic result is selected for a zero correction. This preserves
+    // finite negative RR, signed zero, untouched channels and opaque alpha.
+    output.rgb=float3(applied.x?updated.x:rr.x,applied.y?updated.y:rr.y,applied.z?updated.z:rr.z);
+    return output;
+}
 [RootSignature(MainRS)]
 [numthreads(8,8,1)]
 void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
@@ -166,12 +187,6 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
     const float4 rrS=RRSpec[p],rrD=RRDiff[p],meta=FullMetadata[p];
     const bool2 supported=bool2(meta.x>=Temporal.z&&any(NoisySpec[p].rgb!=rrS.rgb),
                                meta.y>=Temporal.z&&any(NoisyDiff[p].rgb!=rrD.rgb));
-    spec=supported.x&&all(isfinite(spec))?NrdRecoveryLocalAnchor(spec,rrS.rgb,meanS,squareS,LobeStrength.z,LobeStrength.w):0;
-    diff=supported.y&&all(isfinite(diff))?NrdRecoveryLocalAnchor(diff,rrD.rgb,meanD,squareD,LobeStrength.z,LobeStrength.w):0;
-    float4 outputS=float4(clamp(rrS.rgb+spec,0.0f,65504.0f),rrS.a),outputD=float4(clamp(rrD.rgb+diff,0.0f,65504.0f),rrD.a);
-#if NRD_RECOVERY_HALF_OUTPUT
-    outputS.rgb=NrdRoundMaterialHalfNearestEven(float4(outputS.rgb,0)).rgb;
-    outputD.rgb=NrdRoundMaterialHalfNearestEven(float4(outputD.rgb,0)).rgb;
-#endif
-    OutSpec[p]=outputS;OutDiff[p]=outputD;
+    OutSpec[p]=ApplyRecovery(rrS,spec,supported.x,LobeStrength.x,meanS,squareS);
+    OutDiff[p]=ApplyRecovery(rrD,diff,supported.y,LobeStrength.y,meanD,squareD);
 }

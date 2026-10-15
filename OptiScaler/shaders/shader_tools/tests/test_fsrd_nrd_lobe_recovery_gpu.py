@@ -12,6 +12,7 @@ from pathlib import Path
 import struct
 import subprocess
 import time
+from dataclasses import replace
 
 import numpy as np
 
@@ -87,8 +88,43 @@ def deterministic_history(directory,shaders,runner,storage='fp32'):
             need(np.array_equal(value[...,3],reference[...,3]), 'GPU graph preserves opaque RR alpha exactly')
             need(np.isfinite(value).all() and np.all(value[...,:3]>=0), 'finite nonnegative GPU output')
             need(np.array_equal(value,reference), 'noise-free binary odd-size fullgraph CPU/GPU words exact for declared storage, including cold/depthjump/R0')
+            need(np.array_equal(value.view('<u2'),reference.view('<u2')), 'binary control full CPU/GPU bit patterns exact')
     return dict(metadata=metadata,native=runner.runs[-1],frames=24,passes=len(job.passes),checks=CHECKS,
                 packed_native_payload_bytes=graph.allocated_native_bytes())
+
+
+def signed_no_correction(directory,shaders,runner,storage='fp32'):
+    from test_fsrd_nrd_lobe_recovery_signed_noop import signed_packet
+    width,height=33,29
+    job=ChainJob(directory,runner)
+    graph=LobeGraph(job,shaders,width,height,prefix='signed',storage=storage)
+    cpu={s:LobeReferenceRecovery(ReferenceSettings(bound_projection='local_anchor',texture_storage=storage)) for s in ('spec','diff')}
+    expected,outputs,controls=[],[],[]
+    for index in range(24):
+        raw,rr,depth,normal,motion=signed_packet(width,height,0 if index>=20 else 123)
+        if index>=12:depth.fill(-3)
+        strengths=(0,1,4,.25) if index<12 else (1,0,4,.25)
+        arrays=dict(spec=raw,diff=raw,rr_spec=rr,rr_diff=rr,depth=depth,normals=normal,motion=motion)
+        inputs=texture_inputs(job,'f%d'%index,arrays)
+        outputs.append(graph.record(index,inputs,strength=strengths))
+        values={}
+        for signal,strength in zip(('spec','diff'),strengths):
+            cpu[signal].settings=replace(cpu[signal].settings,strength=strength)
+            values[signal]=cpu[signal].step(raw,rr,depth,normal,motion,index,reset=index==0)
+        expected.append(values);controls.append((rr,strengths))
+    actual,metadata=checked_run(job,runner)
+    for index,(frame,control) in enumerate(zip(expected,controls)):
+        rr,strengths=control
+        for signal,strength in zip(('spec','diff'),strengths):
+            value=actual[outputs[index][signal]]
+            need(np.isfinite(value).all(), 'signed control remains finite without clamping untouched RR')
+            need(np.array_equal(value[...,3].view('<u2'),rr[...,3].view('<u2')), 'opaque signed-zero/negative alpha bit-exact')
+            fixed=rr[...,:3]<=0
+            need(np.array_equal(value[...,:3].view('<u2')[fixed],rr[...,:3].view('<u2')[fixed]), 'untouched negative/+zero/-zero RR components bit-exact')
+            if strength==0 or index<7 or 12<=index<19 or index>=20:
+                need(np.array_equal(value.view('<u2'),rr.view('<u2')), 'cold/depth-reset/R0/independent mature strength0 is exact RR')
+            need(np.array_equal(value.view('<u2'),frame[signal].view('<u2')), 'signed no-correction CPU/GPU graph bit-exact')
+    return dict(frames=24,passes=len(job.passes),storage=storage,graph=metadata,native=runner.runs[-1])
 
 
 def case_contract(manifest_path,completed,view):
@@ -270,6 +306,7 @@ def main():
     parser.add_argument('--skip-timing',action='store_true')
     parser.add_argument('--storage',choices=tuple(STORAGE),default='fp32')
     parser.add_argument('--reuse-fp32',type=Path)
+    parser.add_argument('--controls-only',action='store_true')
     parser.add_argument('--output',type=Path)
     args = parser.parse_args()
     if not args.run:
@@ -294,7 +331,12 @@ def main():
     result = dict(schema='fsrd-nrd-lobe-recovery-full-native-v1',shaders=shaders,
         runner_sha256=analysis.file_sha(executable),script_sha256=analysis.file_sha(Path(__file__)),storage=args.storage,storage_formats=STORAGE[args.storage],
         reused_fp32_manifest=(dict(path=baseline['manifest'],sha256=baseline['sha256']) if baseline else None),
-        toy=deterministic_history(output/'binary-odd-history',shaders,runner,args.storage),cases={},timings=[])
+        toy=deterministic_history(output/'binary-odd-history',shaders,runner,args.storage),
+        no_correction=signed_no_correction(output/'signed-no-correction',shaders,runner,args.storage),cases={},timings=[])
+    if args.controls_only:
+        result.update(checks=CHECKS,gpu_executed=True,compiler_executed=baseline is None)
+        write_json(output/'result.json',result)
+        print(json.dumps(dict(output=str(output),checks=CHECKS,controls_only=True),indent=2));return
     for code in (123,307):
         root = Path('F:/FSRD/sol_batch/15c-rr')
         result['cases'][str(code)] = real_history(output/('demod-r%d'%code),shaders,runner,
