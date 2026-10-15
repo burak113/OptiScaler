@@ -20,7 +20,7 @@ CASES = [
     "reset-early", "split-match", "split-unpaired", "split-mismatch",
     "split-serial", "alias-endpoints", "alias-wildcard", "uav", "other-resource",
     "same-selection", "changed-selection", "birth-live", "birth-invalid",
-    "ping-pong-two", "ping-pong-four", "ring-eviction", "allocation-free",
+    "ping-pong-two", "ping-pong-four", "ring-eviction", "allocation-free", "duplicate-target",
 ]
 
 CPP = r'''
@@ -265,6 +265,18 @@ void run(const std::string& mode)
         observe(w,pair(0));select(w,pair(0));
         need(!w.Readable(1),"evicted oldest pair cannot recover proof from barriers while unselected");
         observe(w,pair(0));need(w.Readable(1),"reinserted evicted pair needs new observed transitions");
+    }
+    else if(mode=="duplicate-target")
+    {
+        auto shared=p;shared.params=shared.base;select(w,shared);
+        auto b=transition(shared.base.resource);w.Observe(1,&b,1);
+        need(w.Readable(1),"two slots sharing one target follow one transition without duplicate native work");
+        b=transition(shared.base.resource,readState,D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);w.Observe(1,&b,1);
+        need(!w.Readable(1),"one shared-target split begin invalidates both slots");
+        b=transition(shared.base.resource,readState,D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);w.Observe(1,&b,1);
+        need(w.Readable(1),"one shared-target matching split end completes both independent proofs");
+        alias(w,shared.base.resource,pair(10).base.resource);
+        need(!w.Readable(1),"shared-target alias invalidates every matching slot");
     }
     else if(mode=="allocation-free")
     {
