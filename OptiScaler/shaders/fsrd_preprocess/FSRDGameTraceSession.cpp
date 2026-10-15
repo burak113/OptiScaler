@@ -1202,7 +1202,7 @@ struct FSRDGameTraceSession::Impl
                 row["source_subresource"] = f->surveySubresources[i];
                 row["source_buffer_offset"] = f->surveyImages[i].sourceByteOffset;
                 row["source_state_provenance"] = f->bridge ?
-                    "owned_stage_contract_or_same_recording_native_target_proof_under_live_physical_borrow" :
+                    "caller_declared_stage_state; native_target_identity_and_liveness_proven_under_live_physical_borrow; state_not_independently_observed_by_trace" :
                     "survey_supplied_copy_contract; detailed_provenance_in_snapshots_or_tags";
                 packet->row["images"].push_back(std::move(row));
             }
