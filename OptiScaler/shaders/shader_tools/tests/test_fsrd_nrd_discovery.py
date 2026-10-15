@@ -1,4 +1,4 @@
-"""Production NRD discovery replay and real D3D12 binding-window fixture.
+﻿"""Production NRD discovery replay and real D3D12 binding-window fixture.
 
 Conversion/RR are explicit counter stubs here: GPU/provider output and real state
 restoration are verified by the separate end-to-end fixture, not claimed by this test.
@@ -60,7 +60,39 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList*,const ConvertedResour
  ++debugCalls; return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr); }
 void ConversionPass::ResetHistory() noexcept { ++depthResets; }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return 0; }
+// Geometry-only conversion domain (owned raw-header origin). Same counters and
+// observer probes as Dispatch: one conversion per bridged frame, whichever domain.
+bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* cmd,const ConversionInputs& inputs,const FrameParameters& frame,
+ const RawSignalLease&,ConvertedResources& out,std::string&) {
+ ++convertCalls; lastReconInputs=inputs; lastRGBFrame=frame; deferredMotion &= !inputs.motion;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ FrameSurvey::RootBinding(cmd,false,nullptr); OnSetPipeline(cmd,nullptr); out.width=64; out.height=32; return true;
+}
+ID3D12Resource* ConversionPass::OwnedPositiveViewDepth(const ConvertedResources&,const FrameParameters&) const noexcept { return nullptr; }
+uint64_t ConversionPass::OwnedAuxiliaryBytes() const noexcept { return 0; }
+MotionProvenanceTotals ConversionPass::MotionProvenance() const noexcept { return {}; }
+// Raw signal capture/decode is fail-closed in this coordinator-only fixture: any
+// frame that requires the native raw transaction fails with its specific error
+// instead of a synthetic success.
+struct RawSignalSnapshotPass::Impl {};
+RawSignalSnapshotPass::RawSignalSnapshotPass()=default;
+RawSignalSnapshotPass::~RawSignalSnapshotPass()=default;
+bool RawSignalSnapshotPass::Initialize(ID3D12Device*,uint32_t,uint32_t,std::string&) noexcept { return false; }
+bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList*,const RawSignalSource&,uint32_t,uint32_t,RawSignalLease&,std::string&) noexcept { return false; }
+bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList*,const RawSignalLease&,const ConvertedResources&,const TitleSignalConstants&,std::string&,bool) noexcept { return false; }
+RawSignalSnapshot RawSignalSnapshotPass::GetSnapshot(const RawSignalLease&) noexcept { return {}; }
 struct RRWrapper::Impl {};
+// Fixture mirror of the production-owned recorded output record (the real struct is
+// defined in the production RR translation unit). It carries exactly the identity
+// fields the coordinator validates between RecordOwned and CommitOwned.
+struct RRRecordedOutput {
+ ID3D12GraphicsCommandList* recording=nullptr; uint64_t recordingId=0;
+ uint32_t frameSL=UINT32_MAX, frameIndex=0; uint64_t contextGeneration=0;
+ ID3D12Resource* outputSpec=nullptr,*outputDiff=nullptr;
+ uint32_t width=0,height=0;
+ D3D12_RESOURCE_STATES state=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+};
+std::shared_ptr<RRRecoveryFamily> fixtureRecoveryFamily;
 std::unordered_map<const RRWrapper*,RRSettingsState> fixtureRRStates;
 struct ConfigureObservation { const RRWrapper* wrapper; RRSettings desired; std::array<float,8> effective; };
 std::vector<ConfigureObservation> fixtureConfigureCalls;
@@ -102,7 +134,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& sl,bool reset,FrameParam
  out.streamlineFrame=sl.frameIndex; out.frameIndex=rrCalls; out.reset=reset; return true;
 }
 bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* cmd,const ConvertedResources& inputs,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
-                        const FrameParameters& frame,std::string&,const OutputCommitGuard& guard) {
+                        const FrameParameters& frame,std::string&,const OutputCommitGuard& guard,NrdBridgeStagePerf::Sample*) {
  ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
  internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
  if(afterRRForTesting) afterRRForTesting();
@@ -131,6 +163,52 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList*,ID3D12Resource*,D3
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
 void RRWrapper::DiscardRecordingHistory() noexcept { ++rrDiscards; }
 uint64_t RRWrapper::ContextGeneration() const noexcept { return 0; }
+// Owned-record/commit contract (rrOnly transactions): the coordinator records once
+// and later commits through the same admission guard the legacy Dispatch path
+// exercised inline. The counters/observers keep their original semantics: the
+// write path is counted at the commit attempt, exactly like the old Dispatch.
+bool RRWrapper::RecordOwned(ID3D12GraphicsCommandList* cmd,const ConvertedResources& inputs,const FrameParameters& frame,
+ RRRecordedOutputLease& owned,std::string&,NrdBridgeStagePerf::Sample*) {
+ fixtureRRStates.at(this).ready=true;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ auto lease=std::shared_ptr<const RRRecordedOutput>(new RRRecordedOutput);
+ auto* record=const_cast<RRRecordedOutput*>(lease.get());
+ record->recording=cmd; record->frameSL=frame.streamlineFrame; record->frameIndex=frame.frameIndex;
+ record->outputSpec=nullptr; record->width=inputs.width; record->height=inputs.height;
+ if(auto recording=RecordedComputeLease::Capture(cmd)) record->recordingId=recording->id;
+ owned=std::move(lease); return true;
+}
+bool RRWrapper::CommitOwned(ID3D12GraphicsCommandList* cmd,const RRRecordedOutputLease& owned,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
+ const FrameParameters& frame,std::string&,const OutputCommitGuard& guard,NrdBridgeStagePerf::Sample*) {
+ ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ if(afterRRForTesting) afterRRForTesting();
+ const bool committed=!guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr);
+ if(committed&&fixtureRRStates.at(this).requested.nativeDebugView>=0) {
+  const auto* record=owned.get();
+  auto owner=MakeOwnedShared<FixtureNativeOwner>(outputSpec,record?record->width:0,record?record->height:0);
+  fixtureNativeImages[this]={owner->image.Get(),owner,cmd,frame.streamlineFrame,record?record->width:0,record?record->height:0,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+ }
+ return committed;
+}
+void RRWrapper::AbandonOwned(const RRRecordedOutputLease&) noexcept {}
+RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutputLease& lease) const noexcept {
+ RRRecordedOutputSnapshot snapshot; if(!lease) return snapshot;
+ snapshot.rawSpec=lease->outputSpec; snapshot.rawDiff=lease->outputDiff;
+ snapshot.recording=lease->recording; snapshot.recordingId=lease->recordingId;
+ snapshot.frameSL=lease->frameSL; snapshot.frameIndex=lease->frameIndex;
+ snapshot.contextGeneration=lease->contextGeneration; snapshot.state=lease->state; return snapshot;
+}
+std::string RRWrapper::GetOwnedOutputProviderAttestation(const RRRecordedOutputLease&) const noexcept { return {}; }
+void RRWrapper::SetRecoveryFamily(const std::shared_ptr<RRRecoveryFamily>& family) noexcept { fixtureRecoveryFamily=family; }
+uint64_t RRWrapper::OwnedStagingBytes() const noexcept { return 0; }
+uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept { return 0; }
+RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexcept { return {}; }
+// D06 lobe recovery stays fail-closed in this fixture: no family engine is linked,
+// so a recovery-enabled chain reports the fallback path instead of a synthetic one.
+std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept { return {}; }
+const char* LobeRecoveryTierName(uint32_t) noexcept { return "fixture"; }
+const char* LobeRecoveryFallbackReasonName(uint32_t) noexcept { return "fixture"; }
 __CAMERA_STUB__
 }
 using NrdBridge::fixtureConfigureCalls;
@@ -188,7 +266,7 @@ struct ChainHost {
   for(UINT i=0;i<pipelines.size();++i) {
    D3D12_COMPUTE_PIPELINE_STATE_DESC pd {}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
    hr(h.dev->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pipelines[i]))); FrameSurvey::PipelineCreated(pipelines[i].Get(),pd);
-   NrdBridge::RegisterPipelineRoleForTesting(pipelines[i].Get(),Role(i),true);
+   NrdBridge::RegisterPipelineRoleForTesting(pipelines[i].Get(),Role(i),false);
   }
   for(UINT i=0;i<textures.size();++i) {
    auto desc=CD3DX12_RESOURCE_DESC::Tex2D(i==2 ? DXGI_FORMAT_R10G10B10A2_UNORM : i==3 ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -524,7 +602,7 @@ J discoveryTests(Host& h) {
  c.frame(3); need(rrDiscards==releaseDiscards+1 && !NrdBridge::gService->discardRequested,"list Release consumes unsubmitted RR context discard on the next Convert");
  const auto retainConversion=convertCalls,retainMotion=motionCalls,retainRR=rrCalls;
  ResTrack_Dx12::retentionAvailable=false; c.frame(3); ResTrack_Dx12::retentionAvailable=true;
- need(convertCalls==retainConversion && motionCalls==retainMotion && rrCalls==retainRR && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("submission token")!=std::string::npos,"submission-token retention failure stops all conversion/motion/output writes");
+ need(convertCalls==retainConversion && motionCalls==retainMotion && rrCalls==retainRR && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("retained NRD recording")!=std::string::npos,"submission-token retention failure stops all conversion/motion/output writes");
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
  need(NrdBridge::GetStatus().active,"retention failure permits explicit runtime reset and clean rediscovery");
  auto* config=Config::Instance(); config->RestoreComputeSignature.value=false; config->ExtendedStateRestore.value=false;
@@ -555,10 +633,10 @@ J discoveryTests(Host& h) {
  // Reuse notifications also erase stale roles when the object's Release vtable was not observed.
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_GRAPHICS_PIPELINE_STATE_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"graphics creation erases an old role at reused PSO address");
- NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,true);
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,false);
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
- NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,true);
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,false);
  // The provider can succeed after the coordinator epoch changed on another path.
  // Admission must preserve the newer state and avoid an Active/counter publication.
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
@@ -1186,10 +1264,10 @@ def run():
     # The native temporal/material headers only carry State.h transitively; the
     # real State.h pulls Vulkan/Streamline/GameTrace dependencies that this
     # coordinator-only fixture does not exercise.
-    (stubs / 'State.h').write_text('#pragma once\n')
+    (stubs / 'State.h').write_text('#pragma once\n// The capture passes guard private allocations with the production skip-heap-capture\n// scope; the surveyed fixture hooks are metadata-only, so the scope is a no-op here.\nstruct ScopedSkipHeapCapture {};\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\n#include <d3d12.h>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline bool CheckForRealObject(std::string,IUnknown*,IUnknown**) { return false; } inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } inline void GetDeviceRemovedReason(ID3D12Device*) {} }\n')
-    (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; unsigned volatileWrites=0; bool volatileValue=false; T value_or_default() const { return value; } void set_volatile_value(const T& next) { value=next; volatileValue=true; ++volatileWrites; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}, RestoreComputeSignature {false}, ExtendedStateRestore {false}; static Config* Instance() { static Config config; return &config; } };\n')
-    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\n#include "Config.h"\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore && Config::Instance()->RestoreComputeSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*, bool) noexcept {} };\n')
+    (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; unsigned volatileWrites=0; bool volatileValue=false; T value_or_default() const { return value; } void set_volatile_value(const T& next) { value=next; volatileValue=true; ++volatileWrites; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}, RestoreComputeSignature {false}, RestoreGraphicSignature {false}, ExtendedStateRestore {false}; static Config* Instance() { static Config config; return &config; } };\n')
+    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\n#include "Config.h"\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true, predicationDisabled=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; inline static ID3D12PipelineState* currentPipeline=nullptr; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static bool GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out,ID3D12PipelineState*& pipeline) noexcept { out=current; pipeline=currentPipeline; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore && Config::Instance()->RestoreComputeSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept { return canRestore && Config::Instance()->RestoreGraphicSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static bool RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList*) noexcept { return canRestore; } static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept { return predicationDisabled; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*, bool) noexcept {} };\n')
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
@@ -1202,7 +1280,7 @@ def run():
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
     pass_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.h').read_text()
-    motion_stub = 'bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* motion,const FrameParameters& frame,std::string&) { ++motionCalls; lastMotion=motion; lastMotionFrame=frame; internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return motion!=nullptr; }' if 'DispatchMotion' in pass_header else ''
+    motion_stub = 'bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* motion,const FrameParameters& frame,std::string&,const NativeMotionSource&) { ++motionCalls; lastMotion=motion; lastMotionFrame=frame; internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return motion!=nullptr; }' if 'DispatchMotion' in pass_header else ''
     fixture_cpp = CPP.replace('__CAMERA_STUB__', camera_stub).replace('__MOTION_STUB__', motion_stub)
     source_text = (host + fixture_cpp).replace('__TRACE__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()).replace('__COORDINATOR__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp').as_posix())
     source = output / 'fixture.cpp'
