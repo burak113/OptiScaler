@@ -50,7 +50,7 @@ def build():
         check('one isolated app include: ' + include, production.count(include) == 1)
         production = production.replace(include, '')
     check('two unchanged private barrier calls', production.count('list->ResourceBarrier(1,&barrier)') == 2)
-    check('all five actual barrier sites instrumented', production.count('list->ResourceBarrier(') == 5)
+    check('all seven actual barrier sites instrumented', production.count('list->ResourceBarrier(') == 7)
     production = production.replace('list->ResourceBarrier(', 'MaterialAuditBarriers(list,')
     check('one actual capture dispatch', production.count('list->Dispatch(') == 1)
     production = production.replace('list->Dispatch(', 'MaterialAuditDispatch(list,')
