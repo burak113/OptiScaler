@@ -200,6 +200,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeLobeRecovery.reset();
     FfxDenoiserNrdBridgeRecoverySpecular.reset();
     FfxDenoiserNrdBridgeRecoveryDiffuse.reset();
+    FfxDenoiserNrdBridgeSurfaceValidFill.reset();
     FfxDenoiserNrdBridgeUseCustomRR.reset();
     FfxDenoiserNrdBridgeNativeDebugView.reset();
     FfxDenoiserNrdBridgeNativeDebugViewport.reset();
@@ -546,6 +547,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeLobeRecovery.set_from_config(readBool("FSR-RR", "NrdBridgeLobeRecovery"));
             FfxDenoiserNrdBridgeRecoverySpecular.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoverySpecular")));
             FfxDenoiserNrdBridgeRecoveryDiffuse.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoveryDiffuse")));
+            FfxDenoiserNrdBridgeSurfaceValidFill.set_from_config(readBool("FSR-RR", "NrdBridgeSurfaceValidFill"));
             FfxDenoiserNrdBridgeUseCustomRR.set_from_config(readBool("FSR-RR", "NrdBridgeUseCustomRR"));
             FfxDenoiserNrdBridgeNativeDebugView.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugView"));
             FfxDenoiserNrdBridgeNativeDebugViewport.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugViewport"));
@@ -1548,6 +1550,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeLobeRecovery", GetBoolValue(Instance()->FfxDenoiserNrdBridgeLobeRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoverySpecular", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoveryDiffuse", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoveryDiffuse.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeSurfaceValidFill", GetBoolValue(Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeUseCustomRR", GetBoolValue(Instance()->FfxDenoiserNrdBridgeUseCustomRR.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeDebugView", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugView.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeDebugViewport", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugViewport.value_for_config()).c_str());
