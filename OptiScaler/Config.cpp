@@ -197,7 +197,6 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeNativeTemporalMotion.reset();
     FfxDenoiserNrdBridgeNativeMaterialGuides.reset();
     FfxDenoiserNrdBridgeMaterialIDs.reset();
-    FfxDenoiserNrdBridgeNativeSpecularBlend.reset();
     FfxDenoiserNrdBridgeLobeRecovery.reset();
     FfxDenoiserNrdBridgeRecoverySpecular.reset();
     FfxDenoiserNrdBridgeRecoveryDiffuse.reset();
@@ -544,7 +543,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeNativeTemporalMotion.set_from_config(readBool("FSR-RR", "NrdBridgeNativeTemporalMotion"));
             FfxDenoiserNrdBridgeNativeMaterialGuides.set_from_config(readBool("FSR-RR", "NrdBridgeNativeMaterialGuides"));
             FfxDenoiserNrdBridgeMaterialIDs.set_from_config(readBool("FSR-RR", "NrdBridgeMaterialIDs"));
-            FfxDenoiserNrdBridgeNativeSpecularBlend.set_from_config(readFloat("FSR-RR", "NrdBridgeNativeSpecularBlend"));
             FfxDenoiserNrdBridgeLobeRecovery.set_from_config(readBool("FSR-RR", "NrdBridgeLobeRecovery"));
             FfxDenoiserNrdBridgeRecoverySpecular.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoverySpecular")));
             FfxDenoiserNrdBridgeRecoveryDiffuse.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoveryDiffuse")));
@@ -1546,7 +1544,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeNativeTemporalMotion", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeTemporalMotion.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeMaterialGuides", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeMaterialGuides.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMaterialIDs", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMaterialIDs.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "NrdBridgeNativeSpecularBlend", GetFloatValue(Instance()->FfxDenoiserNrdBridgeNativeSpecularBlend.value_for_config()).c_str());
+        ini.Delete("FSR-RR", "NrdBridgeNativeSpecularBlend"); // Retired: never restore saved output-mixing values.
         ini.SetValue("FSR-RR", "NrdBridgeLobeRecovery", GetBoolValue(Instance()->FfxDenoiserNrdBridgeLobeRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoverySpecular", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoveryDiffuse", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoveryDiffuse.value_for_config()).c_str());

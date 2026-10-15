@@ -559,8 +559,6 @@ class Config
     CustomOptional<bool> FfxDenoiserNrdBridgeNativeMaterialGuides {true};
     // A/B hypothesis: retain native categorical normal A instead of material ID 0.
     CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
-    // Optional NRD-assisted specular hybrid after RR; 0 keeps the complete RR output.
-    CustomOptional<float> FfxDenoiserNrdBridgeNativeSpecularBlend {0.0f};
     // Independent post-RR lobe detail recovery; disabled by default.
     CustomOptional<bool> FfxDenoiserNrdBridgeLobeRecovery {false};
     CustomOptional<float> FfxDenoiserNrdBridgeRecoverySpecular {1.0f};

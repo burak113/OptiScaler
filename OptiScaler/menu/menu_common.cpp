@@ -3270,7 +3270,7 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
     ImGui::TextWrapped("AMD's provider-native debug pass is separate from RawSignals/RRInputs conversion views. "
                       "Its colors are displayed after the upscaler evaluates, without the title's lighting modulation. "
                       "It shows the latest submitted RR frame and can lag when SR runs before the current NRD chain. "
-                      "It shows raw RR before lobe detail recovery and the NRD reference blend. "
+                      "It shows raw RR before lobe detail recovery. "
                       "Enabling or disabling it recreates the RR context and resets history. Default off; depth display bounds use AMD defaults.");
     return changed;
 }
@@ -3338,7 +3338,6 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
     settings.recoveryDiffuse = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
-    settings.nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
         0, FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1));
@@ -3421,18 +3420,6 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("A/B hypothesis: the four normalized native categories can prevent filtering across material boundaries. "
                           "The current title alpha population and enable flags have not been measured. "
                           "Off supplies material ID 0. No extra resources or dispatches; changing it resets history. Default off.");
-    float nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config->FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
-    if (ImGui::SliderFloat("NRD reference specular blend (experimental)", &nativeSpecularBlend, 0.0f, 1.0f))
-    {
-        config->FfxDenoiserNrdBridgeNativeSpecularBlend = nativeSpecularBlend;
-        changed = true;
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("NRD-assisted hybrid: 0 keeps RR specular; 1 keeps the native NRD specular output exactly. "
-                          "Intermediate values mix same-pixel linear RGB. Diffuse stays RR and both RR lobes still run. "
-                          "This changes the NRD/RR quality tradeoff, without a confidence or noise gate. "
-                          "RR history is unchanged; in-game quality is unmeasured. Default 0. "
-                          "Native AMD debug views show RR before this reference blend.");
     changed |= DrawNrdBridgeLobeRecovery(config);
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
@@ -3440,7 +3427,6 @@ static void DrawNrdBridgeRRTuning(Config* config)
         NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
     if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
     const auto state = NrdBridge::GetRRSettingsState();
-    ImGui::Text("Applied NRD reference specular blend: %.3f", state.requested.nativeSpecularBlend);
     ImGui::Text("Requested lobe recovery: %s (specular %.3f, diffuse %.3f)",
                 state.requested.lobeRecovery ? "On" : "Off", state.requested.recoverySpecular, state.requested.recoveryDiffuse);
     ImGui::TextWrapped("Requested settings alone do not confirm recovery ran on a Consumer frame. Both zero strengths leave RR unchanged and skip recovery work.");

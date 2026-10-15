@@ -22,7 +22,6 @@ KEYS = {
     'FfxDenoiserNrdBridgeNativeTemporalMotion': ('NrdBridgeNativeTemporalMotion', 'Bool'),
     'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
-    'FfxDenoiserNrdBridgeNativeSpecularBlend': ('NrdBridgeNativeSpecularBlend', 'Float'),
     'FfxDenoiserNrdBridgeLobeRecovery': ('NrdBridgeLobeRecovery', 'Bool'),
     'FfxDenoiserNrdBridgeRecoverySpecular': ('NrdBridgeRecoverySpecular', 'Float'),
     'FfxDenoiserNrdBridgeRecoveryDiffuse': ('NrdBridgeRecoveryDiffuse', 'Float'),
@@ -137,6 +136,7 @@ bool hasText(const std::string& term){return std::any_of(text.begin(),text.end()
 bool hasLabel(const std::string& term){return std::find(labels.begin(),labels.end(),term)!=labels.end();}
 }
 __MENU_HELPERS__
+template<class T> concept RetiredNativeOutputBlendConfig = requires(T value) { value.FfxDenoiserNrdBridgeNativeSpecularBlend; };
 void drawBridge(Config* config){__BRIDGE_PANEL__}
 int main(){try{
  Config cfg;Config::active=&cfg;cfg.load("[FSR-RR]\nUnrelated=keep\n[Other]\nNrdBridgeUseCustomRR=untouched\n");
@@ -238,33 +238,33 @@ int main(){try{
  saved=cfg.save();reload.load(saved);need(!ReadNrdBridgeRRSettings(reload).preserveNativeMaterialIDs,"Reset/save/reload retains material OFF default");
  cfg.load("[FSR-RR]\nNrdBridgeMaterialIDs=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).preserveNativeMaterialIDs,"Malformed material key remains OFF");
  cfg.load("[FSR-RR]\n");NrdBridge::accept=true;ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
- need(cfg.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default()==0.f&&ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==0.f,
- "NRD-assisted specular hybrid defaults to exact RR endpoint0");
- need(ImGui::hasLabel("NRD reference specular blend (experimental)")&&NrdBridge::applyCalls==before,
- "Default0 exposes one independent hybrid slider and performs no apply");
- ImGui::frame();ImGui::hovered=true;ImGui::floats["NRD reference specular blend (experimental)"]=.375f;
- const auto resets=NrdBridge::resetCalls;drawBridge(&cfg);
- need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeSpecularBlend==.375f&&NrdBridge::last.overrideMask==0,
- "Hybrid-only UI publishes one coherent coefficient independently of AMD custom keys");
- need(NrdBridge::resetCalls==resets&&ImGui::hasText("both RR lobes still run")&&ImGui::hasText("NRD-assisted hybrid")&&
- ImGui::hasText("without a confidence or noise gate")&&ImGui::hasText("RR history is unchanged"),
- "Hybrid UI states its actual NRD assistance/history contract without invented confidence");
- saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==.375f,
- "Hybrid coefficient survives the actual Config float serializer/save/reload");
- cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=.9f;ImGui::frame();drawBridge(&cfg);
- need(ImGui::hasText("Applied NRD reference specular blend: 0.375"),"Effective hybrid label uses accepted runtime snapshot rather than stale Config");
- for(const auto [value,expected]:std::array<std::array<float,2>,6>{{{-5.f,0.f},{2.f,1.f},{.125f,.125f},
- {std::numeric_limits<float>::quiet_NaN(),0.f},{std::numeric_limits<float>::infinity(),0.f},{-std::numeric_limits<float>::infinity(),0.f}}}) {
-  cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=value;
-  need(ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==expected,"INI/runtime snapshot finite clamp and nonfinite OFF sanitation");
+ need(!RetiredNativeOutputBlendConfig<Config>,"Retired native-output mixing has no Config storage");
+ need(!ImGui::hasLabel("NRD reference specular blend (experimental)")&&!ImGui::hasText("Applied NRD reference specular blend")&&
+ !ImGui::hasText("NRD-assisted hybrid")&&NrdBridge::applyCalls==before,
+ "Removed output-mixing control has no menu, applied readout or idle runtime action");
+ for(const char* value:{"1","0.5","-5","nan","inf","auto","invalid"}) {
+  cfg.load(std::string("[FSR-RR]\nNrdBridgeNativeSpecularBlend=")+value+"\nUnrelated=keep\n[Other]\nNrdBridgeNativeSpecularBlend=untouched\n");
+  ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["NRD reference specular blend (experimental)"]=1.f;drawBridge(&cfg);
+  need(!ImGui::hasLabel("NRD reference specular blend (experimental)")&&NrdBridge::applyCalls==before&&
+  ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==0.f,
+  "Every saved legacy value and attempted retired slider edit is ignored; menu snapshot stays zero");
+  saved=cfg.save();need(ini.GetValue("FSR-RR","NrdBridgeNativeSpecularBlend")==nullptr,
+  "Actual production save cleanup deletes the deprecated bridge key including nonzero values");
+  need(std::string(ini.GetValue("FSR-RR","Unrelated",""))=="keep"&&
+  std::string(ini.GetValue("Other","NrdBridgeNativeSpecularBlend",""))=="untouched",
+  "Retired-key cleanup preserves unrelated values and the same spelling in other sections");
+  reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==0.f,
+  "Legacy-key save/reload cannot re-enable native-output mixing");
  }
- cfg.load("[FSR-RR]\nNrdBridgeNativeSpecularBlend=invalid\n");need(ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==0.f,
- "Malformed hybrid float key remains at OFF endpoint0");
- cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=.75f;cfg.ResetFfxDenoiserSettings();
- need(cfg.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default()==0.f&&NrdBridge::last.nativeSpecularBlend==0.f,
- "Complete reset disables hybrid in both Config and coherent bridge snapshot");
- saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==0.f,
- "Reset/save/reload preserves native blend0 without altering ordinary RR settings");
+ cfg.load("[fsr-rr]\nnrdbridgenativespecularblend=1\n");saved=cfg.save();
+ need(ini.GetValue("FSR-RR","NrdBridgeNativeSpecularBlend")==nullptr,
+ "Actual retired-key cleanup also removes case-insensitive saved nonzero values");
+ cfg.load("[FSR-RR]\nNrdBridgeNativeSpecularBlend=0.75\n");before=NrdBridge::applyCalls;cfg.ResetFfxDenoiserSettings();
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeSpecularBlend==0.f&&!NrdBridge::runtime,
+ "Full reset after a saved nonzero value emits zero in the coherent API snapshot and disables runtime");
+ saved=cfg.save();reload.load(saved);need(ini.GetValue("FSR-RR","NrdBridgeNativeSpecularBlend")==nullptr&&
+ ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==0.f&&ReadNrdBridgeRRSettings(reload).nativeMaterialGuides,
+ "Reset/save/reload removes the retired key while retaining the user-requested native-albedo default");
  cfg.load("[FSR-RR]\n");ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
  need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion&&NrdBridge::applyCalls==before,
  "Native motion defaults OFF and idle controls do not change runtime");
@@ -332,8 +332,8 @@ int main(){try{
  need(ImGui::hasText("Requested lobe recovery: On (specular 0.375, diffuse 0.625)")&&
  ImGui::hasText("do not confirm recovery ran")&&!ImGui::hasText("Active lobe recovery"),
  "Requested-only recovery label does not claim the graph ran on a Consumer");
- need(ImGui::hasText("raw RR before lobe detail recovery")&&ImGui::hasText("NRD reference blend"),
- "Provider native debug is explicitly before post-RR detail recovery and reference blending");
+ need(ImGui::hasText("raw RR before lobe detail recovery")&&!ImGui::hasText("NRD reference blend"),
+ "Provider native debug explains the remaining post-RR detail path without advertising retired output mixing");
  saved=cfg.save();reload.load(saved);auto recoveryReload=ReadNrdBridgeRRSettings(reload);
  need(recoveryReload.lobeRecovery&&recoveryReload.recoverySpecular==.375f&&recoveryReload.recoveryDiffuse==.625f,
  "Recovery enable and both strengths survive actual production INI save/reload");
@@ -463,17 +463,9 @@ def run():
     menu=(ROOT/'OptiScaler/menu/menu_common.cpp').read_text()
     rr=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     bridge=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h').read_text()
-    if 'struct RRSettings\n' in rr:
-        contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('RRSettings','RRSettingsState'))
-        contract_origin='actual public RR header'
-    else:
-        # Approved public POD is an explicit runtime-spy boundary until lead merges
-        # its new header. No provider configuration/history algorithm is reproduced.
-        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;bool preserveNativeMaterialIDs=false;float nativeSpecularBlend=0.f;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
-        contract_origin='explicit approved API spy POD; integrated replay reads actual header'
-    contract_origin+='; actual public Status header'
-    types=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h').read_text()
-    contract+='\n'+function(types,'inline float NormalizeNativeSpecularBlend(')
+    assert 'struct RRSettings\n' in rr
+    contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('RRSettings','RRSettingsState'))
+    contract_origin='actual public RR header; actual public Status header'
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
@@ -481,6 +473,10 @@ def run():
         save=re.search(r'ini.SetValue\("FSR-RR", "'+key+r'",\s*Get'+kind+r'Value\(Instance\(\)->'+field+r'\.value_for_config\(\)\)\.c_str\(\)\);',config)
         assert len(load)==1 and save,(field,key)
         loads.extend(load);saves.append(save.group());resets.append(field+'.reset();')
+    cleanup=re.search(r'ini\.Delete\("FSR-RR", "NrdBridgeNativeSpecularBlend"\);',config)
+    assert cleanup and 'FfxDenoiserNrdBridgeNativeSpecularBlend' not in header
+    assert 'FfxDenoiserNrdBridgeNativeSpecularBlend' not in menu and 'NormalizeNativeSpecularBlend' not in menu
+    saves.append(cleanup.group())
     render=function(menu,'void MenuCommon::RenderDenoiserSettings(')
     marker='if (NrdBridge::StartupEnabled() && ImGui::CollapsingHeader("CP77 NRD bridge"))'
     panel=function(render,marker)
@@ -492,7 +488,7 @@ def run():
     assert len(re.findall(r'^NrdBridgeNativeMaterialGuides=true\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
-    assert len(re.findall(r'^NrdBridgeNativeSpecularBlend=0\.0\s*$',template,re.M))==1
+    assert not re.search(r'^NrdBridgeNativeSpecularBlend=',template,re.M)
     for key in ('NrdBridgeRecoverySpecular','NrdBridgeRecoveryDiffuse'):
         assert len(re.findall(r'^'+key+r'=1\.0\s*$',template,re.M))==1,key
     ffx=(ROOT/'OptiScaler/include/fsr-rr/ffx_denoiser.h').read_text()
