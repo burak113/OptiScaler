@@ -84,6 +84,20 @@ Thus **no universal true-detail preservation or game-quality gain is claimed**.
 Any measured benefit must be weighed against this real ambiguity. Production
 gating is not authorized by a CPU property pass.
 
+`analyze_fsrd_nrd_rr_workarounds.py` additionally ran the fixed parameters on the
+sealed64-frame15e world oracle (manifest27545e6d...), before RR, with reference
+and noise/reveal annotations confined to metrics. It passed2306 checks. Of
+589,824 physical interior samples per lobe, one-history admitted79spec/31diff;
+two-histories admitted12spec/10diff. All admitted samples were known synthetic
+channel-gain outliers; none was newly revealed. There were7074spec/6939diff
+outliers in the input, so coverage is very low. Input specular opponent-chroma
+RMSE changed .0608960609 -> .0608873664(one-history) or .0608959422(two).
+Diffuse changed .0625925784 -> .0625920649 or .0625924220. These tiny pre-RR
+changes do not justify production history/resources or demonstrate a final
+RR benefit. The strict candidate is retained as an honest negative, not tuned
+silently against reference. Its first empty-reveal-mask aggregation error and
+the earlier CPU byte-view/count-underflow errors are preserved in task logs.
+
 Two-level raw history would require four RGBA16F radiance textures, four R32/
 RGB10A2 depth/normal textures and one RGBA16F previous motion: 56 logical bytes
 per pixel. The two conditioned signals add16; test evidence adds32 for two
