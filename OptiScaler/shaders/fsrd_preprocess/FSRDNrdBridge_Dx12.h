@@ -39,7 +39,8 @@ enum class DispatchDisposition : uint8_t { Forward, Suppress };
 // Suppression belongs to an admitted recording transaction, never a shader hash alone.
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*, DispatchKind) noexcept;
 void InvalidateRecordingProof(ID3D12GraphicsCommandList*, const char* reason) noexcept;
-// True only for an exact no-root-argument indirect signature and bounded used-slot exclusion proof.
+// Exact execution-only signatures preserve CPU bindings before a required RR
+// interval; incomplete RR outputs additionally require bounded used-slot proofs.
 bool PreserveIndirectRecording(ID3D12GraphicsCommandList*, ID3D12CommandSignature*) noexcept;
 void OnResourceBarriers(ID3D12GraphicsCommandList*, UINT, const D3D12_RESOURCE_BARRIER*) noexcept;
 void OnRecordingClosed(ID3D12GraphicsCommandList*, HRESULT) noexcept;

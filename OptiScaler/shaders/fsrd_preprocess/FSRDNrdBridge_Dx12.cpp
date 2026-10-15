@@ -1457,6 +1457,12 @@ bool NativeRawSource(const FrameSurvey::ComputeBindings& bindings,
     source.profile = chain ? NativeRawProfile::PrePassPending : NativeRawProfile::ReconDirect;
     return true;
 }
+template<class Hooks> const char* ComputeRestoreReason() noexcept
+{
+    if constexpr (requires { Hooks::ComputeRestoreFailureReason(); })
+        if (const auto reason = Hooks::ComputeRestoreFailureReason()) return reason;
+    return "unavailable_in_adapter";
+}
 // This starts before the first omitted native shader. The retained callback is
 // independent of current Service/runtime/list state and explicitly denies Execute
 // until this exact A or B transaction commits its own RR output.
@@ -1487,14 +1493,27 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
             {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,3,0}}};
         constexpr std::array<FrameSurvey::ComputeTableRequest,2> outputRequests {{
             {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
-        if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) ||
-            !D3D12Hooks::BridgePredicationDisabled(cmd) || !D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings) ||
-            !FrameSurvey::ResolveComputeBindings(bindings,1,sourceRequests,sources) || sources.size()!=4 ||
-            !FrameSurvey::ResolveComputeBindings(bindings,5,outputRequests,outputs) || outputs.size()!=2 ||
-            !FrameSurvey::ResolveComputeConstantBinding(bindings,6,0,constants))
+        const char* failedGate = nullptr; const char* gateReason = "unavailable";
+        FrameSurvey::ConstantBufferDiagnostic constantDiagnostic;
+        if (!FrameSurvey::MetadataHealthy()) failedGate = "metadata";
+        else if (!D3D12Hooks::CanRestoreRootSignature(cmd))
+        { failedGate = "compute_restore"; gateReason = ComputeRestoreReason<D3D12Hooks>(); }
+        else if (!D3D12Hooks::BridgePredicationDisabled(cmd)) failedGate = "predication";
+        else if (!D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings)) failedGate = "compute_bindings";
+        else if (!FrameSurvey::ResolveComputeBindings(bindings,1,sourceRequests,sources) || sources.size()!=4) failedGate = "source_p1";
+        else if (!FrameSurvey::ResolveComputeBindings(bindings,5,outputRequests,outputs) || outputs.size()!=2) failedGate = "target_p5";
+        else if (!FrameSurvey::ResolveComputeConstantBinding(bindings,6,0,constants,&constantDiagnostic))
+        { failedGate = "b6_space0"; gateReason = constantDiagnostic.reason; }
+        if (failedGate)
         {
             RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
-            Failure(owner,"RR-only native source/root/predicate contract unavailable before denoising; restart required"); return;
+            // A single bounded failure record identifies the actual failed gate;
+            // no owner lookup, GPU readback, registry scan or admission relaxation.
+            Failure(owner,std::format("RR-only native admission failed gate={} reason={} chain={} cmd={:#x} root={:#x} heaps={} tables={} views={} sources={} targets={} b6_parameter={} b6_table={} b6_base={:#x} b6_va={:#x}; restart required",
+                failedGate,gateReason ? gateReason : "unspecified",chain,reinterpret_cast<uintptr_t>(cmd),
+                reinterpret_cast<uintptr_t>(bindings.root),bindings.heaps.size(),bindings.tables.size(),bindings.views.size(),
+                sources.size(),outputs.size(),constantDiagnostic.rootParameter,constantDiagnostic.table,
+                constantDiagnostic.tableBase,constantDiagnostic.address)); return;
         }
         ChainDiscovery typed; std::string error;
         if (!typed.Begin(sources,outputs,error))
@@ -2566,15 +2585,43 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
 }
 bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSignature* signature) noexcept
 {
-    if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady()||!gNativeTransactions.load(std::memory_order_relaxed))return false;
+    if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady())return false;
+    bool required = false;
     try
     {
+        // No required native interval can start on this same validly recorded
+        // command list during an ExecuteIndirect call. Avoid the injection mutex
+        // for the common pre-Recon/OFF path; immutable signature metadata alone
+        // proves that its CPU bindings survive this execution-only invocation.
+        if(!gNativeTransactions.load(std::memory_order_acquire))
+        {
+            NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return false;
+            FrameSurvey::IndirectSignatureInfo info;
+            return FrameSurvey::ResolveIndirectSignature(signature,info)&&FrameSurvey::ValidateIndirectSignature(info);
+        }
         std::scoped_lock injection(gInjectionMutex);NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return false;
         FrameSurvey::IndirectSignatureInfo info;if(!FrameSurvey::ResolveIndirectSignature(signature,info))return false;
-        std::shared_ptr<Service> owner;{std::scoped_lock lock(gMutex);owner=gService;if(!owner)return false;}
+        std::shared_ptr<Service> owner;
+        {
+            std::scoped_lock lock(gMutex);owner=gService;if(!owner)return false;
+            if(const auto found=owner->lists.find(cmd);found!=owner->lists.end())
+            {
+                const auto& list=found->second;
+                if(list.recording)required |= !RequiredOutputComplete(*list.recording);
+                for(const auto& stage:list.native)
+                    if(stage&&stage->recording)required |= !RequiredOutputComplete(*stage->recording);
+            }
+        }
+        // An attested execution-only signature does not change root arguments,
+        // heaps or PSO. Before any required RR interval, preserving that CPU
+        // binding snapshot needs no shader/resource exclusion profile. Erasing
+        // it here broke the first Recon when the title reused its bound heaps.
+        // Once RR owns an incomplete output, the original exact access/retained
+        // witness proof remains mandatory, including for these same signatures.
+        if(!required)return FrameSurvey::ValidateIndirectSignature(info);
         return PreserveNativeWork(owner,cmd,signature,info.kind==FrameSurvey::IndirectSignatureKind::DrawIndexed);
     }
-    catch(...){RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);return false;}
+    catch(...){if(required)RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);return false;}
 }
 void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 {

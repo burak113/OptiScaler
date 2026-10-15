@@ -186,6 +186,7 @@ namespace D3d12Proxy {
         'void D3D12Hooks::OnBridgeCommandListReset(', 'void D3D12Hooks::OnBridgeOpaqueCommand(',
         'bool D3D12Hooks::BridgePredicationDisabled(',
         'bool D3D12Hooks::CanRestoreRootSignature(',
+        'const char* D3D12Hooks::ComputeRestoreFailureReason(',
         'static bool BridgeGraphicsRestoreHooksReady(', 'static bool BridgeGraphicsSnapshotPair(',
         'bool D3D12Hooks::CanRestoreGraphicsRootSignature(', 'bool D3D12Hooks::RestoreGraphicsRootForBridge(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
@@ -205,6 +206,7 @@ struct D3D12Hooks {
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
  static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool) noexcept;
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
+ static const char* ComputeRestoreFailureReason() noexcept;
  static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept;
  static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept;
  static bool RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList*) noexcept;

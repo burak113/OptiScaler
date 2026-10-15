@@ -61,6 +61,21 @@ Unknown actual work fails closed. Unknown PSO assignment alone is not work.
 The native omission contract is pinned to the supported complete shader hashes;
 unclassified work outside a pending interval is not a general game-version proof.
 
+Before a required RR interval, an attested execution-only indirect signature
+preserves the CPU root/heap/PSO snapshot even for an unclassified shader. These
+bindings are inherited by the call; only state specified by a command signature
+is changed/reset ([Microsoft's indirect drawing contract](https://learn.microsoft.com/en-us/windows/win32/direct3d12/indirect-drawing)).
+Discarding this unchanged snapshot before the first Recon prevented hot RR
+activation when the title reused its bound heaps. The common pre-Recon path
+validates immutable signature metadata without taking the injection mutex.
+Pending RR outputs still require the complete shader/resource exclusion proof;
+unknown or state-changing signatures retain their invalidation behavior.
+
+Failed initial native admission records its exact `gate` and `reason`, including
+restore configuration, missing setters/heaps/PSO/tables, unknown predication,
+stale births, unknown root parameter counts, source/target tables and b6 mapping.
+These diagnostics do not relax admission or enable a native denoiser fallback.
+
 The descriptor admission protocol joins each native descriptor mutation with its
 metadata publication. Writers use fixed sharded atomic counters. A participating
 queue closes the gate, drains those fixed counters, validates witnesses and keeps

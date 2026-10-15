@@ -33,14 +33,19 @@ void commandStateCases()
       "bridge captures early and late graphics root even when ordinary graphics restore setting is false");
  need(!D3D12Hooks::BridgePredicationDisabled(watched)&&!D3D12Hooks::CanRestoreRootSignature(watched)&&
       !D3D12Hooks::CanRestoreGraphicsRootSignature(watched),"unobserved predicate never admits compute or graphics injection");
+ need(bridgeComputeRestoreFailure&&std::string(bridgeComputeRestoreFailure)=="predication_enabled_or_unobserved",
+      "compute preflight diagnoses unobserved predication without changing rejection");
  D3D12Hooks::OnBridgeSetPredication(watched,true);
  need(!D3D12Hooks::BridgePredicationDisabled(watched)&&!D3D12Hooks::CanRestoreRootSignature(watched)&&
       !D3D12Hooks::CanRestoreGraphicsRootSignature(watched),"active predicate rejects both injection families");
+ need(bridgeComputeRestoreFailure&&std::string(bridgeComputeRestoreFailure)=="predication_enabled_or_unobserved",
+      "compute preflight diagnoses active predication without changing rejection");
  D3D12Hooks::OnBridgeSetPredication(watched,false);
  {
   NrdBridgeLifetime::ScopedBorrow borrow;need(borrow.Acquired(),"physical borrow acquired for actual Born metadata readers");
   need(D3D12Hooks::BridgePredicationDisabled(watched)&&D3D12Hooks::CanRestoreRootSignature(watched)&&
        D3D12Hooks::CanRestoreGraphicsRootSignature(watched),"observed null predicate admits both exact root families");
+  need(!bridgeComputeRestoreFailure,"successful compute preflight clears the preceding failure reason");
   const auto reads=listObject.reads+computeRootObject.reads+graphicsRootObject.reads+heapObject.reads+graphicsPsoObject.reads;
   const auto installers=coverageCalls,factories=factoryCalls;
   FrameSurvey::ComputeBindings graphics;ID3D12PipelineState* current=nullptr;
@@ -55,6 +60,9 @@ void commandStateCases()
   need(reads==listObject.reads+computeRootObject.reads+graphicsRootObject.reads+heapObject.reads+graphicsPsoObject.reads&&
        installers==coverageCalls&&factories==factoryCalls,"graphics getter and preflight perform no native identity installer or payload work");
   Config::Instance()->RestoreComputeSignature.current=false;Config::Instance()->ExtendedStateRestore.current=false;
+  need(!D3D12Hooks::CanRestoreRootSignature(watched)&&bridgeComputeRestoreFailure&&
+       std::string(bridgeComputeRestoreFailure)=="restore_configuration_disabled",
+       "compute configuration failure is distinct from native binding or predicate loss");
   need(!D3D12Hooks::CanRestoreGraphicsRootSignature(watched),"new graphics preflight enforces required configuration flags");
   isNrdBridgeInjection=true;calls.clear();need(D3D12Hooks::RestoreGraphicsRootForBridge(watched),"admitted graphics restore survives flag reload inside injection");
   isNrdBridgeInjection=false;Config::Instance()->RestoreComputeSignature.current=true;Config::Instance()->ExtendedStateRestore.current=true;

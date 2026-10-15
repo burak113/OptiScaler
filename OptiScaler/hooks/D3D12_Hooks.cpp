@@ -327,6 +327,7 @@ static bool isUpscalerActive = false;
 // The bridge can inject while other CPU threads record independent title lists.
 // Preserve the existing off path; bridge suppression applies only to the recording thread.
 static thread_local bool isNrdBridgeInjection = false;
+static thread_local const char* bridgeComputeRestoreFailure = nullptr;
 static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignature*> bridgeComputeRoots;
 // Bridge-on compute arguments remain in rootStates; graphics setters must not
 // overwrite them when both families are active on the same native list.
@@ -3339,41 +3340,47 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
 
 bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
 {
+    bridgeComputeRestoreFailure = nullptr;
+    const auto fail = [](const char* reason) { bridgeComputeRestoreFailure = reason; return false; };
     if (!gNrdBridgeDeviceWrappers)
     {
         std::shared_lock lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock);
-        return signatures.find(cmdList) != signatures.end();
+        return signatures.find(cmdList) != signatures.end() || fail("legacy_signature_missing");
     }
     if (!Config::Instance()->RestoreComputeSignature.value_or_default() ||
-        !Config::Instance()->ExtendedStateRestore.value_or_default()) return false;
+        !Config::Instance()->ExtendedStateRestore.value_or_default()) return fail("restore_configuration_disabled");
     if (!s_SetComputeRootSignature.GetHook() || !s_SetDescriptorHeaps.GetHook() || !s_SetPipelineState.GetHook() ||
         !s_SetComputeRootDescriptorTable.GetHook() || !s_SetComputeRoot32BitConstants.GetHook() ||
         !s_SetComputeRootConstantBufferView.GetHook() || !s_SetComputeRootShaderResourceView.GetHook() ||
-        !s_SetComputeRootUnorderedAccessView.GetHook()) return false;
+        !s_SetComputeRootUnorderedAccessView.GetHook()) return fail("compute_setter_hook_missing");
     const auto receiver = RootTrackerBirthsEnabled() ? NrdBridgeBirth::Capture(cmdList) : NrdBridgeBirth::Token{};
     NrdBridgeBirth::CurrentGuard birthGuard(receiver,RootTrackerBirthsEnabled());
-    if (RootTrackerBirthsEnabled() && !birthGuard.AdmitsBorrow()) return false;
+    if (RootTrackerBirthsEnabled() && !birthGuard.AdmitsBorrow()) return fail("command_list_birth_unavailable");
     { std::shared_lock lock(descriptorHeapsMutex, std::defer_lock); LockRootTracker(lock); auto found = descriptorHeaps.find(cmdList);
-      if (found == descriptorHeaps.end() || !found->second.NumDescriptorHeaps || found->second.NumDescriptorHeaps > 2) return false;
+      if (found == descriptorHeaps.end() || !found->second.NumDescriptorHeaps || found->second.NumDescriptorHeaps > 2) return fail("bound_heaps_missing");
       if (RootTrackerBirthsEnabled()) {
-          if (found->second.receiverBirth != receiver) return false;
+          if (found->second.receiverBirth != receiver) return fail("heap_receiver_birth_mismatch");
           for (UINT i=0;i<found->second.NumDescriptorHeaps;++i)
-              if (!TrackerBorrowMatches(found->second.heapBirths[i],found->second.Heaps[i])) return false;
+              if (!TrackerBorrowMatches(found->second.heapBirths[i],found->second.Heaps[i])) return fail("bound_heap_birth_stale");
       } }
     { std::shared_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock); auto found = pipelineStates.find(cmdList);
-      if (found == pipelineStates.end() || !found->second.ptr) return false;
-      if (RootTrackerBirthsEnabled() && (found->second.receiverBirth != receiver ||
-          !TrackerBorrowMatches(found->second.pipelineBirth,found->second.ptr))) return false; }
+      if (found == pipelineStates.end() || !found->second.ptr) return fail("pipeline_missing");
+      if (RootTrackerBirthsEnabled() && found->second.receiverBirth != receiver) return fail("pipeline_receiver_birth_mismatch");
+      if (RootTrackerBirthsEnabled() && !TrackerBorrowMatches(found->second.pipelineBirth,found->second.ptr)) return fail("pipeline_birth_stale"); }
     { std::shared_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); auto found = rootStates.find(cmdList);
       const auto root = bridgeComputeRoots.find(cmdList);
-      if (!BridgePredicateDisabledLocked(cmdList,receiver) || root == bridgeComputeRoots.end() || !root->second ||
-          found == rootStates.end() || found->second.size() <= 5 ||
-          found->second[1].type != RootEntryType::Table || found->second[5].type != RootEntryType::Table ||
-          !RootRestoreArgumentsSupported(found->second)) return false;
-      if (RootTrackerBirthsEnabled() && (found->second.receiverBirth != receiver || !found->second.rootCountKnown ||
-          !TrackerBorrowMatches(found->second.rootBirth,root->second))) return false; }
+      if (!BridgePredicateDisabledLocked(cmdList,receiver)) return fail("predication_enabled_or_unobserved");
+      if (root == bridgeComputeRoots.end() || !root->second) return fail("compute_root_missing");
+      if (found == rootStates.end() || found->second.size() <= 5) return fail("compute_arguments_missing");
+      if (found->second[1].type != RootEntryType::Table || found->second[5].type != RootEntryType::Table) return fail("native_p1_or_p5_table_missing");
+      if (!RootRestoreArgumentsSupported(found->second)) return fail("compute_arguments_unsupported");
+      if (RootTrackerBirthsEnabled() && found->second.receiverBirth != receiver) return fail("root_receiver_birth_mismatch");
+      if (RootTrackerBirthsEnabled() && !found->second.rootCountKnown) return fail("root_parameter_count_unknown");
+      if (RootTrackerBirthsEnabled() && !TrackerBorrowMatches(found->second.rootBirth,root->second)) return fail("compute_root_birth_stale"); }
     return true;
 }
+
+const char* D3D12Hooks::ComputeRestoreFailureReason() noexcept { return bridgeComputeRestoreFailure; }
 
 static bool BridgeGraphicsRestoreHooksReady()
 {

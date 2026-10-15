@@ -3426,8 +3426,9 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
     const bool preserve = bridge && NrdBridge::PreserveIndirectRecording(cmd,signature);
     if (bridge && !preserve)
     {
-        // Only exact no-root-argument signatures with current pipeline/resource
-        // proofs preserve bindings. Every indirect invocation still forwards.
+        // Unknown/state-changing signatures invalidate CPU bindings. Exact
+        // execution-only signatures preserve them; a pending RR interval also
+        // requires current pipeline/resource proofs. Every invocation forwards.
         NrdBridge::OriginalDispatchDisposition(cmd,NrdBridge::DispatchKind::Indirect);
         D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
     }

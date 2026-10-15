@@ -31,6 +31,8 @@ class D3D12Hooks
     static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept;
     static void OnBridgeObjectReleased(const NrdBridgeBirth::Token&) noexcept;
     static bool CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList);
+    // Same-thread reason from the immediately preceding compute restore check.
+    static const char* ComputeRestoreFailureReason() noexcept;
     static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&) noexcept;
     static bool GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&,
                                              ID3D12PipelineState*& currentPipeline) noexcept;
