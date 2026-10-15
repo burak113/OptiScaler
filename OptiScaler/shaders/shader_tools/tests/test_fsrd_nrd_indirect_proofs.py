@@ -132,6 +132,9 @@ int main(int argc,char** argv)try{
  need(!FrameSurvey::ValidateTextureBindingWitnesses(staged)&&FrameSurvey::ResolveComputeTextureBindings(bindings,rows,out,&proof)&&proof[0].resourceBirth==freshA,"same descriptor and pointer cannot hide resource ABA");
  FrameSurvey::NotifyRelease(deadResource);need(FrameSurvey::ValidateTextureBindingWitnesses(proof),"late old resource notification preserves new birth proof");
  // Actual no-root-argument classifier and publication/retirement methods.
+ need(FrameSurvey::SignatureCreationInterfaceMatches(__uuidof(ID3D12CommandSignature)),"exact typed command-signature IID admits bridge publication");
+ need(!FrameSurvey::SignatureCreationInterfaceMatches(IID_IUnknown),"canonical IUnknown return cannot masquerade as typed signature");
+ need(!FrameSurvey::SignatureCreationInterfaceMatches(__uuidof(ID3D12PipelineState)),"foreign returned interface cannot admit bridge signature metadata");
  D3D12_INDIRECT_ARGUMENT_DESC arguments[2]{};arguments[0].Type=D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
  D3D12_COMMAND_SIGNATURE_DESC sigDesc{12,1,arguments,0};
  need(FrameSurvey::ClassifyIndirectSignature(sigDesc,nullptr)==FrameSurvey::IndirectSignatureKind::Dispatch,"exact single DISPATCH stride12 classifier");
@@ -184,6 +187,10 @@ int main(int argc,char** argv)try{
 
 
 def prepare(output):
+    production = (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_text()
+    assert '{ return iid == __uuidof(ID3D12CommandSignature); }' in production
+    assert 'if (SignatureCreationInterfaceMatches(iid))\n            CommandSignatureCreated(' in production
+    assert 'CommandSignatureCreated(static_cast<ID3D12CommandSignature*>(*output),*desc,root);\n        uint32_t graphics = 0;' in production
     root_helpers = graphics.DRIVER.split('struct BlobRoot:', 1)[1].split('int main(', 1)[0]
     driver = CPP.replace('__ROOT_HELPERS__', 'struct BlobRoot:'+root_helpers)
     for name, data in [('CS', bytes([1, 2, 3, 4])), ('VS', bytes([5, 6, 7])), ('PS', bytes([8, 9]))]:
@@ -197,6 +204,7 @@ def prepare(output):
     renamed = output/'indirect_proofs.cpp'
     source.rename(renamed)
     info['frame_survey_header_sha256'] = hashlib.sha256((ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.h').read_bytes()).hexdigest()
+    info['source_checks'] = 3
     return renamed, stubs, info
 
 

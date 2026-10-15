@@ -3548,13 +3548,18 @@ void STDMETHODCALLTYPE GraphicsUav(ID3D12GraphicsCommandList* cmd, UINT index, D
 { RootView(cmd,true,index,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,va); oGraphicsUav(cmd,index,va); }
 void STDMETHODCALLTYPE GraphicsCbv(ID3D12GraphicsCommandList* cmd, UINT index, D3D12_GPU_VIRTUAL_ADDRESS va)
 { RootView(cmd,true,index,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,va); oGraphicsCbv(cmd,index,va); }
+static bool SignatureCreationInterfaceMatches(REFIID iid) noexcept
+{ return iid == __uuidof(ID3D12CommandSignature); }
 HRESULT STDMETHODCALLTYPE Signature(ID3D12Device* device, const D3D12_COMMAND_SIGNATURE_DESC* desc,
     ID3D12RootSignature* root, REFIID iid, void** output)
 {
     const auto result = oSignature(device,desc,root,iid,output);
     if (SUCCEEDED(result) && desc && output && *output)
     {
-        CommandSignatureCreated(static_cast<ID3D12CommandSignature*>(*output),*desc,root);
+        // The bridge proof accepts an exact typed return only. Preserve the
+        // recorder's legacy metadata behavior for other requested interfaces.
+        if (SignatureCreationInterfaceMatches(iid))
+            CommandSignatureCreated(static_cast<ID3D12CommandSignature*>(*output),*desc,root);
         uint32_t graphics = 0;
         for (UINT i=0;i<desc->NumArgumentDescs;++i)
             if (desc->pArgumentDescs[i].Type == D3D12_INDIRECT_ARGUMENT_TYPE_DRAW ||
