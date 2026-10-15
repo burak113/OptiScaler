@@ -3592,6 +3592,154 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         if (!survey.folder.empty()) ImGui::TextWrapped("Last output folder: %s",survey.folder.c_str());
         ImGui::TextWrapped("Startup key: [FSR-RR] FrameSurvey=true. Captures one frame in title NRD or RR mode. Restart after changing the key. Close the overlay after requesting.");
     }
+    if (choice.fsrRR || NrdBridge::StartupEnabled())
+    {
+        if (ImGui::CollapsingHeader("GAME_TRACE recording"))
+        {
+            ScopedIndent indent;
+            const auto capture = FSRDGameTraceSession::GetStatus();
+            const bool bridgeTrace = NrdBridge::StartupEnabled() && NrdBridge::RuntimeEnabled();
+            ImGui::TextWrapped(bridgeTrace ?
+                "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. First eligible chain only; no native NRD output/reference." :
+                "Ordinary RR: configured pre-SR composition and original conversion inputs.");
+            const auto bridgeStatus = NrdBridge::GetStatus();
+            const uint32_t width = bridgeTrace && bridgeStatus.width ? bridgeStatus.width :
+                (currentFeature ? currentFeature->RenderWidth() : 0);
+            const uint32_t height = bridgeTrace && bridgeStatus.height ? bridgeStatus.height :
+                (currentFeature ? currentFeature->RenderHeight() : 0);
+            static int regionChoice = 2, frameCountChoice = 2, srMode = 0;
+            static char outputRoot[1024] {};
+            static bool initialCenter = true, folderOpenFailed = false;
+            static bool fullContextReference = false;
+            ImGui::BeginDisabled(capture.active);
+            if (ImGui::Combo("Capture region##GameTrace", &regionChoice,
+                    "128 x 128\0" "512 x 512\0" "128 wide, full height\0"
+                    "512 wide, full height\0" "Full render frame\0"))
+            {
+                initialCenter = true;
+            }
+            ImGui::Combo("Frames to record##GameTrace", &frameCountChoice, "128\0" "256\0" "512\0");
+            ImGui::BeginDisabled(bridgeTrace);
+            ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
+            bool particleDiagnostics = config->FfxDenoiserParticleLayerDiagnostics.value_or_default();
+            if (ImGui::Checkbox("Particle layer diagnostic guides##GameTrace", &particleDiagnostics))
+                config->FfxDenoiserParticleLayerDiagnostics = particleDiagnostics;
+            if (particleDiagnostics)
+                ImGui::TextWrapped("Records original ColorBeforeParticles / ColorBeforeTransparency if bound. Capture only; no particle bypass. Adds up to two guide snapshots per recorded frame.");
+            ImGui::Checkbox("Full-context RESET_each reference (diagnostic only)##GameTrace", &fullContextReference);
+            if (fullContextReference)
+                ImGui::TextWrapped("Diagnostic, not a solution. Records two extra RR heads from a separate full-render context with RESET each frame. Adds GPU work and memory; the game keeps its normal RR history and composition. Te\xc5\x9fhis kayd\xc4\xb1; \xc3\xa7\xc3\xb6z\xc3\xbcm de\xc4\x9fil.");
+            ImGui::EndDisabled();
+            ImGui::InputTextWithHint("Output root##GameTrace", "Blank: DLL folder / GAME_TRACE", outputRoot, sizeof(outputRoot));
+            using RegionMode = FSRDGameTraceSession::Request::RegionMode;
+            const RegionMode regionMode = regionChoice == 4 ? RegionMode::FullRender :
+                (regionChoice >= 2 ? RegionMode::FullHeightStrip : RegionMode::Square);
+            const uint32_t tile = regionChoice == 1 || regionChoice == 3 ? 512 : FSRDGameTraceSession::TileSize;
+            const uint32_t regionWidth = regionMode == RegionMode::FullRender ? width : tile;
+            const uint32_t regionHeight = regionMode == RegionMode::Square ? tile : height;
+            const uint32_t targetFrames = 128u << std::clamp(frameCountChoice, 0, 2);
+            const bool fits = regionWidth && regionHeight && width >= regionWidth && height >= regionHeight;
+            const int maxX = fits ? int(std::min(width - regionWidth, uint32_t(INT_MAX))) : 0;
+            const int maxY = fits ? int(std::min(height - regionHeight, uint32_t(INT_MAX))) : 0;
+            static int traceX = 0, traceY = 0, delaySeconds = 3;
+            if (initialCenter && fits)
+            {
+                traceX = maxX / 2;
+                traceY = maxY / 2;
+                initialCenter = false;
+            }
+            ImGui::Text("%u frames | %u x %u region | Render: %u x %u",
+                        targetFrames, regionWidth, regionHeight, width, height);
+            ImGui::TextWrapped(bridgeTrace ?
+                "Records actual owned RR stages and the bridge commit at render resolution. Encoded commit is observed before the original Consumer; no SR or native NRD reference is recorded." :
+                "Records the selected region across consecutive frames for offline RR analysis. Coordinates use render-resolution pixels, starting at the top left. SR output is captured before RCAS, output scaling and overlays.");
+            ImGui::BeginDisabled(regionMode == RegionMode::FullRender);
+            ImGui::InputInt("Region X##GameTrace", &traceX);
+            ImGui::EndDisabled();
+            ImGui::BeginDisabled(regionMode != RegionMode::Square);
+            ImGui::InputInt("Region Y##GameTrace", &traceY);
+            ImGui::EndDisabled();
+            traceX = std::clamp(traceX, 0, maxX);
+            traceY = std::clamp(traceY, 0, maxY);
+            if (ImGui::Button("Center region##GameTrace"))
+            {
+                traceX = maxX / 2;
+                traceY = maxY / 2;
+            }
+            ImGui::SliderInt("Start delay (seconds)##GameTrace", &delaySeconds, 0, 10);
+            const bool normalRendering = bridgeTrace ?
+                (NrdBridge::GetDebugMode() == NrdBridge::DebugMode::Off &&
+                 NrdBridge::GetRRSettingsState().requested.nativeDebugView < 0) :
+                config->FfxDenoiserDebugMode.value_or_default() == 0;
+            ImGui::BeginDisabled(!fits || !(bridgeTrace || (choice.fsrRR && active)) || !normalRendering);
+            if (ImGui::Button("Start GAME_TRACE recording"))
+            {
+                folderOpenFailed = false;
+                FSRDGameTraceSession::Request request;
+                request.x = uint32_t(traceX); request.y = uint32_t(traceY); request.size = tile;
+                request.regionMode = regionMode; request.frameCount = targetFrames;
+                request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
+                request.capturePath = bridgeTrace ? FSRDGameTraceSession::Request::CapturePath::NrdBridge :
+                    FSRDGameTraceSession::Request::CapturePath::Legacy;
+                request.fullContextReference = !bridgeTrace && fullContextReference;
+                request.particleLayerDiagnostics = !bridgeTrace && particleDiagnostics;
+                request.srMode = bridgeTrace || srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
+                    (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
+                FSRDGameTraceSession::RequestStart(request);
+            }
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
+            if (!normalRendering)
+                ImGui::TextWrapped("Set Debug View to normal rendering before recording.");
+            if (!fits)
+                ImGui::TextWrapped("The selected region must fit inside the render area.");
+            if (fits)
+            {
+                const uint64_t typicalBytesPerPixel = bridgeTrace ? 88u : 121u + (fullContextReference ? 16u : 0u) + (particleDiagnostics ? 16u : 0u);
+                uint64_t estimate = uint64_t(regionWidth)*regionHeight*typicalBytesPerPixel*targetFrames;
+                if (!bridgeTrace && srMode != 0 && currentFeature)
+                {
+                    const uint64_t sw = currentFeature->TargetWidth(), sh = currentFeature->TargetHeight();
+                    const uint64_t outW = srMode == 2 ? sw : ((uint64_t(traceX)+regionWidth)*sw+width-1)/width-uint64_t(traceX)*sw/width;
+                    const uint64_t outH = srMode == 2 ? sh : ((uint64_t(traceY)+regionHeight)*sh+height-1)/height-uint64_t(traceY)*sh/height;
+                    estimate += outW*outH*8*targetFrames;
+                }
+                ImGui::Text(bridgeTrace ? "RR stage upper payload estimate (aliases deduplicate): %.2f GiB" : "Typical FP16 capture estimate: %.2f GiB", double(estimate)/double(1ull<<30));
+            }
+            ImGui::TextWrapped("Use an absolute output root to choose another drive. Large captures need fast storage; a full queue stops recording without waiting for disk or GPU. A full-height strip follows vertical motion; a full render frame also records horizontal context.");
+            if (bridgeTrace)
+                ImGui::TextWrapped("256 MiB per frame, 512 MiB retained, at most 3 pending. Overflow stops before trace copies. Full temporal replay also needs the first captured SDK invocation to have a real RESET; capture never forces one. Cropped captures and prior hidden history are not complete replay inputs.");
+            ImGui::TextWrapped("Close the menu during the delay. Let several seconds of history record before reproducing the camera turn or lighting change. History from before recording is not saved.");
+            if (capture.active)
+            {
+                if (ImGui::Button("Stop recording##GameTrace"))
+                    FSRDGameTraceSession::RequestStop();
+            }
+            ImGui::Text("%s | recorded %u / %u | saved %u | published %u",
+                        capture.phase.c_str(), capture.recorded, capture.target, capture.captured,
+                        capture.manifestPublished);
+            if (capture.delayRemainingMs > 0)
+                ImGui::Text("Starts in %.1f seconds", float(capture.delayRemainingMs) / 1000.0f);
+            ImGui::TextWrapped("%s", capture.message.c_str());
+            if (capture.estimatedPayloadBytes)
+                ImGui::Text("Capture payload estimate: %.2f GiB | CPU queue: %llu MiB | retained readbacks: %llu MiB",
+                    double(capture.estimatedPayloadBytes)/double(1ull<<30),
+                    static_cast<unsigned long long>(capture.cpuQueuedBytes>>20),
+                    static_cast<unsigned long long>(capture.retainedReadbackBytes>>20));
+            if (!capture.folder.empty())
+            {
+                ImGui::TextWrapped("%s", capture.folder.c_str());
+                if (ImGui::Button("Open GAME_TRACE folder"))
+                {
+                    auto& platform = ImGui::GetPlatformIO();
+                    folderOpenFailed = !platform.Platform_OpenInShellFn ||
+                        !platform.Platform_OpenInShellFn(ImGui::GetCurrentContext(), capture.folder.c_str());
+                }
+                if (folderOpenFailed)
+                    ImGui::TextWrapped("Could not open the folder. Use the path shown above.");
+            }
+        }
+    }
     if (choice.fsrRR)
     {
         const auto signals = FSRDSignals::Status::Unpack(snapshot.signalStatus);
@@ -3630,136 +3778,6 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     }
                 }
                 ImGui::EndTable();
-            }
-        }
-        if (ImGui::CollapsingHeader("GAME_TRACE recording"))
-        {
-            ScopedIndent indent;
-            const auto capture = FSRDGameTraceSession::GetStatus();
-            const uint32_t width = currentFeature ? currentFeature->RenderWidth() : 0;
-            const uint32_t height = currentFeature ? currentFeature->RenderHeight() : 0;
-            static int regionChoice = 2, frameCountChoice = 2, srMode = 0;
-            static char outputRoot[1024] {};
-            static bool initialCenter = true, folderOpenFailed = false;
-            static bool fullContextReference = false;
-            ImGui::BeginDisabled(capture.active);
-            if (ImGui::Combo("Capture region##GameTrace", &regionChoice,
-                    "128 x 128\0" "512 x 512\0" "128 wide, full height\0"
-                    "512 wide, full height\0" "Full render frame\0"))
-            {
-                initialCenter = true;
-            }
-            ImGui::Combo("Frames to record##GameTrace", &frameCountChoice, "128\0" "256\0" "512\0");
-            ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
-            bool particleDiagnostics = config->FfxDenoiserParticleLayerDiagnostics.value_or_default();
-            if (ImGui::Checkbox("Particle layer diagnostic guides##GameTrace", &particleDiagnostics))
-                config->FfxDenoiserParticleLayerDiagnostics = particleDiagnostics;
-            if (particleDiagnostics)
-                ImGui::TextWrapped("Records original ColorBeforeParticles / ColorBeforeTransparency if bound. Capture only; no particle bypass. Adds up to two guide snapshots per recorded frame.");
-            ImGui::Checkbox("Full-context RESET_each reference (diagnostic only)##GameTrace", &fullContextReference);
-            if (fullContextReference)
-                ImGui::TextWrapped("Diagnostic, not a solution. Records two extra RR heads from a separate full-render context with RESET each frame. Adds GPU work and memory; the game keeps its normal RR history and composition. Te\xc5\x9fhis kayd\xc4\xb1; \xc3\xa7\xc3\xb6z\xc3\xbcm de\xc4\x9fil.");
-            ImGui::InputTextWithHint("Output root##GameTrace", "Blank: DLL folder / GAME_TRACE", outputRoot, sizeof(outputRoot));
-            using RegionMode = FSRDGameTraceSession::Request::RegionMode;
-            const RegionMode regionMode = regionChoice == 4 ? RegionMode::FullRender :
-                (regionChoice >= 2 ? RegionMode::FullHeightStrip : RegionMode::Square);
-            const uint32_t tile = regionChoice == 1 || regionChoice == 3 ? 512 : FSRDGameTraceSession::TileSize;
-            const uint32_t regionWidth = regionMode == RegionMode::FullRender ? width : tile;
-            const uint32_t regionHeight = regionMode == RegionMode::Square ? tile : height;
-            const uint32_t targetFrames = 128u << std::clamp(frameCountChoice, 0, 2);
-            const bool fits = regionWidth && regionHeight && width >= regionWidth && height >= regionHeight;
-            const int maxX = fits ? int(std::min(width - regionWidth, uint32_t(INT_MAX))) : 0;
-            const int maxY = fits ? int(std::min(height - regionHeight, uint32_t(INT_MAX))) : 0;
-            static int traceX = 0, traceY = 0, delaySeconds = 3;
-            if (initialCenter && fits)
-            {
-                traceX = maxX / 2;
-                traceY = maxY / 2;
-                initialCenter = false;
-            }
-            ImGui::Text("%u frames | %u x %u region | Render: %u x %u",
-                        targetFrames, regionWidth, regionHeight, width, height);
-            ImGui::TextWrapped(
-                "Records the selected region across consecutive frames for offline RR analysis. "
-                "Coordinates use render-resolution pixels, starting at the top left. "
-                "SR output is captured before RCAS, output scaling and overlays.");
-            ImGui::BeginDisabled(regionMode == RegionMode::FullRender);
-            ImGui::InputInt("Region X##GameTrace", &traceX);
-            ImGui::EndDisabled();
-            ImGui::BeginDisabled(regionMode != RegionMode::Square);
-            ImGui::InputInt("Region Y##GameTrace", &traceY);
-            ImGui::EndDisabled();
-            traceX = std::clamp(traceX, 0, maxX);
-            traceY = std::clamp(traceY, 0, maxY);
-            if (ImGui::Button("Center region##GameTrace"))
-            {
-                traceX = maxX / 2;
-                traceY = maxY / 2;
-            }
-            ImGui::SliderInt("Start delay (seconds)##GameTrace", &delaySeconds, 0, 10);
-            const bool normalRendering = config->FfxDenoiserDebugMode.value_or_default() == 0;
-            ImGui::BeginDisabled(!fits || !active || !normalRendering);
-            if (ImGui::Button("Start GAME_TRACE recording"))
-            {
-                folderOpenFailed = false;
-                FSRDGameTraceSession::Request request;
-                request.x = uint32_t(traceX); request.y = uint32_t(traceY); request.size = tile;
-                request.regionMode = regionMode; request.frameCount = targetFrames;
-                request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
-                request.fullContextReference = fullContextReference;
-                request.particleLayerDiagnostics = particleDiagnostics;
-                request.srMode = srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
-                    (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
-                FSRDGameTraceSession::RequestStart(request);
-            }
-            ImGui::EndDisabled();
-            ImGui::EndDisabled();
-            if (!normalRendering)
-                ImGui::TextWrapped("Set Debug View to normal rendering before recording.");
-            if (!fits)
-                ImGui::TextWrapped("The selected region must fit inside the render area.");
-            if (fits)
-            {
-                const uint64_t typicalBytesPerPixel = 121u + (fullContextReference ? 16u : 0u) + (particleDiagnostics ? 16u : 0u);
-                uint64_t estimate = uint64_t(regionWidth)*regionHeight*typicalBytesPerPixel*targetFrames;
-                if (srMode != 0 && currentFeature)
-                {
-                    const uint64_t sw = currentFeature->TargetWidth(), sh = currentFeature->TargetHeight();
-                    const uint64_t outW = srMode == 2 ? sw : ((uint64_t(traceX)+regionWidth)*sw+width-1)/width-uint64_t(traceX)*sw/width;
-                    const uint64_t outH = srMode == 2 ? sh : ((uint64_t(traceY)+regionHeight)*sh+height-1)/height-uint64_t(traceY)*sh/height;
-                    estimate += outW*outH*8*targetFrames;
-                }
-                ImGui::Text("Typical FP16 capture estimate: %.2f GiB", double(estimate)/double(1ull<<30));
-            }
-            ImGui::TextWrapped("Use an absolute output root to choose another drive. Large captures need fast storage; a full queue stops recording without waiting for disk or GPU. A full-height strip follows vertical motion; a full render frame also records horizontal context.");
-            ImGui::TextWrapped("Close the menu during the delay. Let several seconds of history record before reproducing the camera turn or lighting change. History from before recording is not saved.");
-            if (capture.active)
-            {
-                if (ImGui::Button("Stop recording##GameTrace"))
-                    FSRDGameTraceSession::RequestStop();
-            }
-            ImGui::Text("%s | recorded %u / %u | saved %u | published %u",
-                        capture.phase.c_str(), capture.recorded, capture.target, capture.captured,
-                        capture.manifestPublished);
-            if (capture.delayRemainingMs > 0)
-                ImGui::Text("Starts in %.1f seconds", float(capture.delayRemainingMs) / 1000.0f);
-            ImGui::TextWrapped("%s", capture.message.c_str());
-            if (capture.estimatedPayloadBytes)
-                ImGui::Text("Capture payload estimate: %.2f GiB | CPU queue: %llu MiB | retained readbacks: %llu MiB",
-                    double(capture.estimatedPayloadBytes)/double(1ull<<30),
-                    static_cast<unsigned long long>(capture.cpuQueuedBytes>>20),
-                    static_cast<unsigned long long>(capture.retainedReadbackBytes>>20));
-            if (!capture.folder.empty())
-            {
-                ImGui::TextWrapped("%s", capture.folder.c_str());
-                if (ImGui::Button("Open GAME_TRACE folder"))
-                {
-                    auto& platform = ImGui::GetPlatformIO();
-                    folderOpenFailed = !platform.Platform_OpenInShellFn ||
-                        !platform.Platform_OpenInShellFn(ImGui::GetCurrentContext(), capture.folder.c_str());
-                }
-                if (folderOpenFailed)
-                    ImGui::TextWrapped("Could not open the folder. Use the path shown above.");
             }
         }
         if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())

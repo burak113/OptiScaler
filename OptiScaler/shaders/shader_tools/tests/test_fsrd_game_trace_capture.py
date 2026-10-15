@@ -790,7 +790,8 @@ def run():
         '__RR_HEADER__', (ROOT / 'OptiScaler/include/fsr-rr/ffx_denoiser.h').as_posix()))
     exe = output / 'fsrd_game_trace_capture.exe'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'bcrypt.lib'),
-                (stubs, ROOT / 'external/nlohmann', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                (stubs, ROOT / 'OptiScaler', ROOT / 'external/streamline', ROOT / 'external/nlohmann',
+                 ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe), str(output)], check=True)
     captures = json.loads((output / 'captures.json').read_text())
     capture = Path(captures['complete'])

@@ -7,6 +7,15 @@
 #include <string>
 #include <string_view>
 
+namespace sl { struct Constants; }
+namespace NrdBridge
+{
+struct ConvertedResources;
+struct FrameParameters;
+struct RRSettingsState;
+struct RRRecordedOutputSnapshot;
+}
+
 // Capture only. Never feeds recorded data back into the denoiser/model.
 class FSRDGameTraceSession
 {
@@ -26,6 +35,9 @@ public:
         bool fullContextReference = false;
         bool particleLayerDiagnostics = false; // Optional original title guides; capture only.
         std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
+        enum class CapturePath { Legacy, NrdBridge };
+        CapturePath capturePath = CapturePath::Legacy;
+        uint64_t bridgeDomain = 0; // Zero binds the first eligible domain; never merges chains.
     };
     struct Status
     {
@@ -47,6 +59,7 @@ public:
     static bool WantsSrOutput() noexcept;
     static bool WantsFullContextReference() noexcept;
     static bool WantsParticleLayerDiagnostics() noexcept;
+    static bool IsNrdBridgeCaptureActive() noexcept; // Atomic OFF gate, before metadata/native work.
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };
     struct Source
@@ -85,6 +98,45 @@ public:
         bool reset = false;
         std::string controlsJson = "{}";
     };
+    struct BridgeIdentity
+    {
+        uint64_t domain = 0, recordingId = 0, recordingGeneration = 0;
+        uint64_t cancellationSerial = 0, cacheGeneration = 0;
+        uint32_t streamlineFrame = UINT32_MAX;
+        bool operator==(const BridgeIdentity&) const noexcept = default;
+    };
+    struct BridgeSkippedDispatch
+    {
+        uint64_t sequence = 0;
+        uint32_t role = 0; // Actual coordinator Role enum value, no inferred shader role.
+        std::array<uint8_t,32> shaderSha256 {};
+        std::array<uint32_t,3> groups {};
+        bool shaderKnown = false, dimensionsKnown = false, indirect = false;
+    };
+    struct BridgeProviderBinaryIdentity
+    {
+        // Actual per-context FfxApiProxy route witness, resolved only while USER-armed.
+        std::string routeAttestationJson;
+    };
+    using BridgeFrameToken = std::shared_ptr<void>;
+    // Caller owns the input/output leases, same-recording admission and injection
+    // serialization. Call ONLY after motion is finalized and RecordOwned succeeds.
+    // No reset/history mutation. The whole-frame budget is checked before copies.
+    BridgeFrameToken RecordBridgeOwned(ID3D12Device*, ID3D12GraphicsCommandList*,
+        const BridgeIdentity&, const NrdBridge::ConvertedResources&, const std::shared_ptr<void>& inputOwner,
+        const NrdBridge::FrameParameters&, const sl::Constants&, uint32_t slFrame, uint32_t slViewport,
+        const NrdBridge::RRSettingsState&,
+        const NrdBridge::RRRecordedOutputSnapshot&, const BridgeProviderBinaryIdentity&,
+        bool submissionHooksAvailable = true) noexcept;
+    void RecordBridgeSkipped(const BridgeFrameToken&, ID3D12GraphicsCommandList*, const BridgeIdentity&,
+                             const BridgeSkippedDispatch&) noexcept;
+    // Synchronous borrowed sources only: caller holds live physical Borrow and
+    // proves the current native targets. Never AddRef/queue a title source pointer.
+    // The updated owned snapshot supplies the GPU-captured live encoding flag.
+    bool CompleteBridgeFrame(const BridgeFrameToken&, ID3D12GraphicsCommandList*, const BridgeIdentity&,
+        const std::array<Source,2>& encodedTargets, const NrdBridge::RRRecordedOutputSnapshot&) noexcept;
+    void CancelBridgeFrame(const BridgeFrameToken&, std::string_view reason) noexcept;
+
     FSRDGameTraceSession();
     ~FSRDGameTraceSession();
     FSRDGameTraceSession(const FSRDGameTraceSession&) = delete;
