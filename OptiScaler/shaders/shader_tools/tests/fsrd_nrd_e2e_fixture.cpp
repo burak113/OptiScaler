@@ -933,103 +933,115 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
 }
 #include "__ROOT__/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_native_motion_e2e_case.h"
 #include "__ROOT__/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_native_material_e2e_case.h"
-namespace NativeBlendCapture {
-Title* title=nullptr;std::array<Readback,2> native;float pending=0.f;unsigned gapApplies=0;
-void Capture() {native={title->readback(7),title->readback(8)};}
+namespace RROnlyCapture {
+Title* title=nullptr;std::array<Readback,2> native;std::array<std::vector<uint16_t>,2> words;float pending=0.f;unsigned gapApplies=0,variant=0;
+void Capture() {
+ // Explicit original-title copies poison only the unused native output RGB
+ // and opaque alpha. No noisy lighting, guide or provider input is modified.
+ auto& h=title->h;
+ for(UINT lobe=0;lobe<2;++lobe) {
+  auto& values=words[lobe];values.resize(size_t(title->width)*title->height*4);
+  for(size_t pixel=0;pixel<values.size()/4;++pixel) {
+   for(UINT c=0;c<3;++c)values[pixel*4+c]=variant==1?uint16_t(0x7e00u|((pixel+c)&255u)):
+    PackedVector::XMConvertFloatToHalf((variant==0?16.f:-8.f)+float((pixel+c)%7)*.125f);
+   values[pixel*4+3]=pixel%3==2?uint16_t(0x8000u):PackedVector::XMConvertFloatToHalf(pixel%3==1?-3.5f:float(lobe?11:9));
+  }
+  auto* target=title->tex[lobe?8:7].Get();const auto desc=target->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 size=0;
+  h.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&size);auto up=h.buffer(size,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);
+  void* mapped=nullptr;hr(up->Map(0,nullptr,&mapped));std::memset(mapped,0,size_t(size));
+  for(UINT y=0;y<title->height;++y)std::memcpy(static_cast<uint8_t*>(mapped)+size_t(y)*fp.Footprint.RowPitch,values.data()+size_t(y)*title->width*4,size_t(title->width)*8);
+  up->Unmap(0,nullptr);D3D12_TEXTURE_COPY_LOCATION source{},destination{};source.pResource=up.Get();source.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;source.PlacedFootprint=fp;
+  destination.pResource=target;destination.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+  h.barrier(target,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);h.list->CopyTextureRegion(&destination,0,0,0,&source,nullptr);
+  h.barrier(target,D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.uploads.push_back(up);
+ }
+ native={title->readback(7),title->readback(8)};
+}
 void ApplyGap() {
  auto settings=NrdBridge::GetRRSettingsState().requested;settings.nativeSpecularBlend=pending;std::string error;
- need(NrdBridge::ApplyRRSettings(settings,false,error),"latest hybrid snapshot applies in staged-to-injection gap");++gapApplies;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&NrdBridge::GetRRSettingsState().requested.nativeSpecularBlend==0.f,"deprecated native-weight request in admission gap stays effective zero");++gapApplies;
 }
 }
-J nativeBlendPixels(const Title& title,const std::array<std::vector<uint16_t>,2>& output,
-                   const std::array<std::vector<uint16_t>,2>& stage,const std::array<std::vector<uint16_t>,2>& native,float requested) {
- const float strength=NrdBridge::NormalizeNativeSpecularBlend(requested);UINT64 finite=0,stageFinite=0,alpha=0,expected=0,nearest=0,endpoints=0;
+J rrOnlyPixels(const Title& title,const std::array<std::vector<uint16_t>,2>& output,
+               const std::array<std::vector<uint16_t>,2>& stage,const std::array<std::vector<uint16_t>,2>& native) {
+ UINT64 finite=0,stageFinite=0,alpha=0,expected=0,nativeNonfinite=0,differentNative=0;
  for(UINT lobe=0;lobe<2;++lobe)for(size_t p=0;p<size_t(title.width)*title.height;++p) {
-  const auto at=p*4;std::array<float,3> rgb;for(UINT c=0;c<3;++c) {rgb[c]=PackedVector::XMConvertHalfToFloat(stage[lobe][at+c]);stageFinite+=std::isfinite(rgb[c]);}
+  const auto at=p*4;std::array<float,3> rgb;for(UINT c=0;c<3;++c){rgb[c]=PackedVector::XMConvertHalfToFloat(stage[lobe][at+c]);stageFinite+=std::isfinite(rgb[c]);nativeNonfinite+=!std::isfinite(PackedVector::XMConvertHalfToFloat(native[lobe][at+c]));}
   alpha+=output[lobe][at+3]==native[lobe][at+3];
-  if(lobe==0 && strength==1.f) {for(UINT c=0;c<3;++c) {endpoints+=output[0][at+c]==native[0][at+c];finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(output[0][at+c]));}continue;}
-  if(lobe==0 && strength>0.f) {
-   const auto reference=title.decode(native[0].data()+at);
-   for(UINT c=0;c<3;++c)rgb[c]=std::clamp(rgb[c]*(1.f-strength)+reference[c]*strength,-65504.f,65504.f);
-  }
   if(title.codecBits)rgb={(rgb[0]+2.f*rgb[1]+rgb[2])*.25f,(rgb[0]-rgb[2])*.5f,(-rgb[0]+2.f*rgb[1]-rgb[2])*.25f};
-  for(UINT c=0;c<3;++c) {
-   const auto word=PackedVector::XMConvertFloatToHalf(rgb[c]);const auto value=PackedVector::XMConvertHalfToFloat(output[lobe][at+c]);
-   finite+=std::isfinite(value);nearest+=output[lobe][at+c]==word;
-   const float bound=std::abs(rgb[c])*std::ldexp(1.f,-10)+std::ldexp(1.f,-24);
-   expected+=title.codecBits || lobe==1 || strength==0.f ? output[lobe][at+c]==word : std::abs(value-rgb[c])<=bound;
-  }
+  for(UINT c=0;c<3;++c){const auto word=PackedVector::XMConvertFloatToHalf(rgb[c]);finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(output[lobe][at+c]));expected+=output[lobe][at+c]==word;differentNative+=output[lobe][at+c]!=native[lobe][at+c];}
  }
  const auto pixels=UINT64(title.width)*title.height,components=pixels*6;
- need(stageFinite==components,"actual signed RR stage RGB finite in every component before optional hybrid");
- need(finite==components && alpha==pixels*2,"both encoded lobes remain finite and every native opaque alpha bit is retained");
- if(strength==1.f)need(endpoints==pixels*3 && output[0]==native[0],"native endpoint specular preserves the entire pre-commit original OUT exactly");
- need(expected==(strength==1.f?pixels*3:components),"weighted outputs and unchanged diffuse match independent RR/native linear-RGB computation");
- if(title.codecBits)need(nearest==(strength==1.f?pixels*3:components),"YCoCg hybrid uses exact nearest-even half identity for every stored RGB value");
- return { {"rgb_values",components},{"finite_rgb",finite},{"native_alpha_values",alpha},{"native_endpoint_exact",strength==1.f},
-          {"nearest_half_values",nearest},{"reference_matches",expected},{"strength",strength} };
+ need(stageFinite==components,"actual signed RR stage RGB is finite before the pure commit");
+ need(finite==components&&alpha==pixels*2,"native RGB poison cannot contaminate either lobe and every opaque alpha bit survives, including signed zero");
+ need(expected==components,"every title RGB word exclusively matches actual staged RR and exact word303 encoding/nearest-even YCoCg");
+ need(differentNative==components,"final RGB never preserves the deliberately distinct finite or NaN native endpoint");
+ return {{"rgb_values",components},{"finite_rgb",finite},{"native_alpha_values",alpha},{"rr_reference_matches",expected},{"native_nonfinite_rgb_values",nativeNonfinite},{"different_from_native_rgb",differentNative}};
 }
-void nativeBlendCase(Host& h,Title& title,J& result,const std::filesystem::path& output) {
- const auto input=output.parent_path()/"native_blend_input";const auto bytes=qualityBytes(input/"sequence.json");const auto manifest=J::parse(bytes);
+void rrOnlyPolicyCase(Host& h,Title& title,J& result,const std::filesystem::path& output) {
+ const auto input=output.parent_path()/"rr_only_policy_input";const auto bytes=qualityBytes(input/"sequence.json");const auto manifest=J::parse(bytes);
  need(manifest["schema"]=="fsrd-native-rr-synthetic-quality-v1"&&manifest["width"]==title.width&&manifest["height"]==title.height&&manifest["submitted_frames"]==44,
-      "moving hybrid fixture uses the unchanged sealed44-frame geometry/radiance/camera oracle");
- NativeBlendCapture::title=&title;NativeBlendCapture::gapApplies=0;std::shared_ptr<NrdBridge::HistoryDomain> history;ffxContext context=nullptr;
- const auto creates=FfxApiProxy::creates,dispatches=FfxApiProxy::dispatches,configures=FfxApiProxy::configures;UINT resets=0,lateChanges=0,closedChanges=0;J rows=J::array();
+      "RR-only policy uses the unchanged sealed44-frame geometry/radiance/camera oracle");
+ RROnlyCapture::title=&title;RROnlyCapture::gapApplies=0;std::shared_ptr<NrdBridge::HistoryDomain> history;ffxContext context=nullptr;
+ const auto creates=FfxApiProxy::creates,dispatches=FfxApiProxy::dispatches,configures=FfxApiProxy::configures;UINT resets=0,lateChanges=0,closedChanges=0,poisonFrames=0;J rows=J::array();
  const std::array<std::pair<const char*,UINT>,5> slots{{{"spec",0},{"diff",1},{"nr",2},{"depth",3},{"motion",6}}};
- const std::array<float,8> strengths{0.f,.25f,.5f,.75f,1.f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),.5f};
+ const std::array<float,5> requests{0.f,.375f,1.f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()};
+ const std::array<const char*,5> requestNames{"zero","fraction","one","nan","infinity"};
+ for(const float value:requests)need(NrdBridge::NormalizeNativeSpecularBlend(value)==0.f,"all deprecated direct native weights normalize unconditionally to zero");
+ need(!NrdBridge::GetRRSettingsState().requested.lobeRecovery,"stage identity proof explicitly has no optional private recovery applied");
  UINT64 cancellation=0,generation=0,staging=0,auxiliary=0;unsigned initializedConfigureCalls=0;
  for(UINT mode=0;mode<2;++mode)for(UINT index=0;index<44;++index) {
   const auto& frame=manifest["frames"][index];const UINT id=frame["frame"].get<UINT>()+mode*44;
   for(const auto [name,slot]:slots) {const UINT bpp=slot==2||slot==3?4:8;const auto data=qualityPayload(input,frame["payloads"][name],size_t(title.width)*title.height*bpp);qualityUpload(title,slot,data,bpp);}
   if(mode==0 && index==0) {
    title.begin(1);StreamlineHooks::snapshot=qualityCamera(frame,title.width,title.height,1);StreamlineHooks::snapshot.constants.reset=sl::Boolean::eFalse;
-   title.pass(Role::PrepLast);title.pass(Role::Recon,8,true);h.uav(title.tex[4].Get());h.uav(title.tex[5].Get());title.tail();need(title.sentinel(title.finish()),"hybrid cold discovery executes untouched original native output before any provider work");
+   title.pass(Role::PrepLast);title.pass(Role::Recon,8,true);h.uav(title.tex[4].Get());h.uav(title.tex[5].Get());title.tail();need(title.sentinel(title.finish()),"cold discovery executes untouched original output before any signed RR work");
   }
   title.setCodec(mode?0u:1u); // Deliberately opposite final flag during CPU recording.
-  auto settings=NrdBridge::GetRRSettingsState().requested;settings.nativeSpecularBlend=strengths[index%strengths.size()];std::string error;
+  auto settings=NrdBridge::GetRRSettingsState().requested;settings.nativeSpecularBlend=requests[index%requests.size()];std::string error;
   const auto resetSerial=NrdBridge::gService->resetSerial,cancelSerial=NrdBridge::gService->cancellationSerial;
   const auto beforeDispatch=FfxApiProxy::dispatches;
-  need(NrdBridge::ApplyRRSettings(settings,false,error),"per-frame hybrid coefficient publishes coherent validated metadata");
-  need(NrdBridge::gService->resetSerial==resetSerial&&NrdBridge::gService->cancellationSerial==cancelSerial,"weight-only change cancels no Recon ticket and resets no RR/conversion history");
+  need(NrdBridge::ApplyRRSettings(settings,false,error)&&NrdBridge::GetRRSettingsState().requested.nativeSpecularBlend==0.f,"every live deprecated request is accepted only with effective native weight zero");
+  need(NrdBridge::gService->resetSerial==resetSerial&&NrdBridge::gService->cancellationSerial==cancelSerial,"ignored legacy weights cancel no Recon ticket and reset no RR/conversion history");
   title.begin(id);StreamlineHooks::snapshot=qualityCamera(frame,title.width,title.height,id);title.pass(Role::PrepLast);title.pass(Role::Recon,8,true);h.uav(title.tex[4].Get());h.uav(title.tex[5].Get());
-  float recorded=settings.nativeSpecularBlend;
-  if(index==17) {NativeBlendCapture::pending=.375f;NrdBridge::gBeforeOutputLockForTesting=NativeBlendCapture::ApplyGap;recorded=.375f;++lateChanges;}
-  title.beforeConsumer=NativeBlendCapture::Capture;title.tail();title.beforeConsumer=nullptr;NrdBridge::gBeforeOutputLockForTesting=nullptr;
+  if(index==17) {RROnlyCapture::pending=.375f;NrdBridge::gBeforeOutputLockForTesting=RROnlyCapture::ApplyGap;++lateChanges;}
+  RROnlyCapture::variant=index%3;poisonFrames+=RROnlyCapture::variant==1;title.beforeConsumer=RROnlyCapture::Capture;title.tail();title.beforeConsumer=nullptr;NrdBridge::gBeforeOutputLockForTesting=nullptr;
   const auto& token=NrdBridge::gService->lists.at(h.list.Get());const auto record=FfxApiProxy::records.back();
   need(NrdBridge::GetStatus().active&&token.parameters.streamlineFrame==id&&record.list==h.list.Get()&&FfxApiProxy::dispatches==beforeDispatch+1,
-       "current same-list Consumer admits exactly one signed RR record and its selected hybrid");
+       "current Consumer admits exactly one signed RR record and pure RR output");
+  need(token.parameters.nativeSpecularBlend==0.f,"admitted Consumer parameters carry no deprecated native RGB contribution");
   if(mode==0 && index==0) {
    history=NrdBridge::gService->history;context=record.context;cancellation=NrdBridge::gService->cancellationSerial;generation=history->rr.ContextGeneration();
    staging=history->rr.OwnedStagingBytes();auxiliary=history->rr.OwnedAuxiliaryBytes();initializedConfigureCalls=FfxApiProxy::configures;need(initializedConfigureCalls==configures+7,"first physical context applies the same seven queried AMD defaults");
   }
-  need(history==NrdBridge::gService->history&&context==record.context&&history->rr.ContextGeneration()==generation,"moving geometry and weight/native mode changes retain one physical RR context/history");
+  need(history==NrdBridge::gService->history&&context==record.context&&history->rr.ContextGeneration()==generation,"moving geometry and ignored native weights retain one physical RR context/history");
   need(NrdBridge::gService->cancellationSerial==cancellation&&history->rr.OwnedStagingBytes()==staging&&history->rr.OwnedAuxiliaryBytes()==auxiliary,
-       "hybrid changes neither cancellation epoch nor existing owned GPU allocation");
-  need(FfxApiProxy::configures==initializedConfigureCalls,"hybrid issues no extra provider key/default configuration");
-  const bool reset=(record.flags&FFX_DENOISER_DISPATCH_RESET)!=0;resets+=reset;need(reset==(index==0),"only explicit oracle phase starts reset RR, never a hybrid coefficient change");
+       "ignored native weights change neither cancellation epoch nor owned GPU allocation");
+  need(FfxApiProxy::configures==initializedConfigureCalls,"ignored native weights issue no extra provider key/default configuration");
+  const bool reset=(record.flags&FFX_DENOISER_DISPATCH_RESET)!=0;resets+=reset;need(reset==(index==0),"only explicit oracle phase starts reset RR; native RGB poison never seeds its history");
   const std::array<Readback,2> staged{title.readback(static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource),D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
                                     title.readback(static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource),D3D12_RESOURCE_STATE_UNORDERED_ACCESS)};
   const std::array<Readback,2> converted{title.readback(static_cast<ID3D12Resource*>(record.spec),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),title.readback(static_cast<ID3D12Resource*>(record.diff),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)};
   const auto captured=title.capture();title.setCodec(mode?0x80000000u:0u); // Original Consumer and commit capture read this only on GPU.
   if(index==5) {
    hr(h.list->Close());auto changed=settings;changed.nativeSpecularBlend=1.f;
-   need(NrdBridge::ApplyRRSettings(changed,false,error)&&NrdBridge::GetRRSettingsState().requested.nativeSpecularBlend==1.f,"next-frame hybrid desired value changes after the old native list is closed");
-   need(h.executeClosed(),"closed list with baked old coefficient remains legally submitted");++closedChanges;
+   need(NrdBridge::ApplyRRSettings(changed,false,error)&&NrdBridge::GetRRSettingsState().requested.nativeSpecularBlend==0.f,"legacy request after Close remains zero for both old and future recordings");
+   need(h.executeClosed(),"unchanged closed pure-RR recording remains legally submitted");++closedChanges;
   }
   else h.submit();
-  const auto outputs=title.validate(captured);std::array<std::vector<uint16_t>,2> source{staged[0].signal(),staged[1].signal()},native{NativeBlendCapture::native[0].signal(),NativeBlendCapture::native[1].signal()};
-  for(UINT lobe=0;lobe<2;++lobe)need(converted[lobe].signal()==title.raw[lobe],"every finite noisy input RGB/hitA bit still enters actual RR, independent of hybrid coefficient");
-  const auto stats=nativeBlendPixels(title,outputs,source,native,recorded);
-  rows.push_back({{"source_frame",frame["frame"]},{"frame",id},{"encoding",mode?"YCoCg":"RGB"},{"recorded_strength",NrdBridge::NormalizeNativeSpecularBlend(recorded)},
-                  {"provider_reset",reset},{"latest_gap_value_used",index==17},{"closed_list_value_immutable",index==5},{"statistics",stats}});h.reset();
+  const auto outputs=title.validate(captured);std::array<std::vector<uint16_t>,2> source{staged[0].signal(),staged[1].signal()},native{RROnlyCapture::native[0].signal(),RROnlyCapture::native[1].signal()};
+  for(UINT lobe=0;lobe<2;++lobe){need(converted[lobe].signal()==title.raw[lobe],"every noisy RGB/hit-distance alpha bit still enters actual RR");need(native[lobe]==RROnlyCapture::words[lobe],"actual pre-commit GPU bytes contain the exact title finite/NaN RGB poison and opaque alpha");}
+  const auto stats=rrOnlyPixels(title,outputs,source,native);
+  rows.push_back({{"source_frame",frame["frame"]},{"frame",id},{"encoding",mode?"YCoCg":"RGB"},{"request",requestNames[index%requests.size()]},{"effective_strength",0.f},{"native_rgb_variant",RROnlyCapture::variant},
+                  {"provider_reset",reset},{"admission_gap_request",index==17},{"closed_list_request",index==5},{"statistics",stats}});h.reset();
  }
- need(FfxApiProxy::dispatches==dispatches+88&&FfxApiProxy::creates==creates+1&&resets==2&&lateChanges==2&&closedChanges==2&&NativeBlendCapture::gapApplies==2,
-      "two entire44-frame encodings retain one actual context with exactly88 RR dispatches, explicit resets, and both admission/Close proofs");
- result["native_blend"]={{"input_manifest_sha256",RRTraceAdditiveIO::Sha256({bytes.data(),bytes.size()})},{"binding",title.tableConstants?"native table":"root VA"},{"frames",rows},
-  {"submitted_frames",88},{"physical_provider_creates",1},{"provider_resets",resets},{"noisy_input_identity",true},{"diffuse_unchanged",true},{"latest_gap_applies",lateChanges},{"closed_list_changes",closedChanges},
+ need(FfxApiProxy::dispatches==dispatches+88&&FfxApiProxy::creates==creates+1&&resets==2&&lateChanges==2&&closedChanges==2&&RROnlyCapture::gapApplies==2&&poisonFrames==30,
+      "two entire44-frame encodings retain one actual context with88 signed records,30 NaN-poison controls and both admission/Close proofs");
+ result["rr_only_policy"]={{"input_manifest_sha256",RRTraceAdditiveIO::Sha256({bytes.data(),bytes.size()})},{"binding",title.tableConstants?"native table":"root VA"},{"frames",rows},
+  {"submitted_frames",88},{"physical_provider_creates",1},{"provider_resets",resets},{"noisy_input_identity",true},{"both_lobes_only_rr",true},{"admission_gap_requests",lateChanges},{"closed_list_requests",closedChanges},{"native_nan_rgb_frames",poisonFrames},
   {"extra_provider_configures",FfxApiProxy::configures-initializedConfigureCalls},{"same_history_context",true},{"extra_owned_bytes",0},
-  {"scope","production bridge + signed RR, sealed stepped camera sequence, synthetic original-title native OUT only; no game/native-NRD temporal truth or quality-win claim"}};
- NativeBlendCapture::native={};NativeBlendCapture::title=nullptr;
+  {"scope","production bridge + signed RR on sealed camera inputs; native OUT is adversarial synthetic data used only for opaque alpha; no native NRD quality truth or claim its dispatches are suppressed"}};
+ RROnlyCapture::native={};RROnlyCapture::words={};RROnlyCapture::title=nullptr;
 }
 void failureCase(Host& h,Title& title,J& result) {
  title.frame(1);need(title.sentinel(title.finish()),"fault scenario starts with a fully validated native discovery frame");
@@ -1152,9 +1164,9 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table" || std::string(argv[3])=="--native-material-guides" || std::string(argv[3])=="--native-material-guides-off")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--rr-only-policy" || std::string(argv[3])=="--rr-only-policy-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table" || std::string(argv[3])=="--native-material-guides" || std::string(argv[3])=="--native-material-guides-off")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
  const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
- const bool nativeBlend=argc==4 && (std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table"),nativeBlendTable=argc==4 && std::string(argv[3])=="--native-blend-table";
+ const bool rrOnlyPolicy=argc==4 && (std::string(argv[3])=="--rr-only-policy" || std::string(argv[3])=="--rr-only-policy-table"),rrOnlyPolicyTable=argc==4 && std::string(argv[3])=="--rr-only-policy-table";
  const bool nativeMotionQuality=argc==4&&(std::string(argv[3])=="--native-motion-quality"||std::string(argv[3])=="--native-motion-quality-baseline"||std::string(argv[3])=="--native-motion-quality-table");
  const bool nativeMotionTable=argc==4&&std::string(argv[3])=="--native-motion-quality-table";
  const bool nativeMaterial=argc==4&&(std::string(argv[3])=="--native-material-guides"||std::string(argv[3])=="--native-material-guides-off");
@@ -1183,7 +1195,7 @@ int main(int argc,char** argv) try {
  loadProvider(argv[2]);
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
- Title title(h,128,128,true,cbvLifetime||nativeBlendTable||nativeMotionTable,nativeMotionQuality);
+ Title title(h,128,128,true,cbvLifetime||rrOnlyPolicyTable||nativeMotionTable,nativeMotionQuality);
  if(nativeMaterial) {
   nativeMaterialGuideCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])=="--native-material-guides");
   NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"native material shutdown retires every actual signed context after GPU leases");
@@ -1196,11 +1208,11 @@ int main(int argc,char** argv) try {
   Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
   std::ofstream(std::filesystem::path(argv[1])/"native-motion-quality-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_motion_quality checks="<<checks<<'\n';return 0;
  }
- if(nativeBlend) {
-  nativeBlendCase(h,title,result,std::filesystem::path(argv[1]));NrdBridge::Shutdown();RecordedComputeLease::Poll();
-  need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"hybrid shutdown retires every actual signed context after all GPU fences");
+ if(rrOnlyPolicy) {
+  rrOnlyPolicyCase(h,title,result,std::filesystem::path(argv[1]));NrdBridge::Shutdown();RecordedComputeLease::Poll();
+  need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"pure-RR shutdown retires every actual signed context after all GPU fences");
   Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
-  std::ofstream(std::filesystem::path(argv[1])/"native-blend-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_blend checks="<<checks<<'\n';return 0;
+  std::ofstream(std::filesystem::path(argv[1])/"rr-only-policy-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS rr_only_policy checks="<<checks<<'\n';return 0;
  }
  if(qualityReplay) {
   std::vector<ComPtr<ID3D12Resource>> keepGuides;qualityReplayCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])=="--quality-on",keepGuides);
