@@ -110,7 +110,9 @@ class CpuTests(unittest.TestCase):
         self.assertIn('if (materialParams && !owner->materialParamsInitialized)', source)
         self.assertIn('if (materialGuides && !materialParams && !owner->materialInitialized)', source)
         self.assertIn('FSRDNrdBridgeMaterialParams_cso),6,9)', source)
-        self.assertEqual(source.count('list->ResourceBarrier(1,&materialBarrier);'), 2)
+        # The legacy Dispatch path and the deferred geometry path each balance
+        # exactly one COMMON->SRV and one SRV->COMMON material barrier pair.
+        self.assertEqual(source.count('list->ResourceBarrier(1,&materialBarrier);'), 4)
 
     def test_distinct_shader_abis_and_no_signal_change(self):
         shader = (PRE/'FSRDNrdNativeMaterialParamsCapture.hlsl').read_text()
