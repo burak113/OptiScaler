@@ -150,7 +150,9 @@ int main(int argc,char** argv)try
  need(NrdBridge::ApplyRRSettings(settings,false,error),"apply explicit material-Params ON/OFF setting");ParamsHost::Writer writer(title);
  // The bounded witness learns a source pair only at its first actual writer.
  // Earlier unknown-address barriers cannot retroactively prove its state.
+ need(NrdBridge::gService->window,"actual runtime-enabled Initialize opens the initial bounded discovery window before the cold writer");
  writer.native.start();writer.states({ParamsHost::NPS,ParamsHost::NPS});writer.dispatch(false);
+ need(!enabled||!NrdBridge::gService->materialIdentities.Empty(),"actual cold writer discovers its live source pair inside the open window without fabricated cache insertion");
  need(!NrdBridge::gService->lists.at(h.list.Get()).pendingMaterial.snapshot,"first-ever material pair discovery is quiet and reads no unproved source state");
  const auto firstWriter=writer.native.captureCheck();
  title.frame(1);need(title.sentinel(title.finish()),"one real original title frame discovers the complete NRD chain before material comparisons");writer.native.validateCheck(firstWriter.Get());
