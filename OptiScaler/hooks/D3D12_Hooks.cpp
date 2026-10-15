@@ -893,7 +893,7 @@ VALIDATE_HOOK(hkSetGraphicsRootSignature, PFN_SetGraphicsRootSignature)
 static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::RootSignature,gNrdBridgeDeviceWrappers && !FrameSurvey::Internal());
-    if (!lateInProgressSetGraphicsRootSignature && Config::Instance()->RestoreGraphicSignature.value_or_default() &&
+    if (!lateInProgressSetGraphicsRootSignature && (gNrdBridgeDeviceWrappers || Config::Instance()->RestoreGraphicSignature.value_or_default()) &&
         !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
         const auto rootBirth = RootTrackerBirthsEnabled() ? TrackerRootReceiver(pRootSignature) : NrdBridgeBirth::Token{};
@@ -1062,7 +1062,7 @@ static void hkSetGraphicsRootUnorderedAccessView(ID3D12GraphicsCommandList* comm
                                                  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::RootView,gNrdBridgeDeviceWrappers && !FrameSurvey::Internal());
-    if (lateInProgressSetGraphicsRootUnorderedAccessView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
+    if (!lateInProgressSetGraphicsRootUnorderedAccessView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         RootTrackerPublication publication(commandList);
         if (publication.Accepted())
@@ -1361,7 +1361,7 @@ static void hkSetGraphicsRootSignatureLate(ID3D12GraphicsCommandList* commandLis
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::RootSignature,gNrdBridgeDeviceWrappers && !FrameSurvey::Internal());
     lateInProgressSetGraphicsRootSignature = true;
 
-    if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
+    if ((gNrdBridgeDeviceWrappers || Config::Instance()->RestoreGraphicSignature.value_or_default()) && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         pRootSignature != nullptr)
     {
         const auto rootBirth = RootTrackerBirthsEnabled() ? TrackerRootReceiver(pRootSignature) : NrdBridgeBirth::Token{};
