@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <cstdint>
+#include <initializer_list>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -128,6 +129,9 @@ class NativeMaterialCapture
         catch (const std::exception& exception) { error = exception.what(); return false; }
         catch (...) { error = "Native material capture initialization allocation failed"; return false; }
     }
+    // Caller holds the physical lifetime borrow/restoration scope and proves
+    // both title views are currently compute-readable in this exact recording.
+    // The helper neither infers nor transitions a borrowed source state.
     bool Capture(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
                  ID3D12Resource* materialParams, SnapshotLease& out, std::string& error) noexcept
     {
