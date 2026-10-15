@@ -8,6 +8,8 @@
 #include "FSRDNrdNativeMaterialCapture_Dx12.h"
 #include "FSRDNrdNativeMaterialStateWitness.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "FSRDNrdRawSignals_Dx12.h"
+#include "FSRDGameTraceSession.h"
 #include "Config.h"
 #include "Logger.h"
 #include "Util.h"
@@ -57,6 +59,7 @@ struct HistoryDomain
 {
     ConversionPass conversion;
     NativeTemporalCapture nativeTemporalCapture;
+    RawSignalSnapshotPass rawSignals;
     RRWrapper rr;
     RRRecordedOutputLease latestOwned; // Only accessed under injection serialization.
     uint64_t resourceGeneration = 0, id = 0, resetRevision = 0;
@@ -103,6 +106,35 @@ struct MaterialSnapshot
     NrdBridgeBirth::Token normalBirth;
     uint64_t serial = 0, normalGeneration = 0;
 };
+// Two independent required transactions may coexist in one native recording.
+// A later B commit can never satisfy or replace an incomplete A token.
+struct NativeTransaction
+{
+    uint32_t chain = 0;
+    uint64_t frame = 0, serial = 0, resetRevision = 0;
+    NrdBridgeBirth::Token birth;
+    std::shared_ptr<HistoryDomain> history;
+    std::shared_ptr<RecordingToken> recording;
+    std::shared_ptr<RecordingOwnership> ownership;
+    RawSignalLease raw;
+    NativeTemporalCapture::SnapshotLease temporalConstants;
+    NativeMaterialCapture::SnapshotLease material;
+    ConvertedResources inputs {};
+    FrameParameters parameters {};
+    SLConstantsSnapshot streamline {};
+    RRSettings settings {};
+    bool cameraProjectedDepthDelta = false;
+    RRRecordedOutputLease owned;
+    std::array<FrameSurvey::BoundResource,4> sources {};
+    FrameSurvey::BoundResource motion {};
+    std::array<FrameSurvey::BoundResource,2> targets {};
+    NativeMaterialStateWitness targetStates;
+    FSRDGameTraceSession::BridgeFrameToken trace;
+    FSRDGameTraceSession::BridgeIdentity traceIdentity {};
+    std::array<FSRDGameTraceSession::BridgeSkippedDispatch,64> skipped {};
+    uint32_t skipCount = 0;
+    std::atomic<bool> geometryReady {false}, motionReady {false}, committed {false}, invalidated {false};
+};
 struct ListState
 {
     Role role = Role::None;
@@ -110,8 +142,8 @@ struct ListState
     bool currentDispatchSuppressed = false, earlyTemporalObserved = false, chainB = false, firstPrePass = false;
     NrdBridgeBirth::Token birth, pipelineBirth;
     ChainDiscovery chain;
-    std::array<ID3D12Resource*,11> indexedReferences {};
-    std::array<NrdBridgeBirth::Token,11> indexedBirths {};
+    std::array<ID3D12Resource*,25> indexedReferences {};
+    std::array<NrdBridgeBirth::Token,25> indexedBirths {};
     bool followingRecon = false, converted = false, motionReady = false, temporal = false, atrous = false, nrdList = false;
     std::shared_ptr<RecordingToken> recording;
     std::shared_ptr<HistoryDomain> history;
@@ -120,6 +152,12 @@ struct ListState
     uint64_t ownedContext = 0, ownedRecording = 0;
     SLConstantsSnapshot streamline {};
     FrameSurvey::BoundResource nativeFirstDepth {};
+    std::array<std::shared_ptr<NativeTransaction>,2> native;
+    uint32_t nativeChain = 0;
+    bool nativeReconPrepared = false, graphicsConsumerCandidate = false;
+    ID3D12PipelineState* graphicsConsumer = nullptr;
+    NrdBridgeBirth::Token graphicsConsumerBirth;
+    bool harmlessPipeline = false;
     uint64_t frame = 0, generation = 0, resetSerial = 0;
     FrameParameters parameters {};
     ConvertedResources inputs {};
@@ -134,6 +172,8 @@ struct Service
 {
     Microsoft::WRL::ComPtr<ID3D12Device> device;
     std::unordered_map<ID3D12PipelineState*,PipelineIdentity> roles;
+    std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> graphicsConsumers;
+    std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> harmlessPipelines;
     std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists;
     std::unordered_map<ResourceIdentity,std::unordered_set<ID3D12GraphicsCommandList*>,ResourceIdentityHash> chainUsers;
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
@@ -143,6 +183,8 @@ struct Service
     std::shared_ptr<RRRecoveryFamily> recoveryFamily; // Stable across all temporal-domain replacements.
     std::array<NrdBridgeBirth::Token,9> cacheBirths {};
     std::shared_ptr<HistoryDomain> history;
+    std::array<std::shared_ptr<HistoryDomain>,2> nativeHistories;
+    std::unique_ptr<FSRDGameTraceSession> trace; // Lazy, USER-armed; no default/OFF workers or allocation.
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
     uint64_t nextDomain = 0, requestedResetRevision = 1;
     Status status;
@@ -170,6 +212,22 @@ std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
 std::atomic<bool> gNativeDebug {false};
 std::atomic<bool> gNativeMaterials {false};
+std::atomic<bool> gNativeTransactions {false};
+thread_local ID3D12GraphicsCommandList* gDispatchCandidate = nullptr; // Set by the immediately preceding public BeforeDispatch.
+// Final shipping activation stays closed until the complete A/B source,
+// checkerboard and intervening opaque-work contracts have all been attested.
+constexpr bool kNativeElisionContractReady = false;
+#ifdef FSRD_NRD_BRIDGE_TEST
+std::atomic<bool> gNativeElisionForTesting {false};
+#endif
+bool NativeElisionReady() noexcept
+{
+#ifdef FSRD_NRD_BRIDGE_TEST
+    return kNativeElisionContractReady || gNativeElisionForTesting.load(std::memory_order_relaxed);
+#else
+    return kNativeElisionContractReady;
+#endif
+}
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
 void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
@@ -359,7 +417,7 @@ Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline, const Nrd
 // Caller holds gMutex. The exact address/birth pair prevents delayed old Release
 // notifications from removing an already published newborn's reverse references.
 void UpdateChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list,
-                      const std::array<ID3D12Resource*,11>& next, const std::array<NrdBridgeBirth::Token,11>& births)
+                      const std::array<ID3D12Resource*,25>& next, const std::array<NrdBridgeBirth::Token,25>& births)
 {
     const auto& prior = list.indexedReferences;
     auto contains = [](const auto& resources,const auto& tokens,void* address,const NrdBridgeBirth::Token& birth) {
@@ -378,8 +436,24 @@ void RemoveChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState&
 { UpdateChainUsers(owner,cmd,list,{},{}); }
 void RefreshChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
 {
-    UpdateChainUsers(owner,cmd,list,list.chain.Valid() ? list.chain.ReferencedResources() : std::array<ID3D12Resource*,11>{},
-        list.chain.Valid() ? list.chain.ReferencedResourceBirths() : std::array<NrdBridgeBirth::Token,11>{});
+    std::array<ID3D12Resource*,25> resources {}; std::array<NrdBridgeBirth::Token,25> births {};
+    if (list.chain.Valid())
+    {
+        const auto chainResources = list.chain.ReferencedResources(); const auto chainBirths = list.chain.ReferencedResourceBirths();
+        std::copy(chainResources.begin(),chainResources.end(),resources.begin());
+        std::copy(chainBirths.begin(),chainBirths.end(),births.begin());
+    }
+    size_t index = 11;
+    for (const auto& stage : list.native)
+    {
+        if (!stage) { index += 7; continue; }
+        auto add = [&](const FrameSurvey::BoundResource& bound) {
+            resources[index] = bound.resource; births[index++] = bound.resourceBirth;
+        };
+        for (const auto& source : stage->sources) add(source);
+        add(stage->motion); for (const auto& target : stage->targets) add(target);
+    }
+    UpdateChainUsers(owner,cmd,list,resources,births);
 }
 void StopFollowing(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
 { list.followingRecon = false; owner.followingChains.erase(cmd); }
@@ -410,14 +484,43 @@ bool AdmitRecordingSubmission(const RecordingToken& recording) noexcept
 bool MandatoryOutputPending(const Service& owner) noexcept
 {
     for (const auto& [cmd,list] : owner.lists)
+    {
+        for (const auto& stage : list.native)
+            if (stage && !stage->committed && !stage->invalidated &&
+                !stage->recording->skipInvalidated.load(std::memory_order_acquire) &&
+                !stage->recording->abandoned.load(std::memory_order_acquire)) return true;
         if (list.rrOnlyTransaction && list.recording && list.recording->commitRequired.load(std::memory_order_acquire) &&
             !list.recording->outputCommitted.load(std::memory_order_acquire) &&
             !list.recording->skipInvalidated.load(std::memory_order_acquire) &&
             !list.recording->abandoned.load(std::memory_order_acquire)) return true;
+    }
     return false;
+}
+void RefreshNativeTransactions(const Service& owner) noexcept
+{
+    bool pending=false;
+    for(const auto& [cmd,list]:owner.lists)
+        for(const auto& stage:list.native) pending |= stage && !stage->committed && !stage->invalidated;
+    gNativeTransactions.store(pending,std::memory_order_release);
+}
+void RetireNativeRecording(Service& owner, ListState& list) noexcept
+{
+    for(const auto& stage:list.native)
+        if(stage && !stage->recording->submitted.load(std::memory_order_acquire))
+        {
+            stage->recording->abandoned.store(true,std::memory_order_release);stage->invalidated=true;
+            stage->history->uncertain.store(true,std::memory_order_release);
+            stage->history->discardPending.store(true,std::memory_order_release);owner.discardRequested=true;
+        }
 }
 void InvalidateSkippedRecording(ListState& list) noexcept
 {
+    for (const auto& stage : list.native) if (stage && !stage->committed)
+    {
+        stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release);
+        stage->history->uncertain.store(true,std::memory_order_release);
+        stage->history->discardPending.store(true,std::memory_order_release);
+    }
     if (!list.recording || !list.recording->commitRequired.load(std::memory_order_acquire) ||
         list.recording->outputCommitted.load(std::memory_order_acquire)) return;
     list.recording->skipInvalidated.store(true,std::memory_order_release);
@@ -443,7 +546,7 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
                  const NrdBridgeBirth::Token& birth, std::optional<ListState>& retiredList,
                  std::array<std::shared_ptr<RecordingToken>,4>& retiredPresentations, RetiredDebugSources& retired)
 {
-    AbandonDebugPresentations(list,retiredPresentations);
+    AbandonDebugPresentations(list,retiredPresentations);RetireNativeRecording(owner,list);
     const bool unsubmitted = list.recording && !list.recording->submitted.load(std::memory_order_acquire);
     if (unsubmitted && list.history)
     {
@@ -455,12 +558,23 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
     RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
     retiredList.emplace(std::move(list)); list = {}; list.birth = birth; ++owner.resetSerial;
     if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
+    RefreshNativeTransactions(owner);
 }
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
     owner.pendingList = nullptr; owner.status.active = false; owner.status.nativeMaterialGuidesActive = false; ClearNativeDebugSources(owner,retired);
-    for (auto& [cmd,list] : owner.lists) { InvalidateSkippedRecording(list); list.converted = list.motionReady = list.ownedReady = false; }
-    ++owner.resetSerial; ++owner.cancellationSerial;
+    for (auto& [cmd,list] : owner.lists)
+    {
+        InvalidateSkippedRecording(list);
+        for (const auto& stage : list.native) if (stage && !stage->committed)
+        {
+            stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release);
+            stage->history->uncertain.store(true,std::memory_order_release);
+            stage->history->discardPending.store(true,std::memory_order_release); owner.discardRequested = true;
+        }
+        list.converted = list.motionReady = list.ownedReady = false;
+    }
+    ++owner.resetSerial; ++owner.cancellationSerial;RefreshNativeTransactions(owner);
 }
 void NativeDebugDiagnostic(const std::shared_ptr<Service>& owner, const std::string& reason)
 {
@@ -494,7 +608,7 @@ void CaptureNativeDebugSource(const std::shared_ptr<Service>& owner, ID3D12Graph
         source->recording = staged.recording; source->serial = staged.resetSerial; source->generation = staged.generation;
         std::scoped_lock lock(gMutex);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || owner->rrSettings.nativeDebugView < 0 ||
-            owner->cancellationSerial != staged.resetSerial || !owner->cache.Valid() || owner->cache.Generation() != staged.generation ||
+            owner->cancellationSerial != staged.resetSerial || !CurrentFrameProfile(*owner,staged) ||
             !staged.recording->outputCommitted.load(std::memory_order_acquire)) return;
         for (const auto& cached : owner->nativeDebugSources)
             if (cached && cached->image.resource == image.resource && cached->image.owner == image.owner)
@@ -504,6 +618,7 @@ void CaptureNativeDebugSource(const std::shared_ptr<Service>& owner, ID3D12Graph
             if (staged.recording->imageOrder) source->imageOrder = staged.recording->imageOrder;
             else staged.recording->imageOrder = imageOrder;
         }
+        source->generation = owner->cache.Generation();
         source->settings = owner->rrSettings; source->consumer = owner->status.framesBridged;
         auto& slot = owner->nativeDebugSources[owner->nextNativeDebugSource++ % owner->nativeDebugSources.size()];
         retired = std::move(slot); slot = std::move(source);
@@ -661,6 +776,85 @@ std::string ResourceSummary(const Resources& resources)
          << "  OUT spec=" << resources.outputSpec << " diff=" << resources.outputDiff << "  MV=" << resources.motion;
     return text.str();
 }
+RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_ptr<Service>& owner,
+    const std::shared_ptr<RecordingOwnership>& ownership)
+{
+    RecordedComputeLease::SubmissionCallbacks submission;
+    submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
+        if (!AdmitRecordingSubmission(*ownership->token)) return false;
+        auto& domain = *ownership->history;
+        RecordedComputeLease::FencePointPtr retiredPoint;
+        std::shared_ptr<NativeDebugImageOrder> imageOrder;
+        {
+            std::scoped_lock lock(ownership->token->publicationMutex);
+            ownership->token->submitted.store(true,std::memory_order_release);
+            ownership->token->submissionId = info.submissionId; retiredPoint = std::move(ownership->token->completion);
+            imageOrder = ownership->token->imageOrder;
+            ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
+        }
+        // Replaying a closed recording changes temporal causality. Existing work is
+        // still ordered and retained; the next recording gets a fresh RESET domain.
+        if (info.recordingSubmission > 1 || info.snapshotFallback)
+            domain.uncertain.store(true,std::memory_order_release);
+        if (info.recordingSubmission > 1 && imageOrder)
+        {
+            std::shared_ptr<RecordingToken> tail;
+            { std::scoped_lock lock(imageOrder->mutex); tail = imageOrder->presentation; }
+            if (tail)
+            {
+                RecordedComputeLease::FencePointPtr point; uint64_t submissionId = 0;
+                if (!PublishedToken(tail,point,submissionId)) { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
+                if (FAILED(RecordedComputeLease::WaitForFence(info.queue,point))) return false;
+            }
+        }
+        RecordedComputeLease::FencePointPtr predecessor;
+        {
+            std::scoped_lock lock(domain.submissionMutex);
+            // A prior Execute without a newly published fence cannot be ordered by
+            // an older completion point. Already-recorded successors must stop too.
+            if (domain.pendingSubmission && domain.latestSubmissionId != info.submissionId)
+            { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
+            predecessor = domain.completion;
+            domain.latestSubmissionId = info.submissionId; domain.pendingSubmission = true;
+        }
+        return SUCCEEDED(RecordedComputeLease::WaitForFence(info.queue,predecessor));
+    };
+    submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo& info,
+                                            const RecordedComputeLease::FencePointPtr& point) {
+        auto& domain = *ownership->history; RecordedComputeLease::FencePointPtr retiredDomainPoint, retiredPoint;
+        {
+            std::scoped_lock lock(domain.submissionMutex);
+            if (domain.latestSubmissionId == info.submissionId)
+            { retiredDomainPoint = std::move(domain.completion); domain.completion = point; domain.pendingSubmission = false; }
+        }
+        {
+            std::scoped_lock lock(ownership->token->publicationMutex);
+            if (ownership->token->submissionId == info.submissionId &&
+                ownership->token->phase.load(std::memory_order_acquire) == SubmissionPhase::Submitting)
+            {
+                retiredPoint = std::move(ownership->token->completion); ownership->token->completion = point;
+                ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
+            }
+        }
+    };
+    const std::weak_ptr<Service> weakOwner = owner;
+    submission.failed = [ownership,weakOwner](const auto& info, auto failure) {
+        ownership->history->uncertain.store(true,std::memory_order_release);
+        RecordedComputeLease::FencePointPtr retiredPoint; bool nativeReplay = false;
+        {
+            std::scoped_lock lock(ownership->token->publicationMutex);
+            if (ownership->token->submissionId == info.submissionId)
+            { retiredPoint = std::move(ownership->token->completion); ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release); }
+            nativeReplay = bool(ownership->token->imageOrder) && info.recordingSubmission > 1;
+        }
+        if (const auto service = weakOwner.lock())
+        {
+            if (nativeReplay && failure == RecordedComputeLease::SubmissionFailure::Ordering) NativeDebugOrderingFailure(service);
+            else Failure(service,"NRD submission ordering or fence tracking failed; restart the title/device");
+        }
+    };
+    return submission;
+}
 void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, uint64_t frame)
 {
     bool mandatory = false, requiredRetained = false;
@@ -774,80 +968,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     if (materialModeReset) reset = true;
     history->latestRecording = recording;
     auto ownership = MakeOwnedShared<RecordingOwnership>(); ownership->history = history; ownership->token = recording;
-    RecordedComputeLease::SubmissionCallbacks submission;
-    submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
-        if (!AdmitRecordingSubmission(*ownership->token)) return false;
-        auto& domain = *ownership->history;
-        RecordedComputeLease::FencePointPtr retiredPoint;
-        std::shared_ptr<NativeDebugImageOrder> imageOrder;
-        {
-            std::scoped_lock lock(ownership->token->publicationMutex);
-            ownership->token->submitted.store(true,std::memory_order_release);
-            ownership->token->submissionId = info.submissionId; retiredPoint = std::move(ownership->token->completion);
-            imageOrder = ownership->token->imageOrder;
-            ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
-        }
-        // Replaying a closed recording changes temporal causality. Existing work is
-        // still ordered and retained; the next recording gets a fresh RESET domain.
-        if (info.recordingSubmission > 1 || info.snapshotFallback)
-            domain.uncertain.store(true,std::memory_order_release);
-        if (info.recordingSubmission > 1 && imageOrder)
-        {
-            std::shared_ptr<RecordingToken> tail;
-            { std::scoped_lock lock(imageOrder->mutex); tail = imageOrder->presentation; }
-            if (tail)
-            {
-                RecordedComputeLease::FencePointPtr point; uint64_t submissionId = 0;
-                if (!PublishedToken(tail,point,submissionId)) { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
-                if (FAILED(RecordedComputeLease::WaitForFence(info.queue,point))) return false;
-            }
-        }
-        RecordedComputeLease::FencePointPtr predecessor;
-        {
-            std::scoped_lock lock(domain.submissionMutex);
-            // A prior Execute without a newly published fence cannot be ordered by
-            // an older completion point. Already-recorded successors must stop too.
-            if (domain.pendingSubmission && domain.latestSubmissionId != info.submissionId)
-            { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
-            predecessor = domain.completion;
-            domain.latestSubmissionId = info.submissionId; domain.pendingSubmission = true;
-        }
-        return SUCCEEDED(RecordedComputeLease::WaitForFence(info.queue,predecessor));
-    };
-    submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo& info,
-                                            const RecordedComputeLease::FencePointPtr& point) {
-        auto& domain = *ownership->history; RecordedComputeLease::FencePointPtr retiredDomainPoint, retiredPoint;
-        {
-            std::scoped_lock lock(domain.submissionMutex);
-            if (domain.latestSubmissionId == info.submissionId)
-            { retiredDomainPoint = std::move(domain.completion); domain.completion = point; domain.pendingSubmission = false; }
-        }
-        {
-            std::scoped_lock lock(ownership->token->publicationMutex);
-            if (ownership->token->submissionId == info.submissionId &&
-                ownership->token->phase.load(std::memory_order_acquire) == SubmissionPhase::Submitting)
-            {
-                retiredPoint = std::move(ownership->token->completion); ownership->token->completion = point;
-                ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
-            }
-        }
-    };
-    const std::weak_ptr<Service> weakOwner = owner;
-    submission.failed = [ownership,weakOwner](const auto& info, auto failure) {
-        ownership->history->uncertain.store(true,std::memory_order_release);
-        RecordedComputeLease::FencePointPtr retiredPoint; bool nativeReplay = false;
-        {
-            std::scoped_lock lock(ownership->token->publicationMutex);
-            if (ownership->token->submissionId == info.submissionId)
-            { retiredPoint = std::move(ownership->token->completion); ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release); }
-            nativeReplay = bool(ownership->token->imageOrder) && info.recordingSubmission > 1;
-        }
-        if (const auto service = weakOwner.lock())
-        {
-            if (nativeReplay && failure == RecordedComputeLease::SubmissionFailure::Ordering) NativeDebugOrderingFailure(service);
-            else Failure(service,"NRD submission ordering or fence tracking failed; restart the title/device");
-        }
-    };
+    auto submission = RecordingCallbacks(owner,ownership);
     {
         InjectionScope guard(cmd);
         NrdBridgeStagePerf::StackTimer prepare(profile,NrdBridgeStagePerf::Stage::ReconPrepare);
@@ -1110,7 +1231,7 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
         }
     }
     if (!succeeded) { Failure(owner,error.empty() ? "NRD current motion / early RR recording failed" : error); return; }
-    const auto actualRecording = staged.rrOnlyTransaction ? RecordedComputeLease::Capture(cmd).lock() : nullptr;
+    const auto actualRecording = staged.rrOnlyTransaction ? RecordedComputeLease::Capture(cmd) : nullptr;
     if (staged.rrOnlyTransaction && (!owned || !actualRecording || !actualRecording->id ||
         ownedSnapshot.recording != cmd || ownedSnapshot.recordingId != actualRecording->id ||
         ownedSnapshot.frameSL != staged.parameters.streamlineFrame || ownedSnapshot.frameIndex != staged.parameters.frameIndex ||
@@ -1165,6 +1286,579 @@ void PrepareEarlyTemporal(const std::shared_ptr<Service>& owner, ID3D12GraphicsC
     if (!frame) return;
     if (capture) CaptureTemporalMotion(owner,cmd);
     FinalizeMotion(owner,cmd,frame,motion);
+}
+
+
+bool NativeTransactionCurrent(const Service& owner, const ListState& list,
+    const std::shared_ptr<NativeTransaction>& stage) noexcept
+{
+    return stage && stage->chain < list.native.size() && list.native[stage->chain] == stage &&
+        list.frame == stage->frame && list.birth == stage->birth && ListLive(list) &&
+        stage->serial == owner.cancellationSerial && !stage->invalidated && !stage->committed &&
+        stage->recording && stage->recording->submissionRetained.load(std::memory_order_acquire) &&
+        !stage->recording->skipInvalidated.load(std::memory_order_acquire) &&
+        !stage->recording->abandoned.load(std::memory_order_acquire);
+}
+void NativeTransactionFailure(const std::shared_ptr<Service>& owner,
+    const std::shared_ptr<NativeTransaction>& stage, const std::string& error)
+{
+    // The caller owns gInjectionMutex. Do not destroy private COM/provider state
+    // under gMutex, and never abandon a newer physical context through an old lease.
+    if (stage && stage->history && stage->owned) stage->history->rr.AbandonOwned(stage->owned);
+    {
+        std::scoped_lock lock(gMutex);
+        if (stage)
+        {
+            stage->invalidated = true;
+            if (stage->recording) stage->recording->skipInvalidated.store(true,std::memory_order_release);
+            if (stage->history)
+            {
+                stage->history->uncertain.store(true,std::memory_order_release);
+                stage->history->discardPending.store(true,std::memory_order_release);
+            }
+        }
+        if (gService == owner) owner->discardRequested = true;
+    }
+    if (stage && stage->trace && owner->trace) owner->trace->CancelBridgeFrame(stage->trace,error);
+    Failure(owner,error);
+}
+bool NativeRawSource(const FrameSurvey::ComputeBindings& bindings,
+    const FrameSurvey::BoundConstantBinding& constants, uint32_t width, uint32_t height,
+    uint32_t chain, ID3D12Device* device, RawSignalSource& source) noexcept
+{
+    D3D12_GPU_DESCRIPTOR_HANDLE table {};
+    for (const auto& [parameter,handle] : bindings.tables)
+        if (parameter == 1) { if (table.ptr) return false; table = handle; }
+    if (!table.ptr) return false;
+    const auto increment = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    if (!increment || table.ptr > UINT64_MAX-increment) return false;
+    ID3D12DescriptorHeap* heap = nullptr;
+    for (auto* candidate : bindings.heaps)
+    {
+        const auto description = candidate->GetDesc();
+        if (description.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
+            !(description.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)) continue;
+        const auto base = candidate->GetGPUDescriptorHandleForHeapStart().ptr;
+        const uint64_t bytes = uint64_t(description.NumDescriptors)*increment;
+        if (table.ptr < base || table.ptr-base >= bytes || (table.ptr-base)%increment ||
+            bytes-(table.ptr-base) < uint64_t(increment)*2) continue;
+        if (heap) return false; heap = candidate;
+    }
+    if (!heap) return false;
+    source.nativeHeap = heap; source.specSrv = table; source.diffSrv = {table.ptr+increment};
+    source.nativeConstants = {nullptr,constants.address,constants.descriptorHeap,constants.descriptor};
+    source.width = width; source.height = height;
+    source.profile = chain ? NativeRawProfile::PrePassPending : NativeRawProfile::ReconDirect;
+    return true;
+}
+// This starts before the first omitted native shader. The retained callback is
+// independent of current Service/runtime/list state and explicitly denies Execute
+// until this exact A or B transaction commits its own RR output.
+void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
+    ID3D12GraphicsCommandList* cmd, uint32_t chain)
+{
+    std::shared_ptr<NativeTransaction> stage; bool retained = false;
+    const auto currentSL=StreamlineHooks::getSLConstantsSnapshot(); // Before injection wait; never a later list's camera.
+    try
+    {
+        std::scoped_lock injection(gInjectionMutex);
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired())
+        { RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL); return; }
+        FrameSurvey::ComputeBindings bindings; FrameSurvey::BoundConstantBinding constants;
+        std::vector<FrameSurvey::BoundResource> sources, outputs;
+        constexpr std::array<FrameSurvey::ComputeTableRequest,4> sourceRequests {{
+            {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,1,0},
+            {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,3,0}}};
+        constexpr std::array<FrameSurvey::ComputeTableRequest,2> outputRequests {{
+            {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
+        if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) ||
+            !D3D12Hooks::BridgePredicationDisabled(cmd) || !D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings) ||
+            !FrameSurvey::ResolveComputeBindings(bindings,1,sourceRequests,sources) || sources.size()!=4 ||
+            !FrameSurvey::ResolveComputeBindings(bindings,5,outputRequests,outputs) || outputs.size()!=2 ||
+            !FrameSurvey::ResolveComputeConstantBinding(bindings,6,0,constants))
+        {
+            RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+            Failure(owner,"RR-only native source/root/predicate contract unavailable before denoising; restart required"); return;
+        }
+        ChainDiscovery typed; std::string error;
+        if (!typed.Begin(sources,outputs,error))
+        { RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL); Failure(owner,error); return; }
+        stage = MakeOwnedShared<NativeTransaction>(); stage->chain = chain;
+        std::optional<ListState> retiredList;
+        {
+            std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+            if (gService != owner || found == owner->lists.end() || !ListLive(found->second) || !found->second.nativeContract ||
+                !gRuntime.load(std::memory_order_relaxed) || chain > 1) return;
+            auto& list = found->second;
+            if (!chain)
+            {
+                InvalidateSkippedRecording(list); RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
+                const auto role = list.role; const auto birth = list.birth, pipelineBirth = list.pipelineBirth;
+                retiredList.emplace(std::move(list)); list = {};
+                list.material = std::move(retiredList->pendingMaterial); list.materialStates = std::move(retiredList->materialStates);
+                list.materialIdentityRevision = retiredList->materialIdentityRevision;
+                list.role = role; list.birth = birth; list.pipelineBirth = pipelineBirth;
+                list.nativeContract = list.rrOnlyTransaction = list.nativeReconPrepared = true;
+                list.followingRecon = list.nrdList = true; list.frame = ++owner->frame; list.chain = typed;
+                list.generation = list.frame; list.resetSerial = owner->cancellationSerial;
+                owner->followingChains.insert(cmd); RefreshChainUsers(*owner,cmd,list);
+                owner->nativeContractSeen = owner->everRecon = owner->observedRecon = owner->windowSawRecon = true;
+                stage->streamline = currentSL;
+                stage->settings = owner->rrSettings; stage->resetRevision = owner->requestedResetRevision;
+                stage->cameraProjectedDepthDelta = owner->cameraProjectedDepthDelta;
+            }
+            else
+            {
+                if (!list.native[0] || list.native[1] || !list.temporal || !list.atrous ||
+                    list.native[0]->invalidated || list.native[0]->serial != owner->cancellationSerial)
+                { RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL); return; }
+                stage->streamline = list.native[0]->streamline; stage->settings = list.native[0]->settings;
+                stage->resetRevision = list.native[0]->resetRevision;
+                stage->cameraProjectedDepthDelta = list.native[0]->cameraProjectedDepthDelta;
+                list.chainB = true; list.nativeChain = 1;
+            }
+            stage->frame = list.frame; stage->serial = owner->cancellationSerial; stage->birth = list.birth;
+            std::copy(sources.begin(),sources.end(),stage->sources.begin());
+            const auto& material = list.material;
+            if (stage->settings.nativeMaterialGuides && material.serial == stage->serial &&
+                material.normal == sources[2].resource && material.normalGeneration == sources[2].resourceGeneration &&
+                material.normalBirth == sources[2].resourceBirth && BirthLive(material.normalBirth)) stage->material = material.snapshot;
+        }
+        auto history = owner->nativeHistories[chain];
+        const auto width = uint32_t(sources[0].description.Width), height = sources[0].description.Height;
+        const bool reusable = history && history->nativeContract && history->semanticChain == chain &&
+            history->width == width && history->height == height && history->viewport == stage->streamline.viewport &&
+            !history->uncertain.load(std::memory_order_acquire) && history->latestRecording &&
+            history->latestRecording->outputCommitted.load(std::memory_order_acquire) &&
+            history->latestRecording->phase.load(std::memory_order_acquire) == SubmissionPhase::FencePublished;
+        if (!reusable)
+        {
+            std::erase_if(owner->historyDomains,[](const auto& old) { return old.expired(); });
+            if (owner->historyDomains.size() >= 8)
+            { RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL); Failure(owner,"RR-only has eight unretired A/B histories; restart required"); return; }
+            history = MakeOwnedShared<HistoryDomain>(); history->nativeContract = true; history->semanticChain = chain;
+            history->width = width; history->height = height; history->viewport = stage->streamline.viewport;
+            history->id = ++owner->nextDomain; owner->historyDomains.push_back(history); owner->nativeHistories[chain] = history;
+        }
+        owner->history = history; stage->history = history;
+        stage->recording = MakeOwnedShared<RecordingToken>(); stage->recording->commitRequired.store(true,std::memory_order_relaxed);
+        stage->recording->stages.stopped = &gStagesStopped;
+        { std::scoped_lock lock(gMutex); stage->recording->needsStageSamples = gStageCollector.Active(); }
+        stage->ownership = MakeOwnedShared<RecordingOwnership>(); stage->ownership->history = history; stage->ownership->token = stage->recording;
+        history->latestRecording = stage->recording;
+        {
+            InjectionScope guard(cmd);
+            retained = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,stage->ownership,{},RecordingCallbacks(owner,stage->ownership));
+        }
+        if (!retained)
+        { RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY); NativeTransactionFailure(owner,stage,"Could not retain mandatory RR-only recording gate"); return; }
+        stage->recording->submissionRetained.store(true,std::memory_order_release);
+        bool reset = !reusable || history->resetRevision != stage->resetRevision;
+        const bool materialApplied = stage->settings.nativeMaterialGuides && NativeMaterialCapture::Resource(stage->material);
+        if (stage->settings.nativeMaterialGuides && history->materialGuidesKnown && history->materialGuidesUsed != materialApplied) reset = true;
+        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive())
+        {
+            try { if (!owner->trace) owner->trace = std::make_unique<FSRDGameTraceSession>(); } catch (...) {}
+            if (owner->trace && FSRDGameTraceSession::TakeNrdBridgeHistoryResetRequest(history->id)) reset = true;
+        }
+        RawSignalSource rawSource;
+        if (!NativeRawSource(bindings,constants,width,height,chain,owner->device.Get(),rawSource))
+        { NativeTransactionFailure(owner,stage,"Raw native signal table cannot be captured exactly"); return; }
+        bool prepared = false;
+        {
+            InjectionScope guard(cmd);
+            auto* profile = StageSample(stage->recording);
+            NrdBridgeStagePerf::StackTimer prepare(profile,NrdBridgeStagePerf::Stage::ReconPrepare);
+            if (reset) { history->rr.ResetHistory(); history->conversion.ResetHistory(); }
+            prepared = history->rr.Configure(stage->settings,error) &&
+                history->rr.PrepareFrame(stage->streamline,reset,stage->parameters,error);
+            stage->parameters.nativeTemporalMotion = stage->settings.nativeTemporalMotion;
+            stage->parameters.nativeMaterialGuides = stage->settings.nativeMaterialGuides;
+            stage->parameters.preserveNativeMaterialIDs = stage->settings.preserveNativeMaterialIDs;
+            stage->parameters.cameraProjectedDepthDelta = stage->cameraProjectedDepthDelta;
+            if (prepared && stage->settings.lobeRecovery &&
+                (stage->settings.recoverySpecular > 0.0f || stage->settings.recoveryDiffuse > 0.0f))
+            {
+                if (!owner->recoveryFamily) owner->recoveryFamily = CreateRRRecoveryFamily();
+                history->rr.SetRecoveryFamily(owner->recoveryFamily);
+            }
+            if (prepared) prepared = history->conversion.Initialize(owner->device.Get(),width,height,error) &&
+                history->rawSignals.Initialize(owner->device.Get(),width,height,error);
+            if (prepared) prepared = history->rawSignals.Capture(cmd,rawSource,stage->parameters.streamlineFrame,
+                stage->parameters.frameIndex,stage->raw,error);
+            prepare.Stop();
+            if (prepared)
+            {
+                NrdBridgeStagePerf::StackTimer geometry(profile,NrdBridgeStagePerf::Stage::ReconConvert);
+                const ConversionInputs inputs {nullptr,nullptr,sources[2].resource,sources[3].resource,nullptr,
+                    NativeMaterialCapture::Resource(stage->material),NativeMaterialCapture::RoughnessResource(stage->material)};
+                prepared = history->conversion.DispatchGeometry(cmd,inputs,stage->parameters,stage->raw,stage->inputs,error);
+            }
+        }
+        if (!prepared) { NativeTransactionFailure(owner,stage,error.empty() ? "Owned native raw/geometry preparation failed" : error); return; }
+        bool admitted = false;
+        {
+            std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+            if (gService == owner && found != owner->lists.end() && found->second.frame == stage->frame &&
+                found->second.birth == stage->birth && owner->cancellationSerial == stage->serial && ListLive(found->second))
+            {
+                auto& list = found->second; list.native[chain] = stage; list.nativeChain = chain;
+                stage->geometryReady = true; admitted = true; RefreshChainUsers(*owner,cmd,list);
+                history->resetRevision = stage->resetRevision; history->materialGuidesKnown = true; history->materialGuidesUsed = materialApplied;
+                owner->status.nativeMaterialGuidesActive = materialApplied;
+                if (materialApplied) ++owner->status.nativeMaterialFramesApplied;
+                owner->rrSettingsState = history->rr.GetSettingsState(); owner->rrSettingsState.requested = owner->rrSettings;
+                gNativeTransactions.store(true,std::memory_order_release);
+            }
+        }
+        if (!admitted) NativeTransactionFailure(owner,stage,"Native source recording changed before required transaction publication");
+        else
+        {
+            {std::scoped_lock lock(gMutex);if(gService==owner)
+             {bool legacy=false;for(const auto& [listKey,list]:owner->lists)legacy |= list.followingRecon&&!list.rrOnlyTransaction;owner->window=legacy;}}
+            PublishBindingWindow(); // Native resolvers use current snapshots rather than the weak mirror window.
+        }
+    }
+    catch (...)
+    {
+        if (!retained) RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);
+        if (stage && stage->recording) stage->recording->skipInvalidated.store(true,std::memory_order_release);
+        CoordinatorException("Exception while preparing mandatory native raw transaction");
+    }
+}
+
+
+void PrepareNativeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd)
+{
+    std::scoped_lock injection(gInjectionMutex);
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+    std::shared_ptr<NativeTransaction> stage;
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end()) return;
+        auto& list = found->second; stage = list.native[list.nativeChain];
+        if (!NativeTransactionCurrent(*owner,list,stage) || !stage->geometryReady || stage->motionReady ||
+            list.role != Role::Temporal || !list.nativeContract) return;
+    }
+    FrameSurvey::ComputeBindings bindings; FrameSurvey::BoundConstantBinding constants;
+    std::vector<FrameSurvey::BoundResource> motion;
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> request {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0}}};
+    if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) ||
+        !D3D12Hooks::BridgePredicationDisabled(cmd) || !D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings) ||
+        !FrameSurvey::ResolveComputeBindings(bindings,1,request,motion) || motion.size()!=1 ||
+        motion[0].viewFormat != DXGI_FORMAT_R16G16B16A16_FLOAT || motion[0].subresource ||
+        motion[0].description.Width != stage->inputs.width || motion[0].description.Height != stage->inputs.height ||
+        !FrameSurvey::ResolveComputeConstantBinding(bindings,6,0,constants))
+    { NativeTransactionFailure(owner,stage,"Native Temporal has no exact current motion/constant/root proof"); return; }
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end() || !NativeTransactionCurrent(*owner,found->second,stage)) return;
+        if (owner->taggedMotion && (owner->taggedMotion != motion[0].resource ||
+            (BirthMode() && owner->taggedMotionBirth != motion[0].resourceBirth)))
+        { stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release); }
+    }
+    if (stage->invalidated) { NativeTransactionFailure(owner,stage,"Native Temporal differs from the current Streamline motion tag"); return; }
+    std::string error; bool ready = true;
+    {
+        InjectionScope guard(cmd);
+        NativeMotionSource native;
+        if (stage->parameters.nativeTemporalMotion)
+        {
+            ready = stage->history->nativeTemporalCapture.Initialize(owner->device.Get(),error) &&
+                stage->history->nativeTemporalCapture.Capture(cmd,constants,stage->temporalConstants,error);
+            native.constants = NativeTemporalCapture::Resource(stage->temporalConstants);
+            native.viewDepth = stage->history->conversion.OwnedPositiveViewDepth(stage->inputs,stage->parameters);
+            ready = ready && native.constants && native.viewDepth;
+        }
+        if (ready) ready = DispatchCurrentMotion(stage->history->conversion,cmd,stage->inputs,motion[0].resource,stage->parameters,error,native);
+    }
+    if (!ready) { NativeTransactionFailure(owner,stage,error.empty() ? "Owned native motion preparation failed" : error); return; }
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end() || !NativeTransactionCurrent(*owner,found->second,stage)) return;
+        stage->motion = motion[0]; stage->motionReady = true;
+        auto& list = found->second;
+        if (!stage->chain)
+        {
+            if (!list.chain.Observe(Role::Temporal,motion,{},owner->taggedMotion,error))
+            { stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release); }
+        }
+        list.temporal = true; RefreshChainUsers(*owner,cmd,list);
+    }
+    if (stage->invalidated) NativeTransactionFailure(owner,stage,error.empty() ? "Native motion chain identity failed" : error);
+}
+
+
+bool SameNativeTexture(const FrameSurvey::BoundResource& a, const FrameSurvey::BoundResource& b) noexcept
+{
+    return a.resource && a.resource == b.resource && a.resourceGeneration == b.resourceGeneration &&
+        a.resourceBirth == b.resourceBirth && a.viewFormat == b.viewFormat && a.subresource == b.subresource &&
+        a.description.Width == b.description.Width && a.description.Height == b.description.Height;
+}
+bool NativeTargets(const FrameSurvey::ComputeBindings& bindings, bool graphics,
+    std::vector<FrameSurvey::BoundResource>& out) noexcept
+{
+    constexpr std::array<FrameSurvey::ComputeTableRequest,2> compute {{
+        {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,2> pixel {{
+        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,11,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,12,0}}};
+    return graphics ? FrameSurvey::ResolveGraphicsBindings(bindings,24,pixel,out) :
+        FrameSurvey::ResolveComputeBindings(bindings,5,compute,out);
+}
+bool NativeConstants(const FrameSurvey::ComputeBindings& bindings, bool graphics,
+    FrameSurvey::BoundConstantBinding& out) noexcept
+{
+    return graphics ? FrameSurvey::ResolveGraphicsConstantBinding(bindings,6,0,out) :
+        FrameSurvey::ResolveComputeConstantBinding(bindings,6,0,out);
+}
+bool ValidateNativeConstants(const FrameSurvey::ComputeBindings& bindings, bool graphics,
+    const FrameSurvey::BoundConstantBinding& expected) noexcept
+{
+    return graphics ? FrameSurvey::ValidateGraphicsConstantBinding(bindings,6,0,expected) :
+        FrameSurvey::ValidateComputeConstantBinding(bindings,6,0,expected);
+}
+struct NativeInjectionScope
+{
+    ID3D12GraphicsCommandList* list;
+    bool graphics, previousTracking;
+    std::shared_ptr<RecordingToken> token;
+    FrameSurvey::ScopedInternal survey;
+    NativeInjectionScope(ID3D12GraphicsCommandList* cmd, bool pixel, const std::shared_ptr<RecordingToken>& recording)
+        : list(cmd), graphics(pixel), previousTracking(D3D12Hooks::RootSignatureTrackingEnabled()), token(recording)
+    { D3D12Hooks::SetRootSignatureTracking(false); }
+    ~NativeInjectionScope()
+    {
+        bool restored=false;
+        if (graphics) restored=D3D12Hooks::RestoreGraphicsRootForBridge(list);
+        else if (D3D12Hooks::CanRestoreRootSignature(list)) { D3D12Hooks::RestoreRoot(list);restored=true; }
+        if(!restored && token) token->skipInvalidated.store(true,std::memory_order_release);
+        D3D12Hooks::SetRootSignatureTracking(previousTracking);
+    }
+};
+void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, bool graphics)
+{
+    std::shared_ptr<NativeTransaction> stage;
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end()) return;
+        auto& list = found->second; stage = list.native[graphics ? 1 : 0];
+        if (!NativeTransactionCurrent(*owner,list,stage) || !stage->geometryReady || !stage->motionReady ||
+            (graphics ? !list.graphicsConsumerCandidate : list.role != Role::Consumer || !list.nativeContract)) return;
+    }
+    NrdBridgeStagePerf::Sample complete {}; bool sampled = false, committed = false;
+    {
+        std::unique_lock injection(gInjectionMutex);
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+        auto* profile = StageSample(stage->recording);
+        NrdBridgeStagePerf::StackTimer physical(profile,NrdBridgeStagePerf::Stage::ConsumerPhysicalHold);
+        FrameSurvey::ComputeBindings bindings; ID3D12PipelineState* pixelPipeline = nullptr;
+        auto currentBindings = [&]() {
+            return graphics ? D3D12Hooks::GetGraphicsBindingsForBridge(cmd,bindings,pixelPipeline) :
+                D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings);
+        };
+        FrameSurvey::BoundConstantBinding constants; std::vector<FrameSurvey::BoundResource> targets; targets.reserve(2);
+        if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::BridgePredicationDisabled(cmd) ||
+            !(graphics ? D3D12Hooks::CanRestoreGraphicsRootSignature(cmd) : D3D12Hooks::CanRestoreRootSignature(cmd)) ||
+            !currentBindings() || !NativeTargets(bindings,graphics,targets) || targets.size()!=2 ||
+            !NativeConstants(bindings,graphics,constants))
+        { NativeTransactionFailure(owner,stage,"Late native Consumer binding/root/predicate proof is unavailable"); return; }
+        NativeMaterialStateWitness::SourceStates targetStates {D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+        bool valid = false; ChainDiscovery discovered; bool publish = false;
+        {
+            std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+            if (gService != owner || found == owner->lists.end() || !NativeTransactionCurrent(*owner,found->second,stage)) return;
+            auto& list = found->second;
+            valid = SameNativeTexture(targets[0],stage->targets[1]) && SameNativeTexture(targets[1],stage->targets[0]);
+            if (graphics)
+            {
+                valid = valid && list.graphicsConsumerCandidate && pixelPipeline == list.graphicsConsumer &&
+                    BirthLive(list.graphicsConsumerBirth) && stage->targetStates.TryKnownStates(stage->serial,targetStates);
+                constexpr auto writable = D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
+                    D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_COPY_DEST | D3D12_RESOURCE_STATE_RESOLVE_DEST;
+                for (const auto state : targetStates)
+                    valid = valid && (state & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && !(state & writable);
+            }
+            else
+            {
+                std::string error;
+                valid = valid && list.chain.Observe(Role::Consumer,{},targets,owner->taggedMotion,error);
+                if (valid)
+                {
+                    publish = owner->cache.Publish(list.chain); owner->cacheBirths = CacheBirths(list.chain);
+                    discovered = list.chain; owner->status.width = stage->inputs.width; owner->status.height = stage->inputs.height;
+                    owner->status.resources = ResourceSummary(list.chain.Get()); owner->attempts = 0;
+                }
+            }
+            RefreshChainUsers(*owner,cmd,list);
+        }
+        if (!valid) { NativeTransactionFailure(owner,stage,"Late Consumer pair/state differs from this exact native transaction"); return; }
+        if (publish) LogDiscovery(discovered,nullptr);
+        std::string error;
+        FrameParameters commitFrame = stage->parameters;
+        const TitleSignalConstants nativeConstants {nullptr,constants.address,constants.descriptorHeap,constants.descriptor,graphics ? 36u : 303u};
+        bool ready = false;
+        {
+            NativeInjectionScope guard(cmd,graphics,stage->recording);
+            ready = stage->history->rawSignals.Decode(cmd,stage->raw,stage->inputs,nativeConstants,error);
+            if (ready)
+            {
+                const auto decoded = RawSignalSnapshotPass::GetSnapshot(stage->raw);
+                ready = decoded.decoded && decoded.recording == cmd && decoded.frameSL == stage->parameters.streamlineFrame &&
+                    decoded.bridgeFrame == stage->parameters.frameIndex;
+                commitFrame.outputConstants = decoded.decodedEncodingConstants;
+            }
+            if (ready)
+            {
+                NrdBridgeStagePerf::StackTimer provider(profile,NrdBridgeStagePerf::Stage::ConsumerRRDispatch);
+                ready = stage->history->rr.RecordOwned(cmd,stage->inputs,stage->parameters,stage->owned,error,profile);
+                if (ready) stage->history->latestOwned = stage->owned;
+            }
+        }
+        if (!ready) { NativeTransactionFailure(owner,stage,error.empty() ? "Owned raw decode / signed RR recording failed" : error); return; }
+        if (FSRDGameTraceSession::IsNrdBridgeCaptureActive() && owner->trace)
+        {
+            const auto snapshot = stage->history->rr.GetOwnedOutputSnapshot(stage->owned);
+            stage->traceIdentity = {stage->history->id,snapshot.recordingId,stage->frame,stage->serial,0,stage->parameters.streamlineFrame};
+            const auto settings = stage->history->rr.GetSettingsState();
+            stage->trace = owner->trace->RecordBridgeOwned(owner->device.Get(),cmd,stage->traceIdentity,stage->inputs,
+                stage->ownership,stage->parameters,stage->streamline.constants,stage->streamline.frameIndex,stage->streamline.viewport,
+                settings,snapshot,{stage->history->rr.GetOwnedOutputProviderAttestation(stage->owned)},true);
+            if (stage->trace)
+                for (uint32_t i=0;i<stage->skipCount;++i) owner->trace->RecordBridgeSkipped(stage->trace,cmd,stage->traceIdentity,stage->skipped[i]);
+        }
+        struct Ticket
+        {
+            Service* owner; ID3D12GraphicsCommandList* cmd; std::shared_ptr<NativeTransaction> stage;
+            bool graphics; ID3D12PipelineState* pixel; FrameSurvey::BoundConstantBinding constants;
+            std::array<FrameSurvey::BoundResource,2> targets; NativeMaterialStateWitness::SourceStates states;
+            FrameSurvey::ComputeBindings bindings; std::vector<FrameSurvey::BoundResource> scratch;
+            bool cancelled = false;
+            static bool Admit(void* value, OutputCommitGuard::Action action, void* prepared) noexcept
+            {
+                auto& t = *static_cast<Ticket*>(value); std::scoped_lock lock(gMutex);
+                const auto found = t.owner->lists.find(t.cmd);
+                if (gService.get()!=t.owner || !gRuntime.load(std::memory_order_relaxed) || !FrameSurvey::MetadataHealthy() ||
+                    found==t.owner->lists.end() || !NativeTransactionCurrent(*t.owner,found->second,t.stage) ||
+                    !D3D12Hooks::BridgePredicationDisabled(t.cmd)) { t.cancelled=true;return false; }
+                ID3D12PipelineState* pixel = nullptr;
+                const bool current = t.graphics ? D3D12Hooks::GetGraphicsBindingsForBridge(t.cmd,t.bindings,pixel) :
+                    D3D12Hooks::GetComputeBindingsForBridge(t.cmd,t.bindings);
+                if (!current || (t.graphics && (pixel!=t.pixel || !found->second.graphicsConsumerCandidate)) ||
+                    !ValidateNativeConstants(t.bindings,t.graphics,t.constants) || !NativeTargets(t.bindings,t.graphics,t.scratch) || t.scratch.size()!=2 ||
+                    !SameNativeTexture(t.scratch[0],t.targets[0]) || !SameNativeTexture(t.scratch[1],t.targets[1]))
+                { t.cancelled=true;return false; }
+                D3D12_RESOURCE_BARRIER barriers[2] {};
+                if (t.graphics)
+                {
+                    NativeMaterialStateWitness::SourceStates currentStates;
+                    if (!t.stage->targetStates.TryKnownStates(t.stage->serial,currentStates) || currentStates!=t.states)
+                    { t.cancelled=true;return false; }
+                    for (size_t i=0;i<2;++i)
+                    {
+                        barriers[i].Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                        // states/targets are spec,diff internally; current pixel SRVs are diff,spec.
+                        barriers[i].Transition={t.stage->targets[i].resource,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                            t.states[i],D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+                    }
+                    t.cmd->ResourceBarrier(2,barriers);
+                }
+                action(prepared);
+                if (t.graphics)
+                {
+                    for (auto& barrier:barriers) std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter);
+                    t.cmd->ResourceBarrier(2,barriers);
+                }
+                t.stage->recording->outputCommitted.store(true,std::memory_order_release);
+                t.stage->committed.store(true,std::memory_order_release);
+                t.owner->status.active=true;t.owner->activeFrame=t.stage->frame;t.owner->failures=0;
+                t.owner->status.phase="Active";
+                if (!t.owner->status.runtimeDisablePending) t.owner->status.reason.clear();
+                ++t.owner->status.framesBridged;
+                if(t.stage->parameters.reset) ++t.owner->status.resets;
+                bool pending=false;for(const auto& other:found->second.native) pending |= other && !other->committed && !other->invalidated;
+                if (!pending) StopFollowing(*t.owner,t.cmd,found->second);
+                RefreshNativeTransactions(*t.owner);
+                bool legacy=false;for(const auto& [listKey,list]:t.owner->lists)legacy |= list.followingRecon&&!list.rrOnlyTransaction;
+                t.owner->window=legacy;return true;
+            }
+        } ticket {owner.get(),cmd,stage,graphics,pixelPipeline,constants,{targets[0],targets[1]},targetStates};
+        ticket.scratch.reserve(2); ticket.bindings.heaps.reserve(2); ticket.bindings.heapBirths.reserve(2);
+        ticket.bindings.tables.reserve(64); ticket.bindings.views.reserve(64);
+        {
+            NativeInjectionScope guard(cmd,graphics,stage->recording);
+            ready = stage->history->rr.CommitOwned(cmd,stage->owned,targets[1].resource,targets[0].resource,commitFrame,error,
+                {&ticket,Ticket::Admit},profile);
+        }
+        if (!ready || !RequiredOutputComplete(*stage->recording))
+        { NativeTransactionFailure(owner,stage,error.empty() ? "Mandatory native RR output admission or root restoration failed" : error); return; }
+        committed=stage->recording->outputCommitted.load(std::memory_order_acquire);
+        if (stage->trace && owner->trace)
+        {
+            const auto snapshot=stage->history->rr.GetOwnedOutputSnapshot(stage->owned);
+            // Final sources are encoded title targets; no native filtered RGB is used by RR or Commit.
+            const std::array<FSRDGameTraceSession::Source,2> outputs {{
+                {targets[1].resource,graphics ? targetStates[0] : D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
+                {targets[0].resource,graphics ? targetStates[1] : D3D12_RESOURCE_STATE_UNORDERED_ACCESS}}};
+            owner->trace->CompleteBridgeFrame(stage->trace,cmd,stage->traceIdentity,outputs,snapshot,nativeConstants);
+        }
+        physical.Stop();
+        {
+            std::scoped_lock lock(gMutex); const auto found=owner->lists.find(cmd);
+            if (gService==owner)
+            {
+                owner->rrSettingsState=stage->history->rr.GetSettingsState();owner->rrSettingsState.requested=owner->rrSettings;
+                if(found!=owner->lists.end())
+                {
+                    const auto& a=found->second.native[0];const auto& b=found->second.native[1];
+                    if(a && a->committed && (!b || b->committed) && a->recording->needsStageSamples)
+                    {
+                        complete=a->recording->stages;
+                        if(b) MergeStageSamples(complete,b->recording->stages);
+                        sampled=true;
+                    }
+                }
+            }
+        }
+        physical.Stop();
+    }
+    // Report/callbacks run after coordinator, injection and physical lifetime guards.
+    PublishBindingWindow();
+    if(sampled) CompleteStageSample(stage->parameters.streamlineFrame,complete,committed);
+}
+
+
+void ObserveNativeDispatch(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, Role role)
+{
+    NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return;
+    FrameSurvey::ComputeBindings bindings;std::vector<FrameSurvey::BoundResource> targets;
+    if(role==Role::ATrous)
+    {
+        constexpr std::array<FrameSurvey::ComputeTableRequest,2> request {{
+            {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
+        if(!D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings) ||
+            !FrameSurvey::ResolveComputeBindings(bindings,5,request,targets) || targets.size()!=2)
+        { Failure(owner,"Native ATrous output profile unavailable after an omitted dispatch");return; }
+    }
+    std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
+    if(gService!=owner || found==owner->lists.end())return;
+    auto& list=found->second;const auto& stage=list.native[list.nativeChain];
+    if(!NativeTransactionCurrent(*owner,list,stage))return;
+    std::string error;
+    if(role==Role::ATrous)
+    {
+        for(const auto& target:targets)
+            if(target.viewFormat!=DXGI_FORMAT_R16G16B16A16_FLOAT || target.subresource ||
+                target.description.Width!=stage->inputs.width || target.description.Height!=stage->inputs.height ||
+                !(target.description.Flags&D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+            { stage->invalidated=true;stage->recording->skipInvalidated.store(true,std::memory_order_release);return; }
+        stage->targets={targets[0],targets[1]};stage->targetStates.Select(targets[0],targets[1]);
+        list.atrous=true;
+    }
+    if(role==Role::Temporal)list.temporal=true;
+    if(role!=Role::Recon && role!=Role::Temporal && role!=Role::Consumer &&
+        !list.chain.Observe(role,{},targets,owner->taggedMotion,error))
+    { stage->invalidated=true;stage->recording->skipInvalidated.store(true,std::memory_order_release); }
+    list.currentDispatchSuppressed=false;RefreshChainUsers(*owner,cmd,list);
 }
 
 }
@@ -1235,7 +1929,8 @@ bool Initialize(ID3D12Device* device) noexcept
                 gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
             }
             // Publish observers under lifecycle serialization, outside the state lock.
-            FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased); FrameSurvey::SetBirthReleaseObserver(OnBirthReleased);
+            FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetGraphicsPipelineObserver(OnGraphicsPipelineCreated);
+            FrameSurvey::SetReleaseObserver(OnReleased); FrameSurvey::SetBirthReleaseObserver(OnBirthReleased);
             PublishBindingWindow();
         }
         // Owned D3D12 releases may re-enter hooks. Destroy outside both coordinator locks.
@@ -1277,9 +1972,10 @@ void Shutdown() noexcept
         {
             std::scoped_lock injection(gInjectionMutex);
             gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
-            gNativeMaterials.store(false,std::memory_order_release);
+            gNativeMaterials.store(false,std::memory_order_release);gNativeTransactions.store(false,std::memory_order_release);
             gNativeDebug.store(false,std::memory_order_release);
-            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBirthReleaseObserver(nullptr); PublishBindingWindow();
+            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetGraphicsPipelineObserver(nullptr);
+            FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBirthReleaseObserver(nullptr); PublishBindingWindow();
             { std::scoped_lock lock(gMutex); previous = std::move(gService); }
         }
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
@@ -1294,6 +1990,25 @@ void OnPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
         const auto role = hash ? IdentifyRole(hash) : Role::None; std::scoped_lock lock(gMutex);
         if (!gService || !BirthLive(birth)) return;
         if (role == Role::None) gService->roles.erase(pipeline); else gService->roles[pipeline] = {role,birth,true};
+        // Exact published intervening CS: bound B diffuse is unused by its actual
+        // instructions. A changed/unknown hash never inherits this allowance.
+        if(hash && std::string_view(hash)=="ac7f46728fe9cfd07bfe11d934d3ce09363289cc1689a2aa7d8aa99ac3bac7b5")
+            gService->harmlessPipelines[pipeline]=birth;
+        else gService->harmlessPipelines.erase(pipeline);
+    } catch (...) {}
+}
+void OnGraphicsPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
+{
+    if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !pipeline) return;
+    try
+    {
+        const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode());
+        const bool consumer = hash && std::string_view(hash) ==
+            "051b199b86af56c7bae475bc150a7e5572b53daa44b117e473295100d9c38cc4";
+        std::scoped_lock lock(gMutex);
+        if (!gService || !BirthLive(birth)) return;
+        if (consumer) gService->graphicsConsumers[pipeline] = birth;
+        else gService->graphicsConsumers.erase(pipeline);
     } catch (...) {}
 }
 void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline) noexcept
@@ -1307,6 +2022,10 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
         {
             std::scoped_lock lock(gMutex); if (!gService || !BirthLive(receiverBirth) || (pipeline && !BirthLive(pipelineBirth))) return; auto& owner = *gService;
             const auto role = PipelineRole(owner,pipeline,pipelineBirth);
+            const auto graphics = owner.graphicsConsumers.find(pipeline);
+            const bool pixelConsumer = graphics != owner.graphicsConsumers.end() && graphics->second == pipelineBirth;
+            const auto harmless=owner.harmlessPipelines.find(pipeline);
+            const bool harmlessPipeline=harmless!=owner.harmlessPipelines.end() && harmless->second==pipelineBirth;
             if (const auto found = owner.lists.find(cmd); found != owner.lists.end() && found->second.birth != receiverBirth)
                 ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
             if (role != Role::None)
@@ -1317,6 +2036,13 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             }
             else if (const auto found = owner.lists.find(cmd); found != owner.lists.end())
             { found->second.role = Role::None; found->second.nativeContract = false; found->second.pipelineBirth = pipelineBirth; }
+            if (const auto found = owner.lists.find(cmd); found != owner.lists.end())
+            {
+                found->second.harmlessPipeline=harmlessPipeline;
+                found->second.graphicsConsumerCandidate = pixelConsumer;
+                found->second.graphicsConsumer = pixelConsumer ? pipeline : nullptr;
+                found->second.graphicsConsumerBirth = pixelConsumer ? pipelineBirth : NrdBridgeBirth::Token {};
+            }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                 (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.nativeContractSeen || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
@@ -1346,6 +2072,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             if (found != owner.lists.end())
             {
                 const bool nrdList = found->second.birth == receiverBirth && found->second.nrdList; AbandonDebugPresentations(found->second,retiredPresentations);
+                RetireNativeRecording(owner,found->second);
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
                 if (unsubmitted && found->second.history)
                 {
@@ -1387,6 +2114,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                         (role == Role::Recon && !owner.everRecon)))
                 { StartWindow(owner); open = true; }
             }
+            RefreshNativeTransactions(owner);
         }
         if (open) PublishBindingWindow();
     } catch (...) { CoordinatorException("Exception while resetting NRD command-list recording"); }
@@ -1397,6 +2125,11 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         RetiredDebugSources retired; std::optional<ListState> retiredList; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
+        std::shared_ptr<Service> nativeOwner; Role nativeRole=Role::None;bool nativeRecording=false;
+        { std::scoped_lock lock(gMutex);nativeOwner=gService;if(nativeOwner)
+          if(const auto found=nativeOwner->lists.find(cmd);found!=nativeOwner->lists.end())
+          {nativeRecording=NativeElisionReady()&&found->second.rrOnlyTransaction&&found->second.nativeReconPrepared;nativeRole=found->second.role;} }
+        if(nativeRecording){ObserveNativeDispatch(nativeOwner,cmd,nativeRole);return;}
         std::shared_ptr<Service> owner; Role role = Role::None; uint64_t frame = 0;
         bool firstTemporal = false, observedEarly = false, firstPrePass = false, invalid = false; ID3D12Resource* currentMotion = nullptr; std::string error;
         {
@@ -1416,7 +2149,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     list.recording = retiredList->recording; list.history = retiredList->history; list.birth = birth; list.pipelineBirth = pipelineBirth;
                     list.material = std::move(retiredList->pendingMaterial); list.materialStates = std::move(retiredList->materialStates);
                     // Prior unsubmitted RR work survives a second incomplete Recon.
-                    list.role = role; list.nativeContract = nativeContract; list.rrOnlyTransaction = nativeContract;
+                    list.role = role; list.nativeContract = nativeContract; list.rrOnlyTransaction = nativeContract && NativeElisionReady();
                     owner->nativeContractSeen |= nativeContract;
                     list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
@@ -1495,7 +2228,7 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
         auto& list = found->second; InvalidateSkippedRecording(list);
         list.nativeContract = false; list.role = Role::None; list.pipelineBirth.reset();
         list.converted = list.motionReady = list.ownedReady = false;
-        StopFollowing(*gService,cmd,list);
+        StopFollowing(*gService,cmd,list);RefreshNativeTransactions(*gService);
         if (gService->pendingList == cmd) gService->pendingList = nullptr;
         if (list.recording && !RequiredOutputComplete(*list.recording))
         {
@@ -1507,13 +2240,75 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, DispatchKind kind) noexcept
 {
     if (kind != DispatchKind::Direct)
+    {
         InvalidateRecordingProof(cmd,kind == DispatchKind::Bundle ? "ExecuteBundle invalidated an incomplete RR-only recording" : "ExecuteIndirect invalidated an incomplete RR-only recording");
-    // Early-owned-RR admission arms exact direct suppressions in the next stage.
-    // A recognized pipeline alone never authorizes omitting native work.
-    return DispatchDisposition::Forward;
+        return DispatchDisposition::Forward;
+    }
+    if(!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() ||
+        gDispatchCandidate!=cmd || !NativeElisionReady() || !gNativeTransactions.load(std::memory_order_relaxed))return DispatchDisposition::Forward;
+    try
+    {
+        std::scoped_lock injection(gInjectionMutex);
+        NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return DispatchDisposition::Forward;
+        std::shared_ptr<Service> owner;std::shared_ptr<NativeTransaction> stage;Role role=Role::None;
+        {
+            std::scoped_lock lock(gMutex);owner=gService;if(!owner)return DispatchDisposition::Forward;
+            const auto found=owner->lists.find(cmd);if(found==owner->lists.end())return DispatchDisposition::Forward;
+            auto& list=found->second;role=list.role;
+            if(role==Role::None)
+            {
+                // Setting an unknown PSO is harmless by itself. Actual unknown
+                // work inside an omitted interval needs independent full-hash proof.
+                if(!list.harmlessPipeline){InvalidateSkippedRecording(list);RefreshNativeTransactions(*owner);}
+                return DispatchDisposition::Forward;
+            }
+            switch(role)
+            {
+            case Role::Recon:case Role::PrePass:case Role::Temporal:case Role::Chain3:
+            case Role::HistSave:case Role::HistFix:case Role::Clamp:case Role::ATrous:break;
+            default:return DispatchDisposition::Forward;
+            }
+            if(!list.nativeContract || !list.rrOnlyTransaction || !list.nativeReconPrepared)return DispatchDisposition::Forward;
+            stage=list.native[list.nativeChain];
+            if(!NativeTransactionCurrent(*owner,list,stage) || !stage->geometryReady ||
+                ((role!=Role::Recon && role!=Role::PrePass) && !stage->motionReady))return DispatchDisposition::Forward;
+        }
+        const auto snapshot=RawSignalSnapshotPass::GetSnapshot(stage->raw);
+        const auto actual=RecordedComputeLease::Capture(cmd);const auto captured=snapshot.nativeRecording.lock();
+        if(!FrameSurvey::MetadataHealthy() || !D3D12Hooks::BridgePredicationDisabled(cmd) ||
+            !D3D12Hooks::CanRestoreRootSignature(cmd) || !actual || actual!=captured || !actual->id ||
+            snapshot.recording!=cmd || snapshot.recordingId!=actual->id || snapshot.frameSL!=stage->parameters.streamlineFrame ||
+            snapshot.bridgeFrame!=stage->parameters.frameIndex || stage->streamline.frameIndex!=stage->parameters.streamlineFrame)
+        {NativeTransactionFailure(owner,stage,"Native omission lost its exact raw/recording/frame/root proof");return DispatchDisposition::Forward;}
+        {
+            std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
+            if(gService!=owner || found==owner->lists.end() || found->second.role!=role ||
+                !NativeTransactionCurrent(*owner,found->second,stage))return DispatchDisposition::Forward;
+            auto& list=found->second;list.currentDispatchSuppressed=true;
+            owner->status.nativeHistoryDirty=true;++owner->status.nativeDispatchesSkipped;
+            if(stage->skipCount<stage->skipped.size())
+            {
+                auto& event=stage->skipped[stage->skipCount];event.sequence=++stage->skipCount;event.role=uint32_t(role);
+                for(const auto& shader:ShaderRoles)if(shader.role==role)
+                {
+                    auto hex=[](char c){return c<='9'?c-'0':c-'a'+10;};
+                    for(size_t i=0;i<32;++i)event.shaderSha256[i]=uint8_t((hex(shader.sha256[i*2])<<4)|hex(shader.sha256[i*2+1]));
+                    event.shaderKnown=true;break;
+                }
+            }
+        }
+        return DispatchDisposition::Suppress;
+    }
+    catch(...)
+    {
+        RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);
+        CoordinatorException("Exception while admitting native RR-only dispatch omission");
+        return DispatchDisposition::Forward;
+    }
 }
 void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 {
+    gDispatchCandidate=nullptr;
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() ||
         (!gRuntime.load(std::memory_order_relaxed) && !NrdBridgePerf::NeedsConsumerFrames())) return;
     try
@@ -1525,13 +2320,43 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             role = found->second.role;
-            if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide) return;
+            if(found->second.rrOnlyTransaction || (found->second.nativeContract && role==Role::Recon))gDispatchCandidate=cmd;
+            if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide &&
+                !(found->second.nativeContract && (role==Role::Recon || role==Role::PrePass))) return;
             window = owner->window; following = found->second.followingRecon;
             captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
             earlyNative = found->second.rrOnlyTransaction && found->second.converted && !found->second.temporal;
             captureMaterial = owner->rrSettings.nativeMaterialGuides;
             stageSampling = role == Role::Consumer && found->second.recording && found->second.recording->needsStageSamples &&
                 found->second.converted && gStageCollector.Active();
+        }
+        bool nativePath=false;uint32_t nativeAction=0;
+        {
+            std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
+            if(gService==owner && found!=owner->lists.end())
+            {
+                const auto& list=found->second;
+                nativePath=NativeElisionReady() && list.nativeContract && (role==Role::Recon || list.rrOnlyTransaction);
+                if(nativePath)
+                {
+                    if(role==Role::Recon)nativeAction=1;
+                    else if(role==Role::PrePass && !list.native[1] && list.temporal && list.atrous)nativeAction=2;
+                    else if(role==Role::Temporal)nativeAction=3;
+                    else if(role==Role::Consumer)nativeAction=4;
+                }
+            }
+        }
+        if(nativePath)
+        {
+            if(nativeAction==1)BeginNativeTransaction(owner,cmd,0);
+            else if(nativeAction==2)BeginNativeTransaction(owner,cmd,1);
+            else if(nativeAction==3)PrepareNativeMotion(owner,cmd);
+            else if(nativeAction==4)
+            {
+                NrdBridgePerf::ConsumerFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
+                CommitNativeTransaction(owner,cmd,false);
+            }
+            return;
         }
         if (role == Role::MaterialGuide)
         {
@@ -1755,6 +2580,29 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (stageSampling) CompleteStageSample(staged.parameters.streamlineFrame,completeStages,committed);
     } catch (...) { CoordinatorException("Exception while preparing NRD output dispatch"); }
 }
+void BeforeGraphicsConsumer(ID3D12GraphicsCommandList* cmd) noexcept
+{
+    if(!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) ||
+        !gNativeTransactions.load(std::memory_order_relaxed) || FrameSurvey::Internal())return;
+    try
+    {
+        std::shared_ptr<Service> owner;
+        {
+            // No binding snapshot/vector/resolver/allocation for unrelated draws.
+            std::scoped_lock lock(gMutex);owner=gService;if(!owner)return;
+            const auto found=owner->lists.find(cmd);
+            if(found==owner->lists.end())return;
+            if(!found->second.graphicsConsumerCandidate)
+            {
+                if(!found->second.harmlessPipeline){InvalidateSkippedRecording(found->second);RefreshNativeTransactions(*owner);}
+                return;
+            }
+            if(!found->second.native[1] || found->second.native[1]->committed)return;
+        }
+        CommitNativeTransaction(owner,cmd,true);
+    }
+    catch(...){CoordinatorException("Exception while committing native pixel-composition RR output");}
+}
 void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
 {
     if (!gInstalled.load(std::memory_order_relaxed) || !object) return;
@@ -1766,9 +2614,13 @@ void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
             if (const auto role = owner.roles.find(reinterpret_cast<ID3D12PipelineState*>(object)); role != owner.roles.end() && role->second.birth == birth)
                 owner.roles.erase(role);
+            if (const auto pixel = owner.graphicsConsumers.find(reinterpret_cast<ID3D12PipelineState*>(object));
+                pixel != owner.graphicsConsumers.end() && pixel->second == birth) owner.graphicsConsumers.erase(pixel);
+            if(const auto safe=owner.harmlessPipelines.find(reinterpret_cast<ID3D12PipelineState*>(object));
+                safe!=owner.harmlessPipelines.end() && safe->second==birth)owner.harmlessPipelines.erase(safe);
             if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end() && found->second.birth == birth)
             {
-                AbandonDebugPresentations(found->second,retiredPresentations);
+                AbandonDebugPresentations(found->second,retiredPresentations);RetireNativeRecording(owner,found->second);
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
                 if (unsubmitted && found->second.history)
                 {
@@ -1800,16 +2652,28 @@ void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
                 const auto found = owner.lists.find(cmd);
                 if (found == owner.lists.end()) continue;
                 auto& list = found->second;
-                const auto resources = list.chain.ReferencedResources(); const auto births = list.chain.ReferencedResourceBirths(); bool matches = false;
+                const auto& resources = list.indexedReferences; const auto& births = list.indexedBirths; bool matches = false;
                 for (size_t i=0;i<resources.size();++i) matches |= resources[i] == object && births[i] == birth;
                 if (!matches) continue; // A partially inserted or delayed old pair cannot invalidate a newborn chain.
-                if (list.chain.Released(object)) currentReleased |= list.followingRecon || list.converted;
+                if(list.rrOnlyTransaction)
+                {
+                    for(const auto& stage:list.native)if(stage && !stage->committed)
+                    {
+                        bool used=stage->motion.resource==object && stage->motion.resourceBirth==birth;
+                        for(const auto& bound:stage->sources)used |= bound.resource==object && bound.resourceBirth==birth;
+                        for(const auto& bound:stage->targets)used |= bound.resource==object && bound.resourceBirth==birth;
+                        if(used){stage->invalidated=true;stage->recording->skipInvalidated.store(true,std::memory_order_release);currentReleased=true;}
+                    }
+                    (void)list.chain.Released(object);
+                }
+                else if (list.chain.Released(object)) currentReleased |= list.followingRecon || list.converted;
                 RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
             }
             if (owner.taggedMotion == object && owner.taggedMotionBirth == birth) { owner.taggedMotion = nullptr; owner.taggedMotionBirth.reset(); }
             const bool cachedReleased = CacheUsesBirth(owner,object,birth) && owner.cache.Released(object);
             if (currentReleased || (cachedReleased && !owner.nativeContractSeen))
             { Invalidate(owner,"A discovered or current-recording title resource was released",retired); reopen = true; }
+            RefreshNativeTransactions(owner);
         }
         if (reopen && gRuntime.load(std::memory_order_relaxed))
         { PublishBindingWindow(); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
@@ -1817,8 +2681,9 @@ void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
 }
 void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_RESOURCE_BARRIER* barriers) noexcept
 {
-    if (!gNativeMaterials.load(std::memory_order_relaxed) || !gInstalled.load(std::memory_order_relaxed) ||
-        !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !barriers || !count) return;
+    if ((!gNativeMaterials.load(std::memory_order_relaxed) && !gNativeTransactions.load(std::memory_order_relaxed)) ||
+        !gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) ||
+        FrameSurvey::Internal() || !barriers || !count) return;
     try
     {
         std::shared_ptr<Service> owner;
@@ -1827,9 +2692,14 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
             const auto found = owner->lists.find(cmd);
             if (found != owner->lists.end() && ListLive(found->second))
             {
-                owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
-                // Existing lists must see every packet, including wildcard aliases.
-                found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
+                if(gNativeMaterials.load(std::memory_order_relaxed))
+                {
+                    owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
+                    // Existing lists must see every packet, including wildcard aliases.
+                    found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
+                }
+                for(const auto& stage:found->second.native)
+                    if(stage && !stage->committed && !stage->invalidated)stage->targetStates.Observe(count,barriers,stage->serial);
                 return;
             }
             if (!owner->materialIdentities.MatchesAnyTransition(count,barriers)) return;
@@ -1856,12 +2726,20 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
 }
 void OnRecordingClosed(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
 {
-    if (!gNativeMaterials.load(std::memory_order_relaxed) || FrameSurvey::Internal() || FAILED(result)) return;
+    if ((!gNativeMaterials.load(std::memory_order_relaxed) && !gNativeTransactions.load(std::memory_order_relaxed)) ||
+        FrameSurvey::Internal() || FAILED(result)) return;
     try
     {
         std::scoped_lock lock(gMutex); if (!gService) return;
         const auto found = gService->lists.find(cmd);
-        if (found != gService->lists.end()) found->second.materialStates.Invalidate();
+        if (found != gService->lists.end())
+        {
+            found->second.materialStates.Invalidate();
+            // Missing late Consumer remains an explicit BeforeSubmission denial;
+            // Close never makes an incomplete native transaction submittable.
+            for(const auto& stage:found->second.native)
+                if(stage && !stage->committed)stage->recording->skipInvalidated.store(true,std::memory_order_release);
+        }
     } catch (...) {}
 }
 void OnReleased(void* object) noexcept
@@ -2248,6 +3126,12 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
 bool NativeDebugEnabled() noexcept
 { return gInstalled.load(std::memory_order_relaxed) && gRuntime.load(std::memory_order_relaxed) && gNativeDebug.load(std::memory_order_relaxed); }
 #ifdef FSRD_NRD_BRIDGE_TEST
+void SetNativeElisionContractForTesting(bool enabled) noexcept
+{
+    std::scoped_lock lock(gMutex);
+    if (!enabled && gService && gService->status.nativeHistoryDirty) return;
+    gNativeElisionForTesting.store(enabled,std::memory_order_release);
+}
 void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role, bool nativeContract) noexcept
 {
     try { const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode()); std::scoped_lock lock(gMutex);

@@ -27,6 +27,8 @@ bool Initialize(ID3D12Device*) noexcept;
 void Shutdown() noexcept;
 void ReportUnavailable(const char* reason) noexcept;
 void OnPipelineCreated(ID3D12PipelineState*, const char* csSha256) noexcept;
+void OnGraphicsPipelineCreated(ID3D12PipelineState*, const char* psSha256) noexcept;
+void BeforeGraphicsConsumer(ID3D12GraphicsCommandList*) noexcept;
 void OnSetPipeline(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept;
@@ -56,6 +58,8 @@ bool NativeDebugEnabled() noexcept;
 // Quiet false means no eligible completed/same-recording diagnostic image.
 bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource*, D3D12_RESOURCE_STATES, std::string& error) noexcept;
 #ifdef FSRD_NRD_BRIDGE_TEST
+// Explicit NEW-fixture readiness adapter; does not enable the shipping contract.
+void SetNativeElisionContractForTesting(bool) noexcept;
 void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role, bool nativeContract = false) noexcept;
 #endif
 }
