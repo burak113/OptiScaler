@@ -12,7 +12,8 @@ static ComPtr<ID3D12Resource> uavBuffer(Fixture& f,uint64_t count)
  D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;desc.Width=count;
  desc.Height=desc.DepthOrArraySize=desc.MipLevels=1;desc.SampleDesc.Count=1;desc.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
  D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;ComPtr<ID3D12Resource> result;
- hr(f.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&result)));return result;
+ hr(f.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&result)));
+ Fixture::Transition(f.list.Get(),result.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);return result;
 }
 static void fill(ID3D12Resource* resource,const void* data,size_t count)
 {void* mapped=nullptr;D3D12_RANGE none{0,0};hr(resource->Map(0,&none,&mapped));memcpy(mapped,data,count);resource->Unmap(0,nullptr);}
@@ -116,7 +117,11 @@ static void cases(const fs::path& directory)
   D3D12_DESCRIPTOR_HEAP_DESC hd{};hd.Type=type;hd.NumDescriptors=1;hd.Flags=type==D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER?D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE:D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
   ComPtr<ID3D12DescriptorHeap> heap;hr(f.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&heap)));auto bad=b;bad.nativeHeap=heap.Get();noWork(f,negative,bad,"wrong heap type or visibility rejected");
  }
- ComPtr<ID3D12Device> different;hr(D3D12CreateDevice(nullptr,D3D_FEATURE_LEVEL_12_0,IID_PPV_ARGS(&different)));
+ // D3D12CreateDevice returns the same device for the same adapter. Select a
+ // different adapter explicitly so this is a real device-identity negative.
+ ComPtr<IDXGIFactory4> factory;hr(CreateDXGIFactory2(0,IID_PPV_ARGS(&factory)));ComPtr<IDXGIAdapter> warp;hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));
+ ComPtr<ID3D12Device> different;hr(D3D12CreateDevice(warp.Get(),D3D_FEATURE_LEVEL_12_0,IID_PPV_ARGS(&different)));
+ ComPtr<IUnknown> expectedIdentity,differentIdentity;hr(f.device.As(&expectedIdentity));hr(different.As(&differentIdentity));need(expectedIdentity.Get()!=differentIdentity.Get(),"foreign-device test has genuinely different canonical devices");
  D3D12_DESCRIPTOR_HEAP_DESC hd{};hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;hd.NumDescriptors=1;hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
  ComPtr<ID3D12DescriptorHeap> foreign;hr(different->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&foreign)));auto bad=b;bad.nativeHeap=foreign.Get();bad.descriptor=foreign->GetGPUDescriptorHandleForHeapStart();noWork(f,negative,bad,"foreign-device native heap rejected");
  r.restore();RecordedComputeLease::SetHooksAvailable(false,false);const auto before=gRawCommands;Capture::SnapshotLease failed;
