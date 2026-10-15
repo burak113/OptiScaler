@@ -33,7 +33,7 @@ struct RRSettings
     bool nativeMaterialGuides = false;
     bool lobeRecovery = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
-    float nativeSpecularBlend = 0.0f; // NRD-assisted hybrid after RR; never changes RR inputs or history.
+    float nativeSpecularBlend = 0.0f; // Deprecated source ABI; ignored. Native NRD output never corrects RR.
 };
 struct RRSettingsState
 {

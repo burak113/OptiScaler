@@ -11,7 +11,7 @@
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
-#include "precompile/FSRDNrdBridgeCommit_Shader.h"
+#include "precompile/FSRDNrdBridgePureCommit_Shader.h"
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
@@ -214,10 +214,10 @@ struct Context
         if (!CreateZeroSignalConstants(device.Get(), zeroConstants, error)) return false;
         const auto zeroDesc = zeroConstants->GetDesc();
         zeroBytes = device->GetResourceAllocationInfo(0, 1, &zeroDesc).SizeInBytes;
-        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso),
+        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgePureCommit_cso, sizeof(FSRDNrdBridgePureCommit_cso),
             IID_PPV_ARGS(&commitRoot)), "RR commit root creation failed", error)) return false;
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
-        desc.pRootSignature = commitRoot.Get(); desc.CS = {FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso)};
+        desc.pRootSignature = commitRoot.Get(); desc.CS = {FSRDNrdBridgePureCommit_cso, sizeof(FSRDNrdBridgePureCommit_cso)};
         if (!Check(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&commitPso)), "RR commit PSO creation failed", error)) return false;
         descriptorStride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         slots.reserve(32);
@@ -327,13 +327,13 @@ struct Context
     // The raw staged pair remains the canonical commit for existing standalone callers.
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
-                const TitleSignalConstants& titleConstants, float nativeSpecularBlend) noexcept
+                const TitleSignalConstants& titleConstants, float) noexcept
     {
-        Commit(list,slot,outputSpec,outputDiff,encoding,titleConstants,nativeSpecularBlend,slot.spec.Get(),slot.diff.Get());
+        Commit(list,slot,outputSpec,outputDiff,encoding,titleConstants,0.0f,slot.spec.Get(),slot.diff.Get());
     }
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
-                const TitleSignalConstants& titleConstants, float nativeSpecularBlend,
+                const TitleSignalConstants& titleConstants, float,
                 ID3D12Resource* committedSpec, ID3D12Resource* committedDiff) noexcept
     {
         const bool nativeConstants = HasNativeTitleSignalConstants(titleConstants);
@@ -356,8 +356,8 @@ struct Context
         list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
         list->SetPipelineState(commitPso.Get()); list->SetComputeRootSignature(commitRoot.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
-        const uint32_t constants[] = {width, height, uint32_t(encoding), nativeConstants ? 1u : 0u,
-            std::bit_cast<uint32_t>(nativeSpecularBlend)};
+        // Keep the five-DWORD ABI, but never let an internal caller enable native RGB blending.
+        const uint32_t constants[] = {width, height, uint32_t(encoding), nativeConstants ? 1u : 0u, 0u};
         list->SetComputeRoot32BitConstants(0, 5, constants, 0);
         list->SetComputeRootConstantBufferView(3, address);
         auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
