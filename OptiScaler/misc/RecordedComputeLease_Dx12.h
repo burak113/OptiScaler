@@ -73,7 +73,10 @@ struct SubmissionCallbacks
     std::function<bool(const SubmissionInfo&)> beforeSubmit;
     std::function<void(const SubmissionInfo&, const FencePointPtr&)> fencePublished;
     std::function<void(const SubmissionInfo&, SubmissionFailure)> failed;
-    bool Empty() const noexcept { return !beforeSubmit && !fencePublished && !failed; }
+    // Runs exactly once for an actually fence-completed, detached submission,
+    // outside the registry mutex while all callback/lease owners remain pinned.
+    std::function<void(const SubmissionInfo&)> completed;
+    bool Empty() const noexcept { return !beforeSubmit && !fencePublished && !failed && !completed; }
 };
 // Resolve one strong canonical identity on the stack. This avoids allocating a
 // list of identities before the allocation-failure ordering fallback can run.
@@ -281,6 +284,18 @@ inline void Poll() noexcept
             for (size_t i=0;i<count;++i)
                 if (completed[i]) Detail::RetireLocked(r,candidates[i],detached[i]);
         }
+        // Detachment is the exactly-once claim. Never notify an unregistered
+        // snapshot or invoke user work under Registry::mutex.
+        for (const auto& submission : detached)
+            if (submission)
+                for (const auto& callback : submission->callbacks)
+                    if (callback.callbacks.completed)
+                        try { callback.callbacks.completed(callback.info); }
+                        catch (...)
+                        {
+                            FailCompletion();
+                            FailUntrackedRequiredSubmission(E_FAIL);
+                        }
         // Every candidate/detached owner dies after the mutex is released. FIFO
         // rotation and tail insertion give finite-backlog progress despite swaps.
     }

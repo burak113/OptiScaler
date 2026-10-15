@@ -2,6 +2,7 @@
 #define main RawAStandaloneMain
 #include "nrd_raw_signal_fixture.cpp"
 #undef main
+#include <thread>
 namespace RawPrePassFixture
 {
 using namespace NrdBridge;
@@ -75,6 +76,14 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         need(References(source->textures[0].Get())==specRefs&&References(source->textures[1].Get())==diffRefs,"B retains no native raw input refs");
         const auto afterHeap=source->heap->AddRef();source->heap->Release();need(afterHeap==heapRefs,"B retains no native descriptor heap refs");
         fixture.Submit();fixture.Reset();auto rawData=packed.Data();uint32_t executedStatus;memcpy(&executedStatus,rawData.data(),4);need(executedStatus==status,"actual GPU B bounds/mode/UINTrect status matches independent case");
+        need(lease->statusObservation->completedCount==1&&lease->statusObservation->mapCount==1,"mandatory B observer maps once after actual completion even with Trace OFF");
+        need(lease->statusObservation->lastStatus==status,"mandatory observer sees exact executed owned status");
+        need(FAILED(RecordedComputeLease::RequiredSubmissionFailure())==(status!=0),"GPU invalid B status latches fatal for future submissions");
+        if(status)
+        {
+            need(fixture.fence->GetCompletedValue()>=fixture.fenceValue&&RecordedComputeLease::GetRegistry().recordings.empty()&&RecordedComputeLease::GetRegistry().submissions.empty(),"negative status fixture fully drained before test-only fatal reset");
+            RecordedComputeLease::gUntrackedRequiredSubmissionFailure.store(S_OK,std::memory_order_release);
+        }
         save(path/"raw_owned.bin",rawData);save(path/"out_spec.bin",spec.Data());save(path/"out_diff.bin",diff.Data());
         save(path/"out_nr.bin",normal.Data());save(path/"out_depth.bin",depth.Data());save(path/"positive_viewz.bin",positiveRead.Data());save(path/"out_motion.bin",motion.Data());
         save(path/"out_spec_albedo.bin",specAlbedo.Data());save(path/"out_diff_albedo.bin",diffAlbedo.Data());
@@ -91,6 +100,40 @@ void Tiny(Fixture& fixture,Source& source)
     auto snapshot=RawSignalSnapshotPass::GetSnapshot(lease);auto data=RawFixture::Snapshot(fixture,snapshot.resource);
     fixture.Submit();fixture.Reset();auto bytes=data.Data();uint32_t status;memcpy(&status,bytes.data(),4);
     need(status==16,"actual single-pixel checkerboard has explicit unsupported-width status");
+    need(FAILED(RecordedComputeLease::RequiredSubmissionFailure()),"single-pixel unsupported GPU status also latches fatal without Trace");
+    need(fixture.fence->GetCompletedValue()>=fixture.fenceValue&&RecordedComputeLease::GetRegistry().recordings.empty()&&RecordedComputeLease::GetRegistry().submissions.empty(),"tiny negative fully drained before test-only fatal reset");
+    RecordedComputeLease::gUntrackedRequiredSubmissionFailure.store(S_OK,std::memory_order_release);
+}
+void ObserverControls(Fixture& fixture,Source& source)
+{
+    RawSignalSnapshotPass raw;std::string error;need(raw.Initialize(fixture.device.Get(),source.width,source.height,error),error.c_str());
+    Constants(source.original.Get(),0,0,source.width,source.height,2,2,0);if(source.source.nativeConstants.nativeHeap)source.SourceCB(fixture,source.original.Get());
+    RawSignalLease lease;need(raw.Capture(fixture.list.Get(),source.source,9100,101,lease,error),error.c_str());fixture.Submit();fixture.Reset();
+    auto observation=lease->statusObservation;need(observation&&observation->mapCount==1&&observation->lastStatus==0,"observer controls use real already-fenced status0 readback");
+    const auto maps=observation->mapCount;
+    RecordedComputeLease::SubmissionInfo a{fixture.queue.Get(),1000001,lease->recordingId,1,false},c=a,d=a;
+    c.submissionId=1000002;d.submissionId=1000003;
+    need(observation->Before(a)&&observation->Before(c),"same recording tracks distinct overlapping submissions without allocation");
+    observation->Complete(a);need(observation->mapCount==maps,"first completion never maps while another submission can write");
+    HANDLE entered=CreateEvent(nullptr,TRUE,FALSE,nullptr),finished=CreateEvent(nullptr,TRUE,FALSE,nullptr);need(entered&&finished,"observer serialization test events");
+    bool admitted=false;
+    {
+        std::unique_lock lock(observation->mutex);
+        std::thread pending([&]{SetEvent(entered);admitted=observation->Before(d);SetEvent(finished);});
+        const bool started=WaitForSingleObject(entered,1000)==WAIT_OBJECT_0;
+        const bool blocked=started&&WaitForSingleObject(finished,5)==WAIT_TIMEOUT;lock.unlock();pending.join();
+        need(started,"resubmission attempts observer mutex");need(blocked&&admitted,"beforeSubmit cannot start GPU overwrite while completion owns Map mutex");
+    }
+    CloseHandle(entered);CloseHandle(finished);observation->Complete(c);need(observation->mapCount==maps,"another live resubmission continues to pin readback");
+    observation->Complete(d);need(observation->mapCount==maps+1,"only final concurrent completion maps actual status exactly once");
+    auto outstanding=a;outstanding.submissionId=1000004;auto unknown=a;unknown.submissionId=1000999;
+    need(observation->Before(outstanding),"failed callback balance outstanding submission admitted");
+    observation->Failed(unknown);need(FAILED(RecordedComputeLease::RequiredSubmissionFailure()),"failure before its own admission conservatively latches fatal");
+    bool stillPending=false;for(auto id:observation->active)stillPending|=id==outstanding.submissionId;need(stillPending,"failed callback never decrements a different submission");
+    observation->Complete(outstanding);need(observation->mapCount==maps+1,"failed observation never maps uncertain storage");
+    need(fixture.fence->GetCompletedValue()>=fixture.fenceValue&&RecordedComputeLease::GetRegistry().recordings.empty()&&RecordedComputeLease::GetRegistry().submissions.empty(),"observer negative controls leave no active GPU owners");
+    // Deliberately leave the conservative fatal latch set: no further native submission follows.
+    std::cout<<"status_observer trace_off=1 actual_fence=1 serialized_map=1 failed_id_balance=1\n";
 }
 }
 int main(int argc,char** argv)
@@ -98,7 +141,7 @@ int main(int argc,char** argv)
     try
     {
         need(argc==2,"B fixture expects sealed directory");Fixture fixture(true);std::vector<std::shared_ptr<RawPrePassFixture::Source>> sources;
-        RawPrePassFixture::Cases(fixture,argv[1],sources);need(!sources.empty(),"B sources retained");RawPrePassFixture::Tiny(fixture,*sources.front());
+        RawPrePassFixture::Cases(fixture,argv[1],sources);need(!sources.empty(),"B sources retained");RawPrePassFixture::Tiny(fixture,*sources.front());RawPrePassFixture::ObserverControls(fixture,*sources.front());
         need(fixture.fence->GetCompletedValue()>=fixture.fenceValue,"B all GPU work fenced");
         need(RecordedComputeLease::GetRegistry().recordings.empty()&&RecordedComputeLease::GetRegistry().submissions.empty(),"B no remaining recorded GPU owners");
         hr(fixture.list->Close());fixture.Validate();std::cout<<"PASS raw_prepass_native_checks="<<checks<<" provider_calls=0 native_nrd_calls=0\n";return 0;

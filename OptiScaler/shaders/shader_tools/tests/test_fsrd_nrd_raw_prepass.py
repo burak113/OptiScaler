@@ -81,6 +81,15 @@ def source_contracts():
     need(cpp.index('context->PreparePrePassSlot(*record->slot)')<cpp.index('RetainComputeDispatch'),'fallible B allocation precedes native omission point')
     need('result.hasStatus=record->profile==NativeRawProfile::PrePass' in cpp and 'statusByteOffset = 0' in header,'owned status surfaced explicitly')
     need('DXGI_FORMAT_R10G10B10A2_UNORM' in cpp and 'DXGI_FORMAT_R32_FLOAT' in cpp,'owned decode geometry formats checked')
+    ledger=(ROOT/'OptiScaler/misc/RecordedComputeLease_Dx12.h').read_text()
+    need('std::function<void(const SubmissionInfo&)> completed;' in ledger and '!completed' in ledger,'append-only completion callback participates in Empty')
+    need('for (const auto& submission : detached)' in ledger and 'callback.callbacks.completed(callback.info)' in ledger,'only actual detached submissions trigger completion callback')
+    need('FailUntrackedRequiredSubmission(E_FAIL)' in ledger,'completion callback exception has sticky required failure')
+    need('const auto totalBytes=rawBytes+flagBytes+statusBytes' in cpp and 'permit.SetBytes(totalBytes)' in cpp,'mandatory readback actual allocation counted in same family limit')
+    need('CopyBufferRegion(record->slot->statusReadback.Get(),0,record->slot->resource.Get(),0,4)' in cpp,'only four owned status bytes copied without title access')
+    need('std::array<uint64_t,RecordedComputeLease::PollBudget> active' in cpp,'submission observation storage bounded and allocation-free')
+    need('Remove(info.submissionId);failed=true' in cpp and 'if(!failed&&!pending)' in cpp,'only own failed ID removed and final successful completion may map')
+    need('callbacks.completed=[observation]' in cpp,'status observation always registered independent of Trace')
     for name in ['FSRDNrdRawSignals_Dx12.cpp','FSRDNrdRawSignals_Dx12.h','precompile/FSRDNrdRawPrePassCapture.hlsl','precompile/FSRDNrdRawPrePassCaptureRoot.hlsl','precompile/FSRDNrdRawPrePassDecode.hlsl']:
         b=(SHADERS/name).read_bytes();need(b'\n' not in b.replace(b'\r\n',b''),'CRLF '+name)
 
