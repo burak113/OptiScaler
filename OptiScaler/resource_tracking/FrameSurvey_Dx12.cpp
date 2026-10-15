@@ -7,6 +7,8 @@
 #include "misc/NrdBridgeLifetime_Dx12.h"
 #include "misc/NrdBridgeNativeBirth_Dx12.h"
 #include "misc/NrdBridgePerf_Dx12.h"
+#include "misc/NrdBridgeTitleCallbacks_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
 #include "proxies/D3D12_Proxy.h"
@@ -2910,8 +2912,28 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteIndirect,
         NrdBridgePerf::Detail::configured.load(std::memory_order_relaxed) && Tracking() && !gInternal);
+    if (gInternal) { oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); return; }
+    const bool bridge = NrdBridge::StartupEnabled();
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Indirect,bridge);
+    if (forwarding.Nested())
+    { InternalScope internal; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); return; }
+    if (bridge)
+    {
+        // Opaque signatures can replace root arguments. They are never suppressed.
+        NrdBridge::OriginalDispatchDisposition(cmd,NrdBridge::DispatchKind::Indirect);
+        D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
+    }
     NrdBridgeLifetime::ScopedBorrow borrow(Recording());
-    if (!borrow.Acquired()) { InternalScope forwarding; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); return; }
+    if (!borrow.Acquired())
+    {
+        { InternalScope internal; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); }
+        if (bridge)
+        {
+            D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
+            NrdBridge::InvalidateRecordingProof(cmd,"ExecuteIndirect invalidated an unavailable recording proof");
+        }
+        return;
+    }
     uint32_t graphics = 0; UINT bytes = sizeof(graphics);
     if (signature) signature->GetPrivateData(SignatureId,&bytes,&graphics);
     const std::array<uint64_t,6> args {count,uint64_t(reinterpret_cast<uintptr_t>(arguments)),argumentOffset,
@@ -2967,7 +2989,14 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
     // The runtime can expand ExecuteIndirect into internal command lists.
     // Observe this public invocation once; helper recordings are not separate
     // title submissions and must not allocate unfenced survey payloads.
-    { InternalScope forwarding; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); }
+    { InternalScope internal; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); }
+    if (bridge)
+    {
+        D3D12Hooks::OnBridgeOpaqueCommand(cmd,false);
+        NrdBridge::InvalidateRecordingProof(cmd,"ExecuteIndirect invalidated the current root/dispatch proof");
+        RootBinding(cmd,false,nullptr); RootBinding(cmd,true,nullptr);
+        DescriptorHeaps(cmd,0,nullptr); SetPipeline(cmd,nullptr);
+    }
     SnapshotWrites(cmd);
 }
 void RecordCopy(ID3D12GraphicsCommandList* cmd, ID3D12Resource* dst, UINT subresource, ID3D12Resource* src)
