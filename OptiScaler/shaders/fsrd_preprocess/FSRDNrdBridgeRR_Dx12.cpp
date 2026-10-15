@@ -532,9 +532,11 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!ValidateRRSettings(requested, error)) return false;
     const float nativeSpecularBlend = NormalizeNativeSpecularBlend(requested.nativeSpecularBlend);
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
-        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && nativeSpecularBlend == 0.0f) return true;
+        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
+        nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
-    if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs)
+    if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs ||
+        impl_->settings.nativeTemporalMotion != requested.nativeTemporalMotion)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
@@ -543,6 +545,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.nativeDebugView = requested.nativeDebugView;
     impl_->settings.nativeDebugViewport = requested.nativeDebugViewport;
     impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
+    impl_->settings.nativeTemporalMotion = requested.nativeTemporalMotion;
     impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
