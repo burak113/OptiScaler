@@ -8,6 +8,7 @@ import time
 
 import test_fsrd_game_trace_capture as host
 from fsrd_toolchain import compile_cpp
+from test_fsrd_nrd_root_restore import function
 
 MAIN = r'''
 int main(int argc,char** argv) try
@@ -84,6 +85,14 @@ def run():
     end = feature.index("// FSR's output is UAV here.", start)
     (stubs / 'fsrd_game_trace_sr_controls.inc').write_text(feature[start:end], encoding='utf-8')
     cpp = host.CPP[:host.CPP.index('int main(')] + MAIN
+    # RecordedRecovery JSON embeds the D06/D07 diagnostic names whose definitions
+    # live in FSRDNrdBridgeRR_Dx12.cpp. Embed the exact production definitions
+    # behind the recorder so the single-TU fixture links without touching prod.
+    rr_cpp = (root / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp').read_text(encoding='utf-8-sig')
+    recovery_names = '\n'.join(function(rr_cpp, 'const char* ' + name + '(')
+                               for name in ('LobeRecoveryTierName', 'LobeRecoveryFallbackReasonName'))
+    cpp = cpp.replace('#include "__RECORDER__"',
+                      '#include "__RECORDER__"\nnamespace NrdBridge {\n' + recovery_names + '\n}', 1)
     cpp = cpp.replace('__RECORDER__', (root / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix())
     cpp = cpp.replace('__RR_HEADER__', (root / 'OptiScaler/include/fsr-rr/ffx_denoiser.h').as_posix())
     source = output / 'particle_diagnostics.cpp'
