@@ -2,6 +2,7 @@
 
 Mirrors the layout the existing precompiled headers use, so the checked-in artifacts stay
 in the same shape: an `#if 0` DXIL listing for reference, then the cso bytes.
+FSRDNrdLobeRecovery rebuilds only its Reference, Down and Band graph stages.
 FSRDInputConv builds both the original and enabled additive variants so an edit to
 their shared source cannot leave either conversion PSO with a stale artifact; all dependent variants share the same source.
 """
@@ -17,6 +18,9 @@ from fsrd_toolchain import dxc
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 PRE = "OptiScaler/shaders/fsrd_preprocess/precompile"
 VERIFY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify_fsrd_mirrors.py")
+NRD_LOBE_RECOVERY_SHADERS = (
+    "FSRDNrdLobeRecoveryReference", "FSRDNrdLobeRecoveryDown", "FSRDNrdLobeRecoveryBand",
+)
 
 
 def publish_if_changed(path, data):
@@ -80,6 +84,8 @@ def build(name, compiler):
         else:
             args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
                     "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", compiled, "-Fc", asm]
+            if name in NRD_LOBE_RECOVERY_SHADERS:
+                args += ["-I", os.path.dirname(src)]  # Match the validated graph compiler.
             res = subprocess.run(args, capture_output=True, text=True)
             if res.returncode != 0:
                 print(res.stdout)
@@ -124,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('name', choices=['FSRDNrdBridgeNativeDebug', 'FSRDNrdBridgeFlag', 'FSRDNrdBridgeFlagRoot', 'FSRDNrdBridgeCommit', 'FSRDNrdBridge', 'FSRDNrdBridgeCopy', 'FSRDNrdBridgeMotion', 'FSRDNrdBridgeMotionNative', 'FSRDNrdBridgeMaterial', 'FSRDNrdNativeMaterialCapture', 'FSRDNrdNativeTemporalCapture', 'FSRDNrdNativeTemporalCaptureRoot', 'FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalLP', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
                                        'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'FSRDCompareView',
                                                                                                                      'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-                                       'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion', 'all'])
+                                       'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion', 'FSRDNrdLobeRecovery', *NRD_LOBE_RECOVERY_SHADERS, 'all'])
     parser.add_argument('--compile-only', action='store_true', help='Compile code without running mirror verification')
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
@@ -142,6 +148,9 @@ if __name__ == "__main__":
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'FSRDCompareView',
                                                    'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
                  'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion']
+        names.extend(NRD_LOBE_RECOVERY_SHADERS)
+    elif options.name == 'FSRDNrdLobeRecovery':
+        names = list(NRD_LOBE_RECOVERY_SHADERS)
     elif options.name == 'FSRDInputConv':
         names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive']
     else:

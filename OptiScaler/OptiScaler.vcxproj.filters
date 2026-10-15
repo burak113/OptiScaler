@@ -1863,5 +1863,17 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdLobeRecovery_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryDown_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryDown.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryDown_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryBand_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryBand.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryBand_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRecoveryResearchSupport.hlsli" />
   </ItemGroup>
 </Project>
