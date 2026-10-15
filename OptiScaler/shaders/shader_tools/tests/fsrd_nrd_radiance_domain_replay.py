@@ -17,6 +17,7 @@ import sys
 os.environ.update(TEMP='F:/FSRD/tmp', TMP='F:/FSRD/tmp', OMP_NUM_THREADS='2',
                   OPENBLAS_NUM_THREADS='2', MKL_NUM_THREADS='2')
 import numpy as np
+from fsrd_nrd_radiance_unit_source import V3_SCALES, seal_unit_source, validate_unit_source
 
 SCALES = (.25, 1., 4., 16., 64., 256.)
 V1_SHA = '27545e6db81e5214b2c0622a57ae05efa9ca2ed8148666e86e9542c63fd9974d'
@@ -105,9 +106,10 @@ def write_immutable(path, data):
         path.write_bytes(data)
 
 
-def prepare_views(replay, inputs, manifest, destination):
+def prepare_views(replay, inputs, manifest, destination, scales=SCALES, domain='v1'):
     prepared = {}
-    for scale in SCALES:
+    manifest_sha = file_sha(inputs / 'sequence.json')
+    for scale in scales:
         name = 'scale_' + format(scale, 'g').replace('.', 'p')
         view = destination / name
         view.mkdir(parents=True, exist_ok=True)
@@ -135,7 +137,8 @@ def prepare_views(replay, inputs, manifest, destination):
             require(file_sha(folder / 'motion.bin') == motion['sha256'], 'same exact surfaceB guide for every scale')
             row['unchanged']['motion_surface'] = motion['sha256']
             rows.append(row)
-        meta = dict(schema='fsrd-radiance-domain-view-v1', source_manifest_sha256=V1_SHA,
+        meta = dict(schema='fsrd-radiance-domain-view-v1', source_manifest_sha256=manifest_sha,
+            original_v1_manifest_sha256=V1_SHA, unit_domain=domain,
             rgb_scale=scale, inverse_output_scale=1 / scale, motion_mode='surface', frames=rows,
             camera_table_sha256=manifest['native_replay']['sha256'],
             alpha_and_guides_exact=True, input_scale_admitted=True,
@@ -221,7 +224,7 @@ def published_quantiles(loader_path, index_path):
         one_payload_at_a_time=True, temporal_quality_claim=False, rows=result)
 
 
-def normalized_metrics(replay, inputs, manifest, raw_runs):
+def normalized_metrics(replay, inputs, manifest, raw_runs, unit_to_v1=1):
     frames, summaries = [], {}
     for frame in manifest['frames']:
         origin = inputs / frame['directory']
@@ -268,14 +271,18 @@ def normalized_metrics(replay, inputs, manifest, raw_runs):
             total_energy_ratio=float(sum(v['output_rgb_sum'] for v in rows) / sum(v['reference_rgb_sum'] for v in rows)),
             mean_signed_rgb_error=float(np.mean([v['signed_mean_rgb_error'] for v in rows])),
             mean_consumer_rgb_rmse=float(np.mean([v['consumer_rgb_rmse'] for v in rows])),
+            canonical_v1_mean_frame_rgb_rmse=float(np.mean([v['rgb_rmse'] for v in rows])) * unit_to_v1,
+            canonical_v1_mean_frame_chroma_rmse=float(np.mean([v['chroma_rmse'] for v in rows])) * unit_to_v1,
+            canonical_v1_mean_detail_gradient_rmse=float(np.mean([v['detail_gradient_rmse'] for v in rows])) * unit_to_v1,
             reveal_age_curve=replay.tail_summary(rows))
     return dict(frames=frames, summaries=summaries, inverse_scale_before_all_metrics=True,
+        input_unit_to_canonical_v1=unit_to_v1,
         normalization_dtype='float64 exact power-of-two; alpha untouched',
         consumer_metric_scope='Derived from already inverse-scaled actual RR RGB using native Consumer64 with unity exposure in the unchanged C++ fixture. Its .75/2 values are title alpha sentinels, not exposures. Game exposure is not serialized.',
         no_quality_improvement_assertion=True, no_game_temporal_claim=True)
 
 
-def run_gpu(replay, inputs, manifest, prepared, output, settings_contract, settings_text):
+def run_gpu(replay, inputs, manifest, prepared, output, settings_contract, settings_text, unit_to_v1=1):
     require(file_sha(replay.DLL) == replay.DLL_SHA, 'exact immutable signed AMD provider binary')
     exe, source_hashes = replay.build(output / 'build')
     settings = output / 'common-effective-settings.txt'
@@ -295,11 +302,11 @@ def run_gpu(replay, inputs, manifest, prepared, output, settings_contract, setti
             folder = directory / frame['directory']
             require(file_sha(folder / 'motion.bin') == frame['payloads']['motion_surface']['sha256'], 'actual GPU motion unchanged')
             native['outputs'][str(frame['frame'])] = {s: file_sha(folder / (s + '.bin')) for s in ('spec', 'diff')}
-        native.update(directory=str(directory), rgb_scale=view['rgb_scale'], source_manifest_sha256=V1_SHA,
+        native.update(directory=str(directory), rgb_scale=view['rgb_scale'], source_manifest_sha256=view['source_manifest_sha256'],
                       fresh_probe=probe, alpha_and_guides_exact=True)
         write_json(directory / 'native-result.json', native)
         runs[name] = native
-    comparison = normalized_metrics(replay, inputs, manifest, runs)
+    comparison = normalized_metrics(replay, inputs, manifest, runs, unit_to_v1)
     return dict(runs=runs, comparison=comparison, source_hashes=source_hashes, provider_sha256=replay.DLL_SHA)
 
 
@@ -310,6 +317,7 @@ def main():
     parser.add_argument('--replay-source', type=Path, default=DEFAULT_REPLAY)
     parser.add_argument('--settings-source', type=Path, default=DEFAULT_SETTINGS)
     parser.add_argument('--survey-index', type=Path, default=Path('F:/FSRD/sol_batch/15d-guides/index.json'))
+    parser.add_argument('--domain', choices=('v1', 'v3', 'both'), default='both')
     parser.add_argument('--run', action='store_true')
     args = parser.parse_args()
     output = safe_output(args.output)
@@ -322,11 +330,23 @@ def main():
     settings, text = sealed_settings(args.settings_source)
     quantiles = published_quantiles(args.replay_source.parent.parent / 'fsrd_nrd_survey_dataset.py', args.survey_index)
     write_json(output / 'published-recon-quantiles.json', quantiles)
-    prepared = prepare_views(replay, args.inputs, manifest, output / 'views')
+    domains = {}
+    if args.domain in ('v1', 'both'):
+        views = prepare_views(replay, args.inputs, manifest, output / 'v1' / 'views')
+        domains['v1'] = dict(inputs=str(args.inputs), manifest=manifest, prepared_views=views,
+                             source_manifest_sha256=before, unit_to_canonical_v1=1)
+    if args.domain in ('v3', 'both'):
+        unit_inputs = output / 'v3' / 'inputs'
+        unit_manifest = seal_unit_source(replay, args.inputs, manifest, unit_inputs, before,
+                                        require, write_immutable, file_sha)
+        validate_unit_source(replay, unit_inputs, unit_manifest, args.inputs, manifest, before, require, file_sha)
+        views = prepare_views(replay, unit_inputs, unit_manifest, output / 'v3' / 'views', V3_SCALES, 'v3')
+        domains['v3'] = dict(inputs=str(unit_inputs), manifest=unit_manifest, prepared_views=views,
+                            source_manifest_sha256=file_sha(unit_inputs / 'sequence.json'), unit_to_canonical_v1=64)
     require(file_sha(args.inputs / 'sequence.json') == before, 'sealed V1 manifest unchanged after preparation')
     replay.validate(args.inputs)
-    result = dict(schema='fsrd-radiance-domain-experiment-v1', input_manifest_sha256=before,
-        submitted_frames=64, source_v1_written=False, scales=list(SCALES), prepared_views=prepared,
+    result = dict(schema='fsrd-radiance-domain-experiment-v2', input_manifest_sha256=before,
+        submitted_frames=64, source_v1_written=False, scales=list(SCALES), domains=domains,
         settings=settings, published_quantiles=str(output / 'published-recon-quantiles.json'),
         replay_python_sha256=file_sha(args.replay_source),
         oracle_sha256=file_sha(args.replay_source.with_name('fsrd_nrd_motion_quality_oracle.py')),
@@ -334,15 +354,20 @@ def main():
         compiler_executed=False, gpu_executed=False, native_nrd_paired=False, game_fps_measured=False,
         hypothesis='Absolute NN radiance-domain sensitivity, not evidence that native Consumer64 belongs before RR')
     if args.run:
-        result.update(run_gpu(replay, args.inputs, manifest, prepared, output, settings, text))
+        for name, domain in domains.items():
+            domain.update(run_gpu(replay, Path(domain['inputs']), domain['manifest'], domain['prepared_views'],
+                                  output / name / 'actual', settings, text, domain['unit_to_canonical_v1']))
+            require(file_sha(Path(domain['inputs']) / 'sequence.json') == domain['source_manifest_sha256'],
+                    'selected sealed unit manifest unchanged after actual GPU histories')
         require(file_sha(args.inputs / 'sequence.json') == before, 'V1 manifest unchanged after every actual RR run')
         replay.validate(args.inputs)
         result.update(compiler_executed=True, gpu_executed=True)
     result.update(python_checks=CHECKS, root_replay_python_checks=replay.CHECKS)
     write_json(output / ('comparison.json' if args.run else 'prepared.json'), result)
     print(json.dumps(dict(output=str(output), checks=CHECKS, replay_checks=replay.CHECKS,
-        scales=list(SCALES), prepared_histories=len(prepared), gpu_executed=args.run,
-        summaries=result.get('comparison', {}).get('summaries')), indent=2))
+        scales={name: list(v['rgb_scale'] for v in domain['prepared_views'].values()) for name, domain in domains.items()},
+        prepared_histories=sum(len(d['prepared_views']) for d in domains.values()), gpu_executed=args.run,
+        summaries={name: domain.get('comparison', {}).get('summaries') for name, domain in domains.items()}), indent=2))
 
 
 if __name__ == '__main__':

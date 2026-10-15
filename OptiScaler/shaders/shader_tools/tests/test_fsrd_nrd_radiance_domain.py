@@ -2,6 +2,7 @@
 import unittest
 import numpy as np
 from fsrd_nrd_radiance_domain_replay import normalize_output, scale_signal
+from fsrd_nrd_radiance_unit_source import V3_SCALES, convert_signal
 
 
 class RadianceScaleContracts(unittest.TestCase):
@@ -59,6 +60,23 @@ class RadianceScaleContracts(unittest.TestCase):
             normalized = normalize_output(raw, scale)
             self.assertEqual(normalized.dtype, np.dtype(np.float64))
             self.assertTrue(np.array_equal(normalized, source.astype(np.float64)))
+
+    def test_v3_first_quantization_is_disclosed_then_every_upscale_is_exact(self):
+        source = np.ones((1, 4, 4), '<f2')
+        source.view(np.uint16)[0, :, 0] = [1, 5, 65, 0x2001]
+        source.view(np.uint16)[0, :, 3] = [0x7e21, 0x8000, 0x3c00, 0x7c00]
+        before = source.tobytes()
+        unit, stats = convert_signal(source)
+        expected = (source[..., :3].astype(np.float64) / 64).astype(np.float16)
+        self.assertTrue(np.array_equal(unit.view(np.uint16)[..., :3], expected.view(np.uint16)))
+        self.assertGreater(stats['changed_rgb_components'], 0)
+        self.assertGreater(stats['nonzero_to_zero_components'], 0)
+        self.assertGreater(stats['max_absolute_v1_unit_roundtrip_error'], 0)
+        self.assertEqual(source.tobytes(), before)
+        for scale in V3_SCALES:
+            scaled, _ = scale_signal(unit, scale)
+            self.assertTrue(np.array_equal(scaled[..., :3].astype(np.float32) / scale, unit[..., :3]))
+            self.assertTrue(np.array_equal(scaled.view(np.uint16)[..., 3], source.view(np.uint16)[..., 3]))
 
 
 if __name__ == '__main__':
