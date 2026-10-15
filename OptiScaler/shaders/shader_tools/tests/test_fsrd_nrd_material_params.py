@@ -162,8 +162,15 @@ def native_build():
         if capture.count(include) != 1:
             raise AssertionError('capture include adapter boundary changed')
         capture = capture.replace(include, '')
+    if capture.count('list->Dispatch(') != 1:
+        raise AssertionError('actual capture dispatch instrumentation boundary changed')
+    capture = capture.replace('list->Dispatch(', 'ParamsAuditDispatch(list,')
+    capture = capture.replace('list->ResourceBarrier(', 'AuditedNrdBarriers(list,')
     (OUT/'production_material_params_capture.h').write_text(capture)
-    source = prefix + '\n#include "production_material_params_capture.h"\n' + Path(__file__).with_name('fsrd_nrd_material_params_fixture.cpp').read_text()
+    audit = ('\nstatic uint32_t gParamsCaptureDispatches=0;\n'
+             'static void ParamsAuditDispatch(ID3D12GraphicsCommandList* list,UINT x,UINT y,UINT z) '
+             '{++gParamsCaptureDispatches;list->Dispatch(x,y,z); }\n')
+    source = prefix + audit + '\n#include "production_material_params_capture.h"\n' + Path(__file__).with_name('fsrd_nrd_material_params_fixture.cpp').read_text()
     (OUT/'material_params.cpp').write_text(source)
     executable = OUT/'material_params.exe'
     compile_cpp(OUT/'material_params.cpp', executable, ('d3d12.lib', 'dxgi.lib'),
