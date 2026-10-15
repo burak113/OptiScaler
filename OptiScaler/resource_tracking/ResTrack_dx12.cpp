@@ -256,10 +256,26 @@ static void PublishComputeHookAvailability()
                                             gComputeQueueHookAvailable.load());
 }
 
+// A required owned-RR packet may fail before Track retained a participant.
+// Do not let the empty/unknown-list selector or runtime/FG OFF hide that denial.
+static bool RequiredComputeSubmissionAllowed(RecordedComputeLease::SubmissionDecision* decision = nullptr) noexcept
+{
+    const HRESULT failure = RecordedComputeLease::RequiredSubmissionFailure();
+    if (SUCCEEDED(failure)) return true;
+    RecordedComputeLease::DenySubmission(failure);
+    if (decision)
+    {
+        if (decision->allowed) decision->orderingFailure = failure;
+        decision->allowed = false;
+    }
+    return false;
+}
+
 std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(
     ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists,
     RecordedComputeLease::SubmissionDecision* decision) noexcept
 {
+    if (!RequiredComputeSubmissionAllowed(decision)) return {};
     // No identity vector or logging/string allocation may hide necessary queue
     // waits after an intent-snapshot OOM. Use the same native-object IID without
     // a string/log allocation or a dependency on lazy IID initialization.
@@ -2420,6 +2436,7 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
                 return;
             }
             auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
+            if (!RequiredComputeSubmissionAllowed(&decision)) return;
             o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
             RecordedComputeLease::AfterSubmission(computeIntent);
             RRTraceFence::AfterSubmission(This, additiveTickets);
@@ -2443,6 +2460,7 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
         return;
     }
     auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
+    if (!RequiredComputeSubmissionAllowed(&decision)) return;
     o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
     RecordedComputeLease::AfterSubmission(computeIntent);
     RRTraceFence::AfterSubmission(This, additiveTickets);
@@ -5454,6 +5472,7 @@ void ResTrack_Dx12::hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D1
 
 static bool HasRetainedSubmissionParticipant(UINT count, ID3D12CommandList* const* lists) noexcept
 {
+    if (FAILED(RecordedComputeLease::RequiredSubmissionFailure())) return true;
     if (!count) return false;
     if (!lists) return true;
     try
@@ -5497,6 +5516,7 @@ void ResTrack_Dx12::hkSurveyExecuteCommandLists(ID3D12CommandQueue* This, UINT N
                                           ID3D12CommandList* const* ppCommandLists)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteCommandLists,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!RequiredComputeSubmissionAllowed()) return;
     std::unique_lock transaction(FrameSurvey::SubmissionMutex(),std::defer_lock);
     // Legal Execute submits caller-owned CLOSED lists; concurrent Reset/recording
     // mutation is not a legal native use. Thus first Track cannot race selection.
