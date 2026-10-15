@@ -2,6 +2,31 @@
 // real recorder/copies/fence/Map/publication; output lease/provider witness are
 // explicit CPU adapters. No AMD SDK call, title detour or image-quality oracle.
 unsigned bridgeChecks = 0;
+std::atomic<uint32_t> observedOwnedStatus {0};
+std::atomic<bool> observedStatusLocks {false};
+std::weak_ptr<Frame> statusObserverFrame;
+void ObserveOwnedStatus(const Trace::BridgeIdentity& identity,uint32_t status) noexcept
+{
+    bool clear=false;
+    try
+    {
+        const auto frame=statusObserverFrame.lock();
+        std::thread probe([&] {
+            const auto deadline=GetTickCount64()+100;
+            do {
+                std::unique_lock global(Global().mutex,std::try_to_lock);
+                std::unique_lock registry(RRTraceFence::GetRegistry().mutex,std::try_to_lock);
+                if(global.owns_lock()&&registry.owns_lock()&&frame)
+                {std::unique_lock ticket(frame->ticket->mutex,std::try_to_lock);if(ticket.owns_lock()){clear=true;break;}}
+                Sleep(1);
+            } while(GetTickCount64()<deadline);
+        });
+        probe.join();
+        clear=clear&&identity.recordingId==20&&identity.streamlineFrame==100;
+    }
+    catch(...){clear=false;}
+    observedStatusLocks.store(clear);observedOwnedStatus.store(status);
+}
 void check(bool value, const char* message) { ++bridgeChecks; need(value,message); }
 struct OwnedBridgeFixture
 {
@@ -58,7 +83,7 @@ struct OwnedBridgeFixture
         for (auto& barrier:barriers) std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter);
         h.list->ResourceBarrier(2,barriers);
     }
-    void FillStages(Host& h)
+    void FillStages(Host& h,uint32_t ownedStatus=0)
     {
         for (size_t i=0;i<stages.size();++i) Copy(h,inputs[i&1].Get(),srv,stages[i].Get());
         // Actual private flag GPU buffer; production Trace copies byte1212 only.
@@ -66,9 +91,10 @@ struct OwnedBridgeFixture
         auto d=ReadbackDesc(1536); ComPtr<ID3D12Resource> upload;
         hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&upload)));
         void* data=nullptr; D3D12_RANGE empty {0,0}; hr(upload->Map(0,&empty,&data)); memset(data,0,1536);
+        memcpy(data,&ownedStatus,4); // Bridge-generated status; not a native CB operand.
         const uint32_t nativeFlag=1; memcpy(static_cast<uint8_t*>(data)+1212,&nativeFlag,4);
         // Controlled GPU-owned header adapter, not proof that a title PrePass executed.
-        for(uint32_t offset: {448u,452u,456u,460u,472u,476u,516u,576u,580u})
+        for(uint32_t offset: {448u,452u,456u,460u,472u,476u,516u,520u,576u,580u})
         {const uint32_t word=0x51000000u+offset;memcpy(static_cast<uint8_t*>(data)+offset,&word,4);}
         upload->Unmap(0,nullptr);
         D3D12_RESOURCE_BARRIER barrier {}; barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -103,14 +129,16 @@ Trace::BridgeFrameToken Owned(Trace& trace,Host& h,const std::shared_ptr<OwnedBr
     return trace.RecordBridgeOwned(h.device.Get(),h.list.Get(),id,owner->Converted(h),owner,Parameters(frame),sl,100+frame,2,
         NrdBridge::RRSettingsState{},output,Witness());
 }
-Trace::BridgeControlHeader ControlHeader(const std::shared_ptr<OwnedBridgeFixture>& owner,unsigned frame)
+Trace::BridgeControlHeader ControlHeader(const std::shared_ptr<OwnedBridgeFixture>& owner,unsigned frame,bool forcePrepass=false)
 {
     Trace::BridgeControlHeader header;header.image={owner->flag.Get(),D3D12_RESOURCE_STATE_COMMON};header.owner=owner;
     header.recordingId=20+frame;header.streamlineFrame=100+frame;header.bridgeFrame=500+frame;
-    header.profile=frame==0 ? Trace::BridgeControlHeader::Profile::ReconA : Trace::BridgeControlHeader::Profile::PrePassB;
-    header.wordCount=frame==0 ? 4 : 7;
-    const std::array<uint32_t,7> offsets=frame==0 ? std::array<uint32_t,7>{448,452,456,460} :
-        std::array<uint32_t,7>{456,460,472,476,516,576,580};
+    const bool recon=frame==0&&!forcePrepass;
+    header.profile=recon ? Trace::BridgeControlHeader::Profile::ReconA : Trace::BridgeControlHeader::Profile::PrePassB;
+    header.wordCount=recon ? 4 : 8;header.hasStatus=!recon;header.statusByteOffset=0;
+    header.statusObserver=ObserveOwnedStatus;
+    const std::array<uint32_t,8> offsets=recon ? std::array<uint32_t,8>{448,452,456,460} :
+        std::array<uint32_t,8>{456,460,472,476,516,520,576,580};
     for(size_t i=0;i<header.wordCount;++i)header.words[i]={offsets[i],offsets[i]};
     return header;
 }
@@ -180,6 +208,30 @@ int main(int argc,char** argv) try
         }
         Trace::RequestStop();Closed();Published(2);
         check(Trace::GetStatus().manifestPublished==2,"bridge immutable prefix unpublished");
+    }
+    {
+        Trace trace;check(Trace::RequestStart(request),"owned-status nonzero request");
+        result["nonzero_status_capture"]=Trace::GetStatus().folder;
+        h.Fill(0);owner->FillStages(h,5);
+        auto token=Admit(trace,h,owner);check(bool(token),"owned-status admission");
+        auto f=std::static_pointer_cast<Frame>(token);statusObserverFrame=f;
+        auto header=ControlHeader(owner,0,true);
+        check(trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(),header),"owned-status header rejected");
+        check(f->bridgeControlStatus.readback.Get()==f->bridgeControlHeader.readback.Get(),"status added a committed allocation");
+        for(size_t i=0;i<2;++i)owner->Copy(h,owner->stages[i].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,owner->title[i].Get());
+        auto output=owner->Snapshot(h,0);output.owner=owner;output.outputCommitted=true;
+        output.encodingFlag=owner->flag.Get();output.nativeEncodingCaptured=true;
+        std::array<Trace::Source,2> targets {{{owner->title[0].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
+            {owner->title[1].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS}}};
+        NrdBridge::TitleSignalConstants source;source.address=owner->flag->GetGPUVirtualAddress();source.wordIndex=36;
+        check(trace.CompleteBridgeFrame(token,h.list.Get(),Identity(),targets,output,source),"owned-status commit rejected");
+        check(observedOwnedStatus.load()==0,"status observed before GPU submission/fence");
+        h.Execute();Saved(1);
+        check(observedOwnedStatus.load()==5,"owned GPU status was not observed post-fence");
+        check(observedStatusLocks.load(),"owned status observer held a Trace/fence/ticket lock");
+        h.Reset();token.reset();f.reset();trace.Poll();Trace::RequestStop();Closed();Published(1);
+        result["owned_status_callback"]=observedOwnedStatus.load();result["status_callback_outside_trace_locks"]=observedStatusLocks.load();
+        statusObserverFrame.reset();
     }
     {
         Trace trace;auto reset=Request(root);reset.bridgeWaitForReset=true;reset.frameCount=64;reset.bridgeDomain=11;reset.delaySeconds=1;

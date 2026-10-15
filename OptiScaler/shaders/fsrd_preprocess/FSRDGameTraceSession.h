@@ -121,6 +121,7 @@ public:
         // Actual per-context FfxApiProxy route witness, resolved only while USER-armed.
         std::string routeAttestationJson;
     };
+    using BridgeControlStatusObserver = void(*)(const BridgeIdentity&, uint32_t) noexcept;
     struct BridgeControlHeader
     {
         enum class Profile { ReconA, PrePassB };
@@ -130,7 +131,10 @@ public:
         std::shared_ptr<void> owner;
         uint64_t recordingId = 0;
         uint32_t streamlineFrame = UINT32_MAX, bridgeFrame = 0, wordCount = 0;
-        std::array<Word,7> words {};
+        std::array<Word,8> words {};
+        bool hasStatus = false;
+        uint32_t statusByteOffset = 0; // Bridge-generated raw-capture status, never a native operand.
+        BridgeControlStatusObserver statusObserver = nullptr; // Called post-fence, outside trace locks, nonzero only.
     };
     using BridgeFrameToken = std::shared_ptr<void>;
     // Caller owns the input/output leases, same-recording admission and injection
@@ -146,7 +150,7 @@ public:
                              const BridgeSkippedDispatch&) noexcept;
     // Optional actual captured words only. Zero-filled uncaptured header bytes
     // are never accepted as another profile's evidence. Shares the already planned
-    // 32-byte flag readback; up to7 packed DWORDs, no new committed allocation.
+    // 40-byte shared readback: flag4B, up to8 native DWORDs, separate owned status4B; no new committed allocation.
     bool RecordBridgeControlHeader(const BridgeFrameToken&, ID3D12GraphicsCommandList*,
                                    const BridgeIdentity&, const BridgeControlHeader&) noexcept;
     // Synchronous borrowed sources only: caller holds live physical Borrow and

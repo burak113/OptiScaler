@@ -76,8 +76,11 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
     if not header["available"]:
         require("file" not in header and "words" not in header, "uncaptured native controls invented payload")
         return dict(header), 0
+    version = uint(header.get("contract_version", 1), "native control contract version", 2)
+    require(version in (1, 2), "unsupported native control contract")
     expected = {"A_Recon_direct": [448, 452, 456, 460],
-                "B_PrePass": [456, 460, 472, 476, 516, 576, 580]}.get(header.get("profile"))
+                "B_PrePass": [456, 460, 472, 476, 516, 520, 576, 580] if version == 2 else
+                            [456, 460, 472, 476, 516, 576, 580]}.get(header.get("profile"))
     require(expected is not None, "unknown native control profile")
     require(header.get("recording_id") == identity["recording_id"]
             and header.get("streamline_frame") == identity["streamline_frame"]
@@ -107,7 +110,27 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
         value = uint(row.get("captured_uint32"), "captured native control word", 0xffffffff)
         if data is not None:
             require(struct.unpack_from("<I", data, 4 * index)[0] == value, "native control decoded value differs from payload")
-    return dict(header, payload=payload), size
+    status = header.get("owned_status", {"available": False, "reason": "legacy_v1_status_not_captured"})
+    require(type(status.get("available")) is bool, "owned validation status availability missing")
+    if version == 2 and header["profile"] == "B_PrePass":
+        require(status["available"] is True, "B_v2 owned validation status missing")
+        require(status.get("origin") == "bridge_generated_raw_capture_validation; NOT_a_native_operand"
+                and status.get("source_buffer_byte_offset") == 0 and status.get("readback_buffer_byte_offset") == 36,
+                "owned status misdeclared as a native operand")
+        require(status.get("dxgi_format") == 0 and status.get("bytes_per_pixel") == 1
+                and status.get("extent") == [4, 1] and status.get("copy_footprint", {}).get("committed_buffer_bytes") == 0
+                and status.get("readback_allocation_shared_with") == "private_encoding_flag_reserved_readback",
+                "owned status typed/shared layout differs")
+        status_payload = verify_file(root, status, ordinal, 4, verify_payload)
+        code = uint(status.get("captured_uint32"), "bridge owned status", 0xffffffff)
+        if verify_payload:
+            require(struct.unpack("<I", safe_file(root, status_payload["file"]).read_bytes())[0] == code,
+                    "owned status decoded value differs from payload")
+        status = dict(status, payload=status_payload)
+        size += 4
+    else:
+        require(status["available"] is False and "file" not in status, "uncaptured/A status invented payload")
+    return dict(header, payload=payload, owned_status=status), size
 
 
 def inspect_capture(folder, *, verify_payload=True):
@@ -241,6 +264,9 @@ def inspect_capture(folder, *, verify_payload=True):
             payload_bytes += size
         native_controls, native_bytes = inspect_native_control_header(root, frame, ordinal, identity, verify_payload)
         payload_bytes += native_bytes
+        if native_controls.get("owned_status", {}).get("captured_uint32", 0) != 0:
+            if "bridge_owned_raw_capture_status_nonzero" not in reasons:
+                reasons.append("bridge_owned_raw_capture_status_nonzero")
         if native_controls["available"]:
             reserved = native_controls["shared_committed_buffer_bytes"]
             if "consumer_word303" in charges:
