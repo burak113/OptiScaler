@@ -38,6 +38,7 @@ inline Json Frame(const NrdBridge::FrameParameters& p, const sl::Constants& c, u
         {"requested_reset",p.reset},{"previous_valid",p.previousValid},
         {"native_material_guides",p.nativeMaterialGuides},{"native_temporal_motion",p.nativeTemporalMotion},
         {"camera_projected_depth_delta",p.cameraProjectedDepthDelta},
+        {"legacy_motion_depth",p.legacyMotionDepth},
         {"preserve_native_material_ids",p.preserveNativeMaterialIDs},
         {"fallback_output_encoding",uint32_t(p.outputEncoding)},
         {"streamline",{{"frame",slFrame},{"viewport",slViewport},
@@ -68,6 +69,7 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"provider_defaults",FloatWords(s.defaults)},{"provider_effective",FloatWords(s.effective)},
         {"native_debug_view",p.nativeDebugView},{"native_debug_viewport",p.nativeDebugViewport},
         {"preserve_native_material_ids",p.preserveNativeMaterialIDs},{"native_temporal_motion",p.nativeTemporalMotion},
+        {"legacy_motion_depth",p.legacyMotionDepth},
         {"native_material_guides",p.nativeMaterialGuides},{"lobe_recovery",p.lobeRecovery},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
         {"native_nrd_output_used",false}};

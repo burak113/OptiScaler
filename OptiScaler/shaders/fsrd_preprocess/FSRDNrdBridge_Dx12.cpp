@@ -1136,6 +1136,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (succeeded) succeeded = history->rr.PrepareFrame(streamline,reset,parameters,error);
         parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
         parameters.nativeTemporalMotion = rrSettings.nativeTemporalMotion;
+        parameters.legacyMotionDepth = rrSettings.legacyMotionDepth;
         parameters.nativeMaterialGuides = rrSettings.nativeMaterialGuides;
         parameters.preserveNativeMaterialIDs = rrSettings.preserveNativeMaterialIDs;
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
@@ -1181,6 +1182,12 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         owner->status.nativeMaterialGuidesActive = materialApplied;
         if (materialApplied) ++owner->status.nativeMaterialFramesApplied;
         if (materialModeReset) ++owner->status.nativeMaterialModeResets;
+        const auto provenance = history->conversion.MotionProvenance();
+        owner->status.motionProvenanceDispatches = provenance.dispatches;
+        owner->status.motionProvenanceNative = provenance.native;
+        owner->status.motionProvenanceCameraOnly = provenance.cameraOnly;
+        owner->status.motionProvenanceUnknown = provenance.unknown;
+        owner->status.motionProvenanceLegacy = provenance.legacyVisible;
         logConventions = !owner->conventionsLogged && !conventions.empty();
         if (logConventions) owner->conventionsLogged = true;
     }
@@ -1696,6 +1703,12 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
                 history->resetRevision = stage->resetRevision; history->materialGuidesKnown = true; history->materialGuidesUsed = materialApplied;
                 owner->status.nativeMaterialGuidesActive = materialApplied;
                 if (materialApplied) ++owner->status.nativeMaterialFramesApplied;
+                const auto provenance = history->conversion.MotionProvenance();
+                owner->status.motionProvenanceDispatches = provenance.dispatches;
+                owner->status.motionProvenanceNative = provenance.native;
+                owner->status.motionProvenanceCameraOnly = provenance.cameraOnly;
+                owner->status.motionProvenanceUnknown = provenance.unknown;
+                owner->status.motionProvenanceLegacy = provenance.legacyVisible;
                 owner->rrSettingsState = history->rr.GetSettingsState(); owner->rrSettingsState.requested = owner->rrSettings;
                 gNativeTransactions.store(true,std::memory_order_release);
             }
@@ -3044,9 +3057,16 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         if (!succeeded) { Failure(owner,error.empty() ? "NRD output dispatch failed" : error); return; }
         CaptureNativeDebugSource(owner,cmd,staged);
-        if (ticket.log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",
-            ticket.frames,ticket.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
-            resources.width,resources.height,uint32_t(staged.debug));
+        if (ticket.log)
+        {
+            // Frame-level effective motion-Z provenance of this domain; per-pixel
+            // populations need a user-armed capture, never a synchronous readback.
+            const auto provenance = staged.history->conversion.MotionProvenance();
+            LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={} motionZ=dispatches{}_native{}_cameraOnly{}_unknown{}_legacyVisible{} scope=frame_level_effective_path_not_per_pixel",
+                ticket.frames,ticket.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
+                resources.width,resources.height,uint32_t(staged.debug),
+                provenance.dispatches,provenance.native,provenance.cameraOnly,provenance.unknown,provenance.legacyVisible);
+        }
         committed = staged.recording->outputCommitted.load(std::memory_order_acquire);
         } // Physical hold timer ends before Borrow; native recording boundaries are unchanged.
         injectionHold.Stop();
@@ -3407,7 +3427,8 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
             if (MandatoryOutputPending(*owner))
             {
                 const bool changed = !SameDebugSettings(owner->rrSettings,settings) ||
-                    owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta;
+                    owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta ||
+                    owner->rrSettings.legacyMotionDepth != settings.legacyMotionDepth;
                 if (changed) ++owner->requestedResetRevision;
                 if (!SameDebugSettings(owner->rrSettings,settings)) ClearNativeDebugSources(*owner,retired);
                 owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
@@ -3435,7 +3456,8 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
             const bool scalarChanged = before.ready && after.ready
                 ? !std::equal(before.effective.begin(),before.effective.begin()+6,after.effective.begin()) : requestedScalarChanged;
             const bool motionChanged = owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta ||
-                owner->rrSettings.nativeTemporalMotion != settings.nativeTemporalMotion;
+                owner->rrSettings.nativeTemporalMotion != settings.nativeTemporalMotion ||
+                owner->rrSettings.legacyMotionDepth != settings.legacyMotionDepth;
             const bool debugChanged = owner->rrSettings.nativeDebugView != settings.nativeDebugView ||
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
             const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs ||

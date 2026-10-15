@@ -664,6 +664,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
     impl_->settings.nativeTemporalMotion = requested.nativeTemporalMotion;
     impl_->settings.nativeMaterialGuides = requested.nativeMaterialGuides;
+    impl_->settings.legacyMotionDepth = requested.legacyMotionDepth;
     impl_->settings.lobeRecovery = requested.lobeRecovery;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;

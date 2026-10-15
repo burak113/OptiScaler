@@ -24,13 +24,13 @@ PRE = PASS / 'precompile'
 OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/15b-inputs/tests/material-params'))
 REPORT = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/15b-inputs'))
 LEGACY = {
-    'FSRDNrdBridge': '76bb1973b04e80825433fde0113362e32ca3fdebd6fa1d4dd442ce925041c0c8',
+    'FSRDNrdBridge': '2a3b01f53e543f144c4a269d3a9c834809acd15b1b572cd848563d923594c8c9',
     'FSRDNrdBridgeCopy': 'b221f986a212dfc04ed5652a68914dd443d545754eafb2f2e47d9223cf016eca',
     'FSRDNrdBridgeCommit': 'e7519a9c4c89083c79019943da4c7a46c01931ae626003de1bb677e132936cb9',
     'FSRDNrdBridgeNativeDebug': '41fa2ee2df558b7044b353c924ed80a4f5512e9debb2b98d2ca46e9ee7794ef9',
-    'FSRDNrdBridgeMotion': 'cc1ac14e28602bf7bee08f807d75648d9efb53f0a539457d09b72ebce59c1f8c',
-    'FSRDNrdBridgeMotionNative': 'a98d70a7d35e0238b7fc2b1f3e54f3c270b3495d194c8939733d25d313644bea',
-    'FSRDNrdBridgeMaterial': '99dc3f9136eb7fbb4b27e259fe11a94f8664dc524b41b7c3eb87249a53bd9b9a',
+    'FSRDNrdBridgeMotion': 'd68d5ed4a04be0964ace8a72506484490c182f37ae8b10f126345e85d8a7c3d8',
+    'FSRDNrdBridgeMotionNative': 'c564c2f0cf65760705d437e224efb02a956ed1d84dde2542f5f2f4e8250d1297',
+    'FSRDNrdBridgeMaterial': 'fce84b6bdf7ff5079160efd3edf3b5bae5fbe73c1f83b2e61149c38c516f2204',
     'FSRDNrdNativeMaterialCapture': 'cdada5182a8dcdbdeefac64ebf4bf2e8e4682772bd9a8c7800b7708fd9d46597',
 }
 NEW = ('FSRDNrdNativeMaterialParamsCapture', 'FSRDNrdBridgeMaterialParams')
@@ -110,8 +110,8 @@ class CpuTests(unittest.TestCase):
         self.assertIn('if (materialParams && !owner->materialParamsInitialized)', source)
         self.assertIn('if (materialGuides && !materialParams && !owner->materialInitialized)', source)
         self.assertIn('FSRDNrdBridgeMaterialParams_cso),6,9)', source)
-        # One common->read / read->common material barrier pair per conversion
-        # call site: Recon conversion Dispatch and the geometry-only path.
+        # The legacy Dispatch path and the deferred geometry path each balance
+        # exactly one COMMON->SRV and one SRV->COMMON material barrier pair.
         self.assertEqual(source.count('list->ResourceBarrier(1,&materialBarrier);'), 4)
 
     def test_distinct_shader_abis_and_no_signal_change(self):

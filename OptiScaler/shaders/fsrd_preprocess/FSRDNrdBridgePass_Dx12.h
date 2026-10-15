@@ -32,5 +32,7 @@ class ConversionPass
     void ResetHistory() noexcept;
     uint64_t OwnedTextureBytes() const noexcept;
     uint64_t OwnedAuxiliaryBytes() const noexcept;
+    // Frame-level effective motion-Z provenance totals of this conversion domain.
+    MotionProvenanceTotals MotionProvenance() const noexcept;
 };
 }

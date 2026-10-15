@@ -4,8 +4,8 @@ import tempfile
 import unittest
 import numpy as np
 
-from fsrd_nrd_motion_quality_oracle import (MODES, metrics, pose, project, sequence,
-                                           trace, write_sequence, load)
+from fsrd_nrd_motion_quality_oracle import (MODES, metrics, pose, project, raster_motion,
+                                           sequence, trace, write_sequence, load)
 
 
 class WorldSurfaceOracle(unittest.TestCase):
@@ -136,6 +136,26 @@ class WorldSurfaceOracle(unittest.TestCase):
             for number in support:
                 support[number] += int(np.count_nonzero((age == number) & value['interior'].astype(bool)))
         self.assertTrue(all(count > 100 for count in support.values()), support)
+
+    def test_t04_static_physical_motion_is_half_pixel_raster_displacement(self):
+        # T04 vector: zero physical motion, previous-current jitter difference of
+        # exactly one half pixel. Both source conventions must reach the same
+        # raster displacement: the unjittered field is canonical and receives the
+        # difference once here, the jittered field already contains it.
+        width, height = 64, 48
+        canonical = np.zeros(2)
+        previous_jitter = np.array([.25, -.125])
+        current_jitter = np.array([-.25, .375])  # difference = (0.5, -0.5) px
+        unjittered = raster_motion(canonical, previous_jitter, current_jitter, width, height, False)
+        jittered_field = canonical + (previous_jitter - current_jitter) / (width, height)
+        jittered = raster_motion(jittered_field, previous_jitter, current_jitter, width, height, True)
+        np.testing.assert_allclose(unjittered * (width, height), (.5, -.5), rtol=0, atol=1e-12)
+        np.testing.assert_allclose(jittered * (width, height), (.5, -.5), rtol=0, atol=1e-12)
+        np.testing.assert_array_equal(unjittered, jittered)
+        # The jittered path must not add the difference a second time.
+        self.assertAlmostEqual(float(jittered[0]), .5 / width, places=12)
+        self.assertFalse(np.array_equal(raster_motion(canonical, previous_jitter, current_jitter,
+                                                      width, height, True), unjittered))
 
     def test_metrics_distinguish_perfect_blur_stale_and_chroma(self):
         value = max(self.values, key=lambda v: np.count_nonzero(v['reveal_age'] == 3))

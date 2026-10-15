@@ -19,6 +19,7 @@ from test_fsrd_nrd_root_restore import function
 KEYS = {
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
+    'FfxDenoiserNrdBridgeLegacyMotionDepth': ('NrdBridgeLegacyMotionDepth', 'Bool'),
     'FfxDenoiserNrdBridgeNativeTemporalMotion': ('NrdBridgeNativeTemporalMotion', 'Bool'),
     'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
@@ -140,24 +141,27 @@ template<class T> concept RetiredNativeOutputBlendConfig = requires(T value) { v
 void drawBridge(Config* config){__BRIDGE_PANEL__}
 int main(){try{
  Config cfg;Config::active=&cfg;cfg.load("[FSR-RR]\nUnrelated=keep\n[Other]\nNrdBridgeUseCustomRR=untouched\n");
- need(!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default(),"Both new experiments default OFF");
+ need(!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&
+      !cfg.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default()&&!ReadNrdBridgeRRSettings(cfg).legacyMotionDepth,
+      "Both motion experiments and the legacy rollback default OFF in Config and the applied snapshot");
  need(ReadNrdBridgeRRSettings(cfg).overrideMask==0,"Missing options preserve AMD baseline rather than fork slider defaults");
  NrdBridge::startup=false;ImGui::frame();drawBridge(&cfg);
  need(!NrdBridge::statusCalls&&!NrdBridge::applyCalls&&ImGui::labels.empty(),"Startup OFF never enters bridge panel or applies settings");
  NrdBridge::startup=true;ImGui::frame();ImGui::headers["CP77 NRD bridge"]=false;drawBridge(&cfg);
  need(!NrdBridge::statusCalls&&!NrdBridge::applyCalls,"Closed bridge panel does no runtime settings work");
  ImGui::frame();drawBridge(&cfg);
- need(ImGui::hasLabel("Use custom RR tuning##NrdBridge")&&ImGui::hasLabel("Camera-projected depth delta (experimental)"),"Startup-selected bridge exposes controls without any upscaler owner");
+ need(ImGui::hasLabel("Use custom RR tuning##NrdBridge")&&ImGui::hasLabel("Camera-projected depth delta (experimental)")&&
+      ImGui::hasLabel("Legacy previous-visible-depth motion Z (A/B rollback)"),"Startup-selected bridge exposes controls without any upscaler owner");
  need(!NrdBridge::applyCalls&&!ImGui::rrTables&&ImGui::hasText("not available yet"),"Idle controls do not apply/query provider defaults or invent effective numbers");
  for(const char* term:{"Specular lighting","Diffuse lighting","Hit distance","Normal + roughness","Linear VIEWZ","Motion + jitter","Albedo guides","Consumer output encoding","Unused title inputs"})
  need(ImGui::hasText(term),"Every supported/unused input has a human-readable row");
- need(ImGui::hasText("303")&&ImGui::hasText("1212")&&ImGui::hasText("factor 64")&&ImGui::hasText("previous-frame depth"),"Map explains exact Consumer encoding and baseline motion depth");
+ need(ImGui::hasText("303")&&ImGui::hasText("1212")&&ImGui::hasText("factor 64")&&ImGui::hasText("camera-only estimate"),"Map explains exact Consumer encoding and the camera-only default motion depth");
  need(ImGui::hasText("confirmed by the downstream material compositor")&&ImGui::hasText("does not divide it again")&&ImGui::hasText("omitting material cues"),
  "Map explains attested demodulation, material remodulation and white-guide limits");
  need(!ImGui::hasText("already-demodulated")&&!ImGui::hasText("albedo division is needed"),
  "Map preserves uncertainty instead of asserting proven demodulation or albedo matching");
  need(ImGui::hasText("Owned raw A/B noisy")&&ImGui::hasText("captured before native filters"),"Lighting map identifies owned unfiltered raw sources");
- need(ImGui::hasText("Bridge-owned depth is built")&&ImGui::hasText("bridge-owned depth history"),"Geometry map does not depend on native NRD depth/history outputs");
+ need(ImGui::hasText("Bridge-owned depth is built")&&ImGui::hasText("object motion is not reconstructed")&&ImGui::hasText("not a confidence mask"),"Geometry map does not depend on native NRD depth/history outputs and states the camera-only provenance limits");
  need(ImGui::hasText("control 2 preserves full-rate")&&ImGui::hasText("controls 0/1 reconstruct only missing"),"Checkerboard map explains local GPU reconstruction without altering present samples");
  need(ImGui::hasText("current game modes remain unknown until a completed recording"),"Checkerboard runtime modes require actual completed Trace evidence");
  need(ImGui::hasText("Native NRD denoised RGB, temporal history and confidence are not used")&&!ImGui::hasText("checkerboard controls have no equivalent"),"Map excludes native denoised data while acknowledging consumed checkerboard controls");
@@ -175,8 +179,14 @@ int main(){try{
  need(NrdBridge::applyCalls==2&&NrdBridge::last.overrideMask==0&&cfg.FfxDenoiserMaxRadiance.value_or_default()==30000,"AMD reference switch applies mask0 while retaining custom values");
  ImGui::frame();ImGui::bools["Use AMD Default Tuning"]=false;drawBridge(&cfg);need(NrdBridge::last.values==desired,"Switching back restores all stored overrides");
  ImGui::frame();ImGui::bools["Camera-projected depth delta (experimental)"]=true;drawBridge(&cfg);
- need(NrdBridge::lastCamera&&NrdBridge::camera&&ImGui::hasText("predicts previous-camera depth"),"Motion experiment and input map use accepted runtime mode");
+ need(NrdBridge::lastCamera&&NrdBridge::camera&&ImGui::hasText("camera-only estimate"),"Motion experiment applies one accepted runtime mode; the map states the camera-only default it shares");
  saved=cfg.save();reload.load(saved);need(reload.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default(),"Motion experiment survives save/reload");
+ ImGui::frame();ImGui::bools["Legacy previous-visible-depth motion Z (A/B rollback)"]=true;drawBridge(&cfg);
+ need(ReadNrdBridgeRRSettings(cfg).legacyMotionDepth&&NrdBridge::last.legacyMotionDepth&&ImGui::hasText("old occluder"),"Legacy rollback applies once and the map names its occluder failure mode");
+ saved=cfg.save();reload.load(saved);need(reload.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default()&&ReadNrdBridgeRRSettings(reload).legacyMotionDepth,"Legacy rollback survives production serializer and reload");
+ {Config malformed;malformed.load("[FSR-RR]\nNrdBridgeLegacyMotionDepth=invalid\n");need(!ReadNrdBridgeRRSettings(malformed).legacyMotionDepth,"Malformed legacy rollback key stays OFF");}
+ ImGui::frame();ImGui::bools["Legacy previous-visible-depth motion Z (A/B rollback)"]=false;drawBridge(&cfg);
+ need(!cfg.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default()&&!NrdBridge::last.legacyMotionDepth&&ImGui::hasText("camera-only estimate"),"Legacy rollback returns to the camera-only default through the checkbox");
  NrdBridge::state.ready=true;NrdBridge::state.defaults={.8f,.8f,40000,8,.6f,.1f,0,100};NrdBridge::state.effective=desired;
  ImGui::frame();drawBridge(&cfg);need(ImGui::rrTables==1&&ImGui::hasText("0.25")&&ImGui::hasText("0.8")&&ImGui::hasText("30000"),"Effective and queried baseline numbers appear only when ready");
  NrdBridge::accept=false;const bool priorCamera=NrdBridge::camera;
@@ -184,15 +194,15 @@ int main(){try{
  need(ImGui::hasText("Settings not applied")&&NrdBridge::camera==priorCamera,"Rejected snapshot reports failure and leaves effective runtime mode unchanged");
  NrdBridge::accept=true;ImGui::frame();ImGui::buttons["Reset AMD Tuning"]=true;drawBridge(&cfg);
  need(!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&NrdBridge::last.overrideMask==0&&!ImGui::hasText("Settings not applied"),"Bridge AMD reset returns to baseline and clears apply error");
- cfg.FfxDenoiserNrdBridgeMotionDepthMode=true;cfg.FfxDenoiserNrdBridgeUseCustomRR=true;NrdBridge::camera=true;NrdBridge::runtime=true;
+ cfg.FfxDenoiserNrdBridgeMotionDepthMode=true;cfg.FfxDenoiserNrdBridgeLegacyMotionDepth=true;cfg.FfxDenoiserNrdBridgeUseCustomRR=true;NrdBridge::camera=true;NrdBridge::runtime=true;
  unsigned before=NrdBridge::applyCalls;cfg.ResetFfxDenoiserSettings();
  need(!NrdBridge::runtime&&!cfg.FfxDenoiserNrdBridgeEnabled.value_or_default(),"Full reset turns runtime bridge OFF immediately");
- need(NrdBridge::applyCalls==before+1&&!NrdBridge::last.overrideMask&&!NrdBridge::lastCamera&&!NrdBridge::camera,"Actual full reset clears the coherent RR/motion snapshot");
- need(!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default(),"Full reset restores both new OFF defaults");
- saved=cfg.save();reload.load(saved);need(!reload.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!reload.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!reload.FfxDenoiserNrdBridgeEnabled.value_or_default(),"Full reset persists safe OFF state across reload");
+ need(NrdBridge::applyCalls==before+1&&!NrdBridge::last.overrideMask&&!NrdBridge::lastCamera&&!NrdBridge::last.legacyMotionDepth&&!NrdBridge::camera,"Actual full reset clears the coherent RR/motion snapshot including the legacy rollback");
+ need(!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!cfg.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default(),"Full reset restores both new OFF defaults plus the legacy rollback OFF");
+ saved=cfg.save();reload.load(saved);need(!reload.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!reload.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default()&&!reload.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!reload.FfxDenoiserNrdBridgeEnabled.value_or_default(),"Full reset persists safe OFF state across reload");
  NrdBridge::startup=false;before=NrdBridge::applyCalls;cfg.ResetFfxDenoiserSettings();need(NrdBridge::applyCalls==before,"Full reset with startup OFF makes no new snapshot apply call");
- cfg.load("[FSR-RR]\nNrdBridgeUseCustomRR=invalid\nNrdBridgeMotionDepthMode=auto\n");
- need(!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default(),"Invalid/missing new booleans remain OFF");
+ cfg.load("[FSR-RR]\nNrdBridgeUseCustomRR=invalid\nNrdBridgeMotionDepthMode=auto\nNrdBridgeLegacyMotionDepth=maybe\n");
+ need(!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default()&&!cfg.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default(),"Invalid/missing new booleans remain OFF");
  ImGui::frame();cfg.FfxDenoiserNrdBridgeUseCustomRR=true;ImGui::buttons["Reset AMD Tuning"]=true;
  need(DrawAmdRRTuning(&cfg)&&cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default(),"Ordinary RR reset does not change bridge-only custom-enable preference");
  NrdBridge::startup=true;cfg.load("[FSR-RR]\n");
@@ -488,7 +498,7 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeLobeRecovery'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeLegacyMotionDepth','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeLobeRecovery'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeMaterialGuides=true\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1

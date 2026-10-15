@@ -90,10 +90,16 @@ static void cases(const fs::path& directory)
    if(corrupt){auto value=f.Buffer(4,D3D12_HEAP_TYPE_UPLOAD);const uint32_t zero=0;fill(value.Get(),bytes(&zero,4));Fixture::Transition(f.list.Get(),shadow,D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COPY_DEST);f.list->CopyBufferRegion(shadow,corrupt,value.Get(),0,4);Fixture::Transition(f.list.Get(),shadow,D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COMMON);f.uploads.push_back(value);}
    native.record(f,r.descriptors.Get(),constants,shadow,width,height);auto result=f.Snapshot(r.output.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
    baseline.record(f,r.baselineDescriptors.Get(),constants,nullptr,width,height);auto camera=f.Snapshot(r.output.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-   auto visibleConstants=constants;reinterpret_cast<uint32_t*>(visibleConstants.data())[3]=0;
+   // Default flow: camera flag off and legacy rollback off. It must produce exactly
+   // the camera-only estimate, never the previously visible occluder's depth.
+   auto defaultConstants=constants;reinterpret_cast<uint32_t*>(defaultConstants.data())[3]=0;
+   baseline.record(f,r.baselineDescriptors.Get(),defaultConstants,nullptr,width,height);auto ordinary=f.Snapshot(r.output.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+   // Legacy A/B rollback: explicit previous-visible-depth sampling (word3 off, word31 on).
+   auto visibleConstants=defaultConstants;reinterpret_cast<uint32_t*>(visibleConstants.data())[31]=1;
    baseline.record(f,r.baselineDescriptors.Get(),visibleConstants,nullptr,width,height);auto visible=f.Snapshot(r.output.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
    const auto suffix=table?"table":"root";writeBuffer(f,shadow,path/(std::string(suffix)+"-shadow.bin"));
-   save(path/(std::string(suffix)+"-motion.bin"),result.Data());save(path/(std::string(suffix)+"-camera.bin"),camera.Data());save(path/(std::string(suffix)+"-visible.bin"),visible.Data());
+   save(path/(std::string(suffix)+"-motion.bin"),result.Data());save(path/(std::string(suffix)+"-camera.bin"),camera.Data());
+   save(path/(std::string(suffix)+"-default.bin"),ordinary.Data());save(path/(std::string(suffix)+"-visible.bin"),visible.Data());
    lease.reset();f.Reset();gNativeBorrowed.clear();
    if(!warmBytes)warmBytes=capture.OwnedAuxiliaryBytes();need(capture.OwnedAuxiliaryBytes()==warmBytes,"completed/reset native capture reuses the exact warm pool");
   }

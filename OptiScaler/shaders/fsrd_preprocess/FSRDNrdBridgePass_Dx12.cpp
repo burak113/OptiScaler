@@ -180,12 +180,23 @@ struct ConversionPass::Impl
     bool motionInitialized = false, nativeMotionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false, motionCameraProjectedDepthDelta = false;
+    bool motionLegacyMotionDepth = false;
     bool motionPreserveNativeMaterialIDs = false, motionNativeTemporal = false, motionNativeMaterial = false;
     bool previousCameraValid = false;
     DirectX::XMFLOAT4X4 previousCameraView {}, motionInverseProjection {};
     DirectX::XMFLOAT4 motionPreviousViewDepthRow {};
     DirectX::XMFLOAT2 motionCurrentJitterUv {};
     ID3D12GraphicsCommandList* motionList = nullptr;
+    // Frame-level effective motion-Z provenance of this domain (host-side counters).
+    MotionProvenanceTotals motionProvenance {};
+    void CountMotionProvenance(const FrameParameters& frame, bool previousValid, bool nativePipeline) noexcept
+    {
+        ++motionProvenance.dispatches;
+        if (nativePipeline) ++motionProvenance.native;
+        else if (frame.legacyMotionDepth) ++motionProvenance.legacyVisible;
+        else if (previousValid) ++motionProvenance.cameraOnly;
+        else ++motionProvenance.unknown;
+    }
     OwnedTexture spec, diff, motion, normals, specAlbedo, diffAlbedo;
     std::array<OwnedTexture, 2> depth;
     // The only strong COM references are bridge-owned objects. All title textures
@@ -299,17 +310,19 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         constants.reserved[0] = inputs.motion ? 0u : 1u;
         constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
         constants.cameraReserved[0] = frame.preserveNativeMaterialIDs ? 1u : 0u;
-        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
+        constants.cameraReserved[1] = frame.legacyMotionDepth ? 1u : 0u;
+        // The previous-surface Z estimate is camera-only in the default flow and
+        // in the legacy rollback alike, so the previous camera row is required
+        // for every motion frame; a frame whose predecessor did not publish its
+        // camera stays an explicit unknown (finite B=0).
+        constants.previousValid = constants.previousValid && owner->previousCameraValid;
+        if (constants.previousValid)
         {
-            constants.previousValid = constants.previousValid && owner->previousCameraValid;
-            if (constants.previousValid)
-            {
-                // Signed Z of the same current world surface in the previous camera.
-                const auto currentToPreviousView = DirectX::XMMatrixMultiply(
-                    DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
-                DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
-                constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
-            }
+            // Signed Z of the same current world surface in the previous camera.
+            const auto currentToPreviousView = DirectX::XMMatrixMultiply(
+                DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
+            DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
+            constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
         }
         if (!frame.motionVectorsJittered)
             constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
@@ -357,21 +370,20 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         owner->motionPreviousIndex = owner->previousIndex;
         owner->motionPreviousValid = constants.previousValid != 0;
         owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
+        owner->motionLegacyMotionDepth = frame.legacyMotionDepth;
         owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
         owner->motionNativeTemporal = frame.nativeTemporalMotion;
         owner->motionNativeMaterial = frame.nativeMaterialGuides;
-        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
-        {
-            owner->motionInverseProjection = constants.inverseProjection;
-            owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
-            owner->motionCurrentJitterUv = constants.currentJitterUv;
-            DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
-        }
-        owner->previousCameraValid = frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion;
+        owner->motionInverseProjection = constants.inverseProjection;
+        owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
+        owner->motionCurrentJitterUv = constants.currentJitterUv;
+        DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
+        owner->previousCameraValid = true;
         owner->motionList = list;
         owner->motionSLFrame = frame.streamlineFrame;
         owner->motionBridgeFrame = frame.frameIndex;
         owner->previousIndex = writeIndex; owner->historyValid = true;
+        if (inputs.motion) owner->CountMotionProvenance(frame, constants.previousValid != 0, false);
         out = owner->Resources(); error.clear(); return true;
     }
     catch (const std::exception& e) { owner->historyValid = false; error = e.what(); return false; }
@@ -446,17 +458,18 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         constants.reserved[0] = 1u; // Always finish motion from the current Temporal binding.
         constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
         constants.cameraReserved[0] = frame.preserveNativeMaterialIDs ? 1u : 0u;
-        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
+        constants.cameraReserved[1] = frame.legacyMotionDepth ? 1u : 0u;
+        // Camera-only previous-surface Z (default and legacy rollback) needs the
+        // previous camera row; a predecessor without a published camera stays an
+        // explicit unknown (finite B=0).
+        constants.previousValid = constants.previousValid && owner->previousCameraValid;
+        if (constants.previousValid)
         {
-            constants.previousValid = constants.previousValid && owner->previousCameraValid;
-            if (constants.previousValid)
-            {
-                // Signed Z of the same current world surface in the previous camera.
-                const auto currentToPreviousView = DirectX::XMMatrixMultiply(
-                    DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
-                DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
-                constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
-            }
+            // Signed Z of the same current world surface in the previous camera.
+            const auto currentToPreviousView = DirectX::XMMatrixMultiply(
+                DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
+            DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
+            constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
         }
         if (!frame.motionVectorsJittered)
             constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
@@ -511,17 +524,15 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         owner->motionPreviousIndex = owner->previousIndex;
         owner->motionPreviousValid = constants.previousValid != 0;
         owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
+        owner->motionLegacyMotionDepth = frame.legacyMotionDepth;
         owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
         owner->motionNativeTemporal = frame.nativeTemporalMotion;
         owner->motionNativeMaterial = frame.nativeMaterialGuides;
-        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
-        {
-            owner->motionInverseProjection = constants.inverseProjection;
-            owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
-            owner->motionCurrentJitterUv = constants.currentJitterUv;
-            DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
-        }
-        owner->previousCameraValid = frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion;
+        owner->motionInverseProjection = constants.inverseProjection;
+        owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
+        owner->motionCurrentJitterUv = constants.currentJitterUv;
+        DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
+        owner->previousCameraValid = true;
         owner->motionList = list;
         owner->motionSLFrame = frame.streamlineFrame;
         owner->motionBridgeFrame = frame.frameIndex;
@@ -542,6 +553,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     if (!owner->pendingMotion || !owner->historyValid || owner->motionList != list ||
         owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
         owner->motionCameraProjectedDepthDelta != frame.cameraProjectedDepthDelta ||
+        owner->motionLegacyMotionDepth != frame.legacyMotionDepth ||
         owner->motionPreserveNativeMaterialIDs != frame.preserveNativeMaterialIDs ||
         owner->motionNativeTemporal != frame.nativeTemporalMotion || owner->motionNativeMaterial != frame.nativeMaterialGuides ||
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
@@ -565,12 +577,10 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     constants.previousValid = owner->motionPreviousValid ? 1u : 0u;
     constants.reserved = (owner->motionCameraProjectedDepthDelta || owner->motionNativeTemporal) ? 1u : 0u;
     constants.scale = frame.motionScale;
-    if (owner->motionCameraProjectedDepthDelta || owner->motionNativeTemporal)
-    {
-        constants.inverseProjection = owner->motionInverseProjection;
-        constants.previousViewDepthRow = owner->motionPreviousViewDepthRow;
-        constants.currentJitterUv = owner->motionCurrentJitterUv;
-    }
+    constants.inverseProjection = owner->motionInverseProjection;
+    constants.previousViewDepthRow = owner->motionPreviousViewDepthRow;
+    constants.currentJitterUv = owner->motionCurrentJitterUv;
+    constants.cameraReserved[1] = owner->motionLegacyMotionDepth ? 1u : 0u;
     if (!frame.motionVectorsJittered)
         constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
                                 (frame.previousJitter.y - frame.jitter.y) / owner->height};
@@ -619,6 +629,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
         }
         owner->motion.Transition(list, kRead);
         owner->pendingMotion = false;
+        owner->CountMotionProvenance(frame, owner->motionPreviousValid, frame.nativeTemporalMotion);
         error.clear(); return true;
     }
     catch (const std::exception& e) { owner->historyValid = false; owner->pendingMotion = false; error = e.what(); return false; }
@@ -729,5 +740,11 @@ uint64_t ConversionPass::OwnedAuxiliaryBytes() const noexcept
     uint64_t bytes = impl_->zeroBytes;
     for (const auto& slot : impl_->copy.slots) bytes += slot->flag.bytes;
     return bytes;
+}
+MotionProvenanceTotals ConversionPass::MotionProvenance() const noexcept
+{
+    if (!impl_) return {};
+    std::lock_guard lock(impl_->mutex);
+    return impl_->motionProvenance;
 }
 }

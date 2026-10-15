@@ -124,6 +124,23 @@ def trace(uv, camera_pose):
                 signed_depth=view_depth, spec_hit=secondary_distance, no_v=no_v)
 
 
+def raster_motion(canonical_motion, previous_jitter, current_jitter, width, height, motion_vectors_jittered):
+    """T04 contract pin for the RR/recovery raster displacement.
+
+    The unjittered source field is canonical (jitter-free) and receives exactly
+    one (previous - current) jitter delta; a jittered source field already is the
+    raster displacement and must not get a second delta. Zero physical motion
+    with a 0.5 px jitter difference therefore reaches 0.5 px of raster motion on
+    both paths. This mirrors the host jitterDelta and the motion shader
+    (motion * scale + jitterDeltaUv); it is arithmetic, not a provider result.
+    """
+    motion = np.asarray(canonical_motion, np.float64)
+    if not motion_vectors_jittered:
+        motion = motion + (np.asarray(previous_jitter, np.float64) -
+                           np.asarray(current_jitter, np.float64)) / (width, height)
+    return motion
+
+
 def sequence(width=128, height=128, count=64):
     if width < 64 or height < 64 or not 56 <= count <= 96:
         raise ValueError('oracle requires >=64 each axis and 56..96 temporal samples')
@@ -142,7 +159,7 @@ def sequence(width=128, height=128, count=64):
         previous_uv, previous_depth = project(previous_point, previous_pose)
         _, camera_previous_depth = project(current['point'], previous_pose)
         canonical = (previous_uv - uv).astype('<f2')
-        rr_xy = canonical.astype(np.float64) + (previous_pose['jitter'] - current_pose['jitter']) / (width, height)
+        rr_xy = raster_motion(canonical, previous_pose['jitter'], current_pose['jitter'], width, height, False)
         sample = screen + rr_xy
         inside = ((sample[..., 0] >= 0) & (sample[..., 0] < 1) &
                   (sample[..., 1] >= 0) & (sample[..., 1] < 1))

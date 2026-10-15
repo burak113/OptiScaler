@@ -11,7 +11,10 @@ The two native lighting transactions have independent RR histories. The bridge
 captures A before Recon and B before PrePass, while their exact source bindings
 are still valid. Private GPU buffers retain the required constants and raw
 samples. Depth, normals, material guides and optional surface motion are prepared
-independently of the skipped native lighting filters.
+independently of the skipped native lighting filters. Motion Z defaults to a
+camera-only previous-surface estimate (static geometry; object motion is not
+reconstructed) with an explicit finite `0` for an unknown row; the pre-fix
+previous-visible-depth sample remains only as an explicit A/B rollback setting.
 
 The final compute Consumer reads b6/space0 word303; the final pixel compositor
 reads word36. Small shaders read those exact live GPU bindings and select RGB or
@@ -143,6 +146,55 @@ inspect-only. Replay requires an explicitly selected trusted local provider whos
 file identity/hash matches the recorded entrypoint module. Captures never select
 an executable DLL path. This attests that module on disk, not its transitive
 dependencies or loaded-memory contents.
+
+## Temporal coordinate contract
+
+Every consumer of the owned motion texture (`u5` of the conversion, one grid at
+the current internal render size) is listed with the units, direction, jitter
+content, resolution and reset behavior it actually sees. Sizes below are the
+current render resolution unless stated. The provider's own internal use of its
+XY input is **not** established by this table; it is the subject of the jitter
+experiment plan at the end.
+
+| Consumer | Grid / units | Direction and jitter content | Resolution | Reset behavior |
+|---|---|---|---|---|
+| AMD RR provider (`motionVectors`) | UV fraction of the render size; the texture is bound unchanged and the SDK jitter offsets are passed separately | current sample -> previous sample. `raw * motionScale + (previousJitter-currentJitter)/size` when the title field is **not** jittered; the raw field alone when it is (the field already is a raster displacement). One jitter delta, never two | current internal render grid | XY is not zeroed; the reset is the provider RESET flag plus `B=0` on frames without a coherent previous camera row |
+| Provider B (same texture, `.z`) | signed previousLinearDepth - currentLinearDepth in the RR camera depth bounds | native same-surface (native path), camera-only static-surface, or legacy rollback. `unknown` means exactly `0` (finite no-op), never a guessed delta | current grid | `0` on reset/without previous row |
+| Provider W (`.w`) | constant `1.0` | no validity/confidence meaning is attached; never used as a confidence mask | current grid | unchanged by reset |
+| Bridge previous-depth lookup (legacy rollback only) | `floor(pixel + 0.5 + XY*size)` in the previous frame's grid | samples the bridge-owned R32F signed depth of the previous frame (the previously VISIBLE surface, which can be an old occluder) | previous frame at the same render size | not sampled when the previous row is invalid |
+| Recovery Reference (`FSRDNrdLobeRecoveryReference` t6) | `p + (XY - pixelJitters.zw) * size`; canonical (jitter-free) reference grid | jitter delta removed here on purpose; `pixelJitters.zw = (previousJitter-currentJitter)/size` is supplied by the host and is independent of the source-field convention | current render grid | history flag off -> current-frame reference only |
+| Recovery Accumulate (`FSRDRecoveryLobeAccumulate` t9) | `p + XY * size`; raster grid (jitter included) | expected previous Z is `z + mv.z`; gate `mv.w >= 0.5` (always true here) plus geometry/validity | current render grid | `RECOVERY_FLAGS_HISTORY_VALID` off |
+| Recovery Band (`FSRDRecoveryLobeBand` t8) | `(centre + XY*size)/scale - 0.5` at each level | same raster displacement rescaled to the level grid; gate `mv.w >= 0.5` | levels are ceil-halves of the render size | history flag off |
+
+`pixelJitters.xy` is the current jitter in render pixels ("pixel p samples
+p - Jitter"), so the Reference and Band remain on different grids even though
+they read the same texture - that is deliberate and not a defect to fix in one
+consumer only. The unjittered source must keep adding exactly one jitter delta;
+the jittered source must not be displaced twice. Both are pinned by the CPU
+oracle vector (T04: static physical motion, one 0.5 px jitter difference) and by
+the conversion fixture's GPU T04 frames, and the occluder counterexample is
+pinned separately (legacy B self-verifies with a zero residual against the old
+visible surface; the camera-only default does not).
+
+### Jitter experiment plan (not yet run)
+
+Two questions must be answered with the same raw sequence:
+
+1. **Source consistency.** Is the title field actually a raster displacement when
+   `motionVectorsJittered` is set, and a jitter-free field when it is not? The
+   recording must show the flag and the field together; changing only the flag
+   would break this question while answering the next one with inconsistent data.
+2. **Signed-provider raw output.** With a consistent source, how does the signed
+   provider's raw output change when the bridge feeds `XY` with the jitter delta
+   versus a jitter-free `XY`? Both variants need identical history starts.
+
+Conditions: Recovery off, one fixed guide policy (white or native, not both), the
+same provider binary hash and a fresh SDK RESET; fixed camera; a subpixel line
+pattern; a slow pan. The repeat-noise baseline on a static-pattern segment is
+measured separately so a jitter-frequency error is not confused with repeat
+noise. The decision combines the provider comparison with this coordinate table;
+changing a shader line alone is not accepted as evidence. Until then the current
+jitter/grid behavior is intentionally unchanged.
 
 ## Validation limits
 

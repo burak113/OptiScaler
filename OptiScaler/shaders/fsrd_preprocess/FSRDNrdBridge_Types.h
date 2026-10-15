@@ -84,10 +84,18 @@ struct FrameParameters
     bool reset = true, previousValid = false;
     bool nativeMaterialGuides = false; // Same-writer material cues; no further lighting demodulation.
     bool nativeTemporalMotion = false; // Same-binding native Temporal surface reprojection, captured with Recon.
-    bool cameraProjectedDepthDelta = false; // Experimental camera-only B; capture with the Recon ticket.
+    bool cameraProjectedDepthDelta = false; // Requested camera-only B (now the default); kept for the Recon ticket flow.
+    bool legacyMotionDepth = false; // A/B rollback: pre-fix previous-visible-depth B instead of camera-only.
     bool preserveNativeMaterialIDs = false; // Experimental native categorical A; capture with the Recon ticket.
     float nativeSpecularBlend = 0.0f; // Deprecated source ABI; ignored and canonicalized to positive zero.
     SignalEncoding outputEncoding = SignalEncoding::Rgb;
     TitleSignalConstants outputConstants {};
+};
+// Host-side motion-Z provenance of finalized motion dispatches for one
+// conversion domain. This is the frame-level effective path; per-pixel
+// populations need a user-armed GPU capture, never a synchronous readback.
+struct MotionProvenanceTotals
+{
+    uint64_t dispatches = 0, native = 0, cameraOnly = 0, unknown = 0, legacyVisible = 0;
 };
 }

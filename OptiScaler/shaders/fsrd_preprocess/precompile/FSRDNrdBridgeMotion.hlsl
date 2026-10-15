@@ -46,7 +46,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     const float3 rawMotion = InMotion[p].xyz;
     const float signedDepth = InDepth[p];
     float4 result = ConvertNrdMotion(p, RenderSize, rawMotion.xy, signedDepth, PreviousValid,
-                                    InPreviousDepth, MotionScale, JitterDeltaUv, 1u,
+                                    InPreviousDepth, MotionScale, JitterDeltaUv, 0u,
                                     InverseProjection, PreviousViewDepthRow, CurrentJitterUv);
     uint nativeWidth, nativeHeight;
     InNativeViewDepth.GetDimensions(nativeWidth, nativeHeight);
@@ -58,8 +58,9 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     }
     OutMotion[p] = result;
 #else
+    // Z provenance: default camera-only estimate, explicit legacy rollback only.
     OutMotion[p] = ConvertNrdMotion(p, RenderSize, InMotion[p].xy, InDepth[p], PreviousValid,
-                                   InPreviousDepth, MotionScale, JitterDeltaUv, Reserved,
+                                   InPreviousDepth, MotionScale, JitterDeltaUv, CameraReserved.y,
                                    InverseProjection, PreviousViewDepthRow, CurrentJitterUv);
 #endif
 }

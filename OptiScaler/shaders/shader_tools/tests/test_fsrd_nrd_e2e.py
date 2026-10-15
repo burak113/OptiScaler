@@ -277,7 +277,7 @@ struct D3D12Hooks {
                              for name, call in zip((name for name in early if name not in graphics_arguments),
                                                    (part.strip() for part in roots_attach.split(';') if part.strip())))
     roots_detach = roots_attach.replace('DetourAttach', 'DetourDetach')
-    roots_attach += '\nneed(AttachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument installer\"); bridgeGraphicsEarlyAttached=true;'
+    roots_attach += '\nneed(AttachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument installer\"); bridgeGraphicsEarlyAttached=gNrdBridgeDeviceWrappers;'
     roots_detach += '\nneed(DetachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument detach\"); bridgeGraphicsEarlyAttached=false;'
     cpp = Path(__file__).with_name('fsrd_nrd_e2e_fixture.cpp').read_text()
     replacements = dict(

@@ -205,7 +205,7 @@ def write_case(directory, inputs, params):
               *params['previous_jitter'], int(params['jittered']), int(params['reset']),
               int(params['previous_valid']), params['mode'], *params['view'].ravel(), *params['projection'].ravel(),
               int(params.get('camera_projected_depth_delta', False)), int(params.get('preserve_native_material_ids', False)),
-              int(params.get('native_material_guides', False))]
+              int(params.get('native_material_guides', False)), int(params.get('legacy_motion_depth', False))]
     (directory / 'frame.txt').write_text(' '.join(str(value) for value in values), encoding='utf-8')
 
 
@@ -248,7 +248,31 @@ def normal_decode(nr):
     return normal / np.linalg.norm(normal, axis=-1, keepdims=True)
 
 
-def reference(inputs, params, previous_depth, history_valid):
+def camera_only_delta(width, height, params, previous_params, depth):
+    """Camera-only previous-surface Z, mirroring the production motion shader.
+
+    The current world point is rebuilt from the current signed depth and the
+    current inverse projection at the jittered sample (pixel center - jitter),
+    then measured with the previous camera's view row. Static-surface estimate;
+    no object motion is reconstructed. Nonfinite/behind-camera pixels stay 0.
+    """
+    y, x = np.mgrid[:height, :width]
+    size = np.array([width, height], np.float32)
+    uv = (np.stack((x + .5, y + .5), axis=-1).astype(np.float32) / size
+          - np.asarray(params['jitter'], np.float32) / size)
+    ndc = np.stack((2 * uv[..., 0] - 1, 2 * (1 - uv[..., 1]) - 1), axis=-1).astype(np.float32)
+    clip = np.concatenate((ndc, np.full((height, width, 1), .5, np.float32),
+                           np.ones((height, width, 1), np.float32)), axis=-1)
+    ray = clip @ np.linalg.inv(np.asarray(params['projection'], np.float32)).T
+    row = (np.asarray(previous_params['view'], np.float32) @
+           np.linalg.inv(np.asarray(params['view'], np.float32)))[2]
+    position = ray[..., :3] * (depth[..., None] / ray[..., 2:3])
+    candidate = position @ row[:3] + row[3] - depth
+    usable = (np.isfinite(ray[..., :3]).all(-1) & (np.abs(ray[..., 2]) > 1e-8) & np.isfinite(candidate))
+    return np.where(usable, np.clip(candidate, -65504, 65504), 0).astype(np.float32)
+
+
+def reference(inputs, params, previous_depth, history_valid, previous_params=None, legacy=False):
     height, width = inputs['depth'].shape
     raw_depth = inputs['depth']
     depth = params['sign'] * np.where(np.isfinite(raw_depth),
@@ -260,11 +284,14 @@ def reference(inputs, params, previous_depth, history_valid):
     y, x = np.mgrid[:height, :width]
     positions = np.stack((x + 0.5, y + 0.5), axis=-1).astype(np.float32) + motion * (width, height)
     valid = history_valid and params['previous_valid'] and not params['reset']
-    inside = (positions[..., 0] >= 0) & (positions[..., 0] < width) & (positions[..., 1] >= 0) & (positions[..., 1] < height)
     delta = np.zeros_like(depth)
-    if valid:
+    if valid and legacy:
+        # A/B rollback only: the pre-fix previous-VISIBLE-depth sample.
+        inside = (positions[..., 0] >= 0) & (positions[..., 0] < width) & (positions[..., 1] >= 0) & (positions[..., 1] < height)
         coords = np.floor(positions[inside]).astype(int)
         delta[inside] = np.clip(previous_depth[coords[:, 1], coords[:, 0]] - depth[inside], -65504, 65504)
+    elif valid and previous_params is not None and not legacy:
+        delta = camera_only_delta(width, height, params, previous_params, depth)
     output_motion = np.concatenate((np.clip(motion, -65504, 65504), delta[..., None], np.ones_like(delta)[..., None]), axis=-1).astype(np.float16)
     world_normal = normal_decode(inputs['nr'])
     view_normal = world_normal @ params['view'][:3, :3].T
@@ -393,10 +420,11 @@ def verify_native_material_guides(directory, input_values, output):
     return oracle
 
 
-def verify_case(directory, input_values, params, previous_depth=None, history_valid=False, expected_camera_delta=None):
+def verify_case(directory, input_values, params, previous_depth=None, history_valid=False,
+                expected_camera_delta=None, previous_params=None, legacy=False):
     height, width = input_values['depth'].shape
     output = read_outputs(directory, width, height)
-    depth, motion, no_v = reference(input_values, params, previous_depth, history_valid)
+    depth, motion, no_v = reference(input_values, params, previous_depth, history_valid, previous_params, legacy)
     if expected_camera_delta is not None:
         # Independent pose/plane oracle supplied by projected_depth_cases, not shader reconstruction.
         motion[..., 2] = np.asarray(expected_camera_delta, dtype=np.float16)
@@ -490,12 +518,18 @@ def projected_depth_cases(width=13, height=11, focal_scales=None):
         (0.35, (0.25, 0.1, 0.3), (0.5, -0.5)),
         (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
         (0.0, (0.0, 0.0, 0.2), (-0.25, 0.5)),
+        # T04 static vector: identical camera; the only motion is a 0.5 px jitter
+        # difference, first with an unjittered source field and then with the
+        # same displacement already present in the (jittered-convention) field.
+        (0.0, (0.0, 0.0, 0.2), (-0.75, 0.5)),
+        (0.0, (0.0, 0.0, 0.2), (-1.25, 0.5)),
     ]
     if focal_scales is not None:
         if len(focal_scales) != len(poses) or any(not math.isfinite(v) or v <= 0 for v in focal_scales):
-            raise ValueError('Eight finite positive per-pose focal scales are required')
+            raise ValueError('Ten finite positive per-pose focal scales are required')
     descriptions = ['initial', 'translation', 'rotation', 'rotation+jitter+occluder',
-                    'occluder reveal', 'invalid previous', 'LH reset', 'LH object-Z limitation']
+                    'occluder reveal', 'invalid previous', 'LH reset', 'LH object-Z limitation',
+                    'T04 static jitter vector, unjittered source', 'T04 static jitter vector, jittered source']
     y, x = np.mgrid[:height, :width]
     cases = []
     rotations = []
@@ -515,7 +549,7 @@ def projected_depth_cases(width=13, height=11, focal_scales=None):
         view[:3, 3] = -rotation @ np.asarray(camera, dtype=np.float64)
         previous_jitter = poses[index-1][2] if index else jitter
         params = dict(near=0.05, far=64, sign=sign, scale=(1, 1), jitter=jitter,
-                      previous_jitter=previous_jitter, jittered=index == 2,
+                      previous_jitter=previous_jitter, jittered=index in (2, 9),
                       reset=index in (0, 6), previous_valid=index not in (0, 5, 6),
                       mode=1, view=view, projection=proj)
         uv = np.stack(((x + 0.5-jitter[0])/width, (y + 0.5-jitter[1])/height), axis=-1)
@@ -568,52 +602,103 @@ def projected_depth_cases(width=13, height=11, focal_scales=None):
 def projected_depth(exe):
     cases = projected_depth_cases()
     height, width = cases[0]['inputs']['depth'].shape
-    mode_outputs, evidence = {}, {}
-    for enabled in (False, True):
-        mode = 'on' if enabled else 'off'
-        directory = OUT/'projected_depth'/mode
+    mode_outputs, evidence, depths = {}, {}, {}
+    for variant in ('off', 'on', 'legacy'):
+        legacy = variant == 'legacy'
+        directory = OUT/'projected_depth'/variant
         directory.mkdir(parents=True, exist_ok=True)
         (directory/'meta.txt').write_text(f'{len(cases)} {width} {height}', encoding='utf-8')
         for index, case in enumerate(cases):
-            params = dict(case['params'], camera_projected_depth_delta=enabled)
+            params = dict(case['params'], camera_projected_depth_delta=(variant == 'on'),
+                          legacy_motion_depth=legacy)
             write_case(directory/f'frame{index}', case['inputs'], params)
         stdout = run_fixture(exe, 'geometry', directory)
-        previous, outputs = None, []
+        previous, previous_params, outputs, history = None, None, [], []
         for index, case in enumerate(cases):
-            params = dict(case['params'], camera_projected_depth_delta=enabled)
+            params = dict(case['params'], camera_projected_depth_delta=(variant == 'on'),
+                          legacy_motion_depth=legacy)
             previous = verify_case(directory/f'frame{index}', case['inputs'], params,
-                                   previous, index > 0, case['expected_delta'] if enabled else None)
+                                   previous, index > 0, case['expected_delta'] if not legacy else None,
+                                   previous_params=previous_params, legacy=legacy)
+            history.append(previous)
+            previous_params = case['params']
             outputs.append(read_outputs(directory/f'frame{index}', width, height))
         verify_table_consumer(directory, width, height)
-        mode_outputs[mode] = outputs
-        evidence[mode] = dict(fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
-                              table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]))
-    off, on = mode_outputs['off'], mode_outputs['on']
+        mode_outputs[variant] = outputs
+        depths[variant] = history
+        evidence[variant] = dict(fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
+                                 table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]))
+    off, on, legacy = mode_outputs['off'], mode_outputs['on'], mode_outputs['legacy']
+    y, x = np.mgrid[:height, :width]
+    def visible_residual(run, index):
+        """previous VISIBLE depth minus (current depth + B): the old path's own test."""
+        pixel = np.stack((x + .5, y + .5), axis=-1).astype(np.float32) + \
+            run[index]['motion'][..., :2].astype(np.float32) * (width, height)
+        inside = ((pixel[..., 0] >= 0) & (pixel[..., 0] < width) &
+                  (pixel[..., 1] >= 0) & (pixel[..., 1] < height))
+        cx = np.clip(np.floor(pixel[..., 0]).astype(int), 0, width - 1)
+        cy = np.clip(np.floor(pixel[..., 1]).astype(int), 0, height - 1)
+        previous_depth = depths['off'][index - 1]
+        return inside, (previous_depth[cy, cx] -
+                        (run[index]['depth'] + run[index]['motion'][..., 2].astype(np.float32)))
     for index in range(len(cases)):
         for name in ('spec', 'diff', 'depth', 'nr', 'spec_albedo', 'diff_albedo', 'debug_spec', 'debug_diff'):
-            check(f'projected frame{index} {name} byte identity across A/B',
+            check(f'projected frame{index} {name} byte identity across camera-flag A/B',
                   on[index][name].tobytes() == off[index][name].tobytes())
-        check(f'projected frame{index} XY/W exact across A/B',
+        check(f'projected frame{index} XY/W exact across camera-flag A/B',
               np.array_equal(on[index]['motion'][..., [0, 1, 3]].view('<u2'), off[index]['motion'][..., [0, 1, 3]].view('<u2')))
+        check(f'projected frame{index} XY/W exact for the legacy rollback',
+              np.array_equal(legacy[index]['motion'][..., [0, 1, 3]].view('<u2'), off[index]['motion'][..., [0, 1, 3]].view('<u2')))
+        check(f'projected frame{index} shared depth/guides byte identity under the legacy rollback',
+              all(legacy[index][name].tobytes() == off[index][name].tobytes()
+                  for name in ('spec', 'diff', 'depth', 'nr', 'spec_albedo', 'diff_albedo', 'debug_spec', 'debug_diff')))
     for index in (0, 5, 6):
-        check(f'projected frame{index} invalid previous/reset exact positivezero B',
-              np.all(on[index]['motion'][..., 2].view('<u2') == 0))
+        for name, run in (('camera', off), ('legacy', legacy)):
+            check(f'projected frame{index} {name} invalid previous/reset exact positivezero B',
+                  np.all(run[index]['motion'][..., 2].view('<u2') == 0))
     for index in (1, 7):
+        # The legacy rollback samples whatever visible surface the reprojected pixel
+        # had; its exact per-pixel value is pinned by verify_case against its own
+        # reference, so the +0.2 same-surface identity belongs to the camera path.
         check(f'projected frame{index} RH/LH +0.2 translation signed B',
-              np.allclose(on[index]['motion'][..., 2].astype(np.float32), 0.2, atol=2e-4, rtol=0))
+              np.allclose(off[index]['motion'][..., 2].astype(np.float32), 0.2, atol=2e-4, rtol=0))
     check('projected rotation Z varies across a known fixed world plane', np.ptp(on[2]['motion'][..., 2]) > 0.1)
     mask = cases[4]['reveal_mask']
     cur = on[4]['depth']
     check('revealed fixed surface predicts its own previous Z, not the old occluder',
           np.max(np.abs((cur+on[4]['motion'][..., 2])[mask]-cur[mask])) < 2e-4)
     check('legacy old-visibility delta is observably wrong on the revealed surface',
-          np.count_nonzero(np.abs(off[4]['motion'][..., 2][mask]-on[4]['motion'][..., 2][mask]) > 1) >= 4)
+          np.count_nonzero(np.abs(legacy[4]['motion'][..., 2][mask]-on[4]['motion'][..., 2][mask]) > 1) >= 4)
+    inside_default, residual_default = visible_residual(off, 4)
+    inside_legacy, residual_legacy = visible_residual(legacy, 4)
+    support = mask & inside_default & inside_legacy
+    check('reveal support is large enough for the occluder residual pin', np.count_nonzero(support) >= 4)
+    check('legacy previous-visible B satisfies its own prediction test with a zero residual',
+          float(np.max(np.abs(residual_legacy[support]))) <= .01)
+    check('default camera-only B does not self-verify against the old visible occluder',
+          np.count_nonzero(np.abs(residual_default[support]) > 1) >= 4)
     limitation = np.max(np.abs(cases[7]['true_object_delta']-on[7]['motion'][..., 2].astype(np.float64)))
     check('camera-only mode explicitly cannot reconstruct object-Z displacement', limitation > 2.9)
+    # T04 vector: static camera, zero physical motion, one 0.5 px jitter difference.
+    t04_delta = (np.asarray(cases[8]['params']['previous_jitter'], np.float64) -
+                 np.asarray(cases[8]['params']['jitter'], np.float64)) / (width, height)
+    for index in (8, 9):
+        expected = np.broadcast_to(t04_delta, (height, width, 2))
+        check(f'projected T04 frame{index} raster XY is exactly the half-pixel jitter displacement',
+              np.allclose(off[index]['motion'][..., :2].astype(np.float64), expected, atol=6e-5, rtol=0))
+        check(f'projected T04 frame{index} static camera keeps B at positive zero',
+              np.all(off[index]['motion'][..., 2].view('<u2') == 0))
+    check('T04 unjittered source adds exactly one jitter delta and the jittered source is not displaced twice',
+          np.allclose(off[8]['motion'][..., :2].astype(np.float64), off[9]['motion'][..., :2].astype(np.float64), atol=6e-5, rtol=0))
     return dict(frames=len(cases), width=width, height=height, fixtures=evidence,
                 oracle='physical pinhole camera rays intersect known world planes; previous pose projects known surface points',
-                only_motion_B_changes=True, native_table_cases=8,
+                only_motion_B_changes=True, native_table_cases=8, variants=['camera-default', 'camera-flag', 'legacy-rollback'],
                 object_depth_limitation_max= float(limitation), camera_only_object_Z_supported=False,
+                occluder_residual_pin=dict(default_max_abs=float(np.max(np.abs(residual_default[support]))),
+                                          legacy_max_abs=float(np.max(np.abs(residual_legacy[support]))),
+                                          support_pixels=int(np.count_nonzero(support))),
+                t04_static_jitter=dict(raster_pixels=[float(v) for v in t04_delta * (width, height)],
+                                       unjittered_source=True, jittered_source_not_doubled=True),
                 note='Guide correctness A/B evidence; no claim of actual RR visual quality until E2E/user validation.')
 
 
@@ -635,11 +720,12 @@ def material_ids(exe):
         for index, (value, params) in enumerate(cases):
             write_case(directory/f'frame{index}', value, dict(params, preserve_native_material_ids=enabled))
         stdout = run_fixture(exe, 'sequence', directory)
-        previous, outputs = None, []
+        previous, previous_params, outputs = None, None, []
         for index, (value, params) in enumerate(cases):
             previous = verify_case(directory/f'frame{index}', value,
                                    dict(params, preserve_native_material_ids=enabled), previous,
-                                   index > 0 and index != 4)
+                                   index > 0 and index != 4, previous_params=previous_params)
+            previous_params = params
             outputs.append(read_outputs(directory/f'frame{index}', width, height))
         verify_table_consumer(directory, width, height)
         mode_outputs[mode] = outputs
@@ -692,10 +778,11 @@ def native_material(exe):
         if exe is None:
             continue
         stdout = run_fixture(exe,'sequence',directory)
-        previous, outputs = None, []
+        previous, previous_params, outputs = None, None, []
         for index,(value,params) in enumerate(cases):
             previous = verify_case(directory/f'frame{index}',value,dict(params,native_material_guides=enabled),
-                                   previous,index > 0 and index != 4)
+                                   previous,index > 0 and index != 4, previous_params=previous_params)
+            previous_params = params
             outputs.append(read_outputs(directory/f'frame{index}',width,height))
             if enabled:
                 for name in ('spec','diff','material'):
@@ -770,9 +857,11 @@ def synthetic(exe):
         write_case(directory / f'frame{index}', value, params)
         cases.append((value, params))
     stdout = run_fixture(exe, 'sequence', directory)
-    previous = None
+    previous, previous_params = None, None
     for index, (value, params) in enumerate(cases):
-        previous = verify_case(directory / f'frame{index}', value, params, previous, index > 0 and index != 4)
+        previous = verify_case(directory / f'frame{index}', value, params, previous, index > 0 and index != 4,
+                               previous_params=previous_params)
+        previous_params = params
     verify_table_consumer(directory, width, height)
     return dict(frames=count, width=width, height=height, fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
                 table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]),

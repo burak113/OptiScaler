@@ -554,6 +554,8 @@ class Config
     CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugViewport {0};
     // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
+    // Experimental A/B rollback: previous-visible-depth motion Z (pre-fix path).
+    CustomOptional<bool> FfxDenoiserNrdBridgeLegacyMotionDepth {false};
     CustomOptional<bool> FfxDenoiserNrdBridgeNativeTemporalMotion {false};
     // Native material albedo cues are the bridge default; unavailable captures use white guides.
     CustomOptional<bool> FfxDenoiserNrdBridgeNativeMaterialGuides {true};
