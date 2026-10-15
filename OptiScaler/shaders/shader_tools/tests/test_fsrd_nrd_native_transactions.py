@@ -131,19 +131,47 @@ def run():
             os.environ.pop('CL', None)
         else:
             os.environ['CL'] = prior_cl
-    _, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL)], out/'native_run')
-    value = json.loads((out/'native-transactions-result.json').read_text())
-    assert value['debug_errors'] == value['debug_warnings'] == 0
-    assert value['provider_dispatches'] == 15 and value['contexts'] == 4
-    assert value['missing_A_Consumer_denials'] == 1 and value['discard_recovery']
-    assert len(value['frames']) == 6
-    assert [row['SL_frame'] for row in value['frames']] == list(range(1, 7))
-    assert all(row['signed_dispatches'] == 2 and row['native_filter_gpu_executions'] == 0 for row in value['frames'])
-    assert all(row['exact_rr_rgb_words'] == 128*128*12 for row in value['frames'])
-    value.update(python_checks=7, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
-                 source_sha256=sha(command[0]), exe_sha256=sha(exe), provider_sha256=sha(DLL))
-    (out/'native-transactions-result.json').write_text(json.dumps(value, indent=2)+'\n')
-    print(json.dumps(value, indent=2))
+    cases, python_checks = {}, 0
+    for name, option, dispatches, contexts, retained in (
+            ('positive', None, 15, 4, 0),
+            ('missing_consumer', '--missing-consumer', 1, 1, 1),
+            ('positive_opaque', '--opaque', 15, 4, 0),
+            ('opaque_mutation', '--opaque-mutation', 2, 2, 2)):
+        directory = out/name
+        directory.mkdir(parents=True, exist_ok=True)
+        command_line = [str(exe), str(directory), str(DLL)] + ([option] if option else [])
+        _, peak, elapsed, log = bounded_run(command_line, directory/'native_run')
+        value = json.loads((directory/'native-transactions-result.json').read_text())
+        assert value['debug_errors'] == value['debug_warnings'] == 0
+        assert value['provider_dispatches'] == dispatches and value['contexts'] == contexts
+        assert value['provider_destroys'] == contexts-retained
+        python_checks += 3
+        if retained:
+            assert value['quarantined_recordings'] == value['quarantined_submissions'] == 1
+            assert value['intentionally_retained_contexts'] == retained
+            assert value['repeated_denials'] == 2 and not value['discard_recovery']
+            assert value['missing_A_Consumer_denials'] == (name == 'missing_consumer')
+            python_checks += 4
+        else:
+            assert len(value['frames']) == 6
+            assert [row['SL_frame'] for row in value['frames']] == list(range(1, 7))
+            assert all(row['signed_dispatches'] == 2 and row['native_filter_gpu_executions'] == 0 for row in value['frames'])
+            assert all(row['exact_rr_rgb_words'] == 128*128*12 for row in value['frames'])
+            assert all(row['opaque_original_gpu_executions'] == int(name == 'positive_opaque') for row in value['frames'])
+            assert value['discard_recovery'] and value['repeated_denials'] == 0
+            python_checks += 6
+        value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+        (directory/'native-transactions-result.json').write_text(json.dumps(value, indent=2)+'\n')
+        cases[name] = value
+    result = dict(schema='native-transactions-result-v2', cases=cases, python_checks=python_checks,
+                  native_checks=sum(v['native_checks'] for v in cases.values()),
+                  provider_dispatches=sum(v['provider_dispatches'] for v in cases.values()),
+                  source_sha256=sha(command[0]), exe_sha256=sha(exe), provider_sha256=sha(DLL),
+                  native_birth_ready=True, production_elision_readiness=False,
+                  actual_release_detours_proved=False,
+                  scope='explicit synthetic shipping-role/readiness/register-use adapters; actual hardware/GUID/Birth/metadata/indirect/admission/raw/conversion/signedRR and retained proofs')
+    (out/'native-transactions-result.json').write_text(json.dumps(result, indent=2)+'\n')
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':
