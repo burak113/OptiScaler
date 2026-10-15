@@ -160,7 +160,7 @@ def run():
         return
     exe = output/'graphics_bindings.exe'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT/'OptiScaler/library/detours/detours.lib')),
-                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     process = subprocess.run([str(exe), str(output/'result.json')], capture_output=True, text=True, timeout=90,
                              creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     (output/'native.log').write_text(process.stdout+process.stderr)

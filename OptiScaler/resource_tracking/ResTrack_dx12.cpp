@@ -5432,6 +5432,10 @@ void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT Threa
 void ResTrack_Dx12::hkSurveyDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
                                     UINT StartVertexLocation, UINT StartInstanceLocation)
 {
+    if (FrameSurvey::Internal()) { o_DrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::DrawInstanced,gNrdBridgeWrappers);
+    if (forwarding.Nested()) { hkDrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation); return; }
+    if (gNrdBridgeWrappers) NrdBridge::BeforeGraphicsConsumer(This);
     const std::array<uint64_t,4> args {VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation};
     FrameSurvey::Pass(This,"DrawInstanced",args);
     hkDrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation);
@@ -5442,6 +5446,10 @@ void ResTrack_Dx12::hkSurveyDrawIndexedInstanced(ID3D12GraphicsCommandList* This
                                            UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation,
                                            UINT StartInstanceLocation)
 {
+    if (FrameSurvey::Internal()) { o_DrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::DrawIndexedInstanced,gNrdBridgeWrappers);
+    if (forwarding.Nested()) { hkDrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation); return; }
+    if (gNrdBridgeWrappers) NrdBridge::BeforeGraphicsConsumer(This);
     const std::array<uint64_t,5> args {IndexCountPerInstance,InstanceCount,StartIndexLocation,uint64_t(int64_t(BaseVertexLocation)),StartInstanceLocation};
     FrameSurvey::Pass(This,"DrawIndexedInstanced",args);
     hkDrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation);

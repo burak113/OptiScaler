@@ -20,6 +20,8 @@ std::vector<std::string> events;
 void event(const std::string& value) { events.push_back(value); }
 bool startup=true, suppress=false, recording=false, proof=true, poisoned=false, partial=false;
 unsigned originalDispatch=0,legacyDispatch=0,originalBundle=0,originalClear=0,originalPredicate=0,originalIndirect=0;
+unsigned originalDraw=0,originalIndexed=0,legacyDraw=0,legacyIndexed=0,physicalDraw=0;
+bool drawDecorator=false;std::array<uint64_t,6> drawArguments{},passArguments{};
 std::function<void()> effect;
 void sideEffect() { if(effect) { auto action=std::move(effect); effect={}; action(); } }
 namespace NrdBridge {
@@ -27,6 +29,7 @@ __ENUMS__
 bool StartupEnabled() noexcept { return startup; }
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept { event("before"); }
 void AfterDispatch(ID3D12GraphicsCommandList*) noexcept { event("after"); }
+void BeforeGraphicsConsumer(ID3D12GraphicsCommandList*) noexcept { event("graphics.before"); }
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*,DispatchKind kind) noexcept {
  event(kind==DispatchKind::Direct?"query.direct":kind==DispatchKind::Bundle?"query.bundle":"query.indirect");
  if(kind!=DispatchKind::Direct) { poisoned|=partial; proof=false; }
@@ -52,7 +55,8 @@ const GUID SignatureId={};const GUID SignatureLayoutId={1};
 List& GetList(ID3D12GraphicsCommandList*) { return list; }
 void Count(const char*) {}
 void Fail(const char* message) { throw std::runtime_error(message); }
-template<size_t N> void Pass(ID3D12GraphicsCommandList*,const char* kind,const std::array<uint64_t,N>&) {
+template<size_t N> void Pass(ID3D12GraphicsCommandList*,const char* kind,const std::array<uint64_t,N>& args) {
+ passArguments.fill(0);std::copy(args.begin(),args.end(),passArguments.begin());
  event(std::string("pass.")+kind);++list.lastPass;list.passes.push_back(Json::object());
 }
 void SnapshotWrites(ID3D12GraphicsCommandList*) { event("snapshot"); }
@@ -74,6 +78,17 @@ void STDMETHODCALLTYPE nativePredicate(ID3D12GraphicsCommandList*,ID3D12Resource
  ++originalPredicate;event("native.predicate");sideEffect();
 }
 auto o_Dispatch=&nativeDispatch;auto o_ClearState=&nativeClear;auto o_SetPredication=&nativePredicate;
+void STDMETHODCALLTYPE nativeDraw(ID3D12GraphicsCommandList*,UINT vertices,UINT instances,UINT startVertex,UINT startInstance){
+ ++originalDraw;event("native.draw");drawArguments={vertices,instances,startVertex,startInstance,0,0};
+ if(drawDecorator&&effect){sideEffect();return;}++physicalDraw;sideEffect();
+}
+void STDMETHODCALLTYPE nativeIndexed(ID3D12GraphicsCommandList*,UINT indices,UINT instances,UINT startIndex,INT baseVertex,UINT startInstance){
+ ++originalIndexed;event("native.indexed");drawArguments={indices,instances,startIndex,uint64_t(int64_t(baseVertex)),startInstance,0};
+ if(drawDecorator&&effect){sideEffect();return;}++physicalDraw;sideEffect();
+}
+auto o_DrawInstanced=&nativeDraw;auto o_DrawIndexedInstanced=&nativeIndexed;
+void hkDrawInstanced(ID3D12GraphicsCommandList* cmd,UINT a,UINT b,UINT c,UINT d){++legacyDraw;event("legacy.draw");o_DrawInstanced(cmd,a,b,c,d);}
+void hkDrawIndexedInstanced(ID3D12GraphicsCommandList* cmd,UINT a,UINT b,UINT c,INT d,UINT e){++legacyIndexed;event("legacy.indexed");o_DrawIndexedInstanced(cmd,a,b,c,d,e);}
 void hkDispatch(ID3D12GraphicsCommandList* cmd,UINT x,UINT y,UINT z) { ++legacyDispatch;event("legacy.dispatch");o_Dispatch(cmd,x,y,z); }
 void hkExecuteBundle(ID3D12GraphicsCommandList*,ID3D12GraphicsCommandList*) { ++originalBundle;event("native.bundle");sideEffect(); }
 __HOOKS__
@@ -81,6 +96,7 @@ __HOOKS__
 void reset() {
  events.clear();effect={};startup=Hooks::gNrdBridgeWrappers=true;suppress=false;recording=false;proof=true;poisoned=partial=false;
  FrameSurvey::gInternal=false;FrameSurvey::list={};originalDispatch=legacyDispatch=originalBundle=originalClear=originalPredicate=originalIndirect=0;
+ originalDraw=originalIndexed=legacyDraw=legacyIndexed=physicalDraw=0;drawDecorator=false;drawArguments.fill(0);passArguments.fill(0);
 }
 unsigned count(const char* name) { return unsigned(std::count(events.begin(),events.end(),name)); }
 int main() { try {
@@ -113,7 +129,7 @@ int main() { try {
  need(count("mirror.graphics")==1 && count("mirror.compute")==1 && count("mirror.heaps")==1 && count("mirror.pipeline")==1,"ClearState clears metadata without recording Reset");
  reset();FrameSurvey::gInternal=true;Hooks::hkBridgeClearState(cmd,nullptr);
  need(events==std::vector<std::string>{"native.clear"},"internal ClearState is not a title invalidation");
- reset();partial=true;effect=[] {proof=true;};Hooks::hkBridgeSetPredication(cmd,reinterpret_cast<ID3D12Resource*>(0xdead0000),128,D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
+ reset();partial=true;effect=[] {proof=true;};Hooks::hkBridgeSetPredication(cmd,reinterpret_cast<ID3D12Resource*>(uintptr_t(0xdead0000)),128,D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
  need(originalPredicate==1 && poisoned && !proof && count("invalidate")==2 && count("cache.predicate.on")==1,"non-null predication invalidates before and after native forwarding");
  reset();partial=true;Hooks::hkBridgeSetPredication(cmd,nullptr,0,D3D12_PREDICATION_OP_EQUAL_ZERO);
  need(originalPredicate==1 && !poisoned && proof && count("invalidate")==0 && count("cache.predicate.off")==1,"null predication is benign known OFF");
@@ -129,9 +145,26 @@ int main() { try {
  need(events==std::vector<std::string>{"native.indirect"},"owned indirect bypasses public tracking");
  reset();{NrdBridgeTitleCallbacks::Scope scope(NrdBridgeTitleCallbacks::Method::Indirect,true);FrameSurvey::Indirect(alias,nullptr,1,nullptr,0,nullptr,0);}
  need(originalIndirect==1 && count("query.indirect")==0 && count("snapshot")==0,"indirect decorator is observed once");
+ unsigned graphicsCases=0;
+ for(bool indexed:{false,true}){
+  reset();suppress=true;
+  const auto call=[&](ID3D12GraphicsCommandList* target){if(indexed)Hooks::hkSurveyDrawIndexedInstanced(target,7,2,11,-5,13);else Hooks::hkSurveyDrawInstanced(target,7,2,11,13);};
+  call(cmd);
+  const std::vector<std::string> expected=indexed?std::vector<std::string>{"graphics.before","pass.DrawIndexedInstanced","legacy.indexed","native.indexed","snapshot"}:std::vector<std::string>{"graphics.before","pass.DrawInstanced","legacy.draw","native.draw","snapshot"};
+  need(events==expected&&physicalDraw==1&&count("query.direct")==0,"both graphics draws always forward once after exactly one observer/pass");
+  need(drawArguments==passArguments&&drawArguments[0]==7&&drawArguments[1]==2&&(indexed?drawArguments[3]==uint64_t(int64_t(-5)):drawArguments[3]==13),"actual recorded draw arguments including signed base vertex are unchanged");++graphicsCases;
+  reset();FrameSurvey::gInternal=true;call(cmd);
+  need(physicalDraw==1&&count("graphics.before")==0&&count("snapshot")==0&&legacyDraw+legacyIndexed==0,"internal draws forward only native and do not revisit title consumer");++graphicsCases;
+  reset();drawDecorator=true;effect=[&]{call(alias);};call(cmd);
+  need(physicalDraw==1&&originalDraw+originalIndexed==2&&count("graphics.before")==1&&count("snapshot")==1,"same-method COM decorator aliases reach one final native draw and one logical observer");++graphicsCases;
+ }
+ reset();startup=Hooks::gNrdBridgeWrappers=false;Hooks::hkSurveyDrawInstanced(cmd,1,1,0,0);
+ need(physicalDraw==1&&count("graphics.before")==0&&count("pass.DrawInstanced")==1,"startup-OFF draw preserves original recorder path without bridge observer");++graphicsCases;
+ reset();effect=[&]{Hooks::hkSurveyDrawIndexedInstanced(alias,3,1,0,0,0);};Hooks::hkSurveyDrawInstanced(cmd,3,1,0,0);
+ need(physicalDraw==2&&count("graphics.before")==2&&count("pass.DrawInstanced")==1&&count("pass.DrawIndexedInstanced")==1,"legitimate cross-method nested draws remain separately observed");++graphicsCases;
  reset();recording=true;partial=true;need(NrdBridgeLifetime::EnableConcurrentReleases(),"actual lifetime gate enabled for denied nested borrow control");
  {NrdBridgeLifetime::ScopedRelease release(true);FrameSurvey::Indirect(cmd,nullptr,1,nullptr,0,nullptr,0);}
  need(originalIndirect==1 && poisoned && count("query.indirect")==1 && count("snapshot")==0,"denied recorder borrow cannot bypass irreversible-skip invalidation");
- std::cout<<Json{{"checks",checks},{"cases",19},{"method_pairs",unsigned(NrdBridgeTitleCallbacks::Method::Count)*unsigned(NrdBridgeTitleCallbacks::Method::Count)},
+ std::cout<<Json{{"checks",checks},{"cases",19+graphicsCases},{"graphics_cases",graphicsCases},{"method_pairs",unsigned(NrdBridgeTitleCallbacks::Method::Count)*unsigned(NrdBridgeTitleCallbacks::Method::Count)},
   {"scope","actual production hook bodies and method/lifetime guards; CPU observer/native-call spies, no GPU or provider"}}.dump()<<'\n';return 0;
  }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;} }
