@@ -22,6 +22,8 @@ CASES = [
     "same-selection", "changed-selection", "birth-live", "birth-invalid",
     "ping-pong-two", "ping-pong-four", "ring-eviction", "allocation-free", "duplicate-target",
     "legacy-generation", "legacy-zero-generation",
+    "known-states", "known-invalid", "seed-new-list", "seed-selection", "seed-ring",
+    "seed-generation", "seed-birth", "seed-allocation-free", "supported-states",
 ]
 
 CPP = r'''
@@ -36,7 +38,9 @@ CPP = r'''
 #include <stdexcept>
 #include <string>
 
+__CAPTURE_POLICY__
 using Witness = NrdBridge::NativeMaterialStateWitness;
+using IdentityCache = NrdBridge::NativeMaterialIdentityCache;
 using Bound = FrameSurvey::BoundResource;
 using Token = NrdBridgeBirth::Token;
 unsigned checks = 0;
@@ -311,6 +315,122 @@ void run(const std::string& mode)
         meter=false;need(valid,"1000 recording resets retain all four alternating pair identities");
         need(allocations==0,"bounded warmed Select/Observe/Readable/Invalidate allocate zero times");
     }
+    else if(mode=="known-states")
+    {
+        Witness::SourceStates states{D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COPY_SOURCE};
+        const auto unchanged=states;
+        need(!w.TryKnownStates(1,states) && states==unchanged,"unknown output is untouched");
+        select(w,p);
+        for(const auto state : {readState,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS})
+        {
+            observe(w,p,1,state);need(w.TryKnownStates(1,states),"exact known state is independent of compute-read eligibility");
+            need(states[0]==state && states[1]==state,"both exact native states returned without promotion inference");
+            need(w.Readable(1)==(state==readState),"legacy Readable policy remains unchanged");
+        }
+        auto b=transition(p.base.resource,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);w.Observe(1,&b,1);
+        need(w.TryKnownStates(1,states) && states[0]==D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE &&
+             states[1]==D3D12_RESOURCE_STATE_UNORDERED_ACCESS,"independent per-source state masks preserved");
+    }
+    else if(mode=="known-invalid")
+    {
+        Witness::SourceStates states{D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COPY_SOURCE};
+        const auto unchanged=states;select(w,p);observe(w,p);
+        need(!w.TryKnownStates(2,states) && states==unchanged,"known states do not cross cancellation serials");
+        auto b=transition(p.base.resource,readState,D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);w.Observe(1,&b,1);
+        need(!w.TryKnownStates(1,states) && states==unchanged,"pending split cannot supply a transition-before state");
+        observe(w,p);need(!w.TryKnownStates(1,states),"ordinary barrier cannot repair pending split implicitly");
+        observe(w,p);need(w.TryKnownStates(1,states),"later independent full barriers reestablish proof");
+        alias(w,nullptr,pair(20).base.resource);need(!w.TryKnownStates(1,states),"wildcard alias destroys exact-state proof");
+        observe(w,p);w.Invalidate();need(!w.TryKnownStates(1,states),"Reset cannot carry known states");
+    }
+    else if(mode=="seed-new-list")
+    {
+        IdentityCache identities;need(identities.Empty(),"service cache starts empty");
+        identities.Remember(p.base,p.params);need(!identities.Empty(),"first writer learns only weak identities");
+        identities.Seed(w);Witness::SourceStates states{};
+        need(!w.TryKnownStates(1,states),"seeding does not select or import a state");
+        observe(w,p,1,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);select(w,p);
+        need(w.TryKnownStates(1,states) && states[0]==D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+             "fresh command list observes barriers before its first writer selection");
+        Witness other;identities.Seed(other);select(other,p);
+        need(!other.TryKnownStates(1,states),"another list cannot inherit known state from service identities");
+        observe(other,p,2);need(other.TryKnownStates(2,states),"other list needs its own fresh barrier evidence");
+        other.Invalidate();identities.Seed(other);select(other,p);
+        need(!other.TryKnownStates(2,states),"close/reset plus reseeding does not revive old evidence");
+    }
+    else if(mode=="seed-selection")
+    {
+        prove(w,p);const auto q=pair(1);w.Seed(q.base,q.params);
+        need(w.Readable(1),"seeding another identity preserves exact active selection");
+        w.Seed(p.base,p.params);need(w.Readable(1),"reseeding existing pair preserves its current-recording proof");
+        for(unsigned i=2;i!=5;++i){const auto q=pair(i);w.Seed(q.base,q.params);}
+        Witness::SourceStates states{};
+        need(!w.TryKnownStates(1,states),"evicting selection cannot select the replacement identity");
+    }
+    else if(mode=="seed-ring")
+    {
+        IdentityCache identities;for(unsigned i=0;i!=5;++i){const auto q=pair(i);identities.Remember(q.base,q.params);}
+        identities.Seed(w);for(unsigned i=0;i!=5;++i)observe(w,pair(i));
+        for(unsigned i=1;i!=5;++i){select(w,pair(i));need(w.Readable(1),"latest four service identities see early barriers");}
+        select(w,p);need(!w.Readable(1),"fifth pair evicts old identity without fabricating missed state");
+    }
+    else if(mode=="seed-generation")
+    {
+        IdentityCache identities;identities.Remember(p.base,p.params);identities.Seed(w);observe(w,p);
+        auto recycled=p;recycled.base.resourceGeneration+=100;recycled.params.resourceGeneration+=100;
+        select(w,recycled);Witness::SourceStates states{};
+        need(!w.TryKnownStates(1,states),"new legacy generation cannot consume seeded old-identity proof");
+        identities.Remember(recycled.base,recycled.params);Witness next;identities.Seed(next);
+        select(next,recycled);need(!next.TryKnownStates(1,states),"remembering new generation is not state evidence");
+        observe(next,recycled);need(next.TryKnownStates(1,states),"new generation receives its own current recording barriers");
+    }
+    else if(mode=="seed-birth")
+    {
+        NrdBridgeBirth::Registry registry;auto tracked=p;
+        tracked.base.resourceBirth=birth(registry,p.base.resource,301);
+        tracked.params.resourceBirth=birth(registry,p.params.resource,302);
+        IdentityCache identities;identities.Remember(tracked.base,tracked.params);identities.Seed(w);
+        observe(w,tracked);select(w,tracked);Witness::SourceStates states{};
+        need(w.TryKnownStates(1,states),"exact live Birth pair receives seeded recording-local proof");
+        need(registry.RetireCurrentInstance(tracked.base.resourceBirth,metadata,nullptr),"old physical identity retired");
+        auto recycled=tracked;recycled.base.resourceBirth=birth(registry,p.base.resource,401);
+        identities.Remember(recycled.base,recycled.params);identities.Seed(w);select(w,recycled);
+        need(!w.TryKnownStates(1,states),"recycled Birth cannot consume old state despite same address");
+        observe(w,recycled);need(w.TryKnownStates(1,states),"recycled Birth needs new observed barriers");
+    }
+    else if(mode=="seed-allocation-free")
+    {
+        IdentityCache identities;for(unsigned i=0;i!=4;++i){const auto q=pair(i);identities.Remember(q.base,q.params);}
+        allocations=0;meter=true;bool valid=true;Witness::SourceStates states{};
+        for(uint64_t serial=1;serial!=1001;++serial)
+        {
+            Witness fresh;identities.Seed(fresh);
+            for(unsigned i=0;i!=4;++i)observe(fresh,pair(i),serial,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            for(unsigned i=0;i!=4;++i){const auto q=pair(i);identities.Remember(q.base,q.params);
+                identities.Seed(fresh);select(fresh,q);valid=valid&&fresh.TryKnownStates(serial,states);}
+        }
+        meter=false;need(valid,"1000 fresh lists prove four seeded pairs only through their own barriers");
+        need(allocations==0,"bounded service identity cache and fresh-list seeding allocate zero times");
+    }
+    else if(mode=="supported-states")
+    {
+        using P=CapturePolicy;using S=P::SourceStates;
+        for(const auto state : {D3D12_RESOURCE_STATE_COMMON,readState,D3D12_RESOURCE_STATE_UNORDERED_ACCESS})
+        {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"known supported direct source state");
+         need(P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"known supported compute source state");}
+        for(const auto state : {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_GENERIC_READ,
+                D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)})
+        {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"direct list supports exact pixel-read state");
+         need(!P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"compute list cannot restore pixel-state masks");}
+        for(const auto state : {D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COPY_SOURCE,
+                D3D12_RESOURCE_STATE_RESOLVE_DEST,D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+                D3D12_RESOURCE_STATES(0x80000000u)})
+            need(!P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"unsupported or malformed exact states fail closed");
+        for(const auto type : {D3D12_COMMAND_LIST_TYPE_BUNDLE,D3D12_COMMAND_LIST_TYPE_COPY})
+            need(!P::CanCaptureStates(S{readState,readState},type),"non-dispatch command list cannot capture");
+    }
     else throw std::runtime_error("unknown fixture case");
 }
 int main(int argc,char** argv)try
@@ -328,9 +448,21 @@ catch(const std::exception& error){std::cerr<<error.what()<<"\n";return 1;}
 def generate(out):
     out.mkdir(parents=True, exist_ok=True)
     source = out / "nrd_material_state.cpp"
-    source.write_text(CPP.replace("__ROOT__", ROOT.as_posix()), encoding="utf-8")
+    capture = ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialCapture_Dx12.h"
+    text = capture.read_text()
+    signature = "    static bool CanCaptureStates("
+    assert text.count(signature) == 1, "one actual capture admission function"
+    start = text.index(signature)
+    opening = text.index("{", start)
+    depth, end = 1, opening + 1
+    while depth:
+        depth += (text[end] == "{") - (text[end] == "}")
+        end += 1
+    policy = ("class CapturePolicy { public: using SourceStates=std::array<D3D12_RESOURCE_STATES,2>;\n" +
+              text[start:end] + "\n};")
+    source.write_text(CPP.replace("__ROOT__", ROOT.as_posix()).replace("__CAPTURE_POLICY__", policy), encoding="utf-8")
     production = Path(os.environ.get("FSRD_NRD_PRODUCTION_ROOT", ROOT)).resolve()
-    paths = [ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialStateWitness.h",
+    paths = [ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialStateWitness.h", capture,
              production / "OptiScaler/misc/NrdBridgeBirth_Dx12.h",
              production / "OptiScaler/resource_tracking/FrameSurvey_Dx12.h"]
     assert "uint64_t resourceGeneration" in paths[-1].read_text(), "actual production BoundResource generation field required"

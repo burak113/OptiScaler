@@ -19,7 +19,6 @@ OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/15b-inputs/
 REPORT = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/15b-inputs'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fsrd_toolchain import compile_cpp, dxc
-from build_fsrd_shader import build as build_shader
 
 CHECKS = 0
 
@@ -34,7 +33,8 @@ def check(name, condition):
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
     compiler = dxc()
-    build_shader('FSRDNrdNativeMaterialCapture', compiler)
+    check('existing legacy capture bytecode retained',
+          (PASS / 'precompile/FSRDNrdNativeMaterialCapture_Shader.cso').is_file())
     compiled = OUT / 'guides.cso'
     subprocess.run([str(compiler), '-T', 'cs_6_2', '-E', 'CSMain', '-O3', '-I', str(PASS / 'precompile'),
                     str(Path(__file__).with_name('nrd_material_guides_fixture.hlsl')), '-Fo', str(compiled)], check=True)
@@ -49,8 +49,9 @@ def build():
     for include in ('#include "resource_tracking/ResTrack_Dx12.h"', '#include "State.h"'):
         check('one isolated app include: ' + include, production.count(include) == 1)
         production = production.replace(include, '')
-    check('two actual private barrier calls', production.count('list->ResourceBarrier(1,&barrier)') == 2)
-    production = production.replace('list->ResourceBarrier(1,&barrier)', 'MaterialAuditBarriers(list,1,&barrier)')
+    check('two unchanged private barrier calls', production.count('list->ResourceBarrier(1,&barrier)') == 2)
+    check('all five actual barrier sites instrumented', production.count('list->ResourceBarrier(') == 5)
+    production = production.replace('list->ResourceBarrier(', 'MaterialAuditBarriers(list,')
     check('one actual capture dispatch', production.count('list->Dispatch(') == 1)
     production = production.replace('list->Dispatch(', 'MaterialAuditDispatch(list,')
     (OUT / 'production_material_capture.h').write_text(production)
@@ -62,14 +63,34 @@ def build():
     audit = r'''
 #include "resource_tracking/FrameSurvey_Dx12.h"
 #include <unordered_set>
+#include <unordered_map>
 static uint32_t gMaterialDispatches=0, gMaterialPrivateBarriers=0, gMaterialSourceBarriers=0;
+static uint32_t gMaterialSourceTransitions=0, gMaterialSourceUavBarriers=0;
 static std::unordered_set<ID3D12Resource*> gMaterialTitleSources;
+static bool gMaterialAllowKnownSourceBarriers=false;
+static std::unordered_map<ID3D12Resource*,D3D12_RESOURCE_STATES> gMaterialSourceStates;
 static void MaterialAuditBarriers(ID3D12GraphicsCommandList* list,UINT count,const D3D12_RESOURCE_BARRIER* barriers)
 {
     for(UINT i=0;i<count;++i) {
-        if(barriers[i].Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
-           gMaterialTitleSources.contains(barriers[i].Transition.pResource)) {
-            ++gMaterialSourceBarriers; throw std::runtime_error("production capture transitioned title source");
+        const auto& barrier=barriers[i];
+        auto* source=barrier.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION ? barrier.Transition.pResource :
+                     barrier.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV ? barrier.UAV.pResource : nullptr;
+        if(source && gMaterialTitleSources.contains(source)) {
+            ++gMaterialSourceBarriers;
+            if(!gMaterialAllowKnownSourceBarriers || !gMaterialSourceStates.contains(source))
+                throw std::runtime_error("production capture transitioned unattested title source");
+            auto& state=gMaterialSourceStates.at(source);
+            if(barrier.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION) {
+                if(barrier.Flags!=D3D12_RESOURCE_BARRIER_FLAG_NONE ||
+                   barrier.Transition.Subresource!=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES ||
+                   barrier.Transition.StateBefore!=state)
+                    throw std::runtime_error("production material source barrier lost exact before state");
+                state=barrier.Transition.StateAfter;++gMaterialSourceTransitions;
+            } else {
+                if(state!=D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+                    throw std::runtime_error("production material source UAV ordering has wrong state");
+                ++gMaterialSourceUavBarriers;
+            }
         }
         ++gMaterialPrivateBarriers;
     }

@@ -134,6 +134,62 @@ static void MaterialTimings(Fixture& fixture,uint32_t width,uint32_t height)
     fixture.Reset();gMaterialTitleSources.erase(base.Get());gMaterialTitleSources.erase(params.Get());
 }
 
+static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCapture& capture,
+                                const fs::path& output,uint32_t width,uint32_t height)
+{
+    using Capture=NrdBridge::NativeMaterialCapture;
+    constexpr auto nps=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    const std::array<Capture::SourceStates,6> cases {{{D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+        {D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COMMON},
+        {D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
+        {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,nps},{D3D12_RESOURCE_STATE_GENERIC_READ,nps},
+        {D3D12_RESOURCE_STATES(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE|nps),nps}}};
+    const auto baseBytes=load(output/"base.bin"),paramsBytes=load(output/"params.bin"),expected=load(output/"material.bin");
+    for(const auto& states : cases)
+    {
+        auto base=fixture.Texture(width,height,DXGI_FORMAT_R10G10B10A2_UNORM,states[0],&baseBytes);
+        auto params=fixture.Texture(width,height,DXGI_FORMAT_R8G8B8A8_UNORM,states[1],&paramsBytes);
+        gMaterialTitleSources.insert(base.Get());gMaterialTitleSources.insert(params.Get());
+        gMaterialSourceStates={{base.Get(),states[0]},{params.Get(),states[1]}};
+        gMaterialAllowKnownSourceBarriers=true;
+        const auto transitions=gMaterialSourceTransitions,uavBarriers=gMaterialSourceUavBarriers;
+        const auto barriers=gMaterialPrivateBarriers,dispatches=gMaterialDispatches;
+        const auto baseRefs=MaterialReferences(base.Get()),paramsRefs=MaterialReferences(params.Get());
+        Capture::SnapshotLease lease;std::string error;
+        RecordedComputeLease::SetHooksAvailable(false,false);
+        need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),states,lease,error),"known-state capture ignored failed lease");
+        need(!lease && gMaterialPrivateBarriers==barriers && gMaterialDispatches==dispatches,
+             "failed known-state retain recorded title/owned commands");
+        RecordedComputeLease::SetHooksAvailable(true,true);
+        need(capture.Capture(fixture.list.Get(),base.Get(),params.Get(),states,lease,error),error.c_str());
+        unsigned changed=0,uavs=0;
+        for(auto state:states){changed+=!(state&nps);uavs+=state==D3D12_RESOURCE_STATE_UNORDERED_ACCESS;}
+        need(gMaterialSourceTransitions-transitions==changed*2,"every changed source has one enter and exact restore");
+        need(gMaterialSourceUavBarriers-uavBarriers==uavs,"every UAV source has explicit ordering before transition");
+        need(gMaterialSourceStates.at(base.Get())==states[0] && gMaterialSourceStates.at(params.Get())==states[1],
+             "capture did not restore both exact title states");
+        need(MaterialReferences(base.Get())==baseRefs && MaterialReferences(params.Get())==paramsRefs,
+             "known-state capture retained a title source COM owner");
+        const auto beforeReject=gMaterialPrivateBarriers;
+        Capture::SnapshotLease invalid;
+        need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),
+             {D3D12_RESOURCE_STATE_RENDER_TARGET,nps},invalid,error),"unsupported source state admitted");
+        need(!invalid && gMaterialPrivateBarriers==beforeReject && gMaterialDispatches==dispatches+1,
+             "unsupported exact state recorded GPU work");
+        auto read=fixture.Snapshot(capture.Resource(lease),D3D12_RESOURCE_STATE_COMMON);
+        auto baseRead=fixture.Snapshot(base.Get(),states[0]),paramsRead=fixture.Snapshot(params.Get(),states[1]);
+        std::weak_ptr<void> deferred=lease;lease.reset();
+        need(!deferred.expired(),"known-state snapshot was not retained for executable recording");
+        fixture.Submit();
+        need(read.Data()==expected,"temporary source states changed captured material numerics");
+        need(baseRead.Data()==baseBytes && paramsRead.Data()==paramsBytes,"known-state capture altered title pixels");
+        need(!deferred.expired(),"completed fence dropped still-executable known-state snapshot");
+        fixture.Reset();need(deferred.expired(),"successful Reset did not retire known-state lease");
+        gMaterialAllowKnownSourceBarriers=false;gMaterialSourceStates.clear();
+        gMaterialTitleSources.erase(base.Get());gMaterialTitleSources.erase(params.Get());
+    }
+}
+
 int main(int argc, char** argv) try
 {
     need(argc == 2,"material fixture needs an output directory"); const fs::path output(argv[1]);
@@ -205,6 +261,9 @@ int main(int argc, char** argv) try
     need(gMaterialDispatches==33,"unexpected production material dispatch count");
     need(RecordedComputeLease::GetRegistry().recordings.empty() &&
          RecordedComputeLease::GetRegistry().submissions.empty(),"material recording leases leaked");
+    MaterialKnownStates(fixture,capture,output,width,height);
+    need(RecordedComputeLease::GetRegistry().recordings.empty() &&
+         RecordedComputeLease::GetRegistry().submissions.empty(),"known-state recording leases leaked");
     MaterialQuantization(fixture,output);
     MaterialTimings(fixture,1505,847);
     MaterialTimings(fixture,2560,1440);

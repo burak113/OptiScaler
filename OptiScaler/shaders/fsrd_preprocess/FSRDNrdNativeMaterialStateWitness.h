@@ -17,19 +17,13 @@ struct NativeMaterialStateWitness
 {
     void Select(const FrameSurvey::BoundResource& base,
                 const FrameSurvey::BoundResource& params) noexcept
-    {
-        for (size_t index = 0; index != pairs_.size(); ++index)
-            if (pairs_[index].used && pairs_[index].targets[0].Matches(base) &&
-                pairs_[index].targets[1].Matches(params))
-            { selected_ = index; return; }
+    { selected_ = EnsurePair(base,params); }
 
-        selected_ = next_;
-        auto& pair = pairs_[selected_];
-        pair.targets[0].Select(base);
-        pair.targets[1].Select(params);
-        pair.used = true;
-        next_ = (next_ + 1) % pairs_.size();
-    }
+    // Seed identities before the recording's first barriers without selecting a
+    // source or importing state from another list/recording.
+    void Seed(const FrameSurvey::BoundResource& base,
+              const FrameSurvey::BoundResource& params) noexcept
+    { (void)EnsurePair(base,params); }
 
     // Reset/Close/cancellation preserves selections for early barriers in the
     // next recording, but never carries state evidence across that boundary.
@@ -69,6 +63,16 @@ struct NativeMaterialStateWitness
                 }
             }
         }
+    }
+
+    using SourceStates = std::array<D3D12_RESOURCE_STATES,2>;
+    bool TryKnownStates(uint64_t serial, SourceStates& states) const noexcept
+    {
+        if (selected_ == pairs_.size()) return false;
+        const auto& pair = pairs_[selected_];
+        if (!pair.targets[0].Known(serial) || !pair.targets[1].Known(serial)) return false;
+        states = {pair.targets[0].state,pair.targets[1].state};
+        return true;
     }
 
     bool Readable(uint64_t serial) const noexcept
@@ -147,6 +151,9 @@ struct NativeMaterialStateWitness
             else Forget();
         }
 
+        bool Known(uint64_t currentSerial) const noexcept
+        { return known && !pending && serial == currentSerial && Live(); }
+
         bool Readable(uint64_t currentSerial) const noexcept
         {
             constexpr auto writable = D3D12_RESOURCE_STATE_RENDER_TARGET |
@@ -154,12 +161,63 @@ struct NativeMaterialStateWitness
                 D3D12_RESOURCE_STATE_STREAM_OUT | D3D12_RESOURCE_STATE_COPY_DEST |
                 D3D12_RESOURCE_STATE_RESOLVE_DEST | D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE |
                 D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE | D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE;
-            return known && !pending && serial == currentSerial && Live() &&
-                   (state & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) != 0 && (state & writable) == 0;
+            return Known(currentSerial) &&
+                    (state & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) != 0 && (state & writable) == 0;
         }
     };
+    size_t EnsurePair(const FrameSurvey::BoundResource& base,
+                      const FrameSurvey::BoundResource& params) noexcept
+    {
+        for (size_t index = 0; index != pairs_.size(); ++index)
+            if (pairs_[index].used && pairs_[index].targets[0].Matches(base) &&
+                pairs_[index].targets[1].Matches(params)) return index;
+        const auto index = next_;
+        // An evicted selection cannot accidentally refer to the new identity.
+        if (selected_ == index) selected_ = pairs_.size();
+        auto& pair = pairs_[index];
+        pair.targets[0].Select(base); pair.targets[1].Select(params); pair.used = true;
+        next_ = (next_ + 1) % pairs_.size();
+        return index;
+    }
     struct Pair { std::array<Target, 2> targets {}; bool used = false; };
     std::array<Pair, 4> pairs_ {};
     size_t selected_ = pairs_.size(), next_ = 0;
+};
+
+// Service-wide bounded discovery remembers weak identities only. Every target
+// list must observe its own current-recording barriers after these are seeded.
+// In particular no state, queue order or preceding recording is copied here.
+struct NativeMaterialIdentityCache
+{
+    bool Empty() const noexcept
+    { for (const auto& pair : pairs_) if (pair.used) return false; return true; }
+    void Remember(const FrameSurvey::BoundResource& base,
+                  const FrameSurvey::BoundResource& params) noexcept
+    {
+        for (const auto& pair : pairs_)
+            if (pair.used && Same(pair.base,base) && Same(pair.params,params)) return;
+        pairs_[next_] = {Identity(base),Identity(params),true};
+        next_ = (next_ + 1) % pairs_.size();
+    }
+    void Seed(NativeMaterialStateWitness& witness) const noexcept
+    {
+        for (const auto& pair : pairs_)
+            if (pair.used) witness.Seed(pair.base,pair.params);
+    }
+  private:
+    static bool Same(const FrameSurvey::BoundResource& a,
+                     const FrameSurvey::BoundResource& b) noexcept
+    { return a.resource == b.resource && a.resourceBirth == b.resourceBirth &&
+             a.resourceGeneration == b.resourceGeneration && a.subresource == b.subresource; }
+    static FrameSurvey::BoundResource Identity(const FrameSurvey::BoundResource& bound) noexcept
+    {
+        FrameSurvey::BoundResource identity;
+        identity.resource = bound.resource; identity.resourceBirth = bound.resourceBirth;
+        identity.resourceGeneration = bound.resourceGeneration; identity.subresource = bound.subresource;
+        return identity;
+    }
+    struct Pair { FrameSurvey::BoundResource base,params; bool used = false; };
+    std::array<Pair,4> pairs_ {};
+    size_t next_ = 0;
 };
 }
