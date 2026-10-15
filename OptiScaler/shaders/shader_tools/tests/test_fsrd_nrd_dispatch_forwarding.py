@@ -34,7 +34,7 @@ def prepare(out):
         found = re.search(r'enum class '+name+r'\s*:[^{]+\{[^}]+\};', api)
         assert found, f'Actual public {name} API is required'
         enums.append(found.group())
-    bodies = '\n'.join(member_function(res, name) for name in ('hkSurveyDispatch', 'hkSurveyExecuteBundle'))
+    bodies = '\n'.join(member_function(res, name) for name in ('hkSurveyDispatch', 'hkSurveyExecuteBundle', 'hkSurveyDrawInstanced', 'hkSurveyDrawIndexedInstanced'))
     bodies += '\n'+function(res, 'static void STDMETHODCALLTYPE hkBridgeClearState(')
     bodies += '\n'+function(res, 'static void STDMETHODCALLTYPE hkBridgeSetPredication(')
     indirect = function(survey, 'void STDMETHODCALLTYPE Indirect(')
