@@ -110,7 +110,7 @@ def main():
     from test_fsrd_nrd_bridge_rr import bounded_run
     exe = out / "material_budget.exe"
     compile_cpp(source, exe, ("d3d12.lib", "dxgi.lib"),
-                (out, HERE, ROOT / "OptiScaler/shaders/fsrd_preprocess", ROOT / "OptiScaler", ROOT / "OptiScaler/include", ROOT / "external/streamline"))
+                (out, HERE, ROOT / "OptiScaler/shaders/fsrd_preprocess", ROOT / "OptiScaler", ROOT / "OptiScaler/include", ROOT / "external/streamline", ROOT / "external/nlohmann"))
     text, peak, elapsed, log = bounded_run([str(exe), str(out)], out / "native_run")
     value = json.loads((out / "material-budget-result.json").read_text(encoding="utf-8"))
     assert value["under_helper_locks"] == 0 and value["warm_acquire_cpp_allocations"] == 0
