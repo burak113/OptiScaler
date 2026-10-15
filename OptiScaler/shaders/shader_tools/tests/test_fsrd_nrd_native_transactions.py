@@ -122,12 +122,13 @@ def run():
     _, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL)], out/'native_run')
     value = json.loads((out/'native-transactions-result.json').read_text())
     assert value['debug_errors'] == value['debug_warnings'] == 0
-    assert value['provider_dispatches'] == 12 and value['contexts'] == 2
+    assert value['provider_dispatches'] == 15 and value['contexts'] == 4
+    assert value['missing_A_Consumer_denials'] == 1 and value['discard_recovery']
     assert len(value['frames']) == 6
     assert [row['SL_frame'] for row in value['frames']] == list(range(1, 7))
     assert all(row['signed_dispatches'] == 2 and row['native_filter_gpu_executions'] == 0 for row in value['frames'])
     assert all(row['exact_rr_rgb_words'] == 128*128*12 for row in value['frames'])
-    value.update(python_checks=6, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+    value.update(python_checks=7, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
                  source_sha256=sha(command[0]), exe_sha256=sha(exe), provider_sha256=sha(DLL))
     (out/'native-transactions-result.json').write_text(json.dumps(value, indent=2)+'\n')
     print(json.dumps(value, indent=2))
