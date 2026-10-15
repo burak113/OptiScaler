@@ -109,12 +109,18 @@ def contracts(source, rr):
     need(complete.index("AcceptSuccessful(") < complete.index("gStagesStopped.store(true") < publish,
          "100th successful acceptance stops already-stamped timers before publication")
     need("catch (...)" in complete, "profiling publication cannot throw into successful title recording")
-    need(dispatch.index("StackTimer provider(") < dispatch.index("FfxApiProxy::D3D12_Dispatch("),
+    record = function(rr, "bool RRWrapper::RecordOwnedImpl(")
+    commit = function(rr, "bool RRWrapper::CommitOwned(")
+    dispatch = function(rr, "bool RRWrapper::Dispatch(")
+    need(record.index("StackTimer provider(") < record.index("FfxApiProxy::D3D12_Dispatch("),
          "provider timer surrounds the actual native routing entry")
-    need(dispatch.index("StackTimer outputCommit(") < dispatch.index("prepared.context->Commit("),
+    need(commit.index("StackTimer outputCommit(") < commit.index("action.context->Commit("),
          "output Commit timer surrounds actual prepared GPU recording")
-    need("Sample* profiling" in dispatch and "profiling};" in dispatch,
+    need("Sample* profiling" in commit and "profiling};" in commit,
          "optional Sample pointer reaches synchronous prepared Commit without shader ABI changes")
+    need("RecordOwnedImpl(list,input,frame,output,error,profiling,false)" in dispatch and
+         "CommitOwned(list,output,outputSpec,outputDiff,frame,error,guard,profiling)" in dispatch,
+         "the legacy dispatch path records and commits through the same timed owned stages")
     need(source.count('LOG_INFO("[NRD_BRIDGE] stages ') == 1,
          "exactly one stage log call exists")
     return checks
