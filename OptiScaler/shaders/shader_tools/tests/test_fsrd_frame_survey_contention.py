@@ -45,8 +45,13 @@ J commonNativeReleaseAllocations(ID3D12Resource* object,bool active){
  if(!active)return{{"measured",false},{"scope","frozen vector control; no native-retirement allocation claim"}};
  need(NrdBridgeNativeBirth::Ready()&&NrdBridgeLifetime::ConcurrentReleasesEnabled()&&UseNrdNativeRetirement(),"allocation probe exercises actual configured native retirement and physical release gate");
  object->AddRef();need(hkRelease(object)>0,"warm native nonfinal release preserves its real caller owner");
+ struct Count{Count(){fixtureCountNew=true;}~Count(){fixtureCountNew=false;}};
+ fixtureNewCalls=0;void* ordinary=nullptr;void* aligned=nullptr;
+ {Count count;ordinary=::operator new(8);aligned=::operator new(64,std::align_val_t(64));}
+ ::operator delete(ordinary);::operator delete(aligned,std::align_val_t(64));
+ need(fixtureNewCalls==2,"allocation counter positive control observes ordinary and aligned C++ allocation calls");
  fixtureNewCalls=0;bool alive=true;constexpr unsigned samples=64;
- for(unsigned i=0;i<samples;++i){object->AddRef();ULONG result=0;{struct Count{Count(){fixtureCountNew=true;}~Count(){fixtureCountNew=false;}} count;result=hkRelease(object);}alive=alive&&result>0;}
+ for(unsigned i=0;i<samples;++i){object->AddRef();ULONG result=0;{Count count;result=hkRelease(object);}alive=alive&&result>0;}
  need(alive&&FrameSurvey::MetadataHealthy(),"native allocation probe balances every temporary caller reference without retirement");
  need(fixtureNewCalls==0,"common actual native nonfinal Release allocates zero C++ objects after warmup");
  return{{"measured",true},{"samples",samples},{"cpp_new_calls",fixtureNewCalls},{"native_birth_ready",true},{"scope","actual native nonfinal Release after warmup; executable global new/new[] including aligned forms only; no driver/process HeapAlloc claim"}};
