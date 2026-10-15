@@ -35,6 +35,7 @@ def prepare(output):
         else:row['source_size']=value
         rows.append(row)
     for material in [1,2]:rows.append(dict(diff_mode=0,spec_mode=2,phase=1,table=material%2,flag=1,word=303,origin=[3,2],rect=[w,h],source_size=[w+8,h+4],material=material))
+    for phase in [0,1]:rows.append(dict(diff_mode=0,spec_mode=0,phase=phase,table=phase,flag=0,word=303 if phase==0 else 36,origin=[0,0],rect=[w,h],source_size=[w+8,h+4],material=0,provider_control=True))
     for i,row in enumerate(rows):
         row['name']=f'b{i:02d}';path=root/row['name'];sw,sh=row['source_size'];sy,sx=np.mgrid[:sh,:sw]
         # Asymmetric signed chroma plus alternating finite native inactive/signed-zero alpha.
@@ -45,6 +46,14 @@ def prepare(output):
         raw_spec[...,3]=alpha[(sx+sy)%8];raw_diff[...,3]=alpha[(2*sx+sy+1)%8]
         raw_spec[0,0,:3]=[np.nan,np.inf,-np.inf];raw_diff[0,1,:3]=[-0.,-.5,np.nan]
         raw_spec[1,1,3]=np.nan;raw_diff[1,2,3]=np.inf
+        if row.get('provider_control'):
+            # A bounded synthetic input-reconstruction control, not an attested
+            # physical BSDF/native-title ray oracle. Positive assigned hitA5/7.
+            reference_spec=np.stack((.4+.2*(sx%9)/9,.25+.15*(sy%7)/7,.3+.1*((sx+sy)%11)/11),-1).astype('f4')
+            reference_diff=np.stack((.25+.15*(sy%9)/9,.5+.1*(sx%7)/7,.35+.2*((sx+2*sy)%13)/13),-1).astype('f4')
+            rng=np.random.default_rng(0x15BCB2026);noise=rng.choice([.5,1.5],(sh,sw,1)).astype('f4')
+            raw_spec[...,:3]=(reference_spec*noise).astype('<f2');raw_spec[...,3]=5
+            raw_diff[...,:3]=(reference_diff*noise).astype('<f2');raw_diff[...,3]=7
         # Padding outside any supported source centre is poisoned; source bytes may never change.
         raw_spec[:,-3:,:3]=[17,3,-5];raw_diff[-2:,:,:3]=[19,-7,9]
         nr=legacy.packed_nr(np.stack((.45+.08*x/(w-1),.47+.05*y/(h-1),.12+.5*((x+y)%13)/13,((x//16+y//16)%4)/3),-1))
@@ -55,6 +64,8 @@ def prepare(output):
         params=legacy.frame(w,h,0);params.update(jitter=(0,0),previous_jitter=(0,0),native_material_guides=bool(row['material']),preserve_native_material_ids=True)
         dummy=np.zeros((h,w,4),'<f2');legacy.write_case(path,{'spec':dummy,'diff':dummy,'nr':nr,'depth':depth,'motion':motion,'material':material,'material_roughness':rough},params)
         raw_spec.tofile(path/'raw_spec.bin');raw_diff.tofile(path/'raw_diff.bin')
+        if row.get('provider_control'):
+            reference_spec.tofile(path/'reference_source_spec.bin');reference_diff.tofile(path/'reference_source_diff.bin')
         row['status']=independent.state(w,h,tuple(row['origin']),tuple(row['rect']),(row['diff_mode'],row['spec_mode']),((sw,sh),(sw,sh)))
     lines=[]
     for r in rows:
@@ -62,7 +73,7 @@ def prepare(output):
         lines.append(' '.join(map(str,fields)))
     (root/'prepass-cases.txt').write_text(f'{len(rows)} {w} {h}\n'+'\n'.join(lines)+'\n')
     manifest={'schema':'fsrd.raw-prepass-helper-native.v1','width':w,'height':h,'cases':rows,'payload_sha256':{str(p.relative_to(root)):digest(p) for p in sorted(root.rglob('*.bin'))},'scope':'current raw input reconstruction only; no native NRD/provider execution/game quality evidence'}
-    (root/'manifest.json').write_text(json.dumps(manifest,indent=2));need(len(rows)==79,'72 known combinations +5 error statuses +2 material cases')
+    (root/'manifest.json').write_text(json.dumps(manifest,indent=2));need(len(rows)==81,'72 known combinations +5 error statuses +2 material cases +2 positive-alpha provider controls')
     return root,manifest
 
 def build(output):
