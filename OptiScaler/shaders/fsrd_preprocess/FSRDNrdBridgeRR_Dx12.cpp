@@ -591,6 +591,7 @@ struct RRRecordedOutput
     bool recoveryFallback = false, nativeCommitPrepared = false;
     mutable bool nativeEncodingCaptured = false;
     std::array<uint8_t, 184> providerControl {};
+    uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
 };
 
 struct RRWrapper::Impl
@@ -1027,6 +1028,9 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     dispatch.renderSize = { input.width, input.height };
     dispatch.frameIndex = frame.frameIndex;
     dispatch.flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | (reset ? FFX_DENOISER_DISPATCH_RESET : 0);
+    recorded->providerCheckerboardSignalFlags = lease->context->create.checkerboardSignalFlags;
+    recorded->diffuseCheckerboardOrigin = diffuse.signal.checkerboardOrigin;
+    recorded->specularCheckerboardOrigin = specular.signal.checkerboardOrigin;
     std::memcpy(recorded->providerControl.data(),reinterpret_cast<const uint8_t*>(&dispatch) +
         offsetof(ffxDispatchDescDenoiser,motionVectorScale),recorded->providerControl.size());
     ScopedSkipHeapCapture skipHeapCapture;
@@ -1079,6 +1083,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.providerApiVersion = lease->context->create.version;
     result.providerSignalFlags = lease->context->create.signalFlags; result.providerContextFlags = lease->context->create.flags;
     result.providerName = lease->context->providerName;
+    result.providerCheckerboardSignalFlags = output->providerCheckerboardSignalFlags;
+    result.diffuseCheckerboardOrigin = output->diffuseCheckerboardOrigin;
+    result.specularCheckerboardOrigin = output->specularCheckerboardOrigin;
     return result;
 }
 

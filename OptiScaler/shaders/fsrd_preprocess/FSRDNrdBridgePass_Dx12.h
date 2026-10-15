@@ -1,5 +1,6 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
+#include "FSRDNrdRawSignals_Dx12.h"
 #include <memory>
 
 namespace NrdBridge
@@ -15,6 +16,11 @@ class ConversionPass
     // Optional nativeMaterialRoughness selects the six-SRV material guide variant; only analytic Qs uses it.
     bool Dispatch(ID3D12GraphicsCommandList*, const ConversionInputs&, const FrameParameters&,
                   ConvertedResources& out, std::string& error);
+    // New zero-native-denoise path: no Recon output/light read or write. Native
+    // origin comes only from the same-recording owned raw-header snapshot.
+    bool DispatchGeometry(ID3D12GraphicsCommandList*, const ConversionInputs&, const FrameParameters&,
+                          const RawSignalLease&, ConvertedResources& out, std::string& error);
+    ID3D12Resource* OwnedPositiveViewDepth(const ConvertedResources&, const FrameParameters&) const noexcept;
     // When ConversionInputs::motion is null, Recon never reads a cached title MV.
     // Complete the motion guide using the current first chain-A Temporal SRV.
     // The depth mode and camera reprojection were captured at Recon; changing the mode invalidates this ticket.

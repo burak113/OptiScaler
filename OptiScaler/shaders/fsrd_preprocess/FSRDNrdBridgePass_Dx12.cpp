@@ -2,11 +2,15 @@
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgePass_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdBridge_Shader.h"
 #include "precompile/FSRDNrdBridgeMaterial_Shader.h"
 #include "precompile/FSRDNrdBridgeMaterialParams_Shader.h"
+#include "precompile/FSRDNrdBridgeGeometry_Shader.h"
+#include "precompile/FSRDNrdBridgeGeometryMaterial_Shader.h"
+#include "precompile/FSRDNrdBridgeGeometryMaterialParams_Shader.h"
 #include "precompile/FSRDNrdBridgeCopy_Shader.h"
 #include "precompile/FSRDNrdBridgeMotion_Shader.h"
 #include "precompile/FSRDNrdBridgeMotionNative_Shader.h"
@@ -163,6 +167,13 @@ struct ConversionPass::Impl
     std::mutex mutex;
     Pipeline conversion, materialConversion, materialParamsConversion, copy, motionPass, nativeMotionPass;
     bool materialInitialized = false, materialParamsInitialized = false;
+    Pipeline geometry, geometryMaterial, geometryMaterialParams;
+    bool geometryInitialized = false, geometryMaterialInitialized = false, geometryMaterialParamsInitialized = false;
+    bool geometryPositiveValid = false;
+    uint32_t geometrySLFrame = UINT32_MAX, geometryBridgeFrame = 0;
+    uint64_t geometryRecordingId = 0;
+    std::weak_ptr<RecordedComputeLease::Recording> geometryRecording;
+    OwnedTexture positiveDepth;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint64_t zeroBytes = 0;
@@ -366,6 +377,160 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
     catch (const std::exception& e) { owner->historyValid = false; error = e.what(); return false; }
 }
 
+bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const ConversionInputs& inputs,
+                                      const FrameParameters& frame, const RawSignalLease& raw,
+                                      ConvertedResources& out, std::string& error)
+{
+    out = {};
+    if (!list || !impl_) { error = "NRD conversion is not initialized"; return false; }
+    auto owner = impl_;
+    std::lock_guard lock(owner->mutex);
+    const auto snapshot = RawSignalSnapshotPass::GetSnapshot(raw);
+    const auto native = snapshot.nativeRecording.lock(), currentRecording = RecordedComputeLease::Capture(list);
+    if (!snapshot.resource || !snapshot.geometryConstants || snapshot.decoded || snapshot.recording != list ||
+        !native || !currentRecording || native != currentRecording || native->id != snapshot.recordingId ||
+        snapshot.width != owner->width || snapshot.height != owner->height ||
+        snapshot.frameSL != frame.streamlineFrame || snapshot.bridgeFrame != frame.frameIndex ||
+        snapshot.profile != NativeRawProfile::ReconDirect)
+    { error = "NRD geometry requires its current same-recording raw snapshot"; return false; }
+    if (!TextureMatches(inputs.normals, owner->width, owner->height, DXGI_FORMAT_R10G10B10A2_UNORM, false) ||
+        !TextureMatches(inputs.viewDepth, owner->width, owner->height, DXGI_FORMAT_R32_FLOAT, false))
+    { error = "NRD conversion input format, size or UAV flag mismatch"; return false; }
+    DirectX::XMMATRIX inverseProjection, inverseView;
+    if (!frame.camera.Complete() || !FSRDCamera::TryInvert(frame.camera.projection, inverseProjection) ||
+        !FSRDCamera::TryInvert(frame.camera.view, inverseView) || !std::isfinite(frame.nearPlane) ||
+        !std::isfinite(frame.farPlane) || frame.nearPlane <= 0 || frame.farPlane <= frame.nearPlane ||
+        frame.farPlane > 65504.0f || !std::isfinite(frame.depthSign) || std::abs(frame.depthSign) != 1.0f ||
+        !std::isfinite(frame.motionScale.x) || !std::isfinite(frame.motionScale.y) ||
+        !std::isfinite(frame.jitter.x) || !std::isfinite(frame.jitter.y) ||
+        !std::isfinite(frame.previousJitter.x) || !std::isfinite(frame.previousJitter.y))
+    { error = "NRD conversion requires finite camera, depth and motion conventions"; return false; }
+    try
+    {
+        ScopedSkipHeapCapture skipHeapCapture;
+        const bool materialGuides = frame.nativeMaterialGuides && inputs.nativeMaterial;
+        if (materialGuides && !TextureMatches(inputs.nativeMaterial,owner->width,owner->height,DXGI_FORMAT_R16G16B16A16_FLOAT,false))
+        { error="Native material snapshot shape/format differs from same-frame Recon"; return false; }
+        const bool materialParams = materialGuides && inputs.nativeMaterialRoughness;
+        if (materialParams && !TextureMatches(inputs.nativeMaterialRoughness,owner->width,owner->height,DXGI_FORMAT_R16_FLOAT,false))
+        { error="Native material roughness snapshot shape/format differs from same-frame Recon"; return false; }
+        if (!materialGuides && !owner->geometryInitialized)
+        {
+            owner->geometry.Initialize(owner->device.Get(),FSRDNrdBridgeGeometry_cso,sizeof(FSRDNrdBridgeGeometry_cso),4,9);
+            owner->geometryInitialized = true;
+        }
+        if (materialParams && !owner->geometryMaterialParamsInitialized)
+        {
+            owner->geometryMaterialParams.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterialParams_cso,sizeof(FSRDNrdBridgeGeometryMaterialParams_cso),6,9);
+            owner->geometryMaterialParamsInitialized = true;
+        }
+        if (materialGuides && !materialParams && !owner->geometryMaterialInitialized)
+        {
+            owner->geometryMaterial.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterial_cso,sizeof(FSRDNrdBridgeGeometryMaterial_cso),5,9);
+            owner->geometryMaterialInitialized = true;
+        }
+        if (!owner->positiveDepth.resource)
+            owner->Create(owner->positiveDepth,DXGI_FORMAT_R32_FLOAT,L"NRD_Bridge_OwnedPositiveViewZ");
+        auto& pipeline = materialParams ? owner->geometryMaterialParams : (materialGuides ? owner->geometryMaterial : owner->geometry);
+        auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
+        lease->slot = pipeline.Acquire(owner->device.Get());
+        if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
+        { error = "NRD conversion GPU lifetime tracking unavailable"; return false; }
+        const uint32_t writeIndex = 1 - owner->previousIndex;
+        auto& writeDepth = owner->depth[writeIndex];
+        BridgeConstants constants {};
+        constants.width = owner->width; constants.height = owner->height;
+        constants.nearPlane = frame.nearPlane; constants.farPlane = frame.farPlane; constants.depthSign = frame.depthSign;
+        constants.previousValid = owner->historyValid && frame.previousValid && !frame.reset;
+        constants.motionScale = frame.motionScale;
+        constants.reserved[0] = 1u; // Always finish motion from the current Temporal binding.
+        constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
+        constants.cameraReserved[0] = frame.preserveNativeMaterialIDs ? 1u : 0u;
+        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
+        {
+            constants.previousValid = constants.previousValid && owner->previousCameraValid;
+            if (constants.previousValid)
+            {
+                // Signed Z of the same current world surface in the previous camera.
+                const auto currentToPreviousView = DirectX::XMMatrixMultiply(
+                    DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
+                DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
+                constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
+            }
+        }
+        if (!frame.motionVectorsJittered)
+            constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
+                                    (frame.previousJitter.y - frame.jitter.y) / owner->height};
+        if (!std::isfinite(constants.jitterDelta.x) || !std::isfinite(constants.jitterDelta.y))
+        { error = "NRD jitter delta overflow"; return false; }
+        DirectX::XMStoreFloat4x4(&constants.inverseProjection, inverseProjection);
+        DirectX::XMStoreFloat4x4(&constants.worldToView, frame.camera.view);
+        std::vector<ID3D12Resource*> srvs {inputs.normals,inputs.viewDepth,nullptr,owner->depth[owner->previousIndex].resource.Get()};
+        if (materialGuides) srvs.push_back(inputs.nativeMaterial);
+        if (materialParams) srvs.push_back(inputs.nativeMaterialRoughness);
+        pipeline.Describe(owner->device.Get(), *lease->slot, srvs,
+            {owner->positiveDepth.resource.Get(), owner->positiveDepth.resource.Get(), owner->spec.resource.Get(), owner->diff.resource.Get(),
+             writeDepth.resource.Get(), owner->motion.resource.Get(), owner->normals.resource.Get(),
+             owner->specAlbedo.resource.Get(), owner->diffAlbedo.resource.Get()});
+        const std::array<OwnedTexture*, 6> outputs {&owner->positiveDepth, &writeDepth, &owner->motion,
+                                                   &owner->normals, &owner->specAlbedo, &owner->diffAlbedo};
+        for (auto* texture : outputs) texture->Transition(list, kWrite);
+        D3D12_RESOURCE_BARRIER materialBarrier {};
+        const std::array<ID3D12Resource*,2> materialSources {inputs.nativeMaterial,materialParams ? inputs.nativeMaterialRoughness : nullptr};
+        if (materialGuides)
+        {
+            materialBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            for (auto* material : materialSources)
+            {
+                if (!material) continue;
+                materialBarrier.Transition = {material,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,D3D12_RESOURCE_STATE_COMMON,kRead};
+                list->ResourceBarrier(1,&materialBarrier);
+            }
+        }
+        D3D12_RESOURCE_BARRIER geometryBarrier {}; geometryBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        geometryBarrier.Transition = {snapshot.resource,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
+        list->ResourceBarrier(1,&geometryBarrier);
+        pipeline.Record(list, *lease->slot, &constants, 52, owner->width, owner->height,snapshot.geometryConstants);
+        std::swap(geometryBarrier.Transition.StateBefore,geometryBarrier.Transition.StateAfter);
+        list->ResourceBarrier(1,&geometryBarrier);
+        if (materialGuides)
+        {
+            std::swap(materialBarrier.Transition.StateBefore,materialBarrier.Transition.StateAfter);
+            for (auto* material : materialSources)
+            {
+                if (!material) continue;
+                materialBarrier.Transition.pResource = material;
+                list->ResourceBarrier(1,&materialBarrier);
+            }
+        }
+        for (auto* texture : outputs) texture->Transition(list, kRead);
+        owner->pendingMotion = true; owner->geometryPositiveValid = true;
+        owner->geometrySLFrame = frame.streamlineFrame; owner->geometryBridgeFrame = frame.frameIndex;
+        owner->geometryRecording = snapshot.nativeRecording; owner->geometryRecordingId = snapshot.recordingId;
+        owner->motionPreviousIndex = owner->previousIndex;
+        owner->motionPreviousValid = constants.previousValid != 0;
+        owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
+        owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
+        owner->motionNativeTemporal = frame.nativeTemporalMotion;
+        owner->motionNativeMaterial = frame.nativeMaterialGuides;
+        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
+        {
+            owner->motionInverseProjection = constants.inverseProjection;
+            owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
+            owner->motionCurrentJitterUv = constants.currentJitterUv;
+            DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
+        }
+        owner->previousCameraValid = frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion;
+        owner->motionList = list;
+        owner->motionSLFrame = frame.streamlineFrame;
+        owner->motionBridgeFrame = frame.frameIndex;
+        owner->previousIndex = writeIndex; owner->historyValid = true;
+        out = owner->Resources(); error.clear(); return true;
+    }
+    catch (const std::exception& e) { owner->historyValid = false; owner->geometryPositiveValid = false; error = e.what(); return false; }
+}
+
 bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
                                     ID3D12Resource* titleMotion, const FrameParameters& frame, std::string& error,
                                     const NativeMotionSource& native)
@@ -530,9 +695,27 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
     catch (const std::exception& e) { error = e.what(); return false; }
 }
 
+ID3D12Resource* ConversionPass::OwnedPositiveViewDepth(const ConvertedResources& resources,
+                                                       const FrameParameters& frame) const noexcept
+{
+    if (!impl_) return nullptr;
+    auto owner = impl_; std::lock_guard lock(owner->mutex);
+    const auto current = owner->Resources();
+    if (!owner->geometryPositiveValid) return nullptr;
+    const auto native = owner->geometryRecording.lock(), currentRecording = RecordedComputeLease::Capture(owner->motionList);
+    if (!owner->geometryPositiveValid || !owner->historyValid || !native || !currentRecording ||
+        native != currentRecording || native->id != owner->geometryRecordingId ||
+        owner->geometrySLFrame != frame.streamlineFrame || owner->geometryBridgeFrame != frame.frameIndex ||
+        resources.width != current.width || resources.height != current.height ||
+        resources.spec != current.spec || resources.diff != current.diff || resources.linearDepth != current.linearDepth ||
+        resources.motion != current.motion || resources.normals != current.normals ||
+        resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo) return nullptr;
+    return owner->positiveDepth.resource.Get();
+}
+
 void ConversionPass::ResetHistory() noexcept
 {
-    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->previousCameraValid = false; impl_->pendingMotion = false; }
+    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->previousCameraValid = false; impl_->pendingMotion = false; impl_->geometryPositiveValid = false; }
 }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return impl_ ? impl_->textureBytes : 0; }
 uint64_t ConversionPass::OwnedAuxiliaryBytes() const noexcept

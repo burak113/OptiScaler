@@ -74,6 +74,7 @@ struct RRRecordedOutputSnapshot
     uint64_t providerVersionId = 0;
     uint32_t providerApiVersion = 0, providerSignalFlags = 0, providerContextFlags = 0;
     std::array<char, 128> providerName {};
+    uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
 };
 
 class RRWrapper
