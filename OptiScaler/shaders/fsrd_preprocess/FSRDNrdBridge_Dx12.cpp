@@ -1468,6 +1468,16 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
     try
     {
         std::scoped_lock injection(gInjectionMutex);
+        {
+            std::scoped_lock lock(gMutex);
+            // Runtime OFF can win injection admission after BeforeDispatch chose
+            // this action. Its closed binding window is intentional: do not
+            // validate raw bindings or poison submission state for disabled RR.
+            if (gService != owner || !gRuntime.load(std::memory_order_relaxed)) return;
+            const auto found = owner->lists.find(cmd);
+            if (found == owner->lists.end() || !ListLive(found->second) ||
+                !found->second.nativeContract || chain > 1) return;
+        }
         NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired())
         { RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL); return; }
         FrameSurvey::ComputeBindings bindings; FrameSurvey::BoundConstantBinding constants;
@@ -2574,35 +2584,51 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
-        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false, captureMaterial = false, earlyNative = false, stageSampling = false; Role role = Role::None;
+        std::shared_ptr<Service> owner; bool runtimeEnabled = false, window = false, following = false, captureNative = false, captureMaterial = false, earlyNative = false, stageSampling = false; Role role = Role::None;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             role = found->second.role;
-            if(NativeElisionReady()&&owner->status.nativeHistoryDirty)
+            runtimeEnabled = gRuntime.load(std::memory_order_relaxed);
+            if (!runtimeEnabled)
             {
-                // Once native history was omitted, a later known filter cannot
-                // enter through a no-participant list after Reset/profile loss.
-                const bool nativeDenoising=role==Role::PrePass||role==Role::Temporal||role==Role::Chain3||
-                    role==Role::HistSave||role==Role::HistFix||role==Role::Clamp||role==Role::ATrous||role==Role::Consumer;
-                if(!FrameSurvey::MetadataHealthy()||(found->second.nativeContract&&nativeDenoising&&
-                    (!found->second.nativeReconPrepared||!found->second.rrOnlyTransaction)))
-                {
-                    RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
-                    owner->status.active=false;owner->status.phase="Inactive";
-                    owner->status.reason="RR-only known native filter lost its raw transaction; restart required";return;
-                }
+                if (role != Role::Consumer) return;
             }
-            if(found->second.rrOnlyTransaction || (found->second.nativeContract && role==Role::Recon))gDispatchCandidate=cmd;
-            if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide &&
-                !(found->second.nativeContract && (role==Role::Recon || role==Role::PrePass))) return;
-            window = owner->window; following = found->second.followingRecon;
-            captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
-            earlyNative = found->second.rrOnlyTransaction && found->second.converted && !found->second.temporal;
-            captureMaterial = owner->rrSettings.nativeMaterialGuides;
-            stageSampling = role == Role::Consumer && found->second.recording && found->second.recording->needsStageSamples &&
-                found->second.converted && gStageCollector.Active();
+            else
+            {
+                if(NativeElisionReady()&&owner->status.nativeHistoryDirty)
+                {
+                    // Once native history was omitted, a later known filter cannot
+                    // enter through a no-participant list after Reset/profile loss.
+                    const bool nativeDenoising=role==Role::PrePass||role==Role::Temporal||role==Role::Chain3||
+                        role==Role::HistSave||role==Role::HistFix||role==Role::Clamp||role==Role::ATrous||role==Role::Consumer;
+                    if(!FrameSurvey::MetadataHealthy()||(found->second.nativeContract&&nativeDenoising&&
+                        (!found->second.nativeReconPrepared||!found->second.rrOnlyTransaction)))
+                    {
+                        RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+                        owner->status.active=false;owner->status.phase="Inactive";
+                        owner->status.reason="RR-only known native filter lost its raw transaction; restart required";return;
+                    }
+                }
+                if(found->second.rrOnlyTransaction || (found->second.nativeContract && role==Role::Recon))gDispatchCandidate=cmd;
+                if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide &&
+                    !(found->second.nativeContract && (role==Role::Recon || role==Role::PrePass))) return;
+                window = owner->window; following = found->second.followingRecon;
+                captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
+                earlyNative = found->second.rrOnlyTransaction && found->second.converted && !found->second.temporal;
+                captureMaterial = owner->rrSettings.nativeMaterialGuides;
+                stageSampling = role == Role::Consumer && found->second.recording && found->second.recording->needsStageSamples &&
+                    found->second.converted && gStageCollector.Active();
+            }
+        }
+        // The profiler observes identified gameplay Consumers even while RR is
+        // disabled. Report outside gMutex; no raw capture, validation or omission
+        // may be reached from this diagnostic-only path.
+        if (!runtimeEnabled)
+        {
+            NrdBridgePerf::ConsumerFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
+            return;
         }
         bool nativePath=false;uint32_t nativeAction=0;
         {
