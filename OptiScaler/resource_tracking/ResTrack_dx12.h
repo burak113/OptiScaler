@@ -142,7 +142,26 @@ struct TrackedResourceSlot
     UINT index = 0;
 };
 
-inline ankerl::unordered_dense::map<ID3D12Resource*, std::vector<TrackedResourceSlot>> _trackedResources;
+struct TrackedResourceSlotKey
+{
+    uint64_t heapVersion;
+    UINT index;
+    bool operator==(const TrackedResourceSlotKey& other) const noexcept
+    { return heapVersion == other.heapVersion && index == other.index; }
+};
+struct TrackedResourceSlotHash
+{
+    size_t operator()(const TrackedResourceSlotKey& key) const noexcept
+    {
+        return size_t(key.heapVersion ^ (uint64_t(key.index) + 0x9e3779b97f4a7c15ull +
+            (key.heapVersion << 6) + (key.heapVersion >> 2)));
+    }
+};
+using TrackedResourceParticipants = ankerl::unordered_dense::map<TrackedResourceSlotKey,TrackedResourceSlot,TrackedResourceSlotHash>;
+// Dense maps allocate their empty buckets. A nullable owner keeps every common
+// nonfinal Release and retirement-payload construction allocation free.
+using TrackedResourceSlots = std::unique_ptr<TrackedResourceParticipants>;
+inline ankerl::unordered_dense::map<ID3D12Resource*, TrackedResourceSlots> _trackedResources;
 #ifdef USE_SPINLOCK_MUTEX
 inline NrdBridgePerf::TimedMutex<SpinLock,NrdBridgePerf::WaitKind::Tracking> _trackedResourcesMutex;
 #else
@@ -230,11 +249,9 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return;
 
         const auto currentVersion = version.load(std::memory_order_relaxed);
-        auto& vec = it->second;
-        vec.erase(std::remove_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
-                                 { return slot.heapVersion == currentVersion && slot.index == index; }),
-                  vec.end());
-        if (vec.empty())
+        auto& slots = it->second;
+        if (slots) slots->erase(TrackedResourceSlotKey {currentVersion,index});
+        if (!slots || slots->empty())
             _trackedResources.erase(it);
     }
 
@@ -251,15 +268,14 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         try
         {
             const auto currentVersion = version.load(std::memory_order_relaxed);
-            auto& vec = _trackedResources[newResource];
+            auto& slots = _trackedResources[newResource];
+            if (!slots) slots = std::make_unique<TrackedResourceParticipants>();
             {
                 std::scoped_lock occupiedLock(occupiedSlotsMutex);
                 occupiedSlots.insert(index);
             }
-            auto found = std::find_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
-                                     { return slot.heapVersion == currentVersion && slot.index == index; });
-            if (found == vec.end())
-                vec.push_back({ shared_from_this(), currentVersion, index });
+            slots->insert_or_assign(TrackedResourceSlotKey {currentVersion,index},
+                TrackedResourceSlot {shared_from_this(),currentVersion,index});
         }
         catch (...)
         {
@@ -268,7 +284,8 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
                 std::scoped_lock occupiedLock(occupiedSlotsMutex);
                 occupiedSlots.erase(index);
             }
-            if (auto found = _trackedResources.find(newResource); found != _trackedResources.end() && found->second.empty())
+            if (auto found = _trackedResources.find(newResource); found != _trackedResources.end() &&
+                (!found->second || found->second->empty()))
                 _trackedResources.erase(found);
             info[index].buffer = nullptr;
             info[index].lastUsedFrame = 0;
@@ -457,12 +474,9 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
                 if (auto it = _trackedResources.find(resource); it != _trackedResources.end())
                 {
                     const auto currentVersion = version.load(std::memory_order_relaxed);
-                    auto& vec = it->second;
-                    vec.erase(std::remove_if(vec.begin(), vec.end(),
-                                             [currentVersion, index](const TrackedResourceSlot& slot)
-                                             { return slot.heapVersion == currentVersion && slot.index == index; }),
-                              vec.end());
-                    if (vec.empty())
+                    auto& slots = it->second;
+                    if (slots) slots->erase(TrackedResourceSlotKey {currentVersion,index});
+                    if (!slots || slots->empty())
                         _trackedResources.erase(it);
                 }
                 info[index].buffer = nullptr;

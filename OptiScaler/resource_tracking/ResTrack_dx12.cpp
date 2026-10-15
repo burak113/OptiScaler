@@ -2560,7 +2560,7 @@ namespace
 struct NativeRetirementPayload
 {
     FrameSurvey::RetirementEffects survey;
-    std::vector<TrackedResourceSlot> descriptors;
+    TrackedResourceSlots descriptors;
     std::shared_ptr<HeapInfo> heap;
     bool used = false;
 };
@@ -2599,8 +2599,9 @@ bool DetachNativeRetirement(void* state,const NrdBridgeBirth::Token& birth) noex
           { payload.descriptors = std::move(found->second); _trackedResources.erase(found); }
           State::Instance().capturedHudlesses.erase(resource); }
         // Slots are participant-indexed. No traversal of all resources or heaps.
-        for (const auto& slot : payload.descriptors)
-            if (auto heap = slot.heap.lock()) heap->ClearSlotIfMatches(slot.index,resource,birth);
+        if (payload.descriptors)
+            for (const auto& [key,slot] : *payload.descriptors)
+                if (auto heap = slot.heap.lock()) heap->ClearSlotIfMatches(slot.index,resource,birth);
         payload.heap = FindTrackedHeapByAddress(birth->Address());
         if (payload.heap && payload.heap->birth == birth) DeactivateTrackedHeap(payload.heap);
         return true;
@@ -2613,7 +2614,7 @@ void NotifyNativeRetirement(void* state) noexcept
     FrameSurvey::NotifyRelease(payload.survey);
     // Every owner/callback is drained after CurrentGuard and catalog/tracker locks.
     payload.survey = {};
-    payload.descriptors.clear();
+    payload.descriptors.reset();
     payload.heap.reset();
     payload.used = false;
     --gNativeRetirementDepth;
@@ -2746,7 +2747,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
         return o_Release(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
 
-    std::vector<TrackedResourceSlot> toClean;
+    TrackedResourceSlots toClean;
     // Startup-selected title releases have the physical lifetime guard. Keep the
     // legacy probe serialization for other callers; only the bridge fast path
     // moves native calls/callbacks outside the descriptor reverse-index lock.
@@ -2795,11 +2796,9 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 
     if (finalProbe) DeactivateSharedHeap(This);
     // Clean descriptor slots outside the reverse-index lock.
-    for (const auto& slot : toClean)
-    {
-        if (auto heap = slot.heap.lock())
-            heap->ClearSlotIfMatches(slot.index, This);
-    }
+    if (toClean)
+        for (const auto& [key,slot] : *toClean)
+            if (auto heap = slot.heap.lock()) heap->ClearSlotIfMatches(slot.index,This);
 
     const ULONG result = o_Release(This);
     RecordedComputeLease::EndRelease(computeRecording, result == 0);
@@ -3289,13 +3288,31 @@ void ResTrack_Dx12::hkCopyDescriptorsSimple(ID3D12Device* This, UINT NumDescript
         DescriptorHeapsType != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
         return;
 
-    auto size = This->GetDescriptorHandleIncrementSize(DescriptorHeapsType);
+    if (NumDescriptors == 0) return;
+    const auto size = This->GetDescriptorHandleIncrementSize(DescriptorHeapsType);
+    auto sourceHeap = SrcDescriptorRangeStart.ptr ? GetHeapByCpuHandle(SrcDescriptorRangeStart.ptr) : nullptr;
+    auto destinationHeap = GetHeapByCpuHandle(DestDescriptorRangeStart.ptr);
+    const auto sourceVersion = sourceHeap ? sourceHeap->version.load(std::memory_order_acquire) : 0;
+    const auto destinationVersion = destinationHeap ? destinationHeap->version.load(std::memory_order_acquire) : 0;
+    const auto containsRange = [size,NumDescriptors](const std::shared_ptr<HeapInfo>& heap, SIZE_T start) {
+        if (!heap || !size || heap->increment != size || !heap->active.load(std::memory_order_acquire) ||
+            start < heap->cpuStart || start >= heap->cpuEnd || (start-heap->cpuStart)%size) return false;
+        const auto first = (start-heap->cpuStart)/size;
+        return first < heap->numDescriptors && NumDescriptors <= heap->numDescriptors-first &&
+            SIZE_T(NumDescriptors-1) <= (heap->cpuEnd-1-start)/size;
+    };
+    const bool sourceRange = containsRange(sourceHeap,SrcDescriptorRangeStart.ptr);
+    const bool destinationRange = containsRange(destinationHeap,DestDescriptorRangeStart.ptr);
+    const auto currentOwner = [](const std::shared_ptr<HeapInfo>& heap, uint64_t version) {
+        return heap && heap->active.load(std::memory_order_acquire) &&
+            heap->version.load(std::memory_order_acquire) == version;
+    };
 
     if (!Config::Instance()->FGAlwaysTrackHeaps.value_or_default() && !IsHudFixActive())
     {
         bool containsScalarCandidate = false;
-        auto srcHeap = GetHeapByCpuHandle(SrcDescriptorRangeStart.ptr);
-        auto dstHeap = GetHeapByCpuHandle(DestDescriptorRangeStart.ptr);
+        const auto& srcHeap = sourceHeap;
+        const auto& dstHeap = destinationHeap;
         for (UINT descriptor = 0; descriptor < NumDescriptors && !containsScalarCandidate; ++descriptor)
         {
             const SIZE_T srcHandle = SrcDescriptorRangeStart.ptr + static_cast<SIZE_T>(descriptor) * size;
@@ -3322,11 +3339,14 @@ void ResTrack_Dx12::hkCopyDescriptorsSimple(ID3D12Device* This, UINT NumDescript
         if (SrcDescriptorRangeStart.ptr != 0)
         {
             srcHandle = SrcDescriptorRangeStart.ptr + i * size;
-            srcHeap = GetHeapByCpuHandle(srcHandle);
+            // Valid native ranges keep two metadata owners. A retired owner or an
+            // unproven span falls back to the existing indexed per-slot lookup.
+            srcHeap = sourceRange && currentOwner(sourceHeap,sourceVersion) ? sourceHeap : GetHeapByCpuHandle(srcHandle);
         }
 
         auto destHandle = DestDescriptorRangeStart.ptr + i * size;
-        auto dstHeap = GetHeapByCpuHandle(destHandle);
+        auto dstHeap = destinationRange && currentOwner(destinationHeap,destinationVersion)
+            ? destinationHeap : GetHeapByCpuHandle(destHandle);
 
         // destination
         if (dstHeap == nullptr)
