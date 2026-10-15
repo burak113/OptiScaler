@@ -58,7 +58,7 @@ def sources():
     need('max(abs(rawDepth), asfloat(0x358637bdu))' in geometry,'owned native positive ViewZ uses exact epsilon')
     need('OutMotion[p] = float4(0.0f,0.0f,0.0f,1.0f)' in geometry,'motion read deferred to current Temporal')
     need('NrdSpecularMaterialGuide' in geometry and 'NrdDiffuseMaterialGuide' in geometry,'geometry retains exact material guide helpers')
-    need('source.profile!=NativeRawProfile::ReconDirect' in helper,'unknown/checkerboard profile not silently admitted')
+    need('source.profile!=NativeRawProfile::ReconDirect' in helper,'unknown profile never silently admitted; known PrePass has GPU status validation')
     need('2) * 1024 * 1024 * 1024' in helper and 'Permit::TryAcquire' in helper,'retained family byte and32slot permits')
     need(helper.index('RetainComputeDispatch')<helper.index('list->Dispatch('),'lease retained before capture GPU work')
     need('record->nativeRecording=native;record->recordingId=native->id' in helper,'weak exact recording plus nonzero id')

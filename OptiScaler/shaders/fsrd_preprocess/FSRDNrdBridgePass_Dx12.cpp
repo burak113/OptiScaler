@@ -391,7 +391,7 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         !native || !currentRecording || native != currentRecording || native->id != snapshot.recordingId ||
         snapshot.width != owner->width || snapshot.height != owner->height ||
         snapshot.frameSL != frame.streamlineFrame || snapshot.bridgeFrame != frame.frameIndex ||
-        snapshot.profile != NativeRawProfile::ReconDirect)
+        (snapshot.profile != NativeRawProfile::ReconDirect && snapshot.profile != NativeRawProfile::PrePass))
     { error = "NRD geometry requires its current same-recording raw snapshot"; return false; }
     if (!TextureMatches(inputs.normals, owner->width, owner->height, DXGI_FORMAT_R10G10B10A2_UNORM, false) ||
         !TextureMatches(inputs.viewDepth, owner->width, owner->height, DXGI_FORMAT_R32_FLOAT, false))

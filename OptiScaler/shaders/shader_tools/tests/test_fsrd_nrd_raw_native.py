@@ -104,7 +104,9 @@ def compare(inputs,manifest):
             out=np.fromfile(path/f'out_{lobe}.bin','<f2').reshape(h,w,4);f=native.astype(np.float32)
             with np.errstate(invalid='ignore'):
                 rgb=np.stack((f[...,0]-f[...,2]+f[...,1],f[...,0]+f[...,2],f[...,0]-f[...,2]-f[...,1]),-1) if case['flag'] else f[...,:3]
-            rgb=np.where(np.isfinite(rgb),np.clip(rgb,0,65504),0).astype('<f2')
+            rgb=np.where(np.isfinite(rgb),np.clip(rgb,0,65504),0)
+            # HLSL clamp canonicalizes numeric RGB zero to +0; raw/alpha words remain exact.
+            rgb=np.where(rgb==0,np.float32(0),rgb).astype('<f2')
             need(np.array_equal(out[...,:3].view('<u2'),rgb.view('<u2')),'executed native303/36 exact decoded RGB incl signed chroma')
             good=np.isfinite(native[...,3]);need(np.array_equal(out[...,3].view('<u2')[good],native[...,3].view('<u2')[good]),'finite native alpha exact incl negative/signedzero')
             need(np.all(out[...,3].view('<u2')[~good]==0),'malformed alpha sanitized to+0; no native semantic claim')
