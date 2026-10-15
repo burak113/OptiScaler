@@ -705,6 +705,8 @@ def run():
     # descriptor heap, disable debug overhead and allow a real hardware adapter.
     cpp = native.CPP[:native.CPP.index('#if __INDEXED__\n// Opaque')]
     cpp = cpp.replace('#include <thread>', '#include <thread>\n#include <future>\n#define FSRD_NRD_BRIDGE_TEST\nbool gUseHardware=false;')
+    if not args.baseline:
+        cpp = cpp.replace('#include "__SURVEY__"', '#include "hooks/D3D12_Hooks.h"\n#include "__SURVEY__"')
     cpp = cpp.replace('#include "__SURVEY__"', '#include "'+metadata_path.as_posix()+'"\n#include "__SURVEY__"')
     cpp = cpp.replace('#include "__SURVEY__"', '#include "__SURVEY__"\n#include "misc/RecordedComputeLease_Dx12.h"\n#include "misc/NrdBridgeDescriptorAdmission_Dx12.h"')
     cpp = cpp.replace('debug->EnableDebugLayer();', '(void)debug;')
