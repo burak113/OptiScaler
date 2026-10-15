@@ -3437,7 +3437,15 @@ static void DrawNrdBridgeRRTuning(Config* config)
     else if (state.requested.recoverySpecular == 0.0f && state.requested.recoveryDiffuse == 0.0f)
         ImGui::TextWrapped("Lobe recovery: Requested; both strengths are zero, so the graph is skipped.");
     else if (state.lobeRecoveryFallback)
-        ImGui::TextWrapped("Lobe recovery: Fallback on the last successful Consumer; the optional graph was unavailable, so RR passed through without lobe recovery.");
+    {
+        const std::string reason = NrdBridge::LobeRecoveryFallbackReasonName(state.lobeRecoveryFallbackReason);
+        if (state.lobeRecoveryLastError.empty())
+            ImGui::TextWrapped("Lobe recovery: Fallback on the last successful Consumer; the optional graph was unavailable, so RR passed through without lobe recovery. Effective fallback reason: %s.",
+                reason.c_str());
+        else
+            ImGui::TextWrapped("Lobe recovery: Fallback on the last successful Consumer; the optional graph was unavailable, so RR passed through without lobe recovery. "
+                "Effective fallback reason: %s (%s).", reason.c_str(), state.lobeRecoveryLastError.c_str());
+    }
     else if (state.lobeRecoveryActive)
         ImGui::TextWrapped("Lobe recovery: Graph ran and committed on the last successful Consumer. Per-pixel gates can still leave pixels unchanged.");
     else

@@ -68,6 +68,10 @@ class LobeRecovery
         NrdBridgeCaptureBudget::Family slots;
         // Includes in-progress reservations and all retained old Contexts.
         std::atomic<uint64_t> graphBytes {0};
+        // Monotone metadata-only diagnostics: retained high-water, cold cooldown
+        // denials and failed preparations. Zero cost on success paths.
+        std::atomic<uint64_t> retainedPeakBytes {0};
+        std::atomic<uint32_t> coldRetryDenials {0}, preparationFailures {0};
         std::atomic<uint64_t> retryUntilTick {0};
     };
 
@@ -82,7 +86,12 @@ class LobeRecovery
             auto total = owner->graphBytes.load(std::memory_order_acquire);
             while (total <= Family::GraphByteLimit - requested)
                 if (owner->graphBytes.compare_exchange_weak(total,total+requested,std::memory_order_acq_rel))
-                { family = owner; bytes = requested; return true; }
+                {
+                    const uint64_t updated = total+requested; // Retained high-water (old contexts inside).
+                    auto peak = owner->retainedPeakBytes.load(std::memory_order_relaxed);
+                    while (peak < updated && !owner->retainedPeakBytes.compare_exchange_weak(peak,updated,std::memory_order_relaxed)) {}
+                    family = owner; bytes = requested; return true;
+                }
             return false;
         }
         ~GraphCharge()
@@ -158,6 +167,7 @@ class LobeRecovery
     const Storage storage_;
     static void DelayColdRetry(Family& family,uint64_t now) noexcept
     {
+        family.coldRetryDenials.fetch_add(1,std::memory_order_relaxed);
         const uint64_t until = now>UINT64_MAX-1000 ? UINT64_MAX : now+1000;
         auto previous = family.retryUntilTick.load(std::memory_order_acquire);
         while (previous<until && !family.retryUntilTick.compare_exchange_weak(previous,until,std::memory_order_acq_rel)) {}
@@ -398,6 +408,45 @@ class LobeRecovery
     }
 
   public:
+    // D06/D07 control-model diagnostic snapshot of this helper and its family.
+    // Names are proposed diagnostic vocabulary, not INI keys. Bytes are D3D
+    // allocation extents this helper counts; provider-internal cost is unknown
+    // and is reported as unknown by the calling service, never as zero.
+    struct DiagnosticsSnapshot
+    {
+        uint64_t graphBytes = 0;            // This graph's reserved bytes.
+        uint64_t familyGraphBytes = 0;      // Family total, including retained old graphs.
+        uint64_t familyRetainedPeakBytes = 0;
+        uint64_t ownedTextureBytes = 0, ownedAuxiliaryBytes = 0;
+        uint32_t warmRetainedSlots = 0, familySlots = 0;
+        uint32_t coldRetryDenials = 0, preparationFailures = 0;
+        uint64_t recordedFrames = 0;
+    };
+    DiagnosticsSnapshot SnapshotDiagnostics() const noexcept
+    {
+        DiagnosticsSnapshot result;
+        if (context_)
+        {
+            result.graphBytes = context_->charge.bytes;
+            uint32_t warm = 0;
+            uint64_t auxiliary = 0;
+            for (const auto& slot : context_->slots) if (slot) { ++warm; auxiliary += slot->bytes; }
+            result.warmRetainedSlots = warm;
+            result.ownedTextureBytes = context_->charge.bytes;
+            result.ownedAuxiliaryBytes = auxiliary;
+            result.recordedFrames = context_->recordedFrames;
+        }
+        if (context_ && context_->family)
+        {
+            const auto& family = *context_->family;
+            result.familyGraphBytes = family.graphBytes.load(std::memory_order_relaxed);
+            result.familyRetainedPeakBytes = family.retainedPeakBytes.load(std::memory_order_relaxed);
+            result.familySlots = family.slots.allocatedSlots.load(std::memory_order_relaxed);
+            result.coldRetryDenials = family.coldRetryDenials.load(std::memory_order_relaxed);
+            result.preparationFailures = family.preparationFailures.load(std::memory_order_relaxed);
+        }
+        return result;
+    }
     struct Prepared
     {
         std::shared_ptr<void> owner;
@@ -462,9 +511,11 @@ class LobeRecovery
             return true;
         }
         catch (const std::exception& exception)
-        { rejected(); if (coldAttempt) DelayColdRetry(*family,GetTickCount64()); StoreError(error,exception.what()); return false; }
+        { rejected(); if (family) family->preparationFailures.fetch_add(1,std::memory_order_relaxed);
+          if (coldAttempt) DelayColdRetry(*family,GetTickCount64()); StoreError(error,exception.what()); return false; }
         catch (...)
-        { rejected(); if (coldAttempt) DelayColdRetry(*family,GetTickCount64()); StoreError(error,"Lobe recovery preparation allocation failed"); return false; }
+        { rejected(); if (family) family->preparationFailures.fetch_add(1,std::memory_order_relaxed);
+          if (coldAttempt) DelayColdRetry(*family,GetTickCount64()); StoreError(error,"Lobe recovery preparation allocation failed"); return false; }
     }
     // Preconditions: this exact Prepared.owner is GPU-leased and the physical RR
     // provider succeeded. Record precedes title admission and touches only owned

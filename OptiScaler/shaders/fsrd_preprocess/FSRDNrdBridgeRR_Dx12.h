@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <string>
 struct SLConstantsSnapshot;
 
 namespace NrdBridgeStagePerf { struct Sample; }
@@ -41,7 +42,15 @@ struct RRSettingsState
     bool lobeRecoveryActive = false, lobeRecoveryFallback = false;
     RRSettings requested {};
     std::array<float, 8> defaults {}, effective {};
+    // D06/D07 proposed diagnostic vocabulary, NOT INI/API keys: requested and
+    // effective recovery tier plus the machine fallback reason of the last
+    // recorded chain. The real optional error text travels in LastError.
+    uint32_t lobeRecoveryRequestedTier = 0, lobeRecoveryTier = 0, lobeRecoveryFallbackReason = 0;
+    std::string lobeRecoveryLastError; // Exact recovery prepare error; empty when none/fixed.
 };
+// Stable names for GameTrace/menu presentation. Proposed control-model labels.
+const char* LobeRecoveryTierName(uint32_t tier) noexcept;
+const char* LobeRecoveryFallbackReasonName(uint32_t reason) noexcept;
 bool ValidateRRSettings(const RRSettings&, std::string& error);
 
 struct RRWrapperNativeDebugOutputSnapshot
@@ -121,6 +130,15 @@ class RRWrapper
     uint64_t ContextGeneration() const noexcept;
     uint64_t OwnedStagingBytes() const noexcept;
     uint64_t OwnedAuxiliaryBytes() const noexcept;
+    // D07/WP10 proposed staging ledger snapshot (metadata only; names are
+    // control-model vocabulary). limitBytes 0 marks admission disabled.
+    struct StagingLedgerSnapshot
+    {
+        uint64_t limitBytes = 0, retainedBytes = 0, retainedPeakBytes = 0, retiredTotalBytes = 0;
+        uint32_t retainedSlots = 0, rejections = 0;
+        bool byteAdmissionActive = false;
+    };
+    StagingLedgerSnapshot StagingLedgerSnapshot() const noexcept;
     const std::string& CameraConventionDescription() const noexcept;
 };
 }
