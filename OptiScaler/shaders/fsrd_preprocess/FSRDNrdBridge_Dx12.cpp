@@ -21,6 +21,7 @@
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgeDevice_Dx12.h"
+#include "misc/NrdBridgeDescriptorAdmission_Dx12.h"
 #include <atomic>
 #include <mutex>
 #include <optional>
@@ -82,10 +83,31 @@ struct NativeDebugSource
     RRSettings settings {};
     uint64_t serial = 0, generation = 0, consumer = 0;
 };
+struct NativeConstantProof
+{
+    FrameSurvey::ComputeBindings bindings;
+    FrameSurvey::BoundConstantBinding constant;
+    bool pixel = false;
+};
+struct NativeCommitProof
+{
+    // Written only while recording under gInjectionMutex; CLOSED native lists
+    // are immutable by the legal D3D contract. No Service/ListState ownership.
+    std::vector<FrameSurvey::TextureBindingWitness> textures;
+    std::array<NativeConstantProof,3> constants;
+    std::array<FrameSurvey::PipelineShaderIdentity,20> pipelines;
+    std::array<FrameSurvey::IndirectSignatureInfo,20> signatures;
+    size_t constantCount = 0, pipelineCount = 0, signatureCount = 0;
+    std::weak_ptr<RecordedComputeLease::Recording> recording;
+    NrdBridgeBirth::Token listBirth;
+    uint64_t recordingId = 0;
+    std::atomic<bool> sealed {false};
+};
 struct RecordingOwnership
 {
     std::shared_ptr<HistoryDomain> history;
     std::shared_ptr<RecordingToken> token;
+    std::shared_ptr<NativeCommitProof> nativeProof; // Metadata only, survives Reset/Service destruction.
 };
 struct ResourceIdentity
 {
@@ -776,12 +798,61 @@ std::string ResourceSummary(const Resources& resources)
          << "  OUT spec=" << resources.outputSpec << " diff=" << resources.outputDiff << "  MV=" << resources.motion;
     return text.str();
 }
+bool AppendNativeTextureProof(const std::shared_ptr<NativeCommitProof>& proof,
+    std::span<const FrameSurvey::TextureBindingWitness> witnesses) noexcept
+{
+    if (!proof || proof->sealed.load(std::memory_order_relaxed) || witnesses.empty() ||
+        proof->textures.size() > FrameSurvey::MaximumTextureBindingWitnesses ||
+        witnesses.size() > FrameSurvey::MaximumTextureBindingWitnesses-proof->textures.size() ||
+        proof->textures.capacity()-proof->textures.size() < witnesses.size()) return false;
+    // Capacity is reserved before mandatory Track. Preserve each actual use;
+    // repeated slots are deliberately checked too, without a quadratic dedup scan.
+    proof->textures.insert(proof->textures.end(),witnesses.begin(),witnesses.end());
+    return true;
+}
+bool AppendNativeConstantProof(const std::shared_ptr<NativeCommitProof>& proof,
+    const FrameSurvey::ComputeBindings& bindings, const FrameSurvey::BoundConstantBinding& constant, bool pixel)
+{
+    if (!proof || proof->sealed.load(std::memory_order_relaxed) || proof->constantCount == proof->constants.size()) return false;
+    auto& row = proof->constants[proof->constantCount];
+    row.bindings = bindings; row.constant = constant; row.pixel = pixel; ++proof->constantCount;
+    return true;
+}
+bool ValidateNativeCommitProof(const NativeCommitProof& proof,
+    const RecordedComputeLease::SubmissionInfo& info) noexcept
+{
+    if (!NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread() || !NrdBridgeDescriptorAdmission::Healthy() ||
+        !proof.sealed.load(std::memory_order_acquire) || !proof.recordingId || proof.recordingId != info.recordingId ||
+        !FrameSurvey::MetadataHealthy()) return false;
+    NrdBridgeLifetime::ScopedBorrow borrow;
+    if (!borrow.Acquired() || !BirthLive(proof.listBirth)) return false;
+    const auto recording = proof.recording.lock();
+    if (!recording || recording->id != info.recordingId || proof.textures.empty() ||
+        !FrameSurvey::ValidateTextureBindingWitnesses(proof.textures)) return false;
+    for (size_t index=0;index<proof.constantCount;++index)
+    {
+        const auto& row=proof.constants[index];
+        if (!(row.pixel ? FrameSurvey::ValidateGraphicsConstantBinding(row.bindings,6,0,row.constant) :
+            FrameSurvey::ValidateComputeConstantBinding(row.bindings,6,0,row.constant))) return false;
+    }
+    for (size_t index=0;index<proof.pipelineCount;++index)
+        if (!FrameSurvey::ValidatePipelineShaderIdentity(proof.pipelines[index])) return false;
+    for (size_t index=0;index<proof.signatureCount;++index)
+        if (!FrameSurvey::ValidateIndirectSignature(proof.signatures[index])) return false;
+    return true;
+}
 RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_ptr<Service>& owner,
     const std::shared_ptr<RecordingOwnership>& ownership)
 {
     RecordedComputeLease::SubmissionCallbacks submission;
     submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
         if (!AdmitRecordingSubmission(*ownership->token)) return false;
+        if (ownership->nativeProof && !ValidateNativeCommitProof(*ownership->nativeProof,info))
+        {
+            ownership->token->skipInvalidated.store(true,std::memory_order_release);
+            ownership->history->uncertain.store(true,std::memory_order_release);
+            RecordedComputeLease::DenySubmission(E_FAIL); return false;
+        }
         auto& domain = *ownership->history;
         RecordedComputeLease::FencePointPtr retiredPoint;
         std::shared_ptr<NativeDebugImageOrder> imageOrder;
@@ -1445,6 +1516,8 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
         stage->recording->stages.stopped = &gStagesStopped;
         { std::scoped_lock lock(gMutex); stage->recording->needsStageSamples = gStageCollector.Active(); }
         stage->ownership = MakeOwnedShared<RecordingOwnership>(); stage->ownership->history = history; stage->ownership->token = stage->recording;
+        stage->ownership->nativeProof = MakeOwnedShared<NativeCommitProof>();
+        stage->ownership->nativeProof->textures.reserve(FrameSurvey::MaximumTextureBindingWitnesses);
         history->latestRecording = stage->recording;
         {
             InjectionScope guard(cmd);
@@ -1453,6 +1526,24 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
         if (!retained)
         { RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY); NativeTransactionFailure(owner,stage,"Could not retain mandatory RR-only recording gate"); return; }
         stage->recording->submissionRetained.store(true,std::memory_order_release);
+        auto& proof = *stage->ownership->nativeProof;
+        const auto actualRecording=RecordedComputeLease::Capture(cmd);
+        if (!actualRecording || !actualRecording->id)
+        { NativeTransactionFailure(owner,stage,"Mandatory raw stage has no exact native recording identity"); return; }
+        proof.recording=actualRecording;proof.recordingId=actualRecording->id;proof.listBirth=stage->birth;
+        std::array<FrameSurvey::TextureTableRequest,4> proofRequests;
+        for(size_t index=0;index<proofRequests.size();++index)proofRequests[index]={1,sourceRequests[index]};
+        std::vector<FrameSurvey::BoundResource> proofSources;
+        std::vector<FrameSurvey::TextureBindingWitness> sourceWitnesses;
+        if (!FrameSurvey::ResolveComputeTextureBindings(bindings,proofRequests,proofSources,&sourceWitnesses) ||
+            proofSources.size()!=sources.size() || !AppendNativeTextureProof(stage->ownership->nativeProof,sourceWitnesses) ||
+            !AppendNativeConstantProof(stage->ownership->nativeProof,bindings,constants,false))
+        { NativeTransactionFailure(owner,stage,"Native raw sources have no retained descriptor/constant proof"); return; }
+        for(size_t index=0;index<sources.size();++index)
+            if (proofSources[index].resource!=sources[index].resource ||
+                proofSources[index].resourceGeneration!=sources[index].resourceGeneration ||
+                proofSources[index].resourceBirth!=sources[index].resourceBirth)
+            { NativeTransactionFailure(owner,stage,"Native raw source descriptor changed during preparation"); return; }
         bool reset = !reusable || history->resetRevision != stage->resetRevision;
         const bool materialApplied = stage->settings.nativeMaterialGuides && NativeMaterialCapture::Resource(stage->material);
         if (stage->settings.nativeMaterialGuides && history->materialGuidesKnown && history->materialGuidesUsed != materialApplied) reset = true;
@@ -1558,6 +1649,15 @@ void PrepareNativeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCo
         { stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release); }
     }
     if (stage->invalidated) { NativeTransactionFailure(owner,stage,"Native Temporal differs from the current Streamline motion tag"); return; }
+    const std::array<FrameSurvey::TextureTableRequest,1> motionRequest {{{1,request[0]}}};
+    std::vector<FrameSurvey::BoundResource> proofMotion;
+    std::vector<FrameSurvey::TextureBindingWitness> motionWitnesses;
+    if (!FrameSurvey::ResolveComputeTextureBindings(bindings,motionRequest,proofMotion,&motionWitnesses) ||
+        proofMotion.size()!=1 || proofMotion[0].resource!=motion[0].resource ||
+        proofMotion[0].resourceGeneration!=motion[0].resourceGeneration || proofMotion[0].resourceBirth!=motion[0].resourceBirth ||
+        !AppendNativeTextureProof(stage->ownership->nativeProof,motionWitnesses) ||
+        !AppendNativeConstantProof(stage->ownership->nativeProof,bindings,constants,false))
+    { NativeTransactionFailure(owner,stage,"Native motion lost its retained descriptor/constant proof"); return; }
     std::string error; bool ready = true;
     {
         InjectionScope guard(cmd);
@@ -1596,15 +1696,16 @@ bool SameNativeTexture(const FrameSurvey::BoundResource& a, const FrameSurvey::B
         a.description.Width == b.description.Width && a.description.Height == b.description.Height;
 }
 bool NativeTargets(const FrameSurvey::ComputeBindings& bindings, bool graphics,
-    std::vector<FrameSurvey::BoundResource>& out) noexcept
+    std::vector<FrameSurvey::BoundResource>& out, std::vector<FrameSurvey::TextureBindingWitness>* witnesses=nullptr) noexcept
 {
-    constexpr std::array<FrameSurvey::ComputeTableRequest,2> compute {{
-        {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
-    constexpr std::array<FrameSurvey::ComputeTableRequest,2> pixel {{
-        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,11,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,12,0}}};
-    return graphics ? FrameSurvey::ResolveGraphicsBindings(bindings,24,pixel,out) :
-        FrameSurvey::ResolveComputeBindings(bindings,5,compute,out);
+    constexpr std::array<FrameSurvey::TextureTableRequest,2> compute {{{5,
+        {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0}},{5,{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}}};
+    constexpr std::array<FrameSurvey::TextureTableRequest,2> pixel {{{24,
+        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,11,0}},{24,{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,12,0}}}};
+    return graphics ? FrameSurvey::ResolveGraphicsTextureBindings(bindings,pixel,out,witnesses) :
+        FrameSurvey::ResolveComputeTextureBindings(bindings,compute,out,witnesses);
 }
+
 bool NativeConstants(const FrameSurvey::ComputeBindings& bindings, bool graphics,
     FrameSurvey::BoundConstantBinding& out) noexcept
 {
@@ -1657,9 +1758,10 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
                 D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings);
         };
         FrameSurvey::BoundConstantBinding constants; std::vector<FrameSurvey::BoundResource> targets; targets.reserve(2);
+        std::vector<FrameSurvey::TextureBindingWitness> targetWitnesses;targetWitnesses.reserve(2);
         if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::BridgePredicationDisabled(cmd) ||
             !(graphics ? D3D12Hooks::CanRestoreGraphicsRootSignature(cmd) : D3D12Hooks::CanRestoreRootSignature(cmd)) ||
-            !currentBindings() || !NativeTargets(bindings,graphics,targets) || targets.size()!=2 ||
+            !currentBindings() || !NativeTargets(bindings,graphics,targets,&targetWitnesses) || targets.size()!=2 ||
             !NativeConstants(bindings,graphics,constants))
         { NativeTransactionFailure(owner,stage,"Late native Consumer binding/root/predicate proof is unavailable"); return; }
         NativeMaterialStateWitness::SourceStates targetStates {D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
@@ -1693,6 +1795,9 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
         }
         if (!valid) { NativeTransactionFailure(owner,stage,"Late Consumer pair/state differs from this exact native transaction"); return; }
         if (publish) LogDiscovery(discovered,nullptr);
+        if (!AppendNativeTextureProof(stage->ownership->nativeProof,targetWitnesses) ||
+            !AppendNativeConstantProof(stage->ownership->nativeProof,bindings,constants,graphics))
+        { NativeTransactionFailure(owner,stage,"Late Consumer has no retained native target/constant proof"); return; }
         std::string error;
         FrameParameters commitFrame = stage->parameters;
         const TitleSignalConstants nativeConstants {nullptr,constants.address,constants.descriptorHeap,constants.descriptor,graphics ? 36u : 303u};
@@ -1768,6 +1873,7 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
                     for (auto& barrier:barriers) std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter);
                     t.cmd->ResourceBarrier(2,barriers);
                 }
+                t.stage->ownership->nativeProof->sealed.store(true,std::memory_order_release);
                 t.stage->recording->outputCommitted.store(true,std::memory_order_release);
                 t.stage->committed.store(true,std::memory_order_release);
                 t.owner->status.active=true;t.owner->activeFrame=t.stage->frame;t.owner->failures=0;
@@ -1946,8 +2052,11 @@ bool Initialize(ID3D12Device* device) noexcept
                     NrdBridgePerf::HookName(ranked[0]),perf.SumMsPerFrame(ranked[0]),
                     NrdBridgePerf::HookName(ranked[1]),perf.SumMsPerFrame(ranked[1]),
                     NrdBridgePerf::HookName(ranked[2]),perf.SumMsPerFrame(ranked[2]));
-                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=all_external_hook_wall_times_including_native consumer_time_valid={} consumer_elapsed_ms={:.3f} consumer_avg_interval_ms={:.3f} consumer_intervals_per_second={:.3f} cadence_scope=CPU_Consumer_recording_not_GPU_or_FG_display_FPS cpu_hooks_sum_ms_per_frame={:.3f} lock_wait_sum_ms_per_frame={:.3f} top_sum_ms_per_frame={} wait_scope=metadata+physical_borrow+tracking+coordinator CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
-                    perf.frames,perf.firstFrame,perf.lastFrame,perf.ConsumerTimeValid(),perf.ConsumerElapsedMs(),perf.AverageConsumerIntervalMs(),perf.ConsumerIntervalsPerSecond(),perf.SumMsPerFrame(),perf.SumMsPerFrame(true),top,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
+                uint64_t admissionTicks=0;
+                for(const auto& hook:perf.hooks) admissionTicks+=hook.waitTicks[size_t(NrdBridgePerf::WaitKind::DescriptorAdmission)];
+                const double admissionUs=perf.frames&&perf.frequency ? double(admissionTicks)*1000000.0/double(perf.frequency)/double(perf.frames) : 0.0;
+                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=all_external_hook_wall_times_including_native consumer_time_valid={} consumer_elapsed_ms={:.3f} consumer_avg_interval_ms={:.3f} consumer_intervals_per_second={:.3f} cadence_scope=CPU_Consumer_recording_not_GPU_or_FG_display_FPS cpu_hooks_sum_ms_per_frame={:.3f} lock_wait_sum_ms_per_frame={:.3f} top_sum_ms_per_frame={} admission_wait_us={:.3f} admission_scope=per_Consumer_interval wait_scope=metadata+physical_borrow+tracking+coordinator+descriptor_admission CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
+                    perf.frames,perf.firstFrame,perf.lastFrame,perf.ConsumerTimeValid(),perf.ConsumerElapsedMs(),perf.AverageConsumerIntervalMs(),perf.ConsumerIntervalsPerSecond(),perf.SumMsPerFrame(),perf.SumMsPerFrame(true),top,admissionUs,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
                     perf.AverageWaitUs(H::ConstantBufferView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ConstantBufferView)].calls,
                     perf.AverageUs(H::ShaderResourceView),perf.AverageWaitUs(H::ShaderResourceView),
                     perf.AverageWaitUs(H::ShaderResourceView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ShaderResourceView)].calls,
