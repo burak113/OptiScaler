@@ -84,8 +84,10 @@ struct ComputeBindings
 };
 bool SeedComputeBindings(ID3D12GraphicsCommandList*, const ComputeBindings&) noexcept;
 using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
+using GraphicsPipelineObserver = void (*)(ID3D12PipelineState*, const char* psSha256);
 using ReleaseObserver = void (*)(void*);
 void SetPipelineObserver(PipelineObserver) noexcept;
+void SetGraphicsPipelineObserver(GraphicsPipelineObserver) noexcept;
 void SetReleaseObserver(ReleaseObserver) noexcept;
 using BirthReleaseObserver = void (*)(const NrdBridgeBirth::Token&) noexcept;
 void SetBirthReleaseObserver(BirthReleaseObserver) noexcept;
@@ -102,6 +104,9 @@ bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::ve
 // At most eight exact requests; proves only those slots, including valid large/unbounded tables.
 bool ResolveComputeBindings(ID3D12GraphicsCommandList*, UINT rootParameter,
                             std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
+// Window-independent texture SRV/UAV snapshot; caller holds the physical title borrow.
+bool ResolveComputeBindings(const ComputeBindings&, UINT rootParameter,
+                            std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
                                   uint64_t minimumBytes, BoundConstantBuffer& out, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
@@ -113,6 +118,14 @@ bool ResolveComputeConstantBinding(const ComputeBindings&, UINT shaderRegister, 
                                    BoundConstantBinding&, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
 bool ValidateComputeConstantBinding(const ComputeBindings&, UINT shaderRegister, UINT registerSpace,
                                     const BoundConstantBinding&) noexcept;
+// Explicit pixel-stage snapshots: ALL/PIXEL visibility only, never vertex-only bindings.
+// Typed texture SRVs only; at most eight exact slots. The caller holds the physical title borrow.
+bool ResolveGraphicsBindings(const ComputeBindings&, UINT rootParameter,
+                             std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
+bool ResolveGraphicsConstantBinding(const ComputeBindings&, UINT shaderRegister, UINT registerSpace,
+                                    BoundConstantBinding&, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
+bool ValidateGraphicsConstantBinding(const ComputeBindings&, UINT shaderRegister, UINT registerSpace,
+                                     const BoundConstantBinding&) noexcept;
 // Window-independent generation validation; the caller holds the physical title lifetime borrow gate.
 bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer&) noexcept;
 class ScopedInternal
