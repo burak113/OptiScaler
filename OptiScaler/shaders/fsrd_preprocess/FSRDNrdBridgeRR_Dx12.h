@@ -44,6 +44,8 @@ struct RRSettings
     // camera-only estimate. Conversion-side only; the provider never sees this flag.
     bool legacyMotionDepth = false;
     bool lobeRecovery = false;
+    // D02/WP08 experiment selector; recorded so traces can distinguish the gated fill.
+    bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
     float nativeSpecularBlend = 0.0f; // Deprecated source ABI; ignored. Native NRD output never corrects RR.
 };

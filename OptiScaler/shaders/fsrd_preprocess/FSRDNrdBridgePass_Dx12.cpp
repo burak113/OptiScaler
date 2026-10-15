@@ -174,6 +174,7 @@ struct ConversionPass::Impl
     uint64_t geometryRecordingId = 0;
     std::weak_ptr<RecordedComputeLease::Recording> geometryRecording;
     OwnedTexture positiveDepth;
+    OwnedTexture validity;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint64_t zeroBytes = 0;
@@ -218,7 +219,8 @@ struct ConversionPass::Impl
     ConvertedResources Resources() const
     {
         return {spec.resource.Get(), diff.resource.Get(), depth[previousIndex].resource.Get(), motion.resource.Get(),
-                normals.resource.Get(), specAlbedo.resource.Get(), diffAlbedo.resource.Get(), width, height};
+                normals.resource.Get(), specAlbedo.resource.Get(), diffAlbedo.resource.Get(), validity.resource.Get(),
+                width, height};
     }
 };
 
@@ -428,21 +430,23 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         { error="Native material roughness snapshot shape/format differs from same-frame Recon"; return false; }
         if (!materialGuides && !owner->geometryInitialized)
         {
-            owner->geometry.Initialize(owner->device.Get(),FSRDNrdBridgeGeometry_cso,sizeof(FSRDNrdBridgeGeometry_cso),4,9);
+            owner->geometry.Initialize(owner->device.Get(),FSRDNrdBridgeGeometry_cso,sizeof(FSRDNrdBridgeGeometry_cso),4,10);
             owner->geometryInitialized = true;
         }
         if (materialParams && !owner->geometryMaterialParamsInitialized)
         {
-            owner->geometryMaterialParams.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterialParams_cso,sizeof(FSRDNrdBridgeGeometryMaterialParams_cso),6,9);
+            owner->geometryMaterialParams.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterialParams_cso,sizeof(FSRDNrdBridgeGeometryMaterialParams_cso),6,10);
             owner->geometryMaterialParamsInitialized = true;
         }
         if (materialGuides && !materialParams && !owner->geometryMaterialInitialized)
         {
-            owner->geometryMaterial.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterial_cso,sizeof(FSRDNrdBridgeGeometryMaterial_cso),5,9);
+            owner->geometryMaterial.Initialize(owner->device.Get(),FSRDNrdBridgeGeometryMaterial_cso,sizeof(FSRDNrdBridgeGeometryMaterial_cso),5,10);
             owner->geometryMaterialInitialized = true;
         }
         if (!owner->positiveDepth.resource)
             owner->Create(owner->positiveDepth,DXGI_FORMAT_R32_FLOAT,L"NRD_Bridge_OwnedPositiveViewZ");
+        if (!owner->validity.resource)
+            owner->Create(owner->validity,DXGI_FORMAT_R8_UINT,L"NRD_Bridge_OwnedDepthValidity");
         auto& pipeline = materialParams ? owner->geometryMaterialParams : (materialGuides ? owner->geometryMaterial : owner->geometry);
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
         lease->slot = pipeline.Acquire(owner->device.Get());
@@ -484,9 +488,10 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         pipeline.Describe(owner->device.Get(), *lease->slot, srvs,
             {owner->positiveDepth.resource.Get(), owner->positiveDepth.resource.Get(), owner->spec.resource.Get(), owner->diff.resource.Get(),
              writeDepth.resource.Get(), owner->motion.resource.Get(), owner->normals.resource.Get(),
-             owner->specAlbedo.resource.Get(), owner->diffAlbedo.resource.Get()});
-        const std::array<OwnedTexture*, 6> outputs {&owner->positiveDepth, &writeDepth, &owner->motion,
-                                                   &owner->normals, &owner->specAlbedo, &owner->diffAlbedo};
+             owner->specAlbedo.resource.Get(), owner->diffAlbedo.resource.Get(), owner->validity.resource.Get()});
+        const std::array<OwnedTexture*, 7> outputs {&owner->positiveDepth, &writeDepth, &owner->motion,
+                                                    &owner->normals, &owner->specAlbedo, &owner->diffAlbedo,
+                                                    &owner->validity};
         for (auto* texture : outputs) texture->Transition(list, kWrite);
         D3D12_RESOURCE_BARRIER materialBarrier {};
         const std::array<ID3D12Resource*,2> materialSources {inputs.nativeMaterial,materialParams ? inputs.nativeMaterialRoughness : nullptr};
@@ -559,6 +564,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
         resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
         resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
+        resources.validity != current.validity ||
         frame.motionVectors3D || titleMotion == current.motion || titleMotion == current.spec || titleMotion == current.diff ||
         !TextureMatches(titleMotion, owner->width, owner->height, DXGI_FORMAT_R16G16B16A16_FLOAT, false))
     { error = "NRD motion conversion requires the current same-list Recon ticket and Temporal motion"; return false; }

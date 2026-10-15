@@ -2,13 +2,19 @@
 
 This is a payload/provenance contract, not an image-quality oracle. It never
 loads native NRD denoised output and never invents hidden SDK history. A valid
-ROI capture can remain ineligible for a complete temporal replay.
+ROI capture can remain ineligible for a complete temporal replay: inspection
+(identity, selector, phase, ROI views) stays available for every schema-valid
+capture, while full temporal replay additionally demands a complete full-render
+prefix that starts with an actual SDK RESET, a 64-frame sample, and the
+manifest provenance fields (commit, provider binary identity, guide/motion
+policy, source time, reset reason).
 """
 from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
 import json
 import math
+import re
 import struct
 
 SCHEMA = "fsrd-nrd-bridge-game-trace-v1"
@@ -23,6 +29,19 @@ FORMATS = {
 }
 INPUTS = tuple(FORMATS)[:7]
 MAX_FRAME = 256 << 20
+# G03/WP07 inspection names for the attested per-profile native control words.
+# Offsets are the already-captured native_byte_offset values; names only make
+# the recorded bytes self-describing. They never redefine the capture.
+NATIVE_CONTROL_FIELDS = {
+    "A_Recon_direct": {448: "native_word28_x", 452: "native_word28_y",
+                       456: "signed_source_origin_x", 460: "signed_source_origin_y"},
+    "B_PrePass": {456: "signed_source_origin_x", 460: "signed_source_origin_y",
+                  472: "integer_rect_width", 476: "integer_rect_height",
+                  516: "local_checkerboard_phase", 520: "reserved_native_word32_z",
+                  576: "diffuse_mode_0_1_checkerboard_2_full_rate",
+                  580: "specular_mode_0_1_checkerboard_2_full_rate"},
+}
+MINIMUM_REPLAY_PREFIX_FRAMES = 64
 
 
 def require(condition, message):
@@ -100,6 +119,7 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
     require(source.get("dimension") == 1 and header.get("source_state") in (0, 2048), "native control owned buffer/state differs")
     allocation = uint(header.get("shared_committed_buffer_bytes"), "native control shared committed bytes")
     require(allocation >= 32 and allocation % (64 << 10) == 0, "native control reserved readback charge differs")
+    field_names = NATIVE_CONTROL_FIELDS[header["profile"]]
     private_offsets = set()
     for index, row in enumerate(mapping):
         offset = uint(row.get("source_buffer_byte_offset"), "native control private offset", 0xffffffff)
@@ -107,6 +127,8 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
                 and offset + 4 <= source_width and offset not in private_offsets and row.get("payload_byte_offset") == 4 * index,
                 "native/private control word mapping differs")
         private_offsets.add(offset)
+        row = dict(row, field=field_names[expected[index]])
+        mapping[index] = row
         value = uint(row.get("captured_uint32"), "captured native control word", 0xffffffff)
         if data is not None:
             require(struct.unpack_from("<I", data, 4 * index)[0] == value, "native control decoded value differs from payload")
@@ -130,10 +152,11 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
         size += 4
     else:
         require(status["available"] is False and "file" not in status, "uncaptured/A status invented payload")
-    return dict(header, payload=payload, owned_status=status), size
+    return dict(header, payload=payload, owned_status=status,
+                recorded_fields=[field_names[offset] for offset in expected]), size
 
 
-def inspect_capture(folder, *, verify_payload=True):
+def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
     root = Path(folder).resolve()
     manifest_path = root / "capture.json"
     require(manifest_path.stat().st_size <= 32 << 20, "manifest exceeds bounded reader size")
@@ -145,6 +168,20 @@ def inspect_capture(folder, *, verify_payload=True):
     frames = manifest.get("frames")
     require(isinstance(frames, list) and len(frames) >= published, "published prefix is absent")
     require(manifest.get("maximum_frame_readback_bytes") == MAX_FRAME, "unexpected capture budget")
+    # G06: optional replay-provenance fields. Present-but-invalid content is
+    # rejected outright; absence keeps the capture inspect-only.
+    commit = manifest.get("bridge_commit")
+    require(commit is None or (isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit) is not None),
+            "invalid bridge_commit")
+    provider_hash = manifest.get("provider_binary_sha256")
+    require(provider_hash is None or (isinstance(provider_hash, str) and re.fullmatch(r"[0-9a-f]{64}", provider_hash) is not None),
+            "invalid provider_binary_sha256")
+    policy = manifest.get("guide_motion_policy")
+    require(policy is None or (isinstance(policy, str) and policy != ""), "invalid guide_motion_policy")
+    captured_at = manifest.get("captured_at_utc")
+    require(captured_at is None or (isinstance(captured_at, str)
+            and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z", captured_at) is not None),
+            "invalid captured_at_utc")
     roi = manifest.get("roi", {})
     extent, origin = roi.get("extent"), roi.get("origin")
     require(isinstance(extent, list) and len(extent) == 2 and all(type(x) is int and x > 0 for x in extent), "invalid ROI extent")
@@ -155,6 +192,7 @@ def inspect_capture(folder, *, verify_payload=True):
     require(manifest.get("native_nrd_outputs") == {"captured": False, "used_as_reference": False, "used_as_correction": False},
             "native NRD output is forbidden in this replay contract")
     reasons, result, prior, stable = [], [], None, None
+    reset_reason_missing = False
     if manifest.get("region_mode") != "full_render" or origin != [0, 0] or extent != render:
         reasons.append("cropped_inputs_cannot_reconstruct_full_frame_temporal_history")
     for ordinal, frame in enumerate(frames[:published]):
@@ -227,6 +265,14 @@ def inspect_capture(folder, *, verify_payload=True):
                     and isinstance(binary_hash, str) and len(binary_hash) == 64)
         if not attested and "actual_provider_binary_attestation_unavailable" not in reasons:
             reasons.append("actual_provider_binary_attestation_unavailable")
+        if provider_hash is not None and attested:
+            require(binary_hash == provider_hash, "manifest provider binary hash differs from the attested frame binary")
+        reset_reason = frame.get("reset_reason")
+        require(reset_reason is None or isinstance(reset_reason, str), "invalid reset_reason type")
+        if isinstance(reset_reason, str):
+            require(reset_reason != "", "empty reset_reason")
+        if frame.get("actual_reset") and not (isinstance(reset_reason, str) and reset_reason):
+            reset_reason_missing = True
         current = (identity["domain"], frame.get("context_generation"), frame.get("settings_sha256"),
                    provider.get("version_id"), provider.get("api_version"), binary_hash,
                    provider.get("signal_flags"), provider.get("context_flags"), provider.get("checkerboard_signal_flags"))
@@ -234,10 +280,21 @@ def inspect_capture(folder, *, verify_payload=True):
             stable = current
             if not flags & 1:
                 reasons.append("first_captured_provider_invocation_has_no_actual_RESET; prior_SDK_history_unavailable")
-        require(stable == current and current[1] > 0, "context/settings/provider changed inside published sequence")
+        broken = (stable != current) or (current[1] <= 0)
         if prior is not None:
-            require(identity["streamline_frame"] == prior[0] + 1 and sdk_frame == prior[1] + 1
-                    and identity["recording_id"] > prior[2], "nonconsecutive provider/SL/recording sequence")
+            broken = broken or not (identity["streamline_frame"] == prior[0] + 1 and sdk_frame == prior[1] + 1
+                                    and identity["recording_id"] > prior[2])
+        if broken:
+            if strict_continuity:
+                require(stable == current and current[1] > 0,
+                        "context/settings/provider changed inside published sequence")
+                require(prior is None or (identity["streamline_frame"] == prior[0] + 1 and sdk_frame == prior[1] + 1
+                        and identity["recording_id"] > prior[2]),
+                        "nonconsecutive provider/SL/recording sequence")
+            else:
+                if "provider_context_or_recording_chain_changed_mid_sequence" not in reasons:
+                    reasons.append("provider_context_or_recording_chain_changed_mid_sequence")
+                break
         prior = identity["streamline_frame"], sdk_frame, identity["recording_id"]
         images = frame.get("images")
         require(isinstance(images, list) and 1 <= len(images) <= 14, "unexpected bridge image count")
@@ -326,9 +383,40 @@ def inspect_capture(folder, *, verify_payload=True):
                        "observations": {name: row for name, row in resolved.items() if name not in INPUTS},
                        "encoding": encoding, "native_control_header": native_controls, "payload_bytes": payload_bytes,
                        "skipped_original_dispatches": events})
+    if published < MINIMUM_REPLAY_PREFIX_FRAMES:
+        reasons.append("replay_prefix_below_64_full_render_frames")
+    if commit is None:
+        reasons.append("replay_manifest_missing_bridge_commit")
+    if provider_hash is None:
+        reasons.append("replay_manifest_missing_provider_binary_sha256")
+    if policy is None:
+        reasons.append("replay_manifest_missing_guide_motion_policy")
+    if captured_at is None:
+        reasons.append("replay_manifest_missing_capture_time_utc")
+    if reset_reason_missing:
+        reasons.append("reset_frame_missing_reset_reason")
+    eligible = not reasons and verify_payload
+    chain_broken = "provider_context_or_recording_chain_changed_mid_sequence" in reasons
     return {"schema": "fsrd-nrd-bridge-replay-inputs-v1", "capture_uuid": manifest.get("capture_uuid"),
             "capture_root": str(root), "published_frames": published, "payload_hashes_verified": verify_payload,
-            "captured_domain": stable[0], "full_temporal_replay_eligible": not reasons and verify_payload,
+            "captured_domain": stable[0], "full_temporal_replay_eligible": eligible,
+            "recording_class": "replay_eligible" if eligible else "inspect_only",
+            "inspection": {"identity_and_controls": True,
+                           "selector_phase_words_available": any(frame["native_control_header"].get("available")
+                                                                 for frame in result),
+                           "recorded_control_fields": {frame["native_control_header"]["profile"]:
+                                                       frame["native_control_header"]["recorded_fields"]
+                                                       for frame in result
+                                                       if frame["native_control_header"].get("available")},
+                           "roi": {"origin": origin, "extent": extent, "region_mode": manifest.get("region_mode")},
+                           "validated_frames": len(result)},
+            "chain_continuity": "broken" if chain_broken else "intact",
+            "replay_requirements": {"minimum_full_render_prefix_frames": MINIMUM_REPLAY_PREFIX_FRAMES,
+                                    "starts_with_actual_sdk_reset": True,
+                                    "provider_binary_attestation": True,
+                                    "manifest_provenance_fields": ["bridge_commit", "provider_binary_sha256",
+                                                                   "guide_motion_policy", "captured_at_utc",
+                                                                   "reset_reason_on_reset_frames"]},
             "ineligibility_reasons": reasons + ([] if verify_payload else ["payloads_not_verified"]),
             "source_contract": manifest.get("source_contract"), "frames": result,
             "replay_scope": "actual_RR_provider_inputs_and_raw_outputs; selected_recovery_and_encoded_commit_are_observations",

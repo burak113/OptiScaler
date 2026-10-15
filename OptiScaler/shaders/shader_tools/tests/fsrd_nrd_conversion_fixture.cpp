@@ -31,6 +31,7 @@ static uint32_t bytesPerPixel(DXGI_FORMAT format)
 {
     if (format == DXGI_FORMAT_R16G16B16A16_FLOAT) return 8;
     if (format == DXGI_FORMAT_R32G32B32A32_FLOAT) return 16;
+    if (format == DXGI_FORMAT_R8_UINT) return 1;
     return 4;
 }
 static std::vector<char> load(const fs::path& path)

@@ -130,6 +130,7 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         auto nativeDepth=fixture.Snapshot(positive,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto depth=fixture.Snapshot(output.linearDepth,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto normal=fixture.Snapshot(output.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        auto validityRead=fixture.Snapshot(output.validity,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto specAlbedo=fixture.Snapshot(output.specAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto diffAlbedo=fixture.Snapshot(output.diffAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         need(conversion.DispatchMotion(fixture.list.Get(),output,source->textures[4].Get(),frame,error),error.c_str());
@@ -154,6 +155,7 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         fixture.Submit();fixture.Reset();
         save(path/"raw_owned.bin",packed.Data());save(path/"out_spec.bin",spec.Data());save(path/"out_diff.bin",diff.Data());
         save(path/"out_depth.bin",depth.Data());save(path/"positive_viewz.bin",nativeDepth.Data());save(path/"out_nr.bin",normal.Data());
+        save(path/"out_validity.bin",validityRead.Data());
         save(path/"out_spec_albedo.bin",specAlbedo.Data());save(path/"out_diff_albedo.bin",diffAlbedo.Data());save(path/"out_motion.bin",motion.Data());
         save(path/"source_spec_after.bin",originalSpec.Data());save(path/"source_diff_after.bin",originalDiff.Data());save(path/"encoding_flag.bin",flagReadback.Data());
     }

@@ -51,6 +51,13 @@ def main():
     assert size == 36 and got["payload"]["bytes"] == 32 and got["owned_status"]["payload"]["bytes"] == 4
     assert [word["native_byte_offset"] for word in got["words"]] == offsets
     assert got["owned_status"]["source_buffer_byte_offset"] == 0
+    # G03/WP07: the recorded words carry the attested S1 field names, so a live
+    # B capture is self-describing for selector/phase/origin/rect inspection.
+    assert [word["field"] for word in got["words"]] == [
+        "signed_source_origin_x", "signed_source_origin_y", "integer_rect_width", "integer_rect_height",
+        "local_checkerboard_phase", "reserved_native_word32_z",
+        "diffuse_mode_0_1_checkerboard_2_full_rate", "specular_mode_0_1_checkerboard_2_full_rate"]
+    assert got["recorded_fields"][-2].startswith("diffuse_mode") and got["recorded_fields"][-1].startswith("specular_mode")
     checks.append("CPU_B8_payload_and_separate_status_not_native_operand")
 
     def rejected(name, mutate):
@@ -95,6 +102,10 @@ def main():
     got, size = parse(legacy)
     assert size == 28 and got["owned_status"]["available"] is False
     assert "captured_uint32" not in got["owned_status"]
+    assert got["recorded_fields"] == ["signed_source_origin_x", "signed_source_origin_y", "integer_rect_width",
+                                      "integer_rect_height", "local_checkerboard_phase",
+                                      "diffuse_mode_0_1_checkerboard_2_full_rate",
+                                      "specular_mode_0_1_checkerboard_2_full_rate"]
     checks.append("legacy_v1_B7_preserved_status_UNKNOWN_not_zero")
     result = {"status": "PASS", "checks": len(checks), "cases": checks,
               "scope": "controlled CPU parser byte files only; no actual capture/provider/GPU proof",

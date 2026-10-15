@@ -74,9 +74,12 @@ inline ID3DBlob* CompileShader(const char*, const char*, const char*)
 }
 struct ResTrack_Dx12
 {
+    // Same 5-argument shape as the production raw-signals call site: the B
+    // status observer callbacks participate in mandatory submission tracking.
     static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
                                      const std::shared_ptr<void>& lease,
-                                     std::function<void(ID3D12CommandQueue*)> beforeSubmit = {})
+                                     std::function<void(ID3D12CommandQueue*)> beforeSubmit = {},
+                                     RecordedComputeLease::SubmissionCallbacks callbacks = {})
     {
         if (!device || !list || !lease || !RecordedComputeLease::Available()) return false;
         if (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT &&
@@ -88,6 +91,7 @@ struct ResTrack_Dx12
             FAILED(listDevice.As(&listDeviceIdentity)) || listDeviceIdentity.Get() != deviceIdentity.Get() ||
             FAILED(list->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
         return RecordedComputeLease::Track(identity.Get(),
-            { list, static_cast<ID3D12CommandList*>(list), identity.Get() }, lease, std::move(beforeSubmit));
+            { list, static_cast<ID3D12CommandList*>(list), identity.Get() }, lease, std::move(beforeSubmit),
+            std::move(callbacks));
     }
 };

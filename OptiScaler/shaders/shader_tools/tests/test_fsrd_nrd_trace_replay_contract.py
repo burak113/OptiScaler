@@ -50,6 +50,50 @@ def exercise(source, output):
     checks.append("CPU_provider_adapter_never_signed_replay_eligible")
     assert inspect_capture(output, verify_payload=False)["full_temporal_replay_eligible"] is False
     checks.append("unverified_payloads_not_replay_eligible")
+    assert baseline["recording_class"] == "inspect_only" and baseline["chain_continuity"] == "intact"
+    checks.append("G06_recording_class_inspect_only_without_replay_conditions")
+    fields = baseline["frames"][1]["native_control_header"]["recorded_fields"]
+    assert fields == ["signed_source_origin_x", "signed_source_origin_y", "integer_rect_width",
+                      "integer_rect_height", "local_checkerboard_phase", "reserved_native_word32_z",
+                      "diffuse_mode_0_1_checkerboard_2_full_rate", "specular_mode_0_1_checkerboard_2_full_rate"]
+    checks.append("B_control_words_named_for_selector_phase_origin_rect_inspection")
+    assert baseline["frames"][0]["native_control_header"]["recorded_fields"][:2] == ["native_word28_x", "native_word28_y"]
+    checks.append("A_control_words_named_without_inventing_B_semantics")
+    rejected("invalid_bridge_commit", lambda m: m.update(bridge_commit="nothex"))
+    rejected("invalid_provider_binary_sha256", lambda m: m.update(provider_binary_sha256="A" * 64))
+    rejected("invalid_captured_at_utc", lambda m: m.update(captured_at_utc="yesterday"))
+    rejected("empty_guide_motion_policy", lambda m: m.update(guide_motion_policy=""))
+    rejected("invalid_reset_reason_type", lambda m: m["frames"][0].update(reset_reason=17))
+    provenanced = copy.deepcopy(original)
+    provenanced.update(bridge_commit="a" * 40, provider_binary_sha256="b" * 64,
+                       guide_motion_policy="white_guides_default; native_motion_off",
+                       captured_at_utc="2026-10-16T12:00:00Z")
+    write(provenanced)
+    enriched = inspect_capture(output)
+    for gap in ("replay_manifest_missing_bridge_commit", "replay_manifest_missing_provider_binary_sha256",
+                "replay_manifest_missing_guide_motion_policy", "replay_manifest_missing_capture_time_utc"):
+        assert gap not in enriched["ineligibility_reasons"]
+    assert enriched["full_temporal_replay_eligible"] is False
+    checks.append("present_provenance_fields_narrow_replay_gaps_without_replay_claim")
+    provenanced["frames"][0].update(reset_reason="explicit_user_history_reset_for_replay")
+    write(provenanced)
+    assert "reset_frame_missing_reset_reason" not in inspect_capture(output)["ineligibility_reasons"]
+    checks.append("named_reset_reason_closes_the_reset_gap")
+    chain = copy.deepcopy(provenanced)
+    chain["frames"][1].update(context_generation=99)
+    write(chain)
+    try:
+        inspect_capture(output)
+    except ValueError:
+        checks.append("strict_continuity_default_rejects_context_break")
+    else:
+        raise AssertionError("context break accepted under strict continuity")
+    report = inspect_capture(output, strict_continuity=False)
+    assert report["full_temporal_replay_eligible"] is False
+    assert "provider_context_or_recording_chain_changed_mid_sequence" in report["ineligibility_reasons"]
+    assert report["chain_continuity"] == "broken" and report["inspection"]["validated_frames"] == 1
+    checks.append("lenient_classification_drops_replay_eligibility_visibly")
+    write(original)
     private = copy.deepcopy(original)
     private["frames"].append({"ordinal": 2, "images": [{"file": "../../forbidden.bin"}]})
     write(private)

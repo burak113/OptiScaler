@@ -63,7 +63,10 @@ def prepare(output):
         # Padding outside any supported source centre is poisoned; source bytes may never change.
         raw_spec[:,-3:,:3]=[17,3,-5];raw_diff[-2:,:,:3]=[19,-7,9]
         nr=legacy.packed_nr(np.stack((.45+.08*x/(w-1),.47+.05*y/(h-1),.12+.5*((x+y)%13)/13,((x//16+y//16)%4)/3),-1))
-        depth=(1+(x+2*y)%61).astype('<f4');depth[:,w//2:]+=100;depth[:2,:2]=0
+        # In-bounds majority, a far-above step region (D04 class2) and a small
+        # zero pocket (class1): the gated experiment arm must reject exactly the
+        # clamped/nonfinite side of every tap while production fills by weight.
+        depth=(1+(x+2*y)%61).astype('<f4')*.5;depth[:,w//2:]+=50;depth[:2,:2]=0
         motion=np.zeros((h,w,4),'<f2');motion[...,3]=1
         material=np.stack(((x%11+.5)/12,(y%13+.5)/14,((x+y)%7+.5)/8,((x//8+y//8)%3)*.5),-1).astype('<f2')
         rough=np.ones((h,w),'<f2');rough[(x+2*y)%7==0]=np.nan
@@ -125,6 +128,34 @@ def reference_grid(source,width,height,origin,mode,phase,encoding,normals,depth)
     value=np.where((xx==0)[...,None],b,value);value=np.where((xx==width-1)[...,None],a,value)
     return np.where(active[...,None],plain,value.astype('<f2')),active
 
+def valid_reference_grid(source,width,height,origin,mode,phase,encoding,normals,roughness,depth,validity):
+    """FP64 model of the D02/WP08 gated fill: eligibility first, then weights."""
+    yy,xx=np.mgrid[:height,:width];sx=(xx+origin[0])>>(mode!=2);sy=yy+origin[1]
+    native=source[sy,sx].astype('f4');y,co,cg=np.moveaxis(native[...,:3],-1,0)
+    with np.errstate(invalid='ignore'):
+        rgb=np.stack((y-cg+co,y+cg,y-cg-co),-1) if encoding else native[...,:3]
+    rgb=np.where(np.isfinite(rgb),np.clip(rgb,0,65504),0);rgb=np.where(rgb==0,np.float32(0),rgb)
+    plain=np.concatenate((rgb,np.where(np.isfinite(native[...,3:4]),native[...,3:4],0)),axis=-1).astype('<f2')
+    active=np.ones((height,width),bool) if mode==2 else ((xx^yy^phase)&1)==mode
+    if mode==2:return plain.copy(),active
+    xy=2*(normals.astype('f8')-.5);normal=np.concatenate((xy,(1-np.abs(xy).sum(-1))[...,None]),-1)
+    t=np.maximum(-normal[...,2],0);normal[...,:2]+=np.where(normal[...,:2]>=0,-t[...,None],t[...,None]);normal/=np.sqrt((normal*normal).sum(-1))[...,None]
+    center_bad=(validity&3)!=0;a=np.abs(depth).astype('f8');rough=roughness.astype('f8')
+    def gate(q):
+        bad=center_bad|((validity[yy,q]&3)!=0)
+        alignment=np.clip((normal*normal[yy,q]).sum(-1),0,1)
+        z=np.abs(depth[yy,q]).astype('f8')
+        eligible=(~bad)&(alignment>=.5)&~(4*np.minimum(a,z)<np.maximum(a,z))&(np.abs(rough-rough[yy,q])<=.25)
+        return np.where(eligible,alignment**2/(1+np.abs(a-z)/np.maximum(np.maximum(a,z),1e-6)),0.0)
+    left=np.maximum(xx-1,0);right=np.minimum(xx+1,width-1)
+    wl,wr=gate(left),gate(right);total=wl+wr
+    a_t,b_t=plain[yy,left].astype('f8'),plain[yy,right].astype('f8')
+    value=np.divide(a_t*wl[...,None]+b_t*wr[...,None],total[...,None],out=np.zeros_like(a_t),where=total[...,None]>0)
+    value=np.where((xx==0)[...,None],np.where((gate(right)>0)[...,None],b_t,0.0),value)
+    value=np.where((xx==width-1)[...,None],np.where((gate(left)>0)[...,None],a_t,0.0),value)
+    value=np.where((total==0)[...,None],0.0,value)
+    return np.where(active[...,None],plain,value.astype('<f2')),active
+
 def half_ulp(value):
     with np.errstate(over='ignore'):
         up=np.nextafter(value,np.float16(np.inf)).astype('f4');down=np.nextafter(value,np.float16(-np.inf)).astype('f4')
@@ -132,6 +163,7 @@ def half_ulp(value):
 
 def compare(root,manifest):
     h,w=manifest['height'],manifest['width'];rows=[];traced_alpha=set();mode_pairs=set();max_half_ulp=0
+    foreign_rejected=0;supported_gated=0
     for case in manifest['cases']:
         path=root/case['name'];ox,oy=case['origin'];sw,sh=case['source_size'];status=case['status']
         raw=np.fromfile(path/'raw_owned.bin','<u2');header=raw[:768].view('<u4');packed=raw[768:].reshape(h,w,8)
@@ -139,12 +171,14 @@ def compare(root,manifest):
         need(np.array_equal(header,expected),'only exact B operands/status in owned header, UINT rect bits retained')
         nr=np.fromfile(path/'out_nr.bin','<u4').reshape(h,w);normals=np.stack((nr&1023,(nr>>10)&1023),-1).astype('f8')/1023
         depth=np.fromfile(path/'out_depth.bin','<f4').reshape(h,w);need(np.isfinite(depth).all(),'B owned guide depth finite')
+        validity=np.fromfile(path/'out_validity.bin','u1').reshape(h,w)
         for lobe,mode,offset in [('spec',case['spec_mode'],0),('diff',case['diff_mode'],4)]:
             source=np.fromfile(path/f'raw_{lobe}.bin','<f2').reshape(sh,sw,4);out=np.fromfile(path/f'out_{lobe}.bin','<f2').reshape(h,w,4)
             need(np.array_equal(np.fromfile(path/f'source_{lobe}_after.bin','<u2'),source.view('<u2').ravel()),'B source full allocation/padding bytes unchanged')
             need(np.isfinite(out).all(),'all B reconstructed RR inputs finite')
             if status:
-                need(np.all(packed==0),'invalid GPU operands produce zero raw payload before any source sample');need(np.all(out.view('<u2')==0),'invalid GPU operands produce canonical finite zero RR input');continue
+                need(np.all(packed==0),'invalid GPU operands produce zero raw payload before any source sample');need(np.all(out.view('<u2')==0),'invalid GPU operands produce canonical finite zero RR input')
+                need(np.all(np.fromfile(path/f'out_{lobe}_valid.bin','<f2').reshape(h,w,4).view('<u2')==0),'gated arm also canonicalizes invalid operands to finite zero');continue
             yy,xx=np.mgrid[:h,:w];sx=(xx+ox)>>(mode!=2);sy=yy+oy;expected_raw=source[sy,sx].view('<u2');finite=(expected_raw&0x7c00)!=0x7c00
             need(np.array_equal(packed[...,offset:offset+4][finite],expected_raw[finite]),'actual raw address map finite RGBA words exact before codec')
             need(np.all((packed[...,offset:offset+4][~finite]&0x7c00)==0x7c00),'raw malformed category survives until decoder')
@@ -159,12 +193,36 @@ def compare(root,manifest):
                 difference=np.abs(out[~active].astype('f4')-reference[~active].astype('f4'));ulp=half_ulp(reference[~active])
                 need(np.all(difference<=ulp),'untraced geometry-only interpolation within one final-half ULP')
                 max_half_ulp=max(max_half_ulp,float(np.max(difference/np.maximum(ulp,2**-24))))
+            # D02/WP08 gated experiment arm on the identical captured inputs.
+            valid_out=np.fromfile(path/f'out_{lobe}_valid.bin','<f2').reshape(h,w,4)
+            roughness=((nr>>20)&1023).astype('f8')/1023
+            valid_reference,valid_active=valid_reference_grid(source,w,h,(ox,oy),mode,case['phase'],case['flag']!=0,normals,roughness,depth,validity)
+            need(np.array_equal(valid_out[valid_active].view('<u2'),out[valid_active].view('<u2')),
+                 'gated arm keeps every traced/mode2 position byte-identical to the production arm')
+            if mode!=2:
+                unsupported=(~valid_active)&(valid_reference.view('<u2')==0).all(axis=-1)
+                # Unsupported-footprint policy pinned: exact finite zero, never the
+                # negative-alpha sentinel (poisoned RGB was the measured outcome).
+                need(bool((valid_out[unsupported].view('<u2')==0).all()),'unsupported footprints are exact finite zero, no negative-alpha sentinel')
+                difference=np.abs(valid_out[~valid_active].astype('f4')-valid_reference[~valid_active].astype('f4'));ulp=half_ulp(valid_reference[~valid_active])
+                need(np.all(difference<=ulp),'gated untraced fill matches the eligibility model within one final-half ULP')
+                production_nonzero=np.any(out.view('<u2')!=0,axis=-1)
+                foreign_rejected+=int(np.count_nonzero(unsupported&production_nonzero))
+                supported_gated+=int(np.count_nonzero((~valid_active)&~unsupported))
         flag=np.fromfile(path/'encoding_flag.bin','<u4')[303];need(int(flag)==case['flag'],'B executed uint native303/36 flag after postrecord CB update')
         if not status:
             original_nr=np.fromfile(path/'nr.bin','<u4').reshape(h,w);original_z=np.fromfile(path/'depth.bin','<f4').reshape(h,w)
             expected_nr=base.shifted(original_nr,ox,oy);z=base.shifted(original_z,ox,oy);need(np.array_equal(nr,expected_nr),'B geometry native source origin exact')
             epsilon=np.array([0x358637bd],'<u4').view('<f4')[0];positive=np.fromfile(path/'positive_viewz.bin','<f4').reshape(h,w)
-            need(np.array_equal(positive,np.maximum(np.abs(z),epsilon)),'B positive ViewZ matches guide-only native expression without color filter')
+            bmag=np.abs(z).astype('f4')
+            need(np.array_equal(positive,np.where(np.isnan(z),epsilon,np.maximum(bmag,epsilon))),'B positive ViewZ matches guide-only native expression without color filter')
+            frame_bounds=base.legacy.frame(w,h,0)
+            validity=np.fromfile(path/'out_validity.bin','u1').reshape(h,w);magnitude=np.abs(z).astype('f4');finite=np.isfinite(z)
+            expected_validity=np.where(~finite,3,np.where(magnitude<frame_bounds['near'],1,np.where(magnitude>frame_bounds['far'],2,0))).astype('u1')|np.where(z<0,np.uint8(4),np.uint8(0))
+            need(np.array_equal(validity,expected_validity),'B depth validity first class exact incl negative-Z sign bit')
+            transport=np.fromfile(path/'out_depth.bin','<f4').reshape(h,w)
+            need(np.array_equal(np.abs(transport)==positive,((validity&np.uint8(3))==0)&(magnitude>0)),
+                 'B native motion exact equality engages only for the in-bounds finite nonzero class')
             mode_pairs.add((case['diff_mode'],case['spec_mode']))
         motion=np.fromfile(path/'out_motion.bin','<f2').reshape(h,w,4);need(np.all(motion[...,:3]==0)&np.all(motion[...,3]==1),'B current Temporal motion deferred independently of lighting')
         alb={key:np.fromfile(path/f'out_{key}.bin','u1').reshape(h,w,4) for key in ['spec_albedo','diff_albedo']}
@@ -183,7 +241,8 @@ def compare(root,manifest):
         rows.append({'case':case['name'],'diff_mode':case['diff_mode'],'spec_mode':case['spec_mode'],'status':status,'origin':case['origin']})
     need(mode_pairs==set(itertools.product(range(3),range(3))),'all nine independent native signal mode pairs actually exercised')
     need({0,0x8000}<=traced_alpha,'both native traced alpha signed-zero words exercised exactly')
-    return {'cases':rows,'max_reconstructed_half_ulp_error':max_half_ulp,'traced_alpha_words':sorted(traced_alpha)}
+    return {'cases':rows,'max_reconstructed_half_ulp_error':max_half_ulp,'traced_alpha_words':sorted(traced_alpha),
+            'gated_foreign_fill_positions_refused':foreign_rejected,'gated_supported_fill_positions':supported_gated}
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--run',action='store_true');parser.add_argument('--compare-only',action='store_true');parser.add_argument('--output',type=Path,default=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT',TASK/'tests/raw-prepass-native')));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)

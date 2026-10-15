@@ -12,6 +12,7 @@
 #include "precompile/FSRDNrdRawPrePassCapture_Shader.h"
 #include "precompile/FSRDNrdRawPrePassCaptureRoot_Shader.h"
 #include "precompile/FSRDNrdRawPrePassDecode_Shader.h"
+#include "precompile/FSRDNrdRawPrePassValidDecode_Shader.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -86,6 +87,10 @@ struct RawContext
     ComPtr<ID3D12PipelineState> tablePso,directPso,decodePso;
     ComPtr<ID3D12RootSignature> prePassTableRoot,prePassDirectRoot,prePassDecodeRoot;
     ComPtr<ID3D12PipelineState> prePassTablePso,prePassDirectPso,prePassDecodePso;
+    // D02/WP08 experiment: separate gated-fill decode profile, published as a
+    // complete set before any capture can suppress native work. Never default.
+    ComPtr<ID3D12RootSignature> prePassValidRoot;
+    ComPtr<ID3D12PipelineState> prePassValidPso;
     SignalFlagCapture captureFlag;
     std::shared_ptr<RawFamily> family;
     std::vector<std::shared_ptr<RawSlot>> slots;
@@ -105,11 +110,23 @@ struct RawContext
         prePassTableRoot=std::move(table);prePassDirectRoot=std::move(direct);prePassDecodeRoot=std::move(decode);
         prePassTablePso=std::move(tableState);prePassDirectPso=std::move(directState);prePassDecodePso=std::move(decodeState);
     }
+    void PrepareSurfaceValid()
+    {
+        std::lock_guard lock(mutex);
+        if(prePassValidPso)return;
+        // Publish only a complete set, before capture can suppress any native work.
+        ComPtr<ID3D12RootSignature> validRoot;
+        ComPtr<ID3D12PipelineState> validState;
+        RawPipeline(device.Get(),FSRDNrdRawPrePassValidDecode_cso,sizeof(FSRDNrdRawPrePassValidDecode_cso),validRoot,validState);
+        prePassValidRoot=std::move(validRoot);prePassValidPso=std::move(validState);
+    }
     void PreparePrePassSlot(RawSlot& slot)
     {
         if(slot.prePassDecodeViews)return;
         D3D12_DESCRIPTOR_HEAP_DESC views {};views.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        views.NumDescriptors=4;views.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        // Five slots: normal/depth guides, optional validity SRV, then the
+        // output pair. The production profile binds exactly the first four.
+        views.NumDescriptors=5;views.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         RawCheck(device->CreateDescriptorHeap(&views,IID_PPV_ARGS(&slot.prePassDecodeViews)),"Raw PrePass decode view allocation failed");
     }
     std::shared_ptr<RawSlot> Acquire(bool prePass)
@@ -382,7 +399,8 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
     catch(...){error="Raw noisy snapshot allocation failed";return false;}
 }
 bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSignalLease& record,
-                                   const ConvertedResources& output,const TitleSignalConstants& constants,std::string& error) noexcept
+                                   const ConvertedResources& output,const TitleSignalConstants& constants,std::string& error,
+                                   bool surfaceValidFill) noexcept
 {
     if(!list||!impl_||!record||record->wrapper.lock()!=impl_){error="Raw decode lease belongs to another helper";return false;}
     auto context=record->context;
@@ -399,6 +417,11 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
        !ValidateTitleSignalConstants(constants,context->device.Get(),error))
     {if(error.empty())error="Raw decode requires its same live native recording and owned output pair";return false;}
     const bool prePass=record->profile==NativeRawProfile::PrePass;
+    // D02/WP08 experiment stays fail-closed: the gated profile additionally
+    // demands this frame's owned R8_UINT validity channel from geometry. The
+    // separate gated pipeline itself is prepared inside the guarded body below.
+    if(surfaceValidFill&&(!prePass||!RawGuideMatches(output.validity,*context,DXGI_FORMAT_R8_UINT)))
+    {error="Surface-valid fill requires the PrePass profile and this frame's owned R8_UINT validity channel";return false;}
     if(prePass&&(!record->slot->prePassDecodeViews||!context->prePassDecodePso||
        !RawGuideMatches(output.normals,*context,DXGI_FORMAT_R10G10B10A2_UNORM)||
        !RawGuideMatches(output.linearDepth,*context,DXGI_FORMAT_R32_FLOAT)))
@@ -408,6 +431,11 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
     try
     {
         FrameSurvey::ScopedInternal internal;ScopedSkipHeapCapture skip;
+        if(surfaceValidFill)
+        {
+            context->PrepareSurfaceValid();
+            if(!context->prePassValidPso){record->phase.store(0,std::memory_order_release);error="Gated surface-valid decode pipeline is unavailable";return false;}
+        }
         auto* views=prePass?record->slot->prePassDecodeViews.Get():record->slot->decodeViews.Get();
         auto cpu=views->GetCPUDescriptorHandleForHeapStart();
         if(prePass)
@@ -417,6 +445,12 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
                 D3D12_SHADER_RESOURCE_VIEW_DESC desc {};desc.Format=resource->GetDesc().Format;
                 desc.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;desc.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
                 desc.Texture2D.MipLevels=1;context->device->CreateShaderResourceView(resource,&desc,cpu);cpu.ptr+=context->stride;
+            }
+            if(surfaceValidFill)
+            {
+                D3D12_SHADER_RESOURCE_VIEW_DESC desc {};desc.Format=DXGI_FORMAT_R8_UINT;
+                desc.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;desc.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                desc.Texture2D.MipLevels=1;context->device->CreateShaderResourceView(output.validity,&desc,cpu);cpu.ptr+=context->stride;
             }
         }
         for(auto* resource:{output.spec,output.diff})
@@ -431,13 +465,15 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,kRawRead);
         RawTransition(list,output.spec,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         RawTransition(list,output.diff,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        list->SetPipelineState(prePass?context->prePassDecodePso.Get():context->decodePso.Get());
-        list->SetComputeRootSignature(prePass?context->prePassDecodeRoot.Get():context->decodeRoot.Get());
+        // The validity channel sits in the same geometry post-write read state as
+        // the guides; like them it needs no extra transition to bind as an SRV.
+        list->SetPipelineState(surfaceValidFill?context->prePassValidPso.Get():prePass?context->prePassDecodePso.Get():context->decodePso.Get());
+        list->SetComputeRootSignature(surfaceValidFill?context->prePassValidRoot.Get():prePass?context->prePassDecodeRoot.Get():context->decodeRoot.Get());
         ID3D12DescriptorHeap* heaps[]={views};list->SetDescriptorHeaps(1,heaps);
         const uint32_t extent[]={context->width,context->height};list->SetComputeRoot32BitConstants(0,2,extent,0);
         list->SetComputeRootShaderResourceView(1,record->slot->rawAddress);
         auto gpu=views->GetGPUDescriptorHandleForHeapStart();list->SetComputeRootDescriptorTable(2,gpu);
-        if(prePass){gpu.ptr+=uint64_t(2)*context->stride;list->SetComputeRootDescriptorTable(3,gpu);}
+        if(prePass){gpu.ptr+=uint64_t(surfaceValidFill?3u:2u)*context->stride;list->SetComputeRootDescriptorTable(3,gpu);}
         list->SetComputeRootConstantBufferView(prePass?4:3,record->slot->flagAddress);
         list->Dispatch((context->width+7)/8,(context->height+7)/8,1);
         RawTransition(list,output.spec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
