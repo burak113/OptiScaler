@@ -495,6 +495,7 @@ def run():
     sdk = next((Path(path) / 'd3d12.h' for path in env['INCLUDE'].split(';') if (Path(path) / 'd3d12.h').is_file())).read_text()
     source = (ROOT / 'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
     production = '\n'.join(function(source, signature) for signature in (
+        'static bool RequiredComputeSubmissionAllowed(',
         'std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(',
         'bool ResTrack_Dx12::RefreshComputeHookDevice(', 'bool ResTrack_Dx12::RetainComputeDispatch('))
     survey = (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_text()

@@ -2372,6 +2372,7 @@ void ResTrack_Dx12::hkCreateUnorderedAccessView(ID3D12Device* This, ID3D12Resour
 void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                           ID3D12CommandList* const* ppCommandLists)
 {
+    if (!RequiredComputeSubmissionAllowed()) return;
     auto fg = State::Instance().currentFG;
 
     if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
