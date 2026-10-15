@@ -30,7 +30,8 @@ def sequence(width=128, height=128):
     """Own radiance/noise; shared already-tested camera and world-surface samples."""
     from test_fsrd_nrd_conversion import projected_depth_cases
     # Optional focal scales are supplied by the conversion fixture; defaults retain its old tests.
-    cases = projected_depth_cases(width, height, focal_scales=[1.0, .98, 1.02, 1.04, 1.01, 1, 1, 1])[:5]
+    # Ten per-pose values are required since the two T04 static-jitter poses joined the set.
+    cases = projected_depth_cases(width, height, focal_scales=[1.0, .98, 1.02, 1.04, 1.01, 1, 1, 1, 1, 1])[:5]
     margin = 16
     y, x = np.mgrid[:height, :width]
     interior = (x >= margin) & (x < width-margin) & (y >= margin) & (y < height-margin)

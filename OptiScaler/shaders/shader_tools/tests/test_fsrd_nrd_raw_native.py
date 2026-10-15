@@ -7,7 +7,8 @@ sys.path.insert(0,str(HERE.parent))
 from fsrd_toolchain import compile_cpp,dxc
 import test_fsrd_nrd_conversion as legacy
 ROOT=Path(os.environ.get('FSRD_NRD_PRODUCTION_ROOT',HERE.parents[3])).resolve();PASS=ROOT/'OptiScaler/shaders/fsrd_preprocess'
-TASK=Path('F:/FSRD/sol_batch/15c-rr');CHECKS=0
+# Task-local outputs only: derive from the runner's per-test output root when present.
+TASK=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT','F:/FSRD/sol_batch/15c-rr/tests/fallback')).resolve().parents[1];CHECKS=0
 
 def need(value,name):
     global CHECKS

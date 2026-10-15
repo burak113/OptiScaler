@@ -71,7 +71,7 @@ def generate(directory):
     from test_fsrd_nrd_conversion import projected_depth_cases, reference
     directory = Path(directory); directory.mkdir(parents=True, exist_ok=True)
     values = sequence(128, 128)
-    cases = projected_depth_cases(128, 128, focal_scales=[1, .98, 1.02, 1.04, 1.01, 1, 1, 1])[:5]
+    cases = projected_depth_cases(128, 128, focal_scales=[1, .98, 1.02, 1.04, 1.01, 1, 1, 1, 1, 1])[:5]
     require(len(values) == 44, 'shared immutable quality oracle must contain44 frames')
     y, x = np.mgrid[:128, :128]
     interior = (x >= 16) & (x < 112) & (y >= 16) & (y < 112)
