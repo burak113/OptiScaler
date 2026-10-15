@@ -794,7 +794,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
             << ", SL cameraNear/Far=(" << sl.cameraNear << ',' << sl.cameraFar << ")"
             << ", projectionNear/Far=(" << out.nearPlane << ',' << out.farPlane << ")"
             << ", infiniteProjection=" << planes.isInfinite << ", rightHanded=" << planes.isRightHanded
-            << ", cameraMotionIncluded=1; signals demodulated RGB, white albedos; RR output alpha preserved";
+            << ", cameraMotionIncluded=1; signals demodulated RGB; albedos linear native material or white fallback (see material admission counters); RR output alpha preserved";
         impl_->conventions = log.str();
     }
     return true;
