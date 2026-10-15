@@ -209,6 +209,9 @@ void independentFamilyCases(){
  hkSetGraphicsRootSignatureLate(watched,nextGraphicsRoot);graphicsArgs(1900);
  verifyCompute();
  Config::Instance()->RestoreGraphicSignature.current=true;
+ // Bridge tracking remains active through false legacy flags. Rebind a truly
+ // different populated root before testing the original new-root assertion.
+ hkSetGraphicsRootSignature(watched,graphicsRoot);graphicsArgs(1900);
  hkSetGraphicsRootSignature(watched,nextGraphicsRoot);
  need(bridgeGraphicsStates[watched].rows[1].type==RootEntryType::Invalid&&bridgeGraphicsStates[watched].rows[5].type==RootEntryType::Invalid,"new graphics signature invalidates only graphics arguments");
  graphicsArgs(2900);calls.clear();D3D12Hooks::RestoreRoot(watched);
