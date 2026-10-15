@@ -168,7 +168,7 @@ class NativeMaterialCapture
     static bool CanCaptureStates(const SourceStates& states, D3D12_COMMAND_LIST_TYPE type) noexcept
     {
         if (type != D3D12_COMMAND_LIST_TYPE_DIRECT && type != D3D12_COMMAND_LIST_TYPE_COMPUTE) return false;
-        constexpr auto readMask = D3D12_RESOURCE_STATE_GENERIC_READ | D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+        constexpr auto readMask = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
         for (const auto state : states)
         {
             if ((state & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && type != D3D12_COMMAND_LIST_TYPE_DIRECT) return false;

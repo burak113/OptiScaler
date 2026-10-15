@@ -142,7 +142,7 @@ static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCaptur
     const std::array<Capture::SourceStates,6> cases {{{D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
         {D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COMMON},
         {D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
-        {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,nps},{D3D12_RESOURCE_STATE_GENERIC_READ,nps},
+        {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,nps},{nps,nps},
         {D3D12_RESOURCE_STATES(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE|nps),nps}}};
     const auto baseBytes=load(output/"base.bin"),paramsBytes=load(output/"params.bin"),expected=load(output/"material.bin");
     for(const auto& states : cases)
@@ -172,8 +172,10 @@ static void MaterialKnownStates(Fixture& fixture,NrdBridge::NativeMaterialCaptur
              "known-state capture retained a title source COM owner");
         const auto beforeReject=gMaterialPrivateBarriers;
         Capture::SnapshotLease invalid;
-        need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),
-             {D3D12_RESOURCE_STATE_RENDER_TARGET,nps},invalid,error),"unsupported source state admitted");
+        for(const auto unsupported : {D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ,
+                                     D3D12_RESOURCE_STATES(nps|D3D12_RESOURCE_STATE_RESOLVE_SOURCE)})
+            need(!capture.Capture(fixture.list.Get(),base.Get(),params.Get(),
+                 {unsupported,nps},invalid,error),"unsupported source state admitted");
         need(!invalid && gMaterialPrivateBarriers==beforeReject && gMaterialDispatches==dispatches+1,
              "unsupported exact state recorded GPU work");
         auto read=fixture.Snapshot(capture.Resource(lease),D3D12_RESOURCE_STATE_COMMON);

@@ -419,13 +419,16 @@ void run(const std::string& mode)
         for(const auto state : {D3D12_RESOURCE_STATE_COMMON,readState,D3D12_RESOURCE_STATE_UNORDERED_ACCESS})
         {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"known supported direct source state");
          need(P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"known supported compute source state");}
-        for(const auto state : {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_GENERIC_READ,
+        for(const auto state : {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)})
         {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"direct list supports exact pixel-read state");
          need(!P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"compute list cannot restore pixel-state masks");}
         for(const auto state : {D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_DEPTH_WRITE,
                 D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COPY_SOURCE,
-                D3D12_RESOURCE_STATE_RESOLVE_DEST,D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+                D3D12_RESOURCE_STATE_RESOLVE_DEST,D3D12_RESOURCE_STATE_RESOLVE_SOURCE,D3D12_RESOURCE_STATE_GENERIC_READ,
+                D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_INDEX_BUFFER),
+                D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+                D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
                 D3D12_RESOURCE_STATES(0x80000000u)})
             need(!P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"unsupported or malformed exact states fail closed");
         for(const auto type : {D3D12_COMMAND_LIST_TYPE_BUNDLE,D3D12_COMMAND_LIST_TYPE_COPY})
