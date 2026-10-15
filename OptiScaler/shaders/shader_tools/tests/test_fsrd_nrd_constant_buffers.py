@@ -16,13 +16,17 @@ from test_fsrd_nrd_root_restore import function
 from fsrd_toolchain import compile_cpp
 
 CPP = r'''
+// The surveyed D3D12_Hooks state slice calls RootTrackerBirthsEnabled(), which reads the
+// startup wrapper flag; define it before that slice exactly as the hooks translation unit does.
+bool gNrdBridgeDeviceWrappers=true;
 __STATE__
-struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2]={nullptr,nullptr}; };
+// Synthetic mirror of the production DescriptorHeap layout (birth fields included).
+struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2]={nullptr,nullptr};
+ NrdBridgeBirth::Token receiverBirth; std::array<NrdBridgeBirth::Token,2> heapBirths; };
 std::shared_mutex rootStatesMutex,descriptorHeapsMutex;
-std::unordered_map<ID3D12GraphicsCommandList*,std::vector<RootState>> rootStates;
+std::unordered_map<ID3D12GraphicsCommandList*,TrackedRootRows> rootStates;
 std::unordered_map<ID3D12GraphicsCommandList*,DescriptorHeap> descriptorHeaps;
 std::unordered_map<ID3D12GraphicsCommandList*,ID3D12RootSignature*> bridgeComputeRoots;
-bool gNrdBridgeDeviceWrappers=true;
 __GETTER__
 unsigned cbvNativeCalls=0;
 bool gNrdBridgeWrappers=true;
@@ -30,6 +34,24 @@ void nativeCBV(ID3D12Device* device,const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
  ++cbvNativeCalls; device->CreateConstantBufferView(desc,handle);
 }
 auto o_CreateConstantBufferView=&nativeCBV;
+// The surveyed CBV hook runs inside the production descriptor-admission gate and the
+// untracked-required-submission latch; compile against their real headers.
+#include "misc/NrdBridgeDescriptorAdmission_Dx12.h"
+#include "misc/RecordedComputeLease_Dx12.h"
+// The surveyed production translation units reference these bridge-facing entry
+// points. The fixture keeps the NRD bridge startup dormant (the production state
+// when NrdBridge::StartupEnabled() is false), so the stubs mirror that exact
+// semantics instead of linking the full bridge coordinator.
+namespace NrdBridge {
+ inline bool StartupEnabled() noexcept { return false; }
+ inline DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*, DispatchKind) noexcept { return DispatchDisposition::Forward; }
+ inline void InvalidateRecordingProof(ID3D12GraphicsCommandList*, const char*, const char*) noexcept {}
+ inline bool PreserveIndirectRecording(ID3D12GraphicsCommandList*, ID3D12CommandSignature*) noexcept { return false; }
+ inline const char* LobeRecoveryTierName(uint32_t) noexcept { return "fixture"; }
+ inline const char* LobeRecoveryFallbackReasonName(uint32_t) noexcept { return "fixture"; }
+}
+namespace NrdBridgeNativeBirth { inline bool ObserveReleaseCoverage(IUnknown*) noexcept { return false; } }
+void D3D12Hooks::OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*, bool) noexcept {}
 __CBVHOOK__
 struct ConstantHost: RegisterHost {
  ComPtr<ID3D12DescriptorHeap> cpuHeap;
