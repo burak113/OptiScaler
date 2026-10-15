@@ -65,7 +65,7 @@ struct NativeMaterialTitle {
   hr(h.device->CreateRootSignature(0,blob->GetBufferPointer(),blob->GetBufferSize(),IID_PPV_ARGS(&root)));rootSigParameterCount[root.Get()]=9;FrameSurvey::RootCreated(root.Get(),blob->GetBufferPointer(),blob->GetBufferSize());
   const auto code=D3DCompile(materialTitleShader,sizeof(materialTitleShader),nullptr,nullptr,nullptr,"main","cs_5_1",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&cs,&error);
   if(FAILED(code)&&error)std::cerr<<static_cast<const char*>(error->GetBufferPointer())<<'\n';hr(code);D3D12_COMPUTE_PIPELINE_STATE_DESC pd{};pd.pRootSignature=root.Get();pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
-  hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso)));FrameSurvey::PipelineCreated(pso.Get(),pd);NrdBridge::RegisterPipelineRoleForTesting(pso.Get(),NrdBridge::Role::MaterialGuide);
+  hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso)));FrameSurvey::PipelineCreated(pso.Get(),pd);NrdBridge::RegisterPipelineRoleForTesting(pso.Get(),NrdBridge::Role::MaterialGuide,true);
  }
  void start(){auto zero=h.upload(0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);h.list->CopyBufferRegion(check.Get(),0,zero.Get(),0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.uploads.push_back(zero);dispatchCount=0;}
  void dispatch(bool known,bool pixelOnly=false,bool badProfile=false){

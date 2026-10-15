@@ -299,11 +299,21 @@ struct D3D12Hooks {
     source.write_text(cpp)
     exe = out / 'nrd_e2e.exe'
     os.environ['FSRD_CPP_CACHE'] = str(out / 'cache')
-    compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib',
-        'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT / 'OptiScaler/library/detours/detours.lib')),
-        (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',
-         ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline',
-         ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api', ROOT / 'OptiScaler/shaders/fsrd_preprocess'))
+    # The host embeds the full production bridge; /bigobj matches the other
+    # production-embedding fixtures and only affects object-section layout.
+    prior_cl = os.environ.get('CL')
+    os.environ['CL'] = ((prior_cl + ' ') if prior_cl else '') + '/bigobj'
+    try:
+        compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib',
+            'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT / 'OptiScaler/library/detours/detours.lib')),
+            (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',
+             ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline',
+             ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api', ROOT / 'OptiScaler/shaders/fsrd_preprocess'))
+    finally:
+        if prior_cl is None:
+            os.environ.pop('CL', None)
+        else:
+            os.environ['CL'] = prior_cl
     return exe
 
 

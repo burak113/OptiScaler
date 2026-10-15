@@ -195,7 +195,17 @@ def main():
     ast.parse(Path(__file__).read_text(encoding='utf-8'))
     if args.prepare_only:
         print(json.dumps(dict(source=str(command[0]), compiler_executed=False, native_executed=False, gpu_executed=False)));return
-    compile_cpp(*command, **kwargs)
+    # The concatenated host embeds the full bridge; /bigobj matches the other
+    # production-embedding fixtures and only affects object-section layout.
+    prior_cl = os.environ.get('CL')
+    os.environ['CL'] = ((prior_cl + ' ') if prior_cl else '') + '/bigobj'
+    try:
+        compile_cpp(*command, **kwargs)
+    finally:
+        if prior_cl is None:
+            os.environ.pop('CL', None)
+        else:
+            os.environ['CL'] = prior_cl
     modes = {}
     for enabled in (False, True):
         directory = out / ('on' if enabled else 'off');directory.mkdir(exist_ok=True)
