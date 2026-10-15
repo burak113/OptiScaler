@@ -325,6 +325,37 @@ def quality_replay(exe, out):
     print(json.dumps(result, indent=2))
 
 
+def native_motion_quality(exe, out):
+    from fsrd_nrd_native_motion_e2e_inputs import prepare
+    inputs = Path(os.environ.get('FSRD_NRD_NATIVE_MOTION_ORACLE_INPUT', 'F:/FSRD/sol_batch/15e-quality/inputs'))
+    manifest = prepare(inputs, out / 'native_motion_input')
+    runs = {}
+    for mode, flag in (('baseline', '--native-motion-quality-baseline'), ('on', '--native-motion-quality'),
+                       ('table', '--native-motion-quality-table')):
+        directory = out / ('native_motion_' + mode)
+        directory.mkdir(parents=True, exist_ok=True)
+        text, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), flag], directory / 'native_run')
+        value = json.loads((directory / 'native-motion-quality-result.json').read_text(encoding='utf-8'))
+        native = value['native_motion_quality']
+        assert native['submitted_quality_frames'] == len(native['frames']) == manifest['submitted_frames'] == 64
+        assert native['same_history_context'] and native['first_only_quality_reset']
+        assert native['current_prepass_r32_t4_every_pixel'] and native['native_enabled'] == (mode != 'baseline')
+        assert native['table_binding'] == (mode == 'table')
+        assert native['full_native_shadow_256_bytes'] == native['post_capture_cancel_recovered'] == (mode != 'baseline')
+        assert native['warmed_shadow_bytes'] > 0 if mode != 'baseline' else native['warmed_shadow_bytes'] == 0
+        assert [frame['reset'] for frame in native['frames']] == [True] + [False] * 63
+        assert [frame['camera_fallback'] for frame in native['frames']] == [i == 24 for i in range(64)]
+        assert value['debug_errors'] == value['debug_warnings'] == 0
+        value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                     dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(), python_checks=9)
+        (directory / 'native-motion-quality-result.json').write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+        runs[mode] = value
+    result = dict(runs=runs, python_checks=27, input_manifest_sha256=hashlib.sha256((out / 'native_motion_input' / 'sequence.json').read_bytes()).hexdigest(),
+                  scope='actual production coordinator/detours/NativeTemporalCapture/conversion/signed RR/Consumer on synthetic native-codec world oracle; native title world-mode not tested; physical native Release coverage separate')
+    (out / 'native-motion-quality-comparison.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(dict(result=str(out / 'native-motion-quality-comparison.json'), python_checks=27), indent=2))
+
+
 def validate_native_blend(value):
     trace = value['native_blend']
     assert trace['binding'] in ('root VA', 'native table')
@@ -396,6 +427,9 @@ def run():
         return
     if '--native-blend-only' in sys.argv:
         print(json.dumps(native_blend_replay(exe, out), indent=2))
+        return
+    if '--native-motion-quality-only' in sys.argv:
+        native_motion_quality(exe, out)
         return
     if '--quality-only' in sys.argv:
         quality_replay(exe, out)

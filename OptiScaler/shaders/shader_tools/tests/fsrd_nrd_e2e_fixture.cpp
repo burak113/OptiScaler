@@ -292,6 +292,10 @@ cbuffer BufferValue:register(b6) { uint4 TitleWords[96]; };
 cbuffer Extent:register(b8) { uint Width,Height; };
 Texture2D<float4> S0:register(t0); Texture2D<float4> S1:register(t1);
 Texture2D<float4> S2:register(t2);
+#ifdef NATIVE_TEMPORAL_FIXTURE
+Texture2D<float> NativeInputZ:register(t3); Texture2D<float> NativeCurrentZ:register(t4);
+RWTexture2D<float> NativeOutputZ:register(u2);
+#endif
 SamplerState Samp:register(s0);
 StructuredBuffer<uint> RootSRV:register(t0,space1);
 RWStructuredBuffer<uint> Checks:register(u0,space1);
@@ -302,6 +306,9 @@ float3 ConsumerRGB(float3 c) {
 }
 [numthreads(8,8,1)] void main(uint3 p:SV_DispatchThreadID) {
  if(any(p.xy>=uint2(Width,Height))) return;
+#ifdef NATIVE_TEMPORAL_FIXTURE
+ if(ROLE==3) NativeOutputZ[p.xy]=max(abs(NativeInputZ.Load(int3(p.xy,0))),1e-6);
+#endif
  if(ROLE==2) { U0[p.xy]=S0.Load(int3(p.xy,0)); U1[p.xy]=S1.Load(int3(p.xy,0)); }
  if(ROLE==9) { U0[p.xy]=float4(.75,.5,.25,9); U1[p.xy]=float4(.625,.375,.125,11); }
  if(all(p.xy==0)) {
@@ -312,6 +319,9 @@ float3 ConsumerRGB(float3 c) {
   InterlockedAdd(Checks[base+11],1);
   if(ROLE==10) { Checks[base+12]=asuint(ConsumerRGB(U0[uint2(0,0)].rgb).x); Checks[base+13]=asuint(ConsumerRGB(U1[uint2(0,0)].rgb).x); Checks[base+15]=TitleWords[75].w; }
   if(ROLE==4) Checks[base+14]=asuint(S2.Load(int3(0,0,0)).x);
+#ifdef NATIVE_TEMPORAL_FIXTURE
+  if(ROLE==4) Checks[base+12]=asuint(NativeCurrentZ.Load(int3(0,0,0)));
+#endif
  }
 })";
 struct Readback {
@@ -325,14 +335,15 @@ struct Readback {
  }
 };
 struct Title {
- Host& h; UINT width,height,increment=0,codecBits=0; bool registered,tableConstants=false;void (*beforeConsumer)()=nullptr;
+ Host& h; UINT width,height,increment=0,codecBits=0; bool registered,tableConstants=false,nativeProfile=false;void (*beforeConsumer)()=nullptr;
+ ComPtr<ID3D12Resource> nativeViewDepth; D3D12_RESOURCE_STATES nativeDepthState=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
  ComPtr<ID3D12RootSignature> root; std::array<ComPtr<ID3D12PipelineState>,11> pso;
  std::array<ComPtr<ID3D12Resource>,13> tex;
  std::array<std::vector<uint16_t>,2> raw;
  ComPtr<ID3D12DescriptorHeap> staging,visible,sampler;
  ComPtr<ID3D12Resource> cb,rootSrv,checksum;
- ~Title() { for(const auto& texture:tex) titleTextures.erase(texture.Get()); }
- Title(Host& host,UINT w,UINT height_,bool metadata,bool tableCbv=false):h(host),width(w),height(height_),registered(metadata),tableConstants(tableCbv) {
+ ~Title() { for(const auto& texture:tex) titleTextures.erase(texture.Get()); if(nativeViewDepth)titleTextures.erase(nativeViewDepth.Get()); }
+ Title(Host& host,UINT w,UINT height_,bool metadata,bool tableCbv=false,bool nativeMode=false):h(host),width(w),height(height_),registered(metadata),tableConstants(tableCbv),nativeProfile(nativeMode) {
   D3D12_DESCRIPTOR_RANGE ranges[3]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,5,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,1,0,0,0}};
   D3D12_ROOT_PARAMETER p[8]{}; p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[0].Constants={0,0,8};
   p[1].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[1].DescriptorTable={1,&ranges[0]};
@@ -362,7 +373,8 @@ struct Title {
   rootSigParameterCount[root.Get()]=8; // Equivalent device creation-hook metadata, isolated from its adapter setup.
   if(registered) FrameSurvey::RootCreated(root.Get(),blob->GetBufferPointer(),blob->GetBufferSize());
   for(UINT role=1;role<11;++role) {
-   ComPtr<ID3DBlob> cs; const std::string number=std::to_string(role); D3D_SHADER_MACRO defines[]={{"ROLE",number.c_str()},{nullptr,nullptr}};
+   ComPtr<ID3DBlob> cs; const std::string number=std::to_string(role); D3D_SHADER_MACRO defines[]={{"ROLE",number.c_str()},{nullptr,nullptr},{nullptr,nullptr}};
+   if(nativeProfile)defines[1]={"NATIVE_TEMPORAL_FIXTURE","1"};
    const auto result=D3DCompile(titleShader,sizeof(titleShader),nullptr,defines,nullptr,"main","cs_5_1",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&cs,&error);
    if(FAILED(result) && error) std::cerr<<static_cast<const char*>(error->GetBufferPointer())<<'\n'; hr(result);
    D3D12_COMPUTE_PIPELINE_STATE_DESC pd{}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
@@ -373,7 +385,14 @@ struct Title {
   static_cast<UINT*>(constants)[0]=55; cb->Unmap(0,nullptr);
   if(registered) FrameSurvey::ResourceCreated(cb.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);
   rootSrv=h.upload(66); checksum=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
-  createTextures(); D3D12_DESCRIPTOR_HEAP_DESC hd{}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=64;
+  createTextures();
+  if(nativeProfile) {
+   D3D12_RESOURCE_DESC depth{};depth.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;depth.Width=width;depth.Height=height;depth.DepthOrArraySize=depth.MipLevels=depth.SampleDesc.Count=1;
+   depth.Format=DXGI_FORMAT_R32_FLOAT;depth.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+   hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&depth,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&nativeViewDepth)));
+   titleTextures.insert(nativeViewDepth.Get());if(registered)FrameSurvey::ResourceCreated(nativeViewDepth.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  }
+  D3D12_DESCRIPTOR_HEAP_DESC hd{}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=64;
   hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&staging))); hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
   hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&visible))); hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER; hd.NumDescriptors=1;
   hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&sampler)));
@@ -426,6 +445,12 @@ struct Title {
   tableViews(0,{0,1,2,3,0,1,2,3},false); tableViews(8,{4,5,9,10,9},true);
   tableViews(16,{0,1,6,2,3,0,1,2},false); tableViews(24,{9,10,9,10,9},true);
   tableViews(32,{7,8,9,10,9},true); tableViews(40,{11,12,9,10,9},true); tableViews(48,{8,7,9,10,9},true);
+  if(nativeProfile) {
+   D3D12_SHADER_RESOURCE_VIEW_DESC srv{};srv.Format=DXGI_FORMAT_R32_FLOAT;srv.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;srv.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;srv.Texture2D.MipLevels=1;
+   const D3D12_CPU_DESCRIPTOR_HANDLE read{staging->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(20)*increment};h.device->CreateShaderResourceView(nativeViewDepth.Get(),&srv,read);if(registered)FrameSurvey::View(nativeViewDepth.Get(),read,&srv);
+   D3D12_UNORDERED_ACCESS_VIEW_DESC uav{};uav.Format=DXGI_FORMAT_R32_FLOAT;uav.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
+   const D3D12_CPU_DESCRIPTOR_HANDLE write{staging->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(26)*increment};h.device->CreateUnorderedAccessView(nativeViewDepth.Get(),nullptr,&uav,write);if(registered)FrameSurvey::View(nativeViewDepth.Get(),write,&uav);
+  }
  }
  void copyDescriptors() {
   for(const auto& range:std::array<std::array<UINT,2>,7>{{{0,8},{8,5},{16,8},{24,5},{32,5},{40,5},{48,5}}}) {
@@ -475,12 +500,14 @@ struct Title {
   h.list->SetComputeRootDescriptorTable(7,sampler->GetGPUDescriptorHandleForHeapStart());
  }
  void pass(Role role,UINT uav=24,bool probe=false) {
+  if(nativeProfile&&role==Role::PrePass&&nativeDepthState!=D3D12_RESOURCE_STATE_UNORDERED_ACCESS){h.barrier(nativeViewDepth.Get(),nativeDepthState,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);nativeDepthState=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;}
   h.list->SetPipelineState(pso[UINT(role)].Get());
   // PrepLast wakes a new bounded window before title descriptor copies.
   if(role==Role::PrepLast) copyDescriptors();
   h.list->SetComputeRootDescriptorTable(1,{visible->GetGPUDescriptorHandleForHeapStart().ptr+uint64_t(role==Role::Temporal?16:0)*increment});
   h.list->SetComputeRootDescriptorTable(5,{visible->GetGPUDescriptorHandleForHeapStart().ptr+uint64_t(uav)*increment});
   h.list->Dispatch((width+7)/8,(height+7)/8,1); h.uav(checksum.Get());
+  if(nativeProfile&&role==Role::PrePass){h.uav(nativeViewDepth.Get());h.barrier(nativeViewDepth.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);nativeDepthState=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;}
   if(probe) {
    // No title state is set between the preceding injected RestoreRoot and this GPU check.
    // Bypass coordinator recursion using the real native trampoline, as a separate requested probe dispatch.
@@ -904,6 +931,7 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
   {"physical_provider_creates",1},{"provider_resets",resets},{"same_history_domain",true},{"native_current_guides_every_pixel",true},{"title_root_heaps_pso_rgb_alpha_checks_unchanged",true},{"frames",frames},
   {"scope",manifest["scope"]},{"timestamp_scope","synthetic original-title shader chain + probes + production bridge; excludes uploads/readback; not game FPS or real NRD cost"}};
 }
+#include "__ROOT__/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_native_motion_e2e_case.h"
 namespace NativeBlendCapture {
 Title* title=nullptr;std::array<Readback,2> native;float pending=0.f;unsigned gapApplies=0;
 void Capture() {native={title->readback(7),title->readback(8)};}
@@ -1123,9 +1151,11 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
  const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
  const bool nativeBlend=argc==4 && (std::string(argv[3])=="--native-blend" || std::string(argv[3])=="--native-blend-table"),nativeBlendTable=argc==4 && std::string(argv[3])=="--native-blend-table";
+ const bool nativeMotionQuality=argc==4&&(std::string(argv[3])=="--native-motion-quality"||std::string(argv[3])=="--native-motion-quality-baseline"||std::string(argv[3])=="--native-motion-quality-table");
+ const bool nativeMotionTable=argc==4&&std::string(argv[3])=="--native-motion-quality-table";
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"standalone signed-provider fixture uses legacy metadata tracking without native retirement coverage");
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
@@ -1151,7 +1181,13 @@ int main(int argc,char** argv) try {
  loadProvider(argv[2]);
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
- Title title(h,128,128,true,cbvLifetime||nativeBlendTable);
+ Title title(h,128,128,true,cbvLifetime||nativeBlendTable||nativeMotionTable,nativeMotionQuality);
+ if(nativeMotionQuality) {
+  nativeMotionQualityCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])!="--native-motion-quality-baseline");
+  NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"native-motion shutdown retires every actual signed context after all captured GPU recording leases");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"native-motion-quality-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_motion_quality checks="<<checks<<'\n';return 0;
+ }
  if(nativeBlend) {
   nativeBlendCase(h,title,result,std::filesystem::path(argv[1]));NrdBridge::Shutdown();RecordedComputeLease::Poll();
   need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"hybrid shutdown retires every actual signed context after all GPU fences");
