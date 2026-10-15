@@ -1,3 +1,4 @@
+#include "FSRDNrdMaterialQuantization.hlsli"
 #define MainRS \
     "RootFlags(0), " \
     "RootConstants(num32BitConstants = 2, b0), " \
@@ -17,5 +18,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
 {
     if (any(tid.xy >= RenderSize)) return;
     const float3 encoded = NativeBaseColor[tid.xy].rgb;
-    PrivateBaseColorMetallic[tid.xy] = float4(encoded * encoded, NativeMaterialParams[tid.xy].r);
+    const float4 material = float4(encoded * encoded, NativeMaterialParams[tid.xy].r);
+    // Pre-round explicitly; the final D3D typed-FLOAT store uses RTZ.
+    PrivateBaseColorMetallic[tid.xy] = NrdRoundMaterialHalfNearestEven(material);
 }
