@@ -32,6 +32,10 @@ class D3D12Hooks
     static void OnBridgeObjectReleased(const NrdBridgeBirth::Token&) noexcept;
     static bool CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList);
     static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&) noexcept;
+    static bool GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&,
+                                             ID3D12PipelineState*& currentPipeline) noexcept;
+    static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept;
+    static bool RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList*) noexcept;
     static void HookToCommandListLate(ID3D12GraphicsCommandList* commandList);
     static void RestoreRoot(ID3D12GraphicsCommandList* cmdList);
 };

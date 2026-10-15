@@ -3123,9 +3123,78 @@ bool D3D12Hooks::GetComputeBindingsForBridge(ID3D12GraphicsCommandList* list, Fr
     catch (...) { out = {}; return false; }
 }
 
-static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool extended, bool bridgeCompute,
-                                      D3D12RootRestoreSnapshot& snapshot)
+bool D3D12Hooks::GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList* list, FrameSurvey::ComputeBindings& out,
+                                             ID3D12PipelineState*& currentPipeline) noexcept
 {
+    out = {}; currentPipeline = nullptr;
+    if (!gNrdBridgeDeviceWrappers || !list) return false;
+    try
+    {
+        const auto receiver = RootTrackerBirthsEnabled() ? NrdBridgeBirth::Capture(list) : NrdBridgeBirth::Token{};
+        NrdBridgeBirth::CurrentGuard birthGuard(receiver,RootTrackerBirthsEnabled());
+        if (RootTrackerBirthsEnabled() && !birthGuard.AdmitsBorrow()) return false;
+        FrameSurvey::ComputeBindings current;
+        std::array<ID3D12DescriptorHeap*,2> nativeHeaps {};
+        std::array<NrdBridgeBirth::Token,2> heapBirths;
+        std::array<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>,D3D12_MAX_ROOT_COST> tables;
+        std::array<FrameSurvey::ComputeRootView,D3D12_MAX_ROOT_COST> views;
+        size_t heapCount = 0, tableCount = 0, viewCount = 0;
+        ID3D12PipelineState* pipeline = nullptr;
+        {
+            std::shared_lock roots(rootStatesMutex, std::defer_lock);
+            std::shared_lock heaps(descriptorHeapsMutex, std::defer_lock);
+            std::shared_lock pipelines(pipelineStatesMutex, std::defer_lock);
+            { NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Tracking); std::lock(roots,heaps,pipelines); }
+            const auto graphics = bridgeGraphicsStates.find(list);
+            const auto boundHeaps = descriptorHeaps.find(list);
+            const auto boundPipeline = pipelineStates.find(list);
+            if (graphics == bridgeGraphicsStates.end() || !graphics->second.root ||
+                boundHeaps == descriptorHeaps.end() || !boundHeaps->second.NumDescriptorHeaps ||
+                boundHeaps->second.NumDescriptorHeaps > 2 || boundPipeline == pipelineStates.end() || !boundPipeline->second.ptr)
+                return false;
+            const auto& rows = graphics->second.rows;
+            if (!RootRestoreArgumentsSupported(rows)) return false;
+            if (RootTrackerBirthsEnabled() && (rows.receiverBirth != receiver ||
+                boundHeaps->second.receiverBirth != receiver || boundPipeline->second.receiverBirth != receiver ||
+                !rows.rootCountKnown || !TrackerBorrowMatches(rows.rootBirth,graphics->second.root) ||
+                !TrackerBorrowMatches(boundPipeline->second.pipelineBirth,boundPipeline->second.ptr))) return false;
+            current.root = graphics->second.root; current.receiverBirth = receiver; current.rootBirth = rows.rootBirth;
+            current.pipelineBirth = boundPipeline->second.pipelineBirth; pipeline = boundPipeline->second.ptr;
+            heapCount = boundHeaps->second.NumDescriptorHeaps;
+            for (UINT i = 0; i < heapCount; ++i)
+            {
+                auto* heap = boundHeaps->second.Heaps[i];
+                if (!heap || (RootTrackerBirthsEnabled() && !TrackerBorrowMatches(boundHeaps->second.heapBirths[i],heap))) return false;
+                nativeHeaps[i] = heap; heapBirths[i] = boundHeaps->second.heapBirths[i];
+            }
+            for (UINT i = 0; i < rows.size(); ++i)
+            {
+                const auto& argument = rows[i];
+                if (argument.type == RootEntryType::Table && argument.rootDescriptorTable.ptr)
+                    tables[tableCount++] = {i,argument.rootDescriptorTable};
+                else if (argument.bufferLocation && (argument.type == RootEntryType::CBV ||
+                    argument.type == RootEntryType::SRV || argument.type == RootEntryType::UAV))
+                {
+                    const auto kind = argument.type == RootEntryType::CBV ? D3D12_DESCRIPTOR_RANGE_TYPE_CBV :
+                        argument.type == RootEntryType::SRV ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+                    views[viewCount++] = {i,kind,argument.bufferLocation};
+                }
+            }
+        }
+        // Allocation and output replacement happen after ALL tracker locks.
+        current.heaps.assign(nativeHeaps.begin(),nativeHeaps.begin()+heapCount);
+        if (RootTrackerBirthsEnabled()) current.heapBirths.assign(heapBirths.begin(),heapBirths.begin()+heapCount);
+        current.tables.assign(tables.begin(),tables.begin()+tableCount);
+        current.views.assign(views.begin(),views.begin()+viewCount);
+        out = std::move(current); currentPipeline = pipeline; return true;
+    }
+    catch (...) { out = {}; currentPipeline = nullptr; return false; }
+}
+
+static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool extended, bool bridgeCompute,
+                                      D3D12RootRestoreSnapshot& snapshot, bool bridgeGraphics = false)
+{
+    if ((bridgeCompute || bridgeGraphics) && !extended) return false;
     const auto receiver = RootTrackerBirthsEnabled() ? NrdBridgeBirth::Capture(cmdList) : NrdBridgeBirth::Token{};
     NrdBridgeBirth::CurrentGuard birthGuard(receiver,RootTrackerBirthsEnabled());
     if (RootTrackerBirthsEnabled() && !birthGuard.AdmitsBorrow()) return false;
@@ -3141,7 +3210,7 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
         std::lock(signaturesLock, heapsLock, pipelineLock, statesLock);
     }
     else LockRootTracker(signaturesLock);
-    if (bridgeCompute && !BridgePredicateDisabledLocked(cmdList,receiver)) return false;
+    if ((bridgeCompute || bridgeGraphics) && !BridgePredicateDisabledLocked(cmdList,receiver)) return false;
     if (bridgeCompute)
     {
         const auto root = bridgeComputeRoots.find(cmdList);
@@ -3150,6 +3219,15 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
         if (RootTrackerBirthsEnabled() && (rows == rootStates.end() || rows->second.receiverBirth != receiver ||
             !rows->second.rootCountKnown || !TrackerBorrowMatches(rows->second.rootBirth,root->second))) return false;
         snapshot.signature = {SignatureEntryType::Compute,root->second}; snapshot.hasSignature = true;
+    }
+    else if (bridgeGraphics)
+    {
+        const auto graphics = bridgeGraphicsStates.find(cmdList);
+        if (graphics == bridgeGraphicsStates.end() || !graphics->second.root) return true;
+        const auto& rows = graphics->second.rows;
+        if (RootTrackerBirthsEnabled() && (rows.receiverBirth != receiver || !rows.rootCountKnown ||
+            !TrackerBorrowMatches(rows.rootBirth,graphics->second.root))) return false;
+        snapshot.signature = {SignatureEntryType::Graphics,graphics->second.root}; snapshot.hasSignature = true;
     }
     else
     {
@@ -3240,6 +3318,71 @@ bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
       if (RootTrackerBirthsEnabled() && (found->second.receiverBirth != receiver || !found->second.rootCountKnown ||
           !TrackerBorrowMatches(found->second.rootBirth,root->second))) return false; }
     return true;
+}
+
+static bool BridgeGraphicsRestoreHooksReady()
+{
+    return s_SetDescriptorHeaps.GetHook() && s_SetPipelineState.GetHook() &&
+        s_SetComputeRootSignature.GetHook() && s_SetGraphicsRootSignature.GetHook() &&
+        s_SetComputeRootDescriptorTable.GetHook() && s_SetGraphicsRootDescriptorTable.GetHook() &&
+        s_SetComputeRoot32BitConstant.GetHook() && s_SetGraphicsRoot32BitConstant.GetHook() &&
+        s_SetComputeRoot32BitConstants.GetHook() && s_SetGraphicsRoot32BitConstants.GetHook() &&
+        s_SetComputeRootConstantBufferView.GetHook() && s_SetGraphicsRootConstantBufferView.GetHook() &&
+        s_SetComputeRootShaderResourceView.GetHook() && s_SetGraphicsRootShaderResourceView.GetHook() &&
+        s_SetComputeRootUnorderedAccessView.GetHook() && s_SetGraphicsRootUnorderedAccessView.GetHook();
+}
+static bool BridgeGraphicsSnapshotPair(ID3D12GraphicsCommandList* list, D3D12RootRestoreSnapshot& compute,
+                                      D3D12RootRestoreSnapshot& graphics)
+{
+    if (!BridgeGraphicsRestoreHooksReady() ||
+        !CaptureRootRestoreSnapshot(list,true,true,compute) ||
+        !CaptureRootRestoreSnapshot(list,true,false,graphics,true)) return false;
+    // The first B implementation deliberately requires both known bound root
+    // families. Absence is not evidence of an unbound prehook compute root.
+    if (!compute.hasSignature || compute.signature.type != SignatureEntryType::Compute ||
+        !graphics.hasSignature || graphics.signature.type != SignatureEntryType::Graphics ||
+        !compute.hasRootState || !graphics.hasRootState || !compute.hasHeaps || !graphics.hasHeaps ||
+        !compute.hasPipelineState || !graphics.hasPipelineState || !graphics.pipelineState ||
+        compute.pipelineState != graphics.pipelineState || !compute.heaps.NumDescriptorHeaps ||
+        compute.heaps.NumDescriptorHeaps != graphics.heaps.NumDescriptorHeaps)
+        return false;
+    for (UINT i = 0; i < compute.heaps.NumDescriptorHeaps; ++i)
+        if (!compute.heaps.Heaps[i] || compute.heaps.Heaps[i] != graphics.heaps.Heaps[i]) return false;
+    return true;
+}
+
+bool D3D12Hooks::CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList* list) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list ||
+        !Config::Instance()->RestoreComputeSignature.value_or_default() ||
+        !Config::Instance()->ExtendedStateRestore.value_or_default()) return false;
+    try
+    {
+        D3D12RootRestoreSnapshot compute,graphics;
+        return BridgeGraphicsSnapshotPair(list,compute,graphics);
+    }
+    catch (...) { return false; }
+}
+
+bool D3D12Hooks::RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList* list) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list || !isNrdBridgeInjection) return false;
+    try
+    {
+        D3D12RootRestoreSnapshot compute,graphics;
+        if (!BridgeGraphicsSnapshotPair(list,compute,graphics)) return false;
+        // The physical borrow spans this replay; both snapshot collectors have
+        // already released every Birth/tracker lock before a native setter runs.
+        bool restored = RestoreDescriptorHeaps(list,graphics);
+        s_SetComputeRootSignature.GetHook()(list,compute.signature.ptr);
+        restored = RestoreComputeRootState(list,compute) && restored;
+        s_SetGraphicsRootSignature.GetHook()(list,graphics.signature.ptr);
+        restored = RestoreGraphicsRootState(list,graphics) && restored;
+        // Always restore the CURRENT graphics PSO last, not the early NRD CS PSO.
+        restored = RestorePipelineState(list,graphics) && restored;
+        return restored;
+    }
+    catch (...) { return false; }
 }
 
 bool D3D12Hooks::RestoreDescriptorHeaps(ID3D12GraphicsCommandList* cmdList, const D3D12RootRestoreSnapshot& snapshot)
