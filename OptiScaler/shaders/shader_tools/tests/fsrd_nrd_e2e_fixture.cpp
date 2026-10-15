@@ -99,9 +99,12 @@ void AttachRoots(ID3D12GraphicsCommandList* list) {
  s_SetComputeRootConstantBufferView.o_earlyHook=reinterpret_cast<PFN_SetComputeRootConstantBufferView>(table[37]);
  s_SetComputeRootShaderResourceView.o_earlyHook=reinterpret_cast<PFN_SetComputeRootShaderResourceView>(table[39]);
  s_SetComputeRootUnorderedAccessView.o_earlyHook=reinterpret_cast<PFN_SetComputeRootUnorderedAccessView>(table[41]);
+ s_SetGraphicsRootSignature.o_earlyHook=reinterpret_cast<PFN_SetGraphicsRootSignature>(table[30]);
+ ReadBridgeGraphicsArgumentHooks(reinterpret_cast<PVOID*>(table),false); // Actual production six-slot installer input.
  hr(DetourTransactionBegin()); hr(DetourUpdateThread(GetCurrentThread()));
  __D3D_ATTACH__
  need(DetourTransactionCommit()==NO_ERROR,"actual D3D12 root trackers attached");
+ D3D12Hooks::OnBridgeCommandListReset(list,nullptr); // Explicit successful creation/Reset adapter, including known-OFF predication.
 }
 void DetachRoots() {
  hr(DetourTransactionBegin()); hr(DetourUpdateThread(GetCurrentThread()));
@@ -111,6 +114,7 @@ void DetachRoots() {
 
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp"
 #include "__ROOT__/OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp"
+#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdRawSignals_Dx12.cpp"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.cpp"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
 #define FSRD_NRD_BRIDGE_TEST
@@ -219,6 +223,7 @@ struct Host {
   D3D12_COMMAND_QUEUE_DESC q{}; hr(device->CreateCommandQueue(&q,IID_PPV_ARGS(&queue)));
   hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&allocator)));
   hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,allocator.Get(),nullptr,IID_PPV_ARGS(&list)));
+  D3D12Hooks::OnBridgeCommandListReset(list.Get(),nullptr);
   hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&fence)));
   RecordedComputeLease::SetHooksAvailable(true,true);
  }
@@ -231,6 +236,7 @@ struct Host {
   Stream stream; if(newQueue) { D3D12_COMMAND_QUEUE_DESC q{}; hr(device->CreateCommandQueue(&q,IID_PPV_ARGS(&stream.queue))); } else stream.queue=queue;
   hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&stream.allocator)));
   hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,stream.allocator.Get(),nullptr,IID_PPV_ARGS(&stream.list)));
+  D3D12Hooks::OnBridgeCommandListReset(stream.list.Get(),nullptr);
   hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&stream.fence))); return stream;
  }
  void exchange(Stream& stream) {

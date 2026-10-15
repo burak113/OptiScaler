@@ -142,7 +142,8 @@ struct FfxApiProxy : ProviderExports {
     declaration = before_submission[:before_submission.index('{')].replace('ResTrack_Dx12::', '').strip()
     last = retention.rindex('};')
     retention = retention[:last] + '    static ' + declaration + ';\n' + retention[last:]
-    support += retention + '\n' + before_submission
+    required_submission = method(res, 'static bool RequiredComputeSubmissionAllowed(')
+    support += retention + '\n' + required_submission + '\n' + before_submission
     support += '''
 #define LOG_WARN(...) ((void)0)
 #define LOG_TRACE(...) ((void)0)
@@ -182,13 +183,18 @@ namespace D3d12Proxy {
     controls_names = (
         'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
         'static bool CaptureRootRestoreSnapshot(',
-        'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::CanRestoreRootSignature(',
+        'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::BridgePredicationDisabled(',
+        'bool D3D12Hooks::CanRestoreRootSignature(',
+        'static bool BridgeGraphicsRestoreHooksReady(', 'static bool BridgeGraphicsSnapshotPair(',
+        'bool D3D12Hooks::CanRestoreGraphicsRootSignature(', 'bool D3D12Hooks::RestoreGraphicsRootForBridge(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
         'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
         'void D3D12Hooks::RestoreRoot(')
     if 'bool D3D12Hooks::GetComputeBindingsForBridge(' in d3d:
-        controls_names += ('bool D3D12Hooks::GetComputeBindingsForBridge(',)
-        extra = 'static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;'
+        controls_names += ('bool D3D12Hooks::GetComputeBindingsForBridge(',
+                           'bool D3D12Hooks::GetGraphicsBindingsForBridge(',)
+        extra = ('static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;\n'
+                 ' static bool GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&,ID3D12PipelineState*&) noexcept;')
     declaration = '''#pragma once
 #include <resource_tracking/FrameSurvey_Dx12.h>
 struct D3D12RootRestoreSnapshot;
@@ -197,6 +203,9 @@ struct D3D12Hooks {
  static bool RootSignatureTrackingEnabled();
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
+ static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept;
+ static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept;
+ static bool RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList*) noexcept;
  static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestoreComputeRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
@@ -207,12 +216,21 @@ struct D3D12Hooks {
     early = ('SetPipelineState', 'SetDescriptorHeaps', 'SetComputeRootSignature',
              'SetComputeRootDescriptorTable', 'SetComputeRoot32BitConstants',
              'SetComputeRoot32BitConstant', 'SetComputeRootConstantBufferView',
-             'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
+             'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView',
+             'SetGraphicsRootSignature', 'SetGraphicsRootDescriptorTable',
+             'SetGraphicsRoot32BitConstants', 'SetGraphicsRoot32BitConstant',
+             'SetGraphicsRootConstantBufferView', 'SetGraphicsRootShaderResourceView',
+             'SetGraphicsRootUnorderedAccessView')
     wrappers = ('SetDescriptorHeaps', 'SetComputeRootSignature', 'SetComputeRootConstantBufferView',
-                'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
+                'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView',
+                'SetGraphicsRootSignature')
+    graphics_arguments = tuple(name for name in early if name.startswith('SetGraphicsRoot') and name != 'SetGraphicsRootSignature')
     bodies = method(d3d, 'UINT GetRootParameterCount(') + '\n'
     bodies += '\n'.join(function(d3d, 'static void hk' + name + '(') for name in early)
     bodies += '\n' + '\n'.join(function(d3d, 'static void hkSurvey' + name + '(') for name in wrappers)
+    bodies += '\n' + '\n'.join(function(d3d, 'static void hk' + name + 'Late(') for name in graphics_arguments)
+    installers = d3d[d3d.index('// These six argument hooks'):d3d.index('static void UnhookBridgeGraphicsArguments(')]
+    bodies += '\n' + installers
     bodies = re.sub(r'\bhk(?=\w)', 'root_hk', bodies)
     controls = '\n'.join(function(d3d, signature) for signature in controls_names)
     restore_at = controls.index('void D3D12Hooks::RestoreRoot(')
@@ -249,17 +267,21 @@ struct D3D12Hooks {
     detach += '\nDetourDetach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset);'
     roots_attach = '\n'.join(re.search(
         r'DetourAttach\(&\(PVOID&\) s_' + name + r'\.o_earlyHook,\s*[^;]+;', d3d).group(0)
-        for name in early)
+        for name in early if name not in graphics_arguments)
     roots_attach = re.sub(r'\bhk(?=\w)', 'root_hk', roots_attach)
     roots_attach = '\n'.join('need(' + call + '==NO_ERROR,"root attach ' + name + '");'
-                             for name, call in zip(early, (part.strip() for part in roots_attach.split(';') if part.strip())))
+                             for name, call in zip((name for name in early if name not in graphics_arguments),
+                                                   (part.strip() for part in roots_attach.split(';') if part.strip())))
+    roots_detach = roots_attach.replace('DetourAttach', 'DetourDetach')
+    roots_attach += '\nneed(AttachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument installer\"); bridgeGraphicsEarlyAttached=true;'
+    roots_detach += '\nneed(DetachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument detach\"); bridgeGraphicsEarlyAttached=false;'
     cpp = Path(__file__).with_name('fsrd_nrd_e2e_fixture.cpp').read_text()
     replacements = dict(
         ROOT=ROOT.as_posix(), STATE=d3d[d3d.index('// Common'):d3d.index('// Intel Atomic Extension')]
             .replace('ankerl::unordered_dense::map', 'std::unordered_map'),
         TRACKERS=bodies, CONTROL=controls, WIRING=wiring,
         RES_ATTACH=attach, RES_DETACH=detach, D3D_ATTACH=roots_attach,
-        D3D_DETACH=roots_attach.replace('DetourAttach', 'DetourDetach'),
+        D3D_DETACH=roots_detach,
         SELECTORS='\n'.join(selected_line(res, marker) for marker in (
             'gNrdBridgeWrappers = NrdBridge::StartupEnabled();',
             'gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() ||')),
