@@ -611,7 +611,9 @@ int main(int argc,char** argv) try {
         'COMMAND_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)\n{'),
         'PSO_RELEASE':function(res,'ULONG hkPsoRelease(ID3D12PipelineState* This)\n{'),
         'HEAP_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)\n{'),
-        'HEAP_DEACTIVATE':function(res_header,'bool DeactivateAndClear()'),
+        'HEAP_DEACTIVATE':'\n'.join(function(res_header,signature) for signature in
+            ('bool MarkInactive()', 'void DrainInactive()', 'bool DeactivateAndClear()'))
+            if 'bool MarkInactive()' in res_header else function(res_header,'bool DeactivateAndClear()'),
         'HEAP_SHARED_CLEANUP':function(res,'static void DeactivateSharedHeap(void* address)'),
         'HEAP_REGISTRY_HELPERS':'\n'.join(function(res,signature) for signature in (
             'static bool HeapRangeAvailableLocked(', 'static std::shared_ptr<HeapInfo> FindIndexedHeapRangeLocked(',

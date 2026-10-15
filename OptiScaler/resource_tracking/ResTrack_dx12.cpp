@@ -407,15 +407,30 @@ static std::shared_ptr<HeapInfo> FindTrackedHeapByAddress(void* address)
 
 static bool DeactivateTrackedHeap(const std::shared_ptr<HeapInfo>& heap)
 {
-    std::unique_lock lock(_heapRegistryMutex);
-    const auto found = gHeapSlotsByAddress.find(heap->heap);
-    if (found == gHeapSlotsByAddress.end() || fgHeaps[found->second] != heap || !heap->DeactivateAndClear()) return false;
-    const auto slot = found->second;
-    gHeapSlotsByAddress.erase(found);
-    gHeapCpuRanges.erase(heap->cpuStart);
-    if (heap->gpuStart) gHeapGpuRanges.erase(heap->gpuStart);
-    gFreeHeapSlots.push_back(slot);
-    gHeapGeneration.fetch_add(1,std::memory_order_release);
+    if (!heap) return false;
+    std::shared_ptr<HeapInfo> retired;
+    {
+        std::unique_lock lock(_heapRegistryMutex);
+        const auto found = gHeapSlotsByAddress.find(heap->heap);
+        if (found == gHeapSlotsByAddress.end()) return false;
+        auto& current = fgHeaps[found->second];
+        if (current != heap || !heap->MarkInactive()) return false;
+        const auto slot = found->second;
+        retired = std::move(current);
+        gHeapSlotsByAddress.erase(found);
+        const auto cpu = gHeapCpuRanges.find(retired->cpuStart);
+        if (cpu != gHeapCpuRanges.end() && cpu->second == slot) gHeapCpuRanges.erase(cpu);
+        if (retired->gpuStart)
+        {
+            const auto gpu = gHeapGpuRanges.find(retired->gpuStart);
+            if (gpu != gHeapGpuRanges.end() && gpu->second == slot) gHeapGpuRanges.erase(gpu);
+        }
+        gFreeHeapSlots.push_back(slot);
+        gHeapGeneration.fetch_add(1,std::memory_order_release);
+    }
+    // Slot/participant walks and storage destruction must not convoy unrelated
+    // heap lookup or retirement. Exact owner and index checks above admit one drain.
+    retired->DrainInactive();
     return true;
 }
 
