@@ -3270,7 +3270,38 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
     ImGui::TextWrapped("AMD's provider-native debug pass is separate from RawSignals/RRInputs conversion views. "
                       "Its colors are displayed after the upscaler evaluates, without the title's lighting modulation. "
                       "It shows the latest submitted RR frame and can lag when SR runs before the current NRD chain. "
+                      "It shows raw RR before lobe detail recovery and the NRD reference blend. "
                       "Enabling or disabling it recreates the RR context and resets history. Default off; depth display bounds use AMD defaults.");
+    return changed;
+}
+
+static bool DrawNrdBridgeLobeRecovery(Config* config)
+{
+    bool changed = false;
+    bool enabled = config->FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
+    if (ImGui::Checkbox("Separate lobe detail recovery (experimental)", &enabled))
+    {
+        config->FfxDenoiserNrdBridgeLobeRecovery = enabled;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Restores noise-gated detail lost after RR, with temporal warm-up, disocclusion rejection and a local anchor. "
+                          "All noisy lighting still goes through RR. A strength of 0 leaves that lobe unchanged; both 0 skip recovery allocation and dispatches. "
+                          "Independent of ordinary FSR-RR Recovery controls. Experimental; in-game quality is unmeasured. Default off.");
+    ImGui::BeginDisabled(!enabled);
+    float specular = NrdBridge::NormalizeLobeRecoveryStrength(config->FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
+    if (ImGui::SliderFloat("Bridge specular detail strength", &specular, 0.0f, 1.0f))
+    {
+        config->FfxDenoiserNrdBridgeRecoverySpecular = specular;
+        changed = true;
+    }
+    float diffuse = NrdBridge::NormalizeLobeRecoveryStrength(config->FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
+    if (ImGui::SliderFloat("Bridge diffuse detail strength", &diffuse, 0.0f, 1.0f))
+    {
+        config->FfxDenoiserNrdBridgeRecoveryDiffuse = diffuse;
+        changed = true;
+    }
+    ImGui::EndDisabled();
     return changed;
 }
 
@@ -3280,6 +3311,9 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
+    settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
+    settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
+    settings.recoveryDiffuse = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
     settings.nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
@@ -3373,6 +3407,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
                           "This changes the NRD/RR quality tradeoff, without a confidence or noise gate. "
                           "RR history is unchanged; in-game quality is unmeasured. Default 0. "
                           "Native AMD debug views show RR before this reference blend.");
+    changed |= DrawNrdBridgeLobeRecovery(config);
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
     if (changed)
@@ -3380,6 +3415,9 @@ static void DrawNrdBridgeRRTuning(Config* config)
     if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
     const auto state = NrdBridge::GetRRSettingsState();
     ImGui::Text("Applied NRD reference specular blend: %.3f", state.requested.nativeSpecularBlend);
+    ImGui::Text("Requested lobe recovery: %s (specular %.3f, diffuse %.3f)",
+                state.requested.lobeRecovery ? "On" : "Off", state.requested.recoverySpecular, state.requested.recoveryDiffuse);
+    ImGui::TextWrapped("Requested settings alone do not confirm recovery ran on a Consumer frame. Both zero strengths leave RR unchanged and skip recovery work.");
     if (!state.ready)
         ImGui::TextDisabled("Provider values are not available yet.");
     else if (ImGui::BeginTable("NrdBridgeRRValues", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
@@ -3430,6 +3468,9 @@ static void DrawNrdBridgeInputMap()
                 ? "Proven same-writer guides use linear baseColor*(1-metal) for diffuse and AMD analytic GGX specular RGB. Unknown source state/material falls back to white. Albedo alpha is unused by AMD RR1.2."
                 : "Requested native material guides: waiting for matching writer/state proof; white guides remain active.")
             : "White RGB guides preserve the demodulated lighting convention while omitting material cues. Specular alpha stores diagnostic normal/view alignment; AMD RR1.2 ignores albedo alpha.");
+        row("Post-RR lobe detail", NrdBridge::GetRRSettingsState().requested.lobeRecovery
+            ? "Requested separate lobe recovery uses noise-gated lost detail, temporal warm-up, disocclusion rejection and a local anchor. Zero strength leaves that lobe unchanged; both zero skip recovery work. Independent of ordinary Recovery controls."
+            : "Separate lobe detail recovery is requested off. Ordinary FSR-RR Recovery controls are independent of this bridge path.");
         row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
         row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
         ImGui::EndTable();

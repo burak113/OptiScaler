@@ -23,6 +23,9 @@ KEYS = {
     'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeNativeSpecularBlend': ('NrdBridgeNativeSpecularBlend', 'Float'),
+    'FfxDenoiserNrdBridgeLobeRecovery': ('NrdBridgeLobeRecovery', 'Bool'),
+    'FfxDenoiserNrdBridgeRecoverySpecular': ('NrdBridgeRecoverySpecular', 'Float'),
+    'FfxDenoiserNrdBridgeRecoveryDiffuse': ('NrdBridgeRecoveryDiffuse', 'Float'),
     'FfxDenoiserNrdBridgeEnabled': ('NrdBridgeEnabled', 'Bool'),
     'FfxDenoiserUseAmdDefaults': ('UseAmdDefaults', 'Bool'),
     'FfxDenoiserCrossBlNormStr': ('CrossBilateralNormalStrength', 'Float'),
@@ -290,6 +293,93 @@ int main(){try{
  "Full reset clears native material guidance in Config and runtime");
  cfg.load("[FSR-RR]\nNrdBridgeNativeMaterialGuides=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeMaterialGuides,
  "Invalid native material key keeps safe OFF default");
+
+ cfg.load("[FSR-RR]\n");NrdBridge::accept=true;ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ const auto recoveryDefaults=ReadNrdBridgeRRSettings(cfg);
+ need(!cfg.FfxDenoiserNrdBridgeLobeRecovery.value_or_default()&&!recoveryDefaults.lobeRecovery&&
+ recoveryDefaults.recoverySpecular==1.f&&recoveryDefaults.recoveryDiffuse==1.f,
+ "Separate lobe recovery defaults OFF with two strength1 values in actual Config and public POD");
+ need(ImGui::hasLabel("Separate lobe detail recovery (experimental)")&&
+ ImGui::hasLabel("Bridge specular detail strength")&&ImGui::hasLabel("Bridge diffuse detail strength")&&NrdBridge::applyCalls==before,
+ "Idle bridge recovery exposes its independent controls without applying a snapshot");
+ ImGui::frame();ImGui::floats["Bridge specular detail strength"]=.25f;ImGui::floats["Bridge diffuse detail strength"]=.75f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before&&cfg.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default()==1.f&&
+ cfg.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default()==1.f,
+ "OFF lobe recovery disables both sliders, preserves preferences and makes no new runtime call");
+ cfg.FfxDenoiserRecoverySpecular=false;cfg.FfxDenoiserRecoveryDiffuse=true;
+ cfg.FfxDenoiserRecoverySpecularStrength=.125f;cfg.FfxDenoiserRecoveryDiffuseStrength=.875f;
+ ImGui::frame();ImGui::hovered=true;ImGui::bools["Separate lobe detail recovery (experimental)"]=true;
+ ImGui::floats["Bridge specular detail strength"]=.375f;ImGui::floats["Bridge diffuse detail strength"]=.625f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.lobeRecovery&&NrdBridge::last.recoverySpecular==.375f&&
+ NrdBridge::last.recoveryDiffuse==.625f&&NrdBridge::last.overrideMask==0,
+ "One UI frame publishes recovery enable and both strengths as one coherent snapshot independently of AMD custom tuning");
+ need(!cfg.FfxDenoiserRecoverySpecular.value_or_default()&&cfg.FfxDenoiserRecoveryDiffuse.value_or_default()&&
+ cfg.FfxDenoiserRecoverySpecularStrength.value_or_default()==.125f&&cfg.FfxDenoiserRecoveryDiffuseStrength.value_or_default()==.875f,
+ "Bridge recovery controls leave the ordinary combined-path recovery preferences unchanged");
+ need(ImGui::hasText("noise-gated detail")&&ImGui::hasText("temporal warm-up")&&ImGui::hasText("disocclusion rejection")&&
+ ImGui::hasText("local anchor")&&ImGui::hasText("All noisy lighting still goes through RR"),
+ "Recovery tooltip states gating, temporal rejection and original RR input routing");
+ need(ImGui::hasText("Requested lobe recovery: On (specular 0.375, diffuse 0.625)")&&
+ ImGui::hasText("do not confirm recovery ran")&&!ImGui::hasText("Active lobe recovery"),
+ "Requested-only recovery label does not claim the graph ran on a Consumer");
+ need(ImGui::hasText("raw RR before lobe detail recovery")&&ImGui::hasText("NRD reference blend"),
+ "Provider native debug is explicitly before post-RR detail recovery and reference blending");
+ saved=cfg.save();reload.load(saved);auto recoveryReload=ReadNrdBridgeRRSettings(reload);
+ need(recoveryReload.lobeRecovery&&recoveryReload.recoverySpecular==.375f&&recoveryReload.recoveryDiffuse==.625f,
+ "Recovery enable and both strengths survive actual production INI save/reload");
+ ImGui::frame();ImGui::buttons["Reset AMD Tuning"]=true;
+ need(DrawAmdRRTuning(&cfg)&&cfg.FfxDenoiserNrdBridgeLobeRecovery.value_or_default()&&
+ cfg.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default()==.375f&&cfg.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default()==.625f,
+ "Ordinary AMD tuning reset preserves independent bridge lobe recovery preferences");
+ ImGui::frame();ImGui::floats["Bridge specular detail strength"]=0.f;drawBridge(&cfg);
+ need(NrdBridge::last.lobeRecovery&&NrdBridge::last.recoverySpecular==0.f&&NrdBridge::last.recoveryDiffuse==.625f,
+ "Zero specular strength is preserved in the coherent per-lobe recovery payload");
+ ImGui::frame();ImGui::floats["Bridge diffuse detail strength"]=0.f;drawBridge(&cfg);
+ need(NrdBridge::last.lobeRecovery&&NrdBridge::last.recoverySpecular==0.f&&NrdBridge::last.recoveryDiffuse==0.f&&
+ ImGui::hasText("both zero skip recovery work"),
+ "Both zero strengths remain exact requested zeros and the map explains the graph bypass, without a UI-spy GPU-work claim");
+ saved=cfg.save();reload.load(saved);recoveryReload=ReadNrdBridgeRRSettings(reload);
+ need(recoveryReload.lobeRecovery&&recoveryReload.recoverySpecular==0.f&&recoveryReload.recoveryDiffuse==0.f,
+ "Both exact zero strengths survive save/reload without reverting to defaults");
+ NrdBridge::accept=false;ImGui::frame();ImGui::bools["Separate lobe detail recovery (experimental)"]=false;drawBridge(&cfg);
+ need(!cfg.FfxDenoiserNrdBridgeLobeRecovery.value_or_default()&&NrdBridge::state.requested.lobeRecovery&&
+ ImGui::hasText("Settings not applied")&&ImGui::hasText("Requested lobe recovery: On"),
+ "Rejected recovery update retains the accepted requested runtime label and reports the error");
+ NrdBridge::accept=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Requested separate lobe recovery")&&!ImGui::hasText("Separate lobe detail recovery is requested off"),
+ "Recovery input map follows accepted requested state rather than a rejected stored Config edit");
+ for(const auto [value,expected]:std::array<std::array<float,2>,7>{{{-5.f,0.f},{2.f,1.f},{.125f,.125f},{0.f,0.f},
+ {std::numeric_limits<float>::quiet_NaN(),1.f},{std::numeric_limits<float>::infinity(),1.f},{-std::numeric_limits<float>::infinity(),1.f}}}) {
+  cfg.FfxDenoiserNrdBridgeRecoverySpecular=value;cfg.FfxDenoiserNrdBridgeRecoveryDiffuse=value;
+  const auto settings=ReadNrdBridgeRRSettings(cfg);
+  need(settings.recoverySpecular==expected&&settings.recoveryDiffuse==expected,
+  "Actual RR normalization helper clamps finite snapshot inputs and defaults nonfinite strengths to1");
+ }
+ cfg.load("[FSR-RR]\nNrdBridgeLobeRecovery=true\nNrdBridgeRecoverySpecular=-3\nNrdBridgeRecoveryDiffuse=2\n");
+ need(cfg.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default()==0.f&&cfg.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default()==1.f,
+ "Actual Config load normalizes stored finite strengths before publication");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).recoverySpecular==0.f&&
+ ReadNrdBridgeRRSettings(reload).recoveryDiffuse==1.f,"Clamped Config values persist normalized across save/reload");
+ for(const char* invalid:{"invalid","nan","inf","-inf","1e999","auto"}) {
+  cfg.load(std::string("[FSR-RR]\nNrdBridgeRecoverySpecular=")+invalid+"\nNrdBridgeRecoveryDiffuse="+invalid+"\n");
+  const auto settings=ReadNrdBridgeRRSettings(cfg);
+  need(cfg.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default()==1.f&&
+  cfg.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default()==1.f&&settings.recoverySpecular==1.f&&settings.recoveryDiffuse==1.f,
+  "Malformed/nonfinite Config recovery strengths use default1 without enabling the feature");
+ }
+ cfg.load("[FSR-RR]\nNrdBridgeLobeRecovery=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).lobeRecovery,
+ "Malformed recovery boolean keeps the feature OFF");
+ cfg.FfxDenoiserNrdBridgeLobeRecovery=true;cfg.FfxDenoiserNrdBridgeRecoverySpecular=.25f;cfg.FfxDenoiserNrdBridgeRecoveryDiffuse=.5f;
+ cfg.ResetFfxDenoiserSettings();recoveryReload=ReadNrdBridgeRRSettings(cfg);
+ need(!recoveryReload.lobeRecovery&&recoveryReload.recoverySpecular==1.f&&recoveryReload.recoveryDiffuse==1.f&&
+ !NrdBridge::last.lobeRecovery&&NrdBridge::last.recoverySpecular==1.f&&NrdBridge::last.recoveryDiffuse==1.f,
+ "Complete production reset restores recovery OFF and both strength1 values in Config and the coherent runtime payload");
+ saved=cfg.save();reload.load(saved);recoveryReload=ReadNrdBridgeRRSettings(reload);
+ need(!recoveryReload.lobeRecovery&&recoveryReload.recoverySpecular==1.f&&recoveryReload.recoveryDiffuse==1.f,
+ "Full reset/save/reload preserves recovery OFF and strength1 defaults");
+ ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Separate lobe detail recovery is requested off")&&
+ ImGui::hasText("Ordinary FSR-RR Recovery controls are independent"),
+ "Input map distinguishes the new bridge recovery from the ordinary combined-path Recovery settings");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -310,9 +400,10 @@ def run():
         contract_origin='explicit approved API spy POD; integrated replay reads actual header'
     types=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h').read_text()
     contract+='\n'+function(types,'inline float NormalizeNativeSpecularBlend(')
+    contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
-        load=re.findall(r'^\s*'+field+r'\.set_from_config\(read'+kind+r'\("FSR-RR", "'+key+r'"\)\);',config,re.M)
+        load=re.findall(r'^\s*'+field+r'\.set_from_config\([^;\n]*read'+kind+r'\("FSR-RR", "'+key+r'"\)[^;\n]*\);',config,re.M)
         save=re.search(r'ini.SetValue\("FSR-RR", "'+key+r'",\s*Get'+kind+r'Value\(Instance\(\)->'+field+r'\.value_for_config\(\)\)\.c_str\(\)\);',config)
         assert len(load)==1 and save,(field,key)
         loads.extend(load);saves.append(save.group());resets.append(field+'.reset();')
@@ -322,11 +413,13 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeNativeMaterialGuides'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion','NrdBridgeNativeMaterialGuides','NrdBridgeLobeRecovery'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeSpecularBlend=0\.0\s*$',template,re.M))==1
+    for key in ('NrdBridgeRecoverySpecular','NrdBridgeRecoveryDiffuse'):
+        assert len(re.findall(r'^'+key+r'=1\.0\s*$',template,re.M))==1,key
     ffx=(ROOT/'OptiScaler/include/fsr-rr/ffx_denoiser.h').read_text()
     enum=function(ffx,'typedef enum FfxApiDenoiserDebugViewMode')+' FfxApiDenoiserDebugViewMode;'
     maximum=re.search(r'^#define FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS \d+',ffx,re.M).group()
@@ -336,16 +429,20 @@ def run():
         CUSTOM=header[header.index('enum HasDefaultValue'):header.index('constexpr inline int UnboundKey')],
         RR_CONTRACT=contract,CONFIG_FIELDS='\n'.join(re.findall(r'^\s*CustomOptional<[^\n]+>\s+FfxDenoiser\w+[^;\n]*;',header,re.M)),
         FFX_DEBUG_CONTRACT=maximum+'\n'+enum,
-        SERIALIZERS='\n'.join(function(config,signature) for signature in ('static inline bool isFloat(', 'static inline bool isInteger(', 'std::string GetBoolValue(', 'std::string GetFloatValue(', 'std::string GetIntValue(std::optional<int> value)')),
+        SERIALIZERS='\n'.join(function(config,signature) for signature in ('static inline bool isFloat(', 'static inline bool isInteger(', 'static inline std::optional<float> NormalizeNrdBridgeRecoverySetting(', 'std::string GetBoolValue(', 'std::string GetFloatValue(', 'std::string GetIntValue(std::optional<int> value)')),
         READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)
     assert not re.search(r'__[A-Z_]+__',cpp)
     out=Path(os.environ['FSRD_GPU_TEST_OUTPUT']);out.mkdir(parents=True,exist_ok=True)
     file,exe=out/'nrd_menu_settings.cpp',out/'nrd_menu_settings.exe';file.write_text(cpp)
+    if '--prepare-only' in sys.argv:
+        print(json.dumps(dict(prepared=str(file),api_contract=contract_origin,checks=cpp.count('need(')-1,
+            scope='source generation only; no native compiler, executable, provider or GPU work'),indent=2))
+        return
     compile_cpp(file,exe)
     result=subprocess.run([str(exe)],capture_output=True,text=True)
     (out/'native-output.json').write_text(json.dumps(dict(exit_code=result.returncode,stdout=result.stdout,stderr=result.stderr),indent=2)+'\n')

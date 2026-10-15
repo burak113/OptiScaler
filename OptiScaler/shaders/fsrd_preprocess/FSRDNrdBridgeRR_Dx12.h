@@ -1,6 +1,8 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
 struct SLConstantsSnapshot;
 
@@ -8,6 +10,12 @@ namespace NrdBridgeStagePerf { struct Sample; }
 
 namespace NrdBridge
 {
+// Config/UI inputs use a safe default; direct API validation remains strict.
+static inline float NormalizeLobeRecoveryStrength(float value) noexcept
+{
+    return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : 1.0f;
+}
+
 struct RRSettings
 {
     // Bits0..5 select AMD scalar keys1..6 in values0..5; bit6 selects
