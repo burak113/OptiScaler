@@ -3496,7 +3496,7 @@ static void DrawNrdBridgeInputMap()
             ? "Requested separate lobe recovery uses noise-gated lost detail, temporal warm-up, disocclusion rejection and a local anchor. Zero strength leaves that lobe unchanged; both zero skip recovery work. Independent of ordinary Recovery controls."
             : "Separate lobe detail recovery is requested off. Ordinary FSR-RR Recovery controls are independent of this bridge path.");
         row("Consumer output encoding", "A tiny GPU shader reads the current consumer's exact b6/space0 binding: compute word303 or pixel-composition word36. It selects RGB or YCoCg; the game keeps its lighting scale, exposure and composition.");
-        row("Other NRD inputs", "NRD history, confidence and checkerboard controls have no equivalent bound AMD input here. They are not reinterpreted as lighting or fabricated. Ordinary DLSS-input conversion and Recovery controls are independent.");
+        row("Unused title inputs", "NRD history, confidence and checkerboard controls have no equivalent bound AMD input here. They are not reinterpreted as lighting or fabricated. Ordinary DLSS-input conversion and Recovery controls are independent.");
         ImGui::EndTable();
     }
     ImGui::TextWrapped("Both noisy lighting lobes go through AMD RR. Native NRD denoised color never corrects or replaces the RR result. The title keeps its final material, water, fog and transparent-layer composition.");
