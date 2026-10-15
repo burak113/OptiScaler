@@ -39,7 +39,7 @@ def check_provider_contract(replay):
     require(provider.get("signal_flags") == SIGNALS, "unsupported captured signal packet")
     require(provider.get("context_flags") in (0, 1, 2, 3), "unsupported captured context flags")
     require(first["settings"].get("defaults_ready") is True, "queried provider defaults unavailable")
-    stable = None
+    stable, stable_input_flags = None, None
     for frame in replay["frames"]:
         p = frame["provider"]
         require(all(type(p.get(key)) is int and 0 <= p[key] <= 0xffffffff
@@ -52,6 +52,10 @@ def check_provider_contract(replay):
         current = tuple(p.get(key) for key in ("api_version", "version_id", "signal_flags", "context_flags", "checkerboard_signal_flags"))
         require(stable is None or stable == current, "context creation controls changed inside replay")
         stable = current
+        input_flags = tuple(frame.get("inputs", {}).get(name, {}).get("source_native_resource_desc", {}).get("flags") for name in ORDER)
+        require(all(type(value) is int and value in (0, 4) for value in input_flags), "actual input GPU usage flags unavailable")
+        require(stable_input_flags is None or stable_input_flags == input_flags, "input GPU usage flags changed inside replay")
+        stable_input_flags = input_flags
         require(frame["actual_dispatch_flags"] & ~3 == 0, "unsupported captured dispatch flags")
         for key in ("provider_defaults", "provider_effective"):
             values = [struct.unpack("<f", struct.pack("<I", value))[0] for value in frame["settings"][key]]

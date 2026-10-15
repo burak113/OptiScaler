@@ -154,12 +154,12 @@ struct Device
         desc.SampleDesc.Count=1;desc.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;ComPtr<ID3D12Resource> result;
         Hr(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,type==D3D12_HEAP_TYPE_UPLOAD?D3D12_RESOURCE_STATE_GENERIC_READ:D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&result)),"transfer buffer");return result;
     }
-    Texture Create(uint32_t width,uint32_t height,DXGI_FORMAT format,bool output)
+    Texture Create(uint32_t width,uint32_t height,DXGI_FORMAT format,bool output,D3D12_RESOURCE_FLAGS inputFlags=D3D12_RESOURCE_FLAG_NONE)
     {
         Texture t;t.bpp=format==DXGI_FORMAT_R16G16B16A16_FLOAT?8:4;
         D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;D3D12_RESOURCE_DESC desc{};
         desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=width;desc.Height=height;desc.DepthOrArraySize=desc.MipLevels=1;
-        desc.SampleDesc.Count=1;desc.Format=format;desc.Flags=output?D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS:D3D12_RESOURCE_FLAG_NONE;
+        desc.SampleDesc.Count=1;desc.Format=format;desc.Flags=output?D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS:inputFlags;
         t.state=output?D3D12_RESOURCE_STATE_UNORDERED_ACCESS:D3D12_RESOURCE_STATE_COPY_DEST;
         Hr(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,t.state,nullptr,IID_PPV_ARGS(&t.resource)),"texture");
         device->GetCopyableFootprints(&desc,0,1,0,&t.footprint,nullptr,nullptr,&t.bytes);
@@ -290,7 +290,12 @@ int main(int argc,char** argv)try
     constexpr std::array<DXGI_FORMAT,9> formats{DXGI_FORMAT_R32_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R10G10B10A2_UNORM,
         DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
         DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT};
-    std::array<Texture,9> textures;for(size_t i=0;i<textures.size();++i)textures[i]=device.Create(width,height,formats[i],i>=7);
+    std::array<uint32_t,7> inputFlags{};
+    for(size_t i=0;i<7;++i){inputFlags[i]=first.at("inputs").at(i).at("source_native_resource_desc").at("flags");
+        Require(inputFlags[i]==0||inputFlags[i]==D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,"unsupported actual input GPU flags");}
+    std::array<Texture,9> textures;
+    for(size_t i=0;i<textures.size();++i)textures[i]=device.Create(width,height,formats[i],i>=7,
+        i<7?D3D12_RESOURCE_FLAGS(inputFlags[i]):D3D12_RESOURCE_FLAG_NONE);
     const bool debugging=(create.flags&FFX_DENOISER_ENABLE_DEBUGGING)!=0;Texture debugTexture;
     ComPtr<ID3D12DescriptorHeap> debugHeap,debugCpuHeap;
     if(debugging){debugTexture=device.Create(width,height,DXGI_FORMAT_R16G16B16A16_FLOAT,true);
@@ -308,7 +313,8 @@ int main(int argc,char** argv)try
         const auto& frame=frames.at(index);Require(frame.at("ordinal").get<size_t>()==index,"frame order changed");
         Hr(device.allocator->Reset(),"allocator reset");Hr(device.list->Reset(device.allocator.Get(),nullptr),"list reset");
         Require(frame.at("inputs").size()==7,"exactly seven actual inputs required");
-        for(size_t i=0;i<7;++i)device.Upload(textures[i],frame.at("inputs").at(i),width,height);
+        for(size_t i=0;i<7;++i){Require(frame.at("inputs").at(i).at("source_native_resource_desc").at("flags").get<uint32_t>()==inputFlags[i],"actual input GPU flags changed");
+            device.Upload(textures[i],frame.at("inputs").at(i),width,height);}
         FrozenFile controlsFile(Path(frame.at("controls").at("file").get<std::string>()));auto controls=controlsFile.Payload(frame.at("controls"),184);
         ffxDispatchDescDenoiser dispatch{};dispatch.header.type=FFX_API_DISPATCH_DESC_TYPE_DENOISER;dispatch.commandList=device.list.Get();
         memcpy(reinterpret_cast<uint8_t*>(&dispatch)+264,controls.data(),184);

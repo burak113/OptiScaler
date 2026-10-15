@@ -68,6 +68,12 @@ def exercise(source, output):
     rejected("native_control_decoded_value_not_payload", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(captured_uint32=0))
     rejected("native_control_wrong_size", lambda m: m["frames"][0]["native_control_header"].update(bytes=28))
     rejected("native_control_double_allocation_charge", lambda m: m["frames"][0]["native_control_header"]["copy_footprint"].update(committed_buffer_bytes=65536))
+    for field, value in (("width", 256), ("mip_levels", 2), ("flags", 8)):
+        incomplete_layout = copy.deepcopy(original)
+        incomplete_layout["frames"][0]["images"][0]["source_native_resource_desc"][field] = value
+        write(incomplete_layout)
+        assert "actual_RR_input_resource_layout_incomplete_or_has_uncaptured_extent" in inspect_capture(output)["ineligibility_reasons"]
+        checks.append("input_GPU_description_" + field + "_inspect_only")
     rejected("checkerboard_flags_outside_actual_signals", lambda m: m["frames"][0]["provider"].update(checkerboard_signal_flags=1))
     rejected("checkerboard_origin_not_binary", lambda m: m["frames"][0]["provider"].update(diffuse_checkerboard_origin=2))
     rejected("checkerboard_create_flag_changed_in_context", lambda m: m["frames"][1]["provider"].update(checkerboard_signal_flags=0))

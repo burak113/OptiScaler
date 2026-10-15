@@ -16,7 +16,7 @@ import struct
 import subprocess
 import sys
 
-from fsrd_nrd_trace_replay_cli import API_VERSION, check_provider_contract, frozen_provider, prepare_runner
+from fsrd_nrd_trace_replay_cli import API_VERSION, ORDER, check_provider_contract, frozen_provider, prepare_runner
 from fsrd_nrd_trace_replay import inspect_capture
 
 HERE = Path(__file__).resolve().parent
@@ -44,7 +44,8 @@ def main():
         "provider": {"api_version": API_VERSION, "version_id": 1, "signal_flags": 34, "context_flags": 0,
                      "checkerboard_signal_flags": 34, "diffuse_checkerboard_origin": 0, "specular_checkerboard_origin": 1,
                      "route_attestation": {"creation": {"implementation_identity": {"disk_sha256": "a" * 64}}}},
-        "actual_dispatch_flags": 3, "settings": {"defaults_ready": True, "provider_defaults": values,
+        "actual_dispatch_flags": 3, "inputs": {name: {"source_native_resource_desc": {"flags": 4}} for name in ORDER},
+        "settings": {"defaults_ready": True, "provider_defaults": values,
         "provider_effective": values, "native_debug_view": -1, "native_debug_viewport": 0}}]}
     assert check_provider_contract(model) == "a" * 64
     checks.append("CPU_model_admission_only_not_actual_provider_attestation")
@@ -65,6 +66,7 @@ def main():
     rejected("unknown_context_flags", lambda m: m["frames"][0]["provider"].update(context_flags=4))
     rejected("bool_not_typed_context_flags", lambda m: m["frames"][0]["provider"].update(context_flags=False))
     rejected("no_queried_defaults", lambda m: m["frames"][0]["settings"].update(defaults_ready=False))
+    rejected("no_actual_input_usage_flags", lambda m: m["frames"][0]["inputs"][ORDER[0]]["source_native_resource_desc"].pop("flags"))
     rejected("no_checkerboard_snapshot", lambda m: m["frames"][0]["provider"].pop("checkerboard_signal_flags"))
     rejected("checkerboard_flags_unselected_signal", lambda m: m["frames"][0]["provider"].update(checkerboard_signal_flags=1))
     rejected("checkerboard_origin_out_of_range", lambda m: m["frames"][0]["provider"].update(specular_checkerboard_origin=2))
