@@ -97,6 +97,31 @@ int main(int argc,char** argv) try
     const auto roughnessDesc=roughness->GetDesc();
     need(roughnessDesc.Format==DXGI_FORMAT_R16_FLOAT && roughnessDesc.Width==width && roughnessDesc.Height==height,
         "roughness capture format/shape changed");
+    std::vector<NrdBridge::NativeMaterialCapture::SnapshotLease> budgetSnapshots;
+    std::vector<ID3D12Resource*> baseIdentities{capture.Resource(snapshot)},roughnessIdentities{roughness};
+    auto allocationBytes=[&](ID3D12Resource* resource){const auto desc=resource->GetDesc();
+        const auto result=fixture.device->GetResourceAllocationInfo(0,1,&desc);need(result.SizeInBytes!=UINT64_MAX,"native allocation bytes invalid");
+        return result.SizeInBytes;};
+    uint64_t expectedBytes=allocationBytes(capture.Resource(legacy))+allocationBytes(capture.Resource(snapshot))+allocationBytes(roughness);
+    // One legacy snapshot remains live across profile replacement. Thirty-one
+    // paired slots and that legacy slot must share the same 32-slot family.
+    for(uint32_t i=0;i<30;++i)
+    {
+        NrdBridge::NativeMaterialCapture::SnapshotLease extra;
+        need(capture.CaptureParams(fixture.list.Get(),base.Get(),params.Get(),extra,error),error.c_str());
+        auto* baseResource=capture.Resource(extra);auto* roughResource=capture.RoughnessResource(extra);
+        need(baseResource && roughResource && baseResource!=roughResource,"paired slot missing output");
+        need(std::find(baseIdentities.begin(),baseIdentities.end(),baseResource)==baseIdentities.end(),"in-flight paired base slot reused");
+        need(std::find(roughnessIdentities.begin(),roughnessIdentities.end(),roughResource)==roughnessIdentities.end(),"in-flight paired roughness slot reused");
+        baseIdentities.push_back(baseResource);roughnessIdentities.push_back(roughResource);
+        expectedBytes+=allocationBytes(baseResource)+allocationBytes(roughResource);budgetSnapshots.push_back(std::move(extra));
+    }
+    need(gParamsCaptureDispatches==32,"expected exactly one dispatch for each legacy/paired snapshot");
+    need(capture.OwnedAuxiliaryBytes()==expectedBytes,"paired family bytes differ from actual native allocation sums");
+    const auto beforeFull=gParamsCaptureDispatches,barriersFull=gNrdAuditedBarriers;
+    NrdBridge::NativeMaterialCapture::SnapshotLease exhausted;
+    need(!capture.CaptureParams(fixture.list.Get(),base.Get(),params.Get(),exhausted,error) && !exhausted,"33rd family slot admitted");
+    need(gParamsCaptureDispatches==beforeFull && gNrdAuditedBarriers==barriersFull,"exhaustion recorded GPU work");
     auto legacyRead=fixture.Snapshot(capture.Resource(legacy),D3D12_RESOURCE_STATE_COMMON);
     auto materialRead=fixture.Snapshot(capture.Resource(snapshot),D3D12_RESOURCE_STATE_COMMON);
     auto roughnessRead=fixture.Snapshot(roughness,D3D12_RESOURCE_STATE_COMMON);
@@ -107,7 +132,12 @@ int main(int argc,char** argv) try
     save(directory/"params-roughness.bin",roughnessRead.Data());
     need(baseRead.Data()==baseBytes && paramsRead.Data()==paramsBytes,"capture modified source bytes");
     need(ParamsReferences(base.Get())==baseRefs && ParamsReferences(params.Get())==paramsRefs,"capture retained title source COM");
+    std::weak_ptr<void> retainedExtra=budgetSnapshots.front();budgetSnapshots.clear();
+    need(!retainedExtra.expired(),"caller release lost actual executable capture lease");
+    need(capture.OwnedAuxiliaryBytes()==expectedBytes,"caller release prematurely returned allocated slot permit");
     fixture.Reset();
+    need(retainedExtra.expired(),"successful completed Reset retained a capture lease");
+    need(capture.OwnedAuxiliaryBytes()==expectedBytes,"Reset prematurely returned idle allocated slot permits");
     std::array<ComPtr<ID3D12Resource>,5> textures;
     const std::array<const char*,5> names{"spec","diff","nr","depth","motion"};
     const std::array<DXGI_FORMAT,5> formats{DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -154,6 +184,8 @@ int main(int argc,char** argv) try
             "actual recorded lease registry did not retire after successful Reset");
     }
     legacy.reset();snapshot.reset();gNrdOwnedMaterials.clear();gNrdReconInputs.clear();gNrdGuideInputs.clear();
+    need(capture.InitializeParams(fixture.device.Get(),width+1,height,error),error.c_str());
+    need(capture.OwnedAuxiliaryBytes()==0,"retired idle paired/legacy slot destruction did not return all permits");
     ParamsTimings(fixture,1505,847);ParamsTimings(fixture,2560,1440);
     hr(fixture.list->Close());fixture.Validate();
     std::cout<<"material_params_native_checks="<<checks<<"\n";return 0;
