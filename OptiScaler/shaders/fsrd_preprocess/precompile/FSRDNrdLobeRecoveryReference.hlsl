@@ -112,6 +112,19 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
         geometry=geometry&&(farZ-nearZ<=Surface.x*max(abs(z),1e-3f));
         const bool2 eligible=bool2(geometry&&all(isfinite(inputS))&&inputS.a>0,
                                    geometry&&all(isfinite(inputD))&&inputD.a>0);
+        // D06/WP09 control model (naming only; no behavior change):
+        // - signalActivity: the native noisy alpha that reached this lobe is
+        //   the activity axis. The shipped policy keeps strictly-positive
+        //   alpha for BOTH lobes, including diffuse alpha=0, until the
+        //   diffuse-zero meaning is validated live (see the alpha matrix
+        //   test); no wider membership and no `>=0` widening for specular.
+        // - hitDistanceValidity: nonfinite alpha is the uncertain
+        //   hit-distance axis; it is not an activity source and never
+        //   activates a negative-alpha sentinel.
+        // - recoveryEligibility: the conjunction of geometry, roughness/
+        //   horizon and reference-age/footprint gates below; its per-lobe
+        //   rejection reasons are reported by host diagnostics and the
+        //   eligibility-matrix contract, not by added GPU counters.
         NrdReferenceHistory h;h.valid=false;h.age=0;h.q=1;h.gradient=0;h.spec=h.diff=0;
         if(NrdRecoveryFlag(NRD_RECOVERY_HISTORY)&&geometry)
             h=ReadReference(float2(p)+(mv.xy-PixelJitters.zw)*FullSize.xy,z+mv.z,nr);
