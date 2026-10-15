@@ -94,6 +94,37 @@ inline NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> _
 static thread_local uint64_t lookupCalls=0,registryReads=0,poolScans=0,poolReads=0,nativeCalls=0,incrementCalls=0;
 static thread_local uint64_t descriptorGets=0,descriptorSets=0,descriptorClears=0;
 static thread_local std::function<void()> beforeDescriptorRead;
+// D08/WP02 instrumentation: times the actual striped descriptor locks that the
+// extracted HeapInfo copy path takes. Disabled by default, so every existing
+// cost/complexity assertion still measures the unprobed production path.
+// Instrumented phases are labelled and are never the cost baseline.
+static std::atomic<bool> probeActive{false};
+static std::atomic<uint64_t> serialFirstNs{0},serialLastNs{0};
+static thread_local uint64_t probeWaitNs=0,probeHoldNs=0,probeFirstNs=0,probeLastNs=0,probeHolds=0;
+static thread_local std::array<uint32_t,256> probeStripeVisits{};
+static uint64_t steadyNs(){return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());}
+struct StripeProbe{
+ std::shared_mutex& mutex;bool read;bool measured=false;uint64_t acquiredNs=0;
+ StripeProbe(std::shared_mutex& value,bool isRead,UINT stripe):mutex(value),read(isRead){
+  if(!probeActive.load(std::memory_order_relaxed)){if(read)mutex.lock_shared();else mutex.lock();return;}
+  const auto begin=steadyNs();if(read)mutex.lock_shared();else mutex.lock();const auto acquired=steadyNs();
+  probeWaitNs+=acquired-begin;acquiredNs=acquired;measured=true;++probeHolds;
+  if(!probeFirstNs||begin<probeFirstNs)probeFirstNs=begin;
+  ++probeStripeVisits[stripe&255u];
+ }
+ ~StripeProbe(){
+  if(!measured){if(read)mutex.unlock_shared();else mutex.unlock();return;}
+  const auto end=steadyNs();probeHoldNs+=end-acquiredNs;if(end>probeLastNs)probeLastNs=end;
+  if(read)mutex.unlock_shared();else mutex.unlock();
+ }
+};
+static void serialObserve(uint64_t first,uint64_t last){
+ if(!first||!last)return;
+ uint64_t value=serialFirstNs.load();
+ while((value==0||first<value)&&!serialFirstNs.compare_exchange_weak(value,first)){}
+ value=serialLastNs.load();
+ while(last>value&&!serialLastNs.compare_exchange_weak(value,last)){}
+}
 __HEAP_INFO__;
 struct CountedSharedMutex{
  std::shared_mutex value;
@@ -318,6 +349,109 @@ static J fanoutTiming(const std::shared_ptr<HeapInfo>& src,const std::shared_ptr
   rows.push_back({{"descriptors",count},{"repetitions",5},{"mean_us",sum/samples.size()},{"p50_us",samples[2]},{"max_us",samples.back()},{"fanout_element_visits",visits},{"fanout_range_begins",scans}});
  }fixtureIncrement=32;return rows;
 }
+static J percentileUs(std::vector<double> values){
+ std::sort(values.begin(),values.end());double sum=0;for(const auto value:values)sum+=value;
+ const auto at=[&](double quantile){return values[size_t(quantile*double(values.size()-1))];};
+ return {{"count",values.size()},{"mean_us",values.empty()?0.0:sum/values.size()},{"p50_us",values.empty()?0.0:at(.50)},
+  {"p95_us",values.empty()?0.0:at(.95)},{"p99_us",values.empty()?0.0:at(.99)},{"max_us",values.empty()?0.0:values.back()}};
+}
+// D08/WP02/P02/P03 mixed traffic: short/medium/long CopyDescriptors calls on the
+// actual extracted hook. Independent src/dst heaps vs one shared (hot) source
+// heap. Per call it records duration, striped descriptor-lock wait/hold and the
+// stripe visit distribution; the phase distinguishes thread-time sums from the
+// serialized writer window. The instrumented probe adds overhead by design, so
+// these numbers never replace the uninstrumented timing() cost baseline.
+static J mixedTraffic(unsigned threads){
+ static size_t nextHeap=200000;
+ constexpr UINT repetitions=16;
+ struct Shape{const char* name;UINT count;bool shared;};
+ const std::array<Shape,6> shapes {{
+  {"short_independent",64u,false},{"medium_independent",1024u,false},{"long_independent",4096u,false},
+  {"short_shared_source",64u,true},{"medium_shared_source",1024u,true},{"long_shared_source",4096u,true}}};
+ const auto a=info(resourceA),b=info(resourceB);
+ J rows=J::array();
+ for(const auto& shape:shapes){
+  std::shared_ptr<HeapInfo> sharedSource;
+  std::vector<std::shared_ptr<HeapInfo>> sources,destinations;
+  if(shape.shared){sharedSource=makeHeap(nextHeap++,shape.count);for(UINT i=0;i<shape.count;++i)sharedSource->SetByCpuHandle(sharedSource->cpuStart+SIZE_T(i)*sharedSource->increment,(i&1)?b:a);}
+  for(unsigned t=0;t<threads;++t){
+   auto dst=makeHeap(nextHeap++,shape.count);for(UINT i=0;i<shape.count;++i)dst->SetByCpuHandle(dst->cpuStart+SIZE_T(i)*dst->increment,b);
+   destinations.push_back(dst);
+   if(!shape.shared){auto src=makeHeap(nextHeap++,shape.count);for(UINT i=0;i<shape.count;++i)src->SetByCpuHandle(src->cpuStart+SIZE_T(i)*src->increment,(i&1)?b:a);sources.push_back(src);}
+   else sources.push_back(sharedSource);
+  }
+  Config::Instance()->FGAlwaysTrackHeaps.value=true;
+  std::atomic<unsigned> ready=0;std::atomic<bool> start=false;
+  std::vector<std::vector<double>> duration(threads),wait(threads),hold(threads);
+  std::vector<uint64_t> perCallLookups(threads,0),perCallRegistry(threads,0),perCallNative(threads,0);
+  std::vector<uint32_t> perCallMaxStripe(threads,0);
+  static std::atomic<unsigned> mixedFailures{0};
+  std::array<std::atomic<uint64_t>,256> stripeVisits{};for(auto& value:stripeVisits)value.store(0);
+  serialFirstNs.store(0);serialLastNs.store(0);probeActive.store(true,std::memory_order_release);mixedFailures.store(0,std::memory_order_relaxed);
+  const auto began=steadyNs();
+  std::vector<std::thread> workers;workers.reserve(threads);
+  for(unsigned t=0;t<threads;++t)workers.emplace_back([&,t]{
+   ++ready;while(!start.load(std::memory_order_acquire))std::this_thread::yield();
+   const auto& src=sources[t];const auto& dst=destinations[t];
+   duration[t].reserve(repetitions);wait[t].reserve(repetitions);hold[t].reserve(repetitions);
+   for(UINT i=0;i<repetitions;++i){
+    probeWaitNs=probeHoldNs=probeFirstNs=probeLastNs=probeHolds=0;std::fill(probeStripeVisits.begin(),probeStripeVisits.end(),0u);
+    resetCounters();
+    const auto begin=std::chrono::steady_clock::now();
+    ResTrack_Dx12::hkCopyDescriptorsSimple(device,shape.count,{dst->cpuStart},{src->cpuStart},D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    const auto end=std::chrono::steady_clock::now();
+    duration[t].push_back(std::chrono::duration<double,std::micro>(end-begin).count());
+    wait[t].push_back(double(probeWaitNs)/1000.0);hold[t].push_back(double(probeHoldNs)/1000.0);
+    serialObserve(probeFirstNs,probeLastNs);
+    perCallLookups[t]+=lookupCalls;perCallRegistry[t]+=registryReads;perCallNative[t]+=nativeCalls;
+    if(nativeCalls!=1||poolScans!=0)mixedFailures.fetch_add(1,std::memory_order_relaxed);
+    uint32_t maxVisits=0;for(UINT stripe=0;stripe<256;++stripe){maxVisits=std::max(maxVisits,probeStripeVisits[stripe]);stripeVisits[stripe].fetch_add(probeStripeVisits[stripe],std::memory_order_relaxed);}
+    perCallMaxStripe[t]+=maxVisits;
+   }
+  });
+  while(ready.load()!=threads)std::this_thread::yield();start.store(true,std::memory_order_release);
+  for(auto& worker:workers)worker.join();
+  need(mixedFailures.load(std::memory_order_relaxed)==0,"every mixed-traffic call forwards once without a full heap registry scan");
+  const auto wallNs=steadyNs()-began;
+  probeActive.store(false,std::memory_order_release);
+  std::vector<double> allDuration,allWait,allHold;
+  uint64_t lookups=0,registry=0,native=0,maxStripePerCall=0;for(unsigned t=0;t<threads;++t){
+   allDuration.insert(allDuration.end(),duration[t].begin(),duration[t].end());
+   allWait.insert(allWait.end(),wait[t].begin(),wait[t].end());
+   allHold.insert(allHold.end(),hold[t].begin(),hold[t].end());
+   lookups+=perCallLookups[t];registry+=perCallRegistry[t];native+=perCallNative[t];maxStripePerCall+=perCallMaxStripe[t];
+  }
+  double threadTimeUs=0;for(const auto value:allDuration)threadTimeUs+=value;
+  const auto calls=uint64_t(allDuration.size());
+  uint64_t stripeTotal=0,stripeDistinct=0,stripeMin=std::numeric_limits<uint64_t>::max(),stripeMax=0;uint32_t hottest=0;
+  for(UINT stripe=0;stripe<256;++stripe){const auto visits=stripeVisits[stripe].load();if(!visits)continue;++stripeDistinct;stripeTotal+=visits;stripeMin=std::min(stripeMin,visits);if(visits>stripeMax){stripeMax=visits;hottest=stripe;}}
+  const auto serialFirst=serialFirstNs.load(),serialLast=serialLastNs.load();
+  const double serialUs=serialLast>serialFirst?double(serialLast-serialFirst)/1000.0:0.0;
+  const double slots=double(calls)*double(shape.count);
+  rows.push_back({{"shape",shape.name},{"descriptors_per_call",shape.count},{"calls",calls},{"calls_per_thread",repetitions},
+   {"shared_source_heap",shape.shared},
+   {"per_call_us",percentileUs(std::move(allDuration))},
+   {"per_call_wait_us",percentileUs(std::move(allWait))},
+   {"per_call_hold_us",percentileUs(std::move(allHold))},
+   {"per_slot_us",slots?threadTimeUs/slots:0.0},
+   {"thread_time_sum_us",threadTimeUs},{"wall_us",double(wallNs)/1000.0},
+   {"serialized_writer_window_us",serialUs},
+   {"serial_scope","wall span between the first and last striped descriptor-lock hold across all threads; upper bound of the writer-active region"},
+   {"lookups_per_call",calls?double(lookups)/double(calls):0.0},
+   {"registry_shared_acquisitions_per_call",calls?double(registry)/double(calls):0.0},
+   {"native_forward_calls_per_call",calls?double(native)/double(calls):0.0},
+   {"stripe_distribution",{{"stripes_visited",stripeDistinct},{"visits_min",stripeDistinct?stripeMin:0},{"visits_max",stripeMax},{"hottest_stripe",hottest}}},
+   {"per_call_max_stripe_visits",calls?double(maxStripePerCall)/double(calls):0.0}});
+  for(auto& destination:destinations)need(DeactivateTrackedHeap(destination),"mixed-traffic destination heap retires");
+  if(sharedSource)need(DeactivateTrackedHeap(sharedSource),"mixed-traffic shared source heap retires");
+  else for(auto& source:sources)need(DeactivateTrackedHeap(source),"mixed-traffic source heap retires");
+  Config::Instance()->FGAlwaysTrackHeaps.value=false;
+ }
+ return {{"threads",threads},{"repetitions_per_thread",repetitions},
+  {"scope","actual extracted ResTrack CopyDescriptors hook and striped descriptor locks; synthetic descriptor heaps; instrumented probe overhead included, never a cost baseline and no GPU/driver/native-time claim"},
+  {"native_time_note","the original CopyDescriptors forward is a CPU no-op counter here: callback/mirror cost is isolated from a real driver call, which this fixture cannot time"},
+  {"workloads",rows}};
+}
 int main(int argc,char** argv)try{
  SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);
  const auto emptyStart=allocations.load();FixtureSlots emptySlots;FixtureSlots releaseSlots;
@@ -329,11 +463,12 @@ int main(int argc,char** argv)try{
  need(gHeapSlotsByAddress.size()==100000&&gHeapCpuRanges.size()==100000,"exact 100k live indexed heap registry before hot tests");
  const auto rows=correctness(src,dst,rsrc,rdst);const auto fanout=fanoutTiming(rsrc,rdst);J timings=J::array();
  if(argc==2){const auto threads=unsigned(std::stoul(argv[1]));need(threads==8||threads==16,"optional contention threads are eight or sixteen");timings.push_back(timing(threads,true));timings.push_back(timing(threads,false));}
+ const auto mixed=mixedTraffic(argc==2?unsigned(std::stoul(argv[1])):8u);
  participantMoveProof();
  for(auto* object:{&resourceA,&resourceB,&retiredResource})need(object->refs==1&&object->addrefs==0&&object->releases==0&&object->queries==0,"metadata copying never calls title IUnknown AddRef/Release/QueryInterface");
  need(healthFailures==0&&NrdBridgeBirth::Healthy(),"all metadata and real birth admission remain healthy");
  PROCESS_MEMORY_COUNTERS memory{};GetProcessMemoryInfo(GetCurrentProcess(),&memory,sizeof(memory));need(memory.PeakWorkingSetSize<2500ull*1024*1024,"CPU process stays within 2.5GB");
- std::cout<<J{{"checks",checks},{"registry_heap_setup",100000},{"hashed_participants",hashedParticipants},{"correctness_and_complexity",rows},{"fanout_timings",fanout},{"timings",timings},{"peak_working_set_bytes",memory.PeakWorkingSetSize},
+ std::cout<<J{{"checks",checks},{"registry_heap_setup",100000},{"hashed_participants",hashedParticipants},{"correctness_and_complexity",rows},{"fanout_timings",fanout},{"timings",timings},{"mixed_traffic",mixed},{"peak_working_set_bytes",memory.PeakWorkingSetSize},
  {"scope","actual extracted ResTrack hook, HeapInfo/ResourceInfo, range indexes, TLS and real metadata births; native forwarding/increment and FrameSurvey health are explicit CPU adapters; no GPU/FPS claim"}}.dump(2)<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
@@ -373,6 +508,12 @@ def extract(old_participants=False):
                           ('void ClearByCpuHandle(SIZE_T cpuHandle)','++descriptorClears;')):
         method = function(heap,marker); point = method.index('{')+1
         heap = heap.replace(method,method[:point]+'\n '+probe+method[point:],1)
+    # D08/WP02 instrumentation seam: route the real striped descriptor locks
+    # through StripeProbe. Method bodies and lock scopes are unchanged.
+    for site, replacement in (('std::shared_lock lock(GetDescriptorLock(index));','StripeProbe probe(GetDescriptorLock(index),true,index);'),
+                              ('std::unique_lock lock(GetDescriptorLock(index));','StripeProbe probe(GetDescriptorLock(index),false,index);')):
+        assert heap.count(site) >= 1, ('descriptor lock seam missing', site)
+        heap = heap.replace(site,replacement)
     cpp = cpp.replace('__HEAP_INFO__',heap)
     cpp = cpp.replace('__CACHE_TYPE__',function(source,'struct HeapCacheTLS'))
     cpp = cpp.replace('__INDEX_METHODS__','\n'.join(function(source,s) for s in (
@@ -415,11 +556,32 @@ def main():
     result=subprocess.run(command,capture_output=True,text=True,timeout=120)
     (OUT/'native.stdout.log').write_text(result.stdout,encoding='utf-8');(OUT/'native.stderr.log').write_text(result.stderr,encoding='utf-8')
     result.check_returncode();values=json.loads(result.stdout);values['source']=metadata
+    mixed=values['mixed_traffic'];workloads={row['shape']:row for row in mixed['workloads']}
+    assert set(workloads)=={'short_independent','medium_independent','long_independent','short_shared_source','medium_shared_source','long_shared_source'}
+    for name,row in workloads.items():
+        expected=mixed['threads']*mixed['repetitions_per_thread']
+        assert row['calls']==expected,(name,row['calls'])
+        call=row['per_call_us']
+        assert call['p50_us']<=call['p95_us']<=call['p99_us']<=call['max_us'],(name,call)
+        for kind in ('per_call_wait_us','per_call_hold_us'):
+            assert row[kind]['p50_us']<=row[kind]['p95_us']<=row[kind]['p99_us']<=row[kind]['max_us'],(name,kind)
+        assert 0.0<=row['serialized_writer_window_us']<=row['wall_us']*1.25+1000.0,(name,row['serialized_writer_window_us'],row['wall_us'])
+        assert row['thread_time_sum_us']>0.0 and row['per_slot_us']>0.0,(name,row)
+        assert row['native_forward_calls_per_call']==1.0,(name,row['native_forward_calls_per_call'])
+        assert row['stripe_distribution']['stripes_visited']>=1,(name,row['stripe_distribution'])
+        assert row['per_call_max_stripe_visits']>=1.0,(name,row['per_call_max_stripe_visits'])
+    values['python_checks']=6*8+1
     (OUT/'result.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
-    report=Path('E:/FSRD/sol_batch/15a-motion/descriptor-copy');report.mkdir(parents=True,exist_ok=True)
     suffix='vector' if args.old_participants else 'hash'
-    (report/f'{OUT.name}_result_{suffix}.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
+    target=os.environ.get('FSRD_NRD_RR_REPORT')
+    if target:
+        target=Path(target);target.parent.mkdir(parents=True,exist_ok=True)
+        target.with_name(f'{target.name}_{suffix}.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
+    else:
+        report=Path('E:/FSRD/sol_batch/15a-motion/descriptor-copy');report.mkdir(parents=True,exist_ok=True)
+        (report/f'{OUT.name}_result_{suffix}.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
     print('PASS:',values['checks'],'actual descriptor-copy CPU correctness/complexity checks; registry=',values['registry_heap_setup'])
+    print('MIXED:',json.dumps(mixed['workloads'])[:1800])
     for row in values['correctness_and_complexity'][:4]:
         print('heap_type=',row['heap_type'],'count=',row['current']['count'],'old_lookups=',row['old']['lookups'],
               'current_lookups=',row['current']['lookups'],'current_registry_acquires=',row['current']['registry_shared_acquisitions'])
