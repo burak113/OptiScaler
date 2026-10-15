@@ -421,6 +421,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.recoverySpecular = NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
         settings.recoveryDiffuse = NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
     }
+    if constexpr (requires { config.FfxDenoiserNrdBridgeSurfaceValidFill; })
+        settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -2014,7 +2016,11 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
         bool ready = false;
         {
             NativeInjectionScope guard(cmd,graphics,stage->recording);
-            ready = stage->history->rawSignals.Decode(cmd,stage->raw,stage->inputs,nativeConstants,error);
+            // D02/WP08 experiment selector; the gated profile fails closed without
+            // this frame's owned validity channel, so flipping it cannot degrade
+            // the production path.
+            ready = stage->history->rawSignals.Decode(cmd,stage->raw,stage->inputs,nativeConstants,error,
+                stage->history->rr.GetSettingsState().requested.surfaceValidFill);
             if (ready)
             {
                 const auto decoded = RawSignalSnapshotPass::GetSnapshot(stage->raw);

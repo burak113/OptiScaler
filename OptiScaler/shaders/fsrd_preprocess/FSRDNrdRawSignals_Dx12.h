@@ -55,7 +55,7 @@ class RawSignalSnapshotPass
     bool Capture(ID3D12GraphicsCommandList*, const RawSignalSource&, uint32_t frameSL,
                  uint32_t bridgeFrame, RawSignalLease& out, std::string& error) noexcept;
     bool Decode(ID3D12GraphicsCommandList*, const RawSignalLease&, const ConvertedResources&,
-                const TitleSignalConstants&, std::string& error) noexcept;
+                const TitleSignalConstants&, std::string& error, bool surfaceValidFill = false) noexcept;
     static RawSignalSnapshot GetSnapshot(const RawSignalLease&) noexcept;
     uint64_t OwnedBytes() const noexcept;
     uint32_t OwnedSlots() const noexcept;

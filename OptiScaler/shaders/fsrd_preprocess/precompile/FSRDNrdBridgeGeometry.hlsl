@@ -14,7 +14,7 @@
 #define MainRS \
     "RootFlags(0), RootConstants(num32BitConstants=52, b0), " \
     "DescriptorTable(SRV(t0, numDescriptors=" NrdGeometrySrvCount ")), " \
-    "DescriptorTable(UAV(u0, numDescriptors=9)), CBV(b6)"
+    "DescriptorTable(UAV(u0, numDescriptors=10)), CBV(b6)"
 Texture2D<float4> InNormalRoughness : register(t0);
 Texture2D<float> InViewDepth : register(t1);
 #ifdef FSRD_NRD_MATERIAL_GUIDES
@@ -29,6 +29,19 @@ RWTexture2D<float4> OutMotion : register(u5);
 RWTexture2D<float4> OutNormalRoughness : register(u6);
 RWTexture2D<float4> OutSpecAlbedo : register(u7);
 RWTexture2D<float4> OutDiffAlbedo : register(u8);
+// Denoise-suitability classification of the raw depth sample. The transport
+// values above keep their exact meanings: u0 stays the native positive ViewZ
+// the Temporal expression needs, u4 stays the signed near/far-clamped RR
+// depth. This extra channel only records WHY the transported value looks the
+// way it does, so later consumers can separate a genuinely in-bounds surface
+// from a clamped or nonfinite one (D04/WP06 depth validity policy):
+//   bit0-1 class: 0 finite inside [near,far]; 1 finite below near (clamped up);
+//                 2 finite above far (clamped down); 3 nonfinite raw (both
+//                 transports are the sanitized far/epsilon values)
+//   bit2 sign:    set when the raw sample was a negative signed Z (rawDepth<0;
+//                 negative zero is not negative). The cleaned transport value
+//                 plus this first class stays mutually traceable.
+RWTexture2D<uint> OutValidity : register(u9);
 cbuffer BridgeConstants : register(b0)
 {
     uint2 RenderSize;
@@ -55,6 +68,13 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     // to RR's depth bounds: the native Temporal expression needs this positive Z.
     OutPositiveViewDepth[p] = max(abs(rawDepth), asfloat(0x358637bdu));
     OutDepth[p] = DepthSign * (isfinite(rawDepth) ? clamp(abs(rawDepth), NearPlane, FarPlane) : FarPlane);
+    // First-class validity of the sample above, before any clamp or sanitize.
+    // Transport values are never distorted by this classification.
+    const float rawMagnitude = abs(rawDepth);
+    uint validity = rawDepth < 0.0f ? 4u : 0u;
+    validity |= !isfinite(rawDepth) ? 3u
+        : (rawMagnitude < NearPlane ? 1u : (rawMagnitude > FarPlane ? 2u : 0u));
+    OutValidity[p] = validity;
     // Current Temporal motion is deliberately supplied in the separate same-list step.
     OutMotion[p] = float4(0.0f,0.0f,0.0f,1.0f);
     const float4 normalRoughness = InNormalRoughness.Load(int3(source, 0));

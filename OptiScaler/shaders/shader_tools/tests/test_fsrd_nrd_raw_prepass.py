@@ -75,9 +75,20 @@ def source_contracts():
     need('if(PrivateRaw.Load(0u)!=0u)' in decode,'invalid GPU header has explicit safe finite output')
     need('OutSpec[tid.xy]=0.0f;OutDiff[tid.xy]=0.0f;return;' in decode,'unsupported cannot expose uninitialized light')
     need('alignment*alignment/(1.0f+abs(az-bz)' in decode,'weights use current owned geometry only')
+    # D02/WP08 experiment profile: eligibility gate + explicit unsupported policy,
+    # compiled as a separate artifact; the production default above stays intact.
+    need('#ifdef FSRD_NRD_SURFACE_VALID_FILL' in decode,'gated fill is a compile-time experiment profile of the same source')
+    need('(InValidity[center]|InValidity[candidate])&3u' in decode,'gated candidates clear the D04 validity class before any weighting')
+    need('if(wl+wr<=0.0f)return float4(0.0f,0.0f,0.0f,0.0f)' in decode,'no eligible candidate is an explicit finite-zero unsupported footprint')
+    need('GateWeight(p,right)>0.0f?SignalAt(right,lobe,encoding):float4(0.0f,0.0f,0.0f,0.0f)' in decode,'single-tap edges clear the same gate')
+    cpp_needles=['FSRDNrdRawPrePassValidDecode_cso','RawGuideMatches(output.validity,*context,DXGI_FORMAT_R8_UINT)','PrepareSurfaceValid']
+    for needle in cpp_needles:need(needle in cpp,'gated decode profile is a distinct fail-closed host artifact: '+needle)
+    need('NumDescriptors=5' in cpp,'prepass decode view heap reserves the optional validity slot')
+    config=(ROOT/'OptiScaler/Config.h').read_text()
+    need('FfxDenoiserNrdBridgeSurfaceValidFill {false}' in config,'experiment stays behind an OFF-by-default config key')
     for prohibited in ['history','oracle','variance']:
         need(prohibited not in decode.replace('// temporal history, or denoised native output participates in these weights.','').replace('// Dimensionless geometry only. No noisy color, oracle, variance estimate,',''),'no '+prohibited+' input/gating')
-    need('views.NumDescriptors=4' in cpp and 'context->PreparePrePassSlot(*record->slot)' in cpp,'B descriptor allocation prepared during capture')
+    need('views.NumDescriptors=5' in cpp and 'context->PreparePrePassSlot(*record->slot)' in cpp,'B descriptor allocation prepared during capture')
     need(cpp.index('context->PreparePrePassSlot(*record->slot)')<cpp.index('RetainComputeDispatch'),'fallible B allocation precedes native omission point')
     need('result.hasStatus=record->profile==NativeRawProfile::PrePass' in cpp and 'statusByteOffset = 0' in header,'owned status surfaced explicitly')
     need('DXGI_FORMAT_R10G10B10A2_UNORM' in cpp and 'DXGI_FORMAT_R32_FLOAT' in cpp,'owned decode geometry formats checked')

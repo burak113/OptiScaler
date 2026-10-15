@@ -69,6 +69,7 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"native_debug_view",p.nativeDebugView},{"native_debug_viewport",p.nativeDebugViewport},
         {"preserve_native_material_ids",p.preserveNativeMaterialIDs},{"native_temporal_motion",p.nativeTemporalMotion},
         {"native_material_guides",p.nativeMaterialGuides},{"lobe_recovery",p.lobeRecovery},
+        {"surface_valid_fill",p.surfaceValidFill},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
         {"native_nrd_output_used",false}};
 }

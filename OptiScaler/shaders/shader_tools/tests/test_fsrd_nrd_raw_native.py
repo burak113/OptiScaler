@@ -22,6 +22,32 @@ def prepare(output):
         for table in [0,1]:
             for flag in [0,1,0x80000000,0x7fc00000]:configs.append((word,table,flag,0,0,0))
     configs += [(303,0,1,3,2,0),(303,1,0,3,2,1),(36,1,1,3,2,2)]
+    # D04/WP06 boundary scenarios: identical shader path, crafted raw depth
+    # inputs. compare() models both transports plus the first validity class.
+    base_count=len(configs)
+    boundary_kinds=('bounds','edges','signed','nonfinite')
+    configs += [(303,0,1,0,0,0) for _ in boundary_kinds]
+    def boundary_depth(kind,near,far):
+        depth=np.full((h,w),4.0,'<f4')
+        if kind=='bounds':
+            depth[:, :32]=np.float32(near);depth[:, 32:64]=np.float32(far)
+            depth[:, 64:]=np.float32(far)*np.float32(.5)
+        elif kind=='edges':
+            below_near=np.nextafter(np.float32(near),np.float32(0),dtype='<f4')
+            above_near=np.nextafter(np.float32(near),np.float32(1),dtype='<f4')
+            above_far=np.nextafter(np.float32(far),np.float32(65504),dtype='<f4')
+            below_far=np.nextafter(np.float32(far),np.float32(0),dtype='<f4')
+            depth[:, :16]=below_near;depth[:, 16:32]=above_near;depth[:, 32:48]=np.float32(near)
+            depth[:, 48:64]=below_far;depth[:, 64:80]=above_far;depth[:, 80:96]=np.float32(far)
+            depth[:, 96:]=np.float32(2)**np.float32(-100)  # far below the epsilon floor
+        elif kind=='signed':
+            depth[:, :32]=np.float32(-near);depth[:, 32:64]=np.float32(-far)
+            depth[:, 64:96]=np.float32(-4.0);depth[:, 96:100]=np.float32(-0.0)
+            depth[:, 100:104]=np.float32(0.0);depth[:, 104:]=np.float32(-1.0)
+        else:
+            depth[:, :16]=np.float32(np.nan);depth[:, 16:32]=np.float32(np.inf);depth[:, 32:48]=np.float32(-np.inf)
+            depth[:, 48:]=np.float32(8.0)
+        return depth
     for i,(word,table,flag,ox,oy,material) in enumerate(configs):
         path=inputs/f'case{i:02d}';spec=np.empty((h,w,4),'<f2');diff=spec.copy()
         spec[...,:3]=[1,.375,-.25];diff[...,:3]=[.625,-.125,.25]
@@ -29,14 +55,17 @@ def prepare(output):
         diff[...,3]=((np.arange(w*h,dtype=np.uint32).reshape(h,w)[::-1]+(i+2)*w*h)%65536).astype('<u2').view('<f2')
         spec[0,0,:3]=[np.nan,np.inf,-np.inf];diff[0,1,:3]=[-0.,-.5,np.nan]
         nr=legacy.packed_nr(np.stack((.45+.08*x/(w-1),.47+.05*y/(h-1),.12+.5*((x+y)%13)/13,((x//16+y//16)%4)/3),axis=-1))
-        depth=(1+(x+2*y)%61).astype('<f4');depth[0:2,0:2]=0.;depth[8,8]=1e7
+        if i>=base_count:depth=boundary_depth(boundary_kinds[i-base_count],legacy.frame(w,h,0)['near'],legacy.frame(w,h,0)['far'])
+        else:
+            depth=(1+(x+2*y)%61).astype('<f4');depth[0:2,0:2]=0.;depth[8,8]=1e7
         motion=np.zeros((h,w,4),'<f2');motion[...,3]=1
         base=np.stack(((x%11+.5)/12,(y%13+.5)/14,((x+y)%7+.5)/8,((x//8+y//8)%3)*.5),axis=-1).astype('<f2')
         rough=np.ones((h,w),'<f2');rough[(x+2*y)%7==0]=np.nan
         params=legacy.frame(w,h,0);params.update(jitter=(0,0),previous_jitter=(0,0),native_material_guides=bool(material),preserve_native_material_ids=True)
         payload={'spec':spec,'diff':diff,'nr':nr,'depth':depth,'motion':motion,'material':base,'material_roughness':rough}
         legacy.write_case(path,payload,params)
-        rows.append({'name':path.name,'word':word,'table':table,'flag':flag,'origin':[ox,oy],'material':material})
+        rows.append({'name':path.name,'word':word,'table':table,'flag':flag,'origin':[ox,oy],'material':material,
+                     'boundary':boundary_kinds[i-base_count] if i>=base_count else None})
     (inputs/'cases.txt').write_text(f'{len(rows)} {w} {h}\n'+''.join(f"{r['name']} {r['origin'][0]} {r['origin'][1]} {r['word']} {r['flag']} {r['table']} {r['material']}\n" for r in rows))
     hashes={str(p.relative_to(inputs)):digest(p) for p in sorted(inputs.rglob('*.bin'))}
     manifest={'schema':'fsrd.raw-helper-native.v1','width':w,'height':h,'cases':rows,'payload_sha256':hashes,'scope':'synthetic helper arithmetic/state/lifetime only; no native NRD result or game quality'}
@@ -115,10 +144,36 @@ def compare(inputs,manifest):
         flag=np.fromfile(path/'encoding_flag.bin','<u4')[303];need(int(flag)==case['flag'],'actual GPU executed root/table flag')
         nr=shifted(values['nr'],ox,oy);z=shifted(values['depth'],ox,oy)
         need(np.array_equal(np.fromfile(path/'out_nr.bin','<u4').reshape(h,w),nr),'normal/roughness/material ID exact global origin')
-        params=legacy.frame(w,h,0);params.update(jitter=(0,0),previous_jitter=(0,0));expected_depth=params['sign']*np.clip(np.abs(z),params['near'],params['far'])
+        params=legacy.frame(w,h,0);params.update(jitter=(0,0),previous_jitter=(0,0));near,far=params['near'],params['far']
+        expected_depth=params['sign']*np.where(np.isfinite(z),np.clip(np.abs(z),near,far),params['far'])
         need(np.array_equal(np.fromfile(path/'out_depth.bin','<f4').reshape(h,w),expected_depth),'signed RR depth global origin/clamp')
         epsilon=np.array([0x358637bd],'<u4').view('<f4')[0]
-        need(np.array_equal(np.fromfile(path/'positive_viewz.bin','<f4').reshape(h,w),np.maximum(np.abs(z),epsilon)),'owned positive native ViewZ exact epsilon and no RR far clamp')
+        magnitude=np.abs(z).astype(np.float32);finite=np.isfinite(z)
+        # DXIL max keeps +-Inf (only a NaN operand returns the other side), so
+        # the epsilon floor maps NaN to epsilon and leaves Inf as Inf.
+        expected_positive=np.where(np.isnan(z),epsilon,np.maximum(magnitude,epsilon)).astype('<f4')
+        positive=np.fromfile(path/'positive_viewz.bin','<f4').reshape(h,w)
+        need(np.array_equal(positive,expected_positive),'owned positive native ViewZ exact epsilon and no RR far clamp')
+        # D04/WP06: first validity class plus the sanitized transports must stay
+        # mutually traceable, and the native-motion exact-equality gate engages
+        # exactly for the finite in-bounds class.
+        validity=np.fromfile(path/'out_validity.bin','u1').reshape(h,w)
+        expected_class=np.where(~finite,3,np.where(magnitude<near,1,np.where(magnitude>far,2,0))).astype(np.uint8)
+        expected_validity=expected_class|np.where(z<0,np.uint8(4),np.uint8(0))
+        need(np.array_equal(validity,expected_validity),'depth validity first class exact incl negative-Z sign bit')
+        transport=np.fromfile(path/'out_depth.bin','<f4').reshape(h,w)
+        # Zero magnitude stays class 0 but the epsilon ViewZ floor makes the
+        # exact-equality gate decline it; that decline is part of the contract.
+        need(np.array_equal(np.abs(transport)==positive,((validity&np.uint8(3))==0)&(magnitude>0)),
+             'native motion exact equality engages only for the in-bounds finite nonzero class')
+        clamped=(validity&np.uint8(3))==1
+        need(np.all(np.abs(transport[clamped])==np.float32(near)),'below-near class transports exactly the near bound')
+        overhead=(validity&np.uint8(3))==2
+        need(np.all(np.abs(transport[overhead])==np.float32(far)),'above-far class transports exactly the far bound')
+        nonfinite=(validity&np.uint8(3))==3
+        need(np.all(np.abs(transport[nonfinite])==np.float32(far)),'nonfinite class transports exactly the sanitized far value')
+        need(np.all((positive[nonfinite]==epsilon)|np.isinf(positive[nonfinite])),
+             'nonfinite ViewZ is the epsilon floor for NaN and the raw infinity for Inf, never an in-bounds value')
         motion=np.fromfile(path/'out_motion.bin','<f2').reshape(h,w,4);need(np.all(motion[...,:3]==0)&np.all(motion[...,3]==1),'deferred current Temporal motion')
         alb={key:np.fromfile(path/f'out_{key}.bin','u1').reshape(h,w,4) for key in ['spec_albedo','diff_albedo']}
         if not case['material']:
@@ -137,7 +192,8 @@ def compare(inputs,manifest):
                 if key=='spec_albedo' and case['material']==2:fallback|=(~np.isfinite(rough))&valid
                 need(np.all(alb[key][fallback,:3]==255),'nonzero origin unsupported/invalid material exact white')
         need(np.all(alb['diff_albedo'][...,3]==0),'diffuse albedo alpha remains zero')
-        rows.append({'case':case['name'],'origin':[ox,oy],'material':case['material'],'native_flag':int(flag)})
+        rows.append({'case':case['name'],'origin':[ox,oy],'material':case['material'],'native_flag':int(flag),
+                     'boundary':case.get('boundary')})
     need(len(alpha_words)==65536,'all65536 native alpha words exercised incl malformed')
     return rows
 

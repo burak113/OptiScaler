@@ -70,6 +70,7 @@ struct ConvertedResources
     ID3D12Resource* normals = nullptr;
     ID3D12Resource* specAlbedo = nullptr;
     ID3D12Resource* diffAlbedo = nullptr;
+    ID3D12Resource* validity = nullptr; // R8_UINT depth-validity class from the geometry pass; null on the legacy conversion path.
     uint32_t width = 0, height = 0;
 };
 struct FrameParameters

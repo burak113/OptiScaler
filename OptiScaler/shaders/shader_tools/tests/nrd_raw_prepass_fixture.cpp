@@ -53,7 +53,7 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
     RawSignalSnapshotPass raw;ConversionPass conversion;std::string error;
     need(raw.OwnedBytes()==0&&raw.OwnedSlots()==0,"B helper OFF owns no allocations");
     need(raw.Initialize(fixture.device.Get(),width,height,error),error.c_str());need(conversion.Initialize(fixture.device.Get(),width,height,error),error.c_str());
-    uint64_t warmBytes=0;
+    uint64_t warmBytes=0,steadyBytes=0;
     for(unsigned i=0;i<count;++i)
     {
         std::string name;int ox,oy;uint32_t rw,rh,diffMode,specMode,phase,table,word,flag,material,sw,sh,status;
@@ -65,7 +65,10 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         // Initial values deliberately differ from the executed native constants.
         Constants(source->original.Get(),0,0,width,height,2,2,phase^1);Constants(source->replacement.Get(),ox,oy,rw,rh,diffMode,specMode,phase);
         RawSignalLease lease;need(raw.Capture(fixture.list.Get(),source->source,frame.streamlineFrame,frame.frameIndex,lease,error),error.c_str());
-        if(!i)warmBytes=raw.OwnedBytes();need(raw.OwnedSlots()==1&&raw.OwnedBytes()==warmBytes,"B warm capture reuses one prepared slot");
+        if(!i)warmBytes=raw.OwnedBytes();
+        // Case0 measures the single production slot; later cases must reuse the
+        // settled two-slot pool (production arm + gated experiment arm) exactly.
+        need(raw.OwnedSlots()==(i?2u:1u)&&raw.OwnedBytes()==(i?steadyBytes:warmBytes),"B warm capture reuses prepared slots without warm growth");
         ConversionInputs inputs;inputs.reconSpec=reinterpret_cast<ID3D12Resource*>(uintptr_t(1));inputs.reconDiff=reinterpret_cast<ID3D12Resource*>(uintptr_t(3));
         inputs.normals=source->textures[2].Get();inputs.viewDepth=source->textures[3].Get();
         if(material){inputs.nativeMaterial=source->textures[5].Get();if(material==2)inputs.nativeMaterialRoughness=source->textures[6].Get();}
@@ -74,6 +77,7 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         need(conversion.DispatchMotion(fixture.list.Get(),output,source->textures[4].Get(),frame,error),error.c_str());
         auto normal=fixture.Snapshot(output.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),depth=fixture.Snapshot(output.linearDepth,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto positiveRead=fixture.Snapshot(positive,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),motion=fixture.Snapshot(output.motion,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        auto validityRead=fixture.Snapshot(output.validity,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto specAlbedo=fixture.Snapshot(output.specAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),diffAlbedo=fixture.Snapshot(output.diffAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         auto snapshot=RawSignalSnapshotPass::GetSnapshot(lease);need(snapshot.hasStatus&&snapshot.statusByteOffset==0,"B owned uniform status is explicit diagnostic metadata");
         auto packed=RawFixture::Snapshot(fixture,snapshot.resource);TitleSignalConstants constants;constants.wordIndex=word;
@@ -81,10 +85,22 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         if(table){source->EncodingCB(fixture,source->encodingOriginal.Get());constants.nativeHeap=source->encodingHeap.Get();constants.cbvHandle=source->encodingHeap->GetGPUDescriptorHandleForHeapStart();}
         else constants.address=source->encodingOriginal->GetGPUVirtualAddress();
         auto wrong=output;wrong.normals=nullptr;need(!raw.Decode(fixture.list.Get(),lease,wrong,constants,error),"B missing geometry fails before decode admission");
-        need(raw.Decode(fixture.list.Get(),lease,output,constants,error),error.c_str());need(raw.OwnedBytes()==warmBytes,"B late decode allocates no capture resources");
+        need(raw.Decode(fixture.list.Get(),lease,output,constants,error),error.c_str());need(raw.OwnedBytes()==(i?steadyBytes:warmBytes),"B late decode allocates no capture resources");
         snapshot=RawSignalSnapshotPass::GetSnapshot(lease);need(snapshot.decoded&&snapshot.encodingFlag&&snapshot.decodedEncodingConstants.address,"B executed codec retained for pure commit");
         auto flagRead=RawFixture::Snapshot(fixture,snapshot.encodingFlag);need(!raw.Decode(fixture.list.Get(),lease,output,constants,error),"B raw decode remains single-use");
         auto spec=fixture.Snapshot(output.spec,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),diff=fixture.Snapshot(output.diff,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        // D02/WP08 experiment arm on the same captured inputs and the same owned
+        // output pair. The production snapshots above were recorded first, so the
+        // gated decode below cannot contaminate them.
+        RawSignalLease validLease;
+        need(raw.Capture(fixture.list.Get(),source->source,frame.streamlineFrame,frame.frameIndex,validLease,error),error.c_str());
+        if(!i)steadyBytes=raw.OwnedBytes();
+        need(raw.OwnedSlots()==2&&raw.OwnedBytes()==steadyBytes,"gated experiment arm reuses its own second prepared slot");
+        need(RawSignalSnapshotPass::GetSnapshot(validLease).hasStatus,"second B arm owns its own mandatory status observer");
+        need(raw.Decode(fixture.list.Get(),validLease,output,constants,error,true),error.c_str());
+        need(raw.OwnedBytes()==steadyBytes,"gated late decode allocates no capture resources");
+        auto validSpec=fixture.Snapshot(output.spec,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),validDiff=fixture.Snapshot(output.diff,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        need(!raw.Decode(fixture.list.Get(),validLease,output,constants,error,true),"gated arm is also single-use");
         auto sourceSpec=fixture.Snapshot(source->textures[0].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),sourceDiff=fixture.Snapshot(source->textures[1].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         if(table){source->SourceCB(fixture,source->replacement.Get());source->EncodingCB(fixture,source->encodingReplacement.Get());}
         else{Constants(source->original.Get(),ox,oy,rw,rh,diffMode,specMode,phase);RawFixture::Constants(source->encodingOriginal.Get(),0,0,word,flag);}
@@ -93,6 +109,7 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
         fixture.Submit();fixture.Reset();auto rawData=packed.Data();uint32_t executedStatus;memcpy(&executedStatus,rawData.data(),4);need(executedStatus==status,"actual GPU B bounds/mode/UINTrect status matches independent case");
         need(lease->statusObservation->completedCount==1&&lease->statusObservation->mapCount==1,"mandatory B observer maps once after actual completion even with Trace OFF");
         need(lease->statusObservation->lastStatus==status,"mandatory observer sees exact executed owned status");
+        need(validLease->statusObservation->completedCount==1&&validLease->statusObservation->lastStatus==status,"gated arm observer sees the same executed owned status");
         need(FAILED(RecordedComputeLease::RequiredSubmissionFailure())==(status!=0),"GPU invalid B status latches fatal for future submissions");
         if(status)
         {
@@ -100,7 +117,9 @@ void Cases(Fixture& fixture,const fs::path& root,std::vector<std::shared_ptr<Sou
             RecordedComputeLease::gUntrackedRequiredSubmissionFailure.store(S_OK,std::memory_order_release);
         }
         save(path/"raw_owned.bin",rawData);save(path/"out_spec.bin",spec.Data());save(path/"out_diff.bin",diff.Data());
+        save(path/"out_spec_valid.bin",validSpec.Data());save(path/"out_diff_valid.bin",validDiff.Data());
         save(path/"out_nr.bin",normal.Data());save(path/"out_depth.bin",depth.Data());save(path/"positive_viewz.bin",positiveRead.Data());save(path/"out_motion.bin",motion.Data());
+        save(path/"out_validity.bin",validityRead.Data());
         save(path/"out_spec_albedo.bin",specAlbedo.Data());save(path/"out_diff_albedo.bin",diffAlbedo.Data());
         save(path/"source_spec_after.bin",sourceSpec.Data());save(path/"source_diff_after.bin",sourceDiff.Data());save(path/"encoding_flag.bin",flagRead.Data());
     }

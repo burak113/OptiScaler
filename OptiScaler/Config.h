@@ -563,6 +563,10 @@ class Config
     CustomOptional<bool> FfxDenoiserNrdBridgeLobeRecovery {false};
     CustomOptional<float> FfxDenoiserNrdBridgeRecoverySpecular {1.0f};
     CustomOptional<float> FfxDenoiserNrdBridgeRecoveryDiffuse {1.0f};
+    // D02/WP08 experiment: surface-valid checkerboard fill. Default OFF keeps the
+    // production decode; enabling it additionally requires this frame's owned
+    // depth-validity channel and fails closed without live selector/phase evidence.
+    CustomOptional<bool> FfxDenoiserNrdBridgeSurfaceValidFill {false};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};
