@@ -83,6 +83,7 @@ struct NativeMaterialStateWitness
     {
         ID3D12Resource* resource = nullptr;
         NrdBridgeBirth::Token birth;
+        uint64_t generation = 0;
         uint32_t subresource = UINT32_MAX;
         uint64_t serial = 0;
         D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
@@ -92,12 +93,14 @@ struct NativeMaterialStateWitness
         bool known = false, pending = false;
 
         bool Matches(const FrameSurvey::BoundResource& bound) const noexcept
-        { return resource == bound.resource && birth == bound.resourceBirth && subresource == bound.subresource; }
+        { return resource == bound.resource && birth == bound.resourceBirth &&
+                 generation == bound.resourceGeneration && subresource == bound.subresource; }
 
         void Select(const FrameSurvey::BoundResource& bound) noexcept
         {
             resource = bound.resource;
             birth = bound.resourceBirth;
+            generation = bound.resourceGeneration;
             subresource = bound.subresource;
             Forget();
         }
@@ -107,10 +110,11 @@ struct NativeMaterialStateWitness
 
         bool Live() const noexcept
         {
-            // Legacy null-birth bindings are accepted only under the caller's
-            // existing title lifetime borrow. A token must match this address.
+            // Legacy bindings require the exact nonzero registry generation
+            // selected under the caller's title lifetime borrow. A Birth token
+            // proves its own exact native instance and must match this address.
             return resource && subresource == 0 &&
-                   (!birth || (birth->Address() == resource && birth->CacheAdmissible()));
+                   (birth ? (birth->Address() == resource && birth->CacheAdmissible()) : generation != 0);
         }
 
         void Observe(const D3D12_RESOURCE_BARRIER& barrier, uint64_t currentSerial) noexcept

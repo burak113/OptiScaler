@@ -21,6 +21,7 @@ CASES = [
     "split-serial", "alias-endpoints", "alias-wildcard", "uav", "other-resource",
     "same-selection", "changed-selection", "birth-live", "birth-invalid",
     "ping-pong-two", "ping-pong-four", "ring-eviction", "allocation-free", "duplicate-target",
+    "legacy-generation", "legacy-zero-generation",
 ]
 
 CPP = r'''
@@ -57,6 +58,8 @@ Pair pair(unsigned index=0)
     Pair result;
     result.base.resource=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x100000)+index*0x2000);
     result.params.resource=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x101000)+index*0x2000);
+    result.base.resourceGeneration=1000+index*2;
+    result.params.resourceGeneration=1001+index*2;
     return result;
 }
 constexpr auto readState=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -266,6 +269,24 @@ void run(const std::string& mode)
         need(!w.Readable(1),"evicted oldest pair cannot recover proof from barriers while unselected");
         observe(w,pair(0));need(w.Readable(1),"reinserted evicted pair needs new observed transitions");
     }
+    else if(mode=="legacy-generation")
+    {
+        prove(w,p);auto recycled=p;++recycled.base.resourceGeneration;
+        select(w,recycled);need(!w.Readable(1),"same raw address with new legacy generation cannot inherit old state");
+        observe(w,recycled);need(w.Readable(1),"new legacy generation needs fresh observed transitions");
+        ++recycled.params.resourceGeneration;select(w,recycled);
+        need(!w.Readable(1),"either material generation change invalidates current pair proof");
+    }
+    else if(mode=="legacy-zero-generation")
+    {
+        auto unknown=p;unknown.base.resourceGeneration=0;select(w,unknown);observe(w,unknown);
+        need(!w.Readable(1),"unstamped legacy resource with unknown generation remains fallback-only");
+        NrdBridgeBirth::Registry registry;auto tracked=p;
+        tracked.base.resourceBirth=birth(registry,p.base.resource,301);
+        tracked.params.resourceBirth=birth(registry,p.params.resource,302);
+        tracked.base.resourceGeneration=tracked.params.resourceGeneration=0;prove(w,tracked);
+        need(w.Readable(1),"exact admissible Birth identities do not require optional legacy generations");
+    }
     else if(mode=="duplicate-target")
     {
         auto shared=p;shared.params=shared.base;select(w,shared);
@@ -308,13 +329,15 @@ def generate(out):
     out.mkdir(parents=True, exist_ok=True)
     source = out / "nrd_material_state.cpp"
     source.write_text(CPP.replace("__ROOT__", ROOT.as_posix()), encoding="utf-8")
+    production = Path(os.environ.get("FSRD_NRD_PRODUCTION_ROOT", ROOT)).resolve()
     paths = [ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialStateWitness.h",
-             ROOT / "OptiScaler/misc/NrdBridgeBirth_Dx12.h",
-             ROOT / "OptiScaler/resource_tracking/FrameSurvey_Dx12.h"]
+             production / "OptiScaler/misc/NrdBridgeBirth_Dx12.h",
+             production / "OptiScaler/resource_tracking/FrameSurvey_Dx12.h"]
+    assert "uint64_t resourceGeneration" in paths[-1].read_text(), "actual production BoundResource generation field required"
     contract = {"scope": __doc__, "cases": CASES,
                 "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "headers": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths},
-                "pair_capacity": 4, "weak_target_capacity": 8, "native_device": False,
+                "production_root": str(production), "pair_capacity": 4, "weak_target_capacity": 8, "native_device": False,
                 "real_com": False, "gpu_submissions": 0}
     (out / "contract.json").write_text(json.dumps(contract, indent=2), encoding="utf-8")
     return source, contract
@@ -329,7 +352,8 @@ def main():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from fsrd_toolchain import compile_cpp
     exe = out / "nrd_material_state.exe"
-    build = compile_cpp(source, exe, (), (ROOT / "OptiScaler",))
+    production = Path(contract["production_root"])
+    build = compile_cpp(source, exe, (), (production / "OptiScaler", ROOT / "OptiScaler"))
     (out / "build.json").write_text(json.dumps(build, indent=2), encoding="utf-8")
     results = []
     for case in CASES:
