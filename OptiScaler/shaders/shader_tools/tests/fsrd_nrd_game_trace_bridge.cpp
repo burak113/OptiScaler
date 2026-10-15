@@ -162,12 +162,28 @@ int main(int argc,char** argv) try
         Trace trace;g_testFailHeapAllocation.store(true);
         auto token=trace.RecordBridgeOwned(nullptr,nullptr,{}, {}, {}, {},sl::Constants{},0,0,{}, {}, {});
         check(!trace.RecordBridgeControlHeader({},nullptr,{},{}),"OFF control-header path accessed native/allocated");
+        check(!Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(1)&&!Trace::WantsNrdBridgeSignal(2),"OFF/invalid signal selector accessed session/native/allocated");
         g_testFailHeapAllocation.store(false);check(!token,"OFF performed allocation/native access");
     }
     auto request=Request(root);
     {
+        // CPU request/selector lifecycle only: no GPU copy/SDK/native resources.
+        check(request.bridgeSignal==0,"API signal selector default must preserve A callers");
+        Trace trace;auto selectedB=request;selectedB.bridgeSignal=1;
+        check(Trace::RequestStart(selectedB),"explicit B signal request");
+        check(Trace::WantsNrdBridgeSignal(1)&&!Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(2),"A stole selected B before reset/owner initialization");
+        check(Trace::GetStatus().bridgeSignal==1,"active status lost selected B identity");
+        {std::scoped_lock lock(Global().mutex);check(Global().current->manifest["requested_signal_index"]==1&&Global().current->manifest["requested_signal_profile"]=="B_PrePass","manifest lost exact requested B profile");}
+        check(!Trace::TakeNrdBridgeHistoryResetRequest(),"ordinary B arm requested a reset");
+        trace.Abort("CPU B selector case complete");Closed();
+        check(!Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(1),"closed signal request remained eligible");
+        auto invalid=request;invalid.bridgeSignal=2;
+        check(!Trace::RequestStart(invalid)&&!Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(1),"invalid signal selector armed a trace");
+    }
+    {
         Trace trace;check(Trace::RequestStart(request),"bridge request");
         check(Trace::IsNrdBridgeCaptureActive(),"bridge atomic path gate missing");
+        check(Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(1),"API A request leaked eligibility to B");
         check(!Trace::TakeNrdBridgeHistoryResetRequest(),"ordinary arm requested a history reset");
         check(!h.Sources(trace),"legacy source owner stole bridge request");
         const auto folder=Trace::GetStatus().folder;result["capture"]=folder;

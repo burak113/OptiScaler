@@ -146,7 +146,7 @@ def prepare_runner(output):
         "compiler_executed": False, "native_executed": False}, indent=2) + "\n", encoding="utf-8")
     return (source, executable, ("d3d12.lib", "dxgi.lib", "bcrypt.lib"),
             ((sdk / "api/include").resolve(), (sdk / "denoisers/include").resolve(),
-             (ROOT / "OptiScaler/include").resolve()))
+             (ROOT / "OptiScaler/include").resolve(), (ROOT / "external/nlohmann").resolve()))
 
 
 def main():

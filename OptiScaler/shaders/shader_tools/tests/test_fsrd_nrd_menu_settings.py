@@ -156,6 +156,11 @@ int main(){try{
  "Map explains attested demodulation, material remodulation and white-guide limits");
  need(!ImGui::hasText("already-demodulated")&&!ImGui::hasText("albedo division is needed"),
  "Map preserves uncertainty instead of asserting proven demodulation or albedo matching");
+ need(ImGui::hasText("Owned raw A/B noisy")&&ImGui::hasText("captured before native filters"),"Lighting map identifies owned unfiltered raw sources");
+ need(ImGui::hasText("Bridge-owned depth is built")&&ImGui::hasText("bridge-owned depth history"),"Geometry map does not depend on native NRD depth/history outputs");
+ need(ImGui::hasText("control 2 preserves full-rate")&&ImGui::hasText("controls 0/1 reconstruct only missing"),"Checkerboard map explains local GPU reconstruction without altering present samples");
+ need(ImGui::hasText("current game modes remain unknown until a completed recording"),"Checkerboard runtime modes require actual completed Trace evidence");
+ need(ImGui::hasText("Native NRD denoised RGB, temporal history and confidence are not used")&&!ImGui::hasText("checkerboard controls have no equivalent"),"Map excludes native denoised data while acknowledging consumed checkerboard controls");
  ImGui::frame();ImGui::floats["Max Radiance"]=100;drawBridge(&cfg);need(!NrdBridge::applyCalls&&cfg.FfxDenoiserMaxRadiance.value_or_default()==40000,"OFF custom tuning ignores disabled slider edits");
  ImGui::frame();ImGui::bools["Use custom RR tuning##NrdBridge"]=true;
  ImGui::floats={{"Cross Bilateral Normal Strength",.25f},{"Temporal Stability Bias",.6f},{"Max Radiance",30000},
@@ -273,8 +278,8 @@ int main(){try{
  "Native motion publishes one coherent independent accepted runtime setting");
  saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeTemporalMotion,
  "Native motion survives production serializer and reload");
- ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("native NRD Temporal surface reprojection"),
- "Input map describes accepted native mode rather than stored camera toggle");
+ ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("Optional native surface reprojection")&&ImGui::hasText("Native NRD history is not read"),
+ "Input map describes copied native formula with owned depth and no native history");
  cfg.ResetFfxDenoiserSettings();need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion&&!NrdBridge::last.nativeTemporalMotion,
  "Full reset disables native motion in Config and applied snapshot");
  cfg.load("[FSR-RR]\nNrdBridgeNativeTemporalMotion=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion,

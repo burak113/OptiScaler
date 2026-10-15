@@ -38,8 +38,9 @@ public:
         std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
         enum class CapturePath { Legacy, NrdBridge };
         CapturePath capturePath = CapturePath::Legacy;
-        uint64_t bridgeDomain = 0; // Zero binds the first eligible domain; never merges chains.
+        uint64_t bridgeDomain = 0; // Zero binds the first eligible selected-signal domain; never merges chains.
         bool bridgeWaitForReset = false; // Only a dedicated explicit USER reset request sets this.
+        uint32_t bridgeSignal = 0; // 0=A Recon, 1=B PrePass. API default A preserves older callers.
     };
     struct Status
     {
@@ -48,6 +49,7 @@ public:
         uint32_t manifestPublished = 0;
         uint32_t pending = 0, staged = 0, awaitingDetach = 0, delayRemainingMs = 0;
         bool active = false, nrdBridge = false;
+        uint32_t bridgeSignal = 0;
         uint64_t cpuQueuedBytes = 0, retainedReadbackBytes = 0, estimatedPayloadBytes = 0;
         uint64_t estimatedFrameReadbackBytes = 0;
         uint64_t manifestWrites = 0, manifestBytesWritten = 0;
@@ -62,6 +64,7 @@ public:
     static bool WantsFullContextReference() noexcept;
     static bool WantsParticleLayerDiagnostics() noexcept;
     static bool IsNrdBridgeCaptureActive() noexcept; // Atomic OFF gate, before metadata/native work.
+    static bool WantsNrdBridgeSignal(uint32_t index) noexcept; // Filter BEFORE owner claim/reset/native work; 0=A, 1=B.
     static bool TakeNrdBridgeHistoryResetRequest(uint64_t domain = 0) noexcept;
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };

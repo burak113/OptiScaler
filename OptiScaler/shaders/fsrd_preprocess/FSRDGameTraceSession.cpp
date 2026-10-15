@@ -101,7 +101,7 @@ struct Session
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
     bool survey = false, bridge = false, bridgeWaitForReset = false, bridgeResetIssued = false;
     uint64_t bridgeDomain = 0, lastBridgeRecording = 0;
-    uint32_t lastBridgeSL = UINT32_MAX;
+    uint32_t lastBridgeSL = UINT32_MAX, bridgeSignal = 0;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
     bool payloadEstimated = false, defaultPayloadQuota = true;
@@ -1680,7 +1680,9 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         if (request.capturePath != Request::CapturePath::Legacy && request.capturePath != Request::CapturePath::NrdBridge)
             throw std::runtime_error("Invalid GAME_TRACE capture path");
         s->bridge = request.capturePath == Request::CapturePath::NrdBridge;
+        if (request.bridgeSignal > 1) throw std::runtime_error("NRD_BRIDGE signal selector must be A(0) or B(1)");
         s->bridgeDomain = request.bridgeDomain; s->bridgeWaitForReset = request.bridgeWaitForReset;
+        s->bridgeSignal = request.bridgeSignal; s->status.bridgeSignal = request.bridgeSignal;
         s->status.nrdBridge = s->bridge;
         if (request.bridgeWaitForReset && !s->bridge) throw std::runtime_error("History reset capture intent requires the NRD bridge path");
         if (s->bridge && (request.srMode != SrMode::Off || request.fullContextReference || request.particleLayerDiagnostics))
@@ -1744,9 +1746,11 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             s->manifest.erase("native_full1_filename_role");
             s->manifest["source_contract"] = FSRDGameTraceBridgeMetadata::Contract();
             s->manifest["requested_domain"] = request.bridgeDomain;
+            s->manifest["requested_signal_index"] = request.bridgeSignal;
+            s->manifest["requested_signal_profile"] = request.bridgeSignal ? "B_PrePass" : "A_ReconDirect";
             s->manifest["explicit_user_history_reset_requested"] = request.bridgeWaitForReset;
             s->manifest["history_reset_request_issued_when_ready"] = false;
-            s->manifest["domain_policy"] = "explicit_selector_or_first_eligible_domain_only; other_chains_are_not_captured_or_merged";
+            s->manifest["domain_policy"] = "selected_signal_and_explicit_selector_or_first_eligible_domain_only; other_chains_are_not_captured_or_merged";
             s->manifest["history_replay_scope"] = "full_render_and_actual_first_SDK_RESET_and_consecutive_same_context_required; ordinary_arm_no_reset; explicit_USER_reset_intent_recorded_separately; cropped_or_hidden_prior_history_not_reconstructible";
             s->manifest["native_nrd_outputs"] = {{"captured",false},{"used_as_reference",false},{"used_as_correction",false}};
         }
@@ -1803,6 +1807,13 @@ bool FSRDGameTraceSession::IsActive() noexcept
 { return g_captureActive.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::IsNrdBridgeCaptureActive() noexcept
 { return IsActive() && g_bridgeRequested.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::WantsNrdBridgeSignal(uint32_t index) noexcept
+{
+    if (index > 1 || !IsNrdBridgeCaptureActive()) return false;
+    std::scoped_lock lock(Global().mutex);
+    const auto& s = Global().current;
+    return s && s->bridge && s->status.active && !s->stop && !s->closing && s->bridgeSignal == index;
+}
 bool FSRDGameTraceSession::TakeNrdBridgeHistoryResetRequest(uint64_t domain) noexcept
 {
     if (!IsNrdBridgeCaptureActive()) return false;

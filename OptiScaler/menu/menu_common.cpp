@@ -3475,18 +3475,18 @@ static void DrawNrdBridgeInputMap()
             ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(name);
             ImGui::TableNextColumn(); ImGui::TextWrapped("%s", meaning);
         };
-        row("Specular lighting", "Separate demodulated native NRD RGB, confirmed by the downstream material compositor. The bridge sanitizes nonfinite/negative RGB before RR.");
-        row("Diffuse lighting", "Separate demodulated diffuse lighting. The verified downstream compositor multiplies it by baseColorLinear*(1-metallic); the bridge does not divide it again.");
+        row("Specular lighting", "Owned raw A/B noisy specular RGB, captured before native filters and decoded as separate demodulated lighting, confirmed by the downstream material compositor. The bridge sanitizes nonfinite/negative RGB before RR.");
+        row("Diffuse lighting", "Owned raw A/B noisy diffuse RGB, captured before native filters. The verified downstream compositor multiplies the decoded lighting by baseColorLinear*(1-metallic); the bridge does not divide it again.");
         row("Hit distance", "Each lobe keeps its native alpha/hit-distance metric, including finite inactive sentinels. The bridge does not normalize it.");
         row("Normal + roughness", NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs
             ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
             : "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
-        row("Linear VIEWZ", "The title's NRD view-space depth, signed for the RR camera convention and clamped to the camera depth bounds.");
+        row("Linear VIEWZ", "Bridge-owned depth is built from the title's unfiltered view-space depth and copied native source origin, signed for the RR camera convention and clamped to the camera depth bounds.");
         row("Motion + jitter", NrdBridge::GetRRSettingsState().requested.nativeTemporalMotion
-            ? "Current motion XY uses Streamline scale/jitter. Z follows native NRD Temporal surface reprojection using live b6 and positive ViewZ; invalid native pixels use camera-only depth."
+            ? "Current title motion XY uses Streamline scale/jitter. Optional native surface reprojection uses copied b6 operands and bridge-owned positive ViewZ; invalid pixels use camera-only depth. Native NRD history is not read."
             : NrdBridge::CameraProjectedDepthEnabled()
-            ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
-            : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
+            ? "Current title motion XY uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry and bridge-owned history."
+            : "Current title motion XY uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel, using bridge-owned depth history.");
         row("Albedo guides", NrdBridge::GetRRSettingsState().requested.nativeMaterialGuides
             ? (NrdBridge::GetStatus().nativeMaterialGuidesActive
                 ? "Proven same-writer guides use linear baseColor*(1-metal) for diffuse and AMD analytic GGX specular RGB. Unknown source state/material falls back to white. Albedo alpha is unused by AMD RR1.2."
@@ -3496,7 +3496,8 @@ static void DrawNrdBridgeInputMap()
             ? "Requested separate lobe recovery uses noise-gated lost detail, temporal warm-up, disocclusion rejection and a local anchor. Zero strength leaves that lobe unchanged; both zero skip recovery work. Independent of ordinary Recovery controls."
             : "Separate lobe detail recovery is requested off. Ordinary FSR-RR Recovery controls are independent of this bridge path.");
         row("Consumer output encoding", "A tiny GPU shader reads the current consumer's exact b6/space0 binding: compute word303 at byte 1212 or pixel-composition word36 at byte 144. It selects RGB or YCoCg; the game keeps its factor 64, exposure and composition.");
-        row("Unused title inputs", "NRD history, confidence and checkerboard controls have no equivalent bound AMD input here. They are not reinterpreted as lighting or fabricated. Ordinary DLSS-input conversion and Recovery controls are independent.");
+        row("Raw sampling + checkerboard", "Owned raw A/B snapshots precede native denoising. For B, local GPU checkerboard control 2 preserves full-rate samples; controls 0/1 reconstruct only missing samples. GAME_TRACE records actual GPU operands; current game modes remain unknown until a completed recording.");
+        row("Unused title inputs", "Native NRD denoised RGB, temporal history and confidence are not used as AMD inputs. The bridge owns its geometry/history; checkerboard sampling is handled locally. Ordinary DLSS-input conversion and Recovery controls are independent.");
         ImGui::EndTable();
     }
     ImGui::TextWrapped("Both noisy lighting lobes go through AMD RR. Native NRD denoised color never corrects or replaces the RR result. The title keeps its final material, water, fog and transparent-layer composition.");
@@ -3608,7 +3609,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             const bool bridgeTrace = capture.active ? capture.nrdBridge :
                 NrdBridge::StartupEnabled() && NrdBridge::RuntimeEnabled();
             ImGui::TextWrapped(bridgeTrace ?
-                "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. First eligible chain only; no native NRD output/reference." :
+                "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. One selected A/B signal chain only; no native NRD output/reference." :
                 "Ordinary RR: configured pre-SR composition and original conversion inputs.");
             const auto bridgeStatus = NrdBridge::GetStatus();
             const uint32_t width = bridgeTrace && bridgeStatus.width ? bridgeStatus.width :
@@ -3619,9 +3620,12 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             static char outputRoot[1024] {};
             static bool initialCenter = true, folderOpenFailed = false;
             static bool fullContextReference = false, bridgeResetCapture = false;
+            static int bridgeSignalChoice = 1; // User-facing default B exposes actual checkerboard operands.
+            if (capture.active && capture.nrdBridge) bridgeSignalChoice = int(capture.bridgeSignal);
             ImGui::BeginDisabled(capture.active);
             if (bridgeTrace)
             {
+                ImGui::Combo("Bridge signal chain##GameTrace", &bridgeSignalChoice, "A - Recon raw signals\0" "B - PrePass / checkerboard raw signals\0");
                 ImGui::Checkbox("Full inputs from RR history reset (64 frames)##GameTrace", &bridgeResetCapture);
                 ImGui::TextWrapped("This explicit option requests one RR history reset after the destination and delay are ready, then records 64 full render frames beginning at an actual SDK RESET. Ordinary recording preserves current history.");
             }
@@ -3696,6 +3700,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
                 request.capturePath = bridgeTrace ? FSRDGameTraceSession::Request::CapturePath::NrdBridge :
                     FSRDGameTraceSession::Request::CapturePath::Legacy;
+                request.bridgeSignal = bridgeTrace ? uint32_t(std::clamp(bridgeSignalChoice, 0, 1)) : 0u;
                 request.bridgeWaitForReset = bridgeTrace && bridgeResetCapture;
                 request.fullContextReference = !bridgeTrace && fullContextReference;
                 request.particleLayerDiagnostics = !bridgeTrace && particleDiagnostics;
