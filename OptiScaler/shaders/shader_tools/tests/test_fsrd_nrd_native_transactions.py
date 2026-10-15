@@ -18,7 +18,8 @@ import test_fsrd_nrd_e2e as baseline
 from test_fsrd_nrd_bridge_rr import bounded_run, DLL
 from fsrd_toolchain import compile_cpp
 
-PREFIX = r'''#include "fixture_support.h"
+PREFIX = r'''#define FSRD_NRD_BRIDGE_TEST
+#include "fixture_support.h"
 #include <resource_tracking/FrameSurvey_Dx12.h>
 #include "__ROOT__/OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h"
 #include <unordered_set>
@@ -102,6 +103,7 @@ def prepare(out):
     path.write_text(PREFIX.replace('__ROOT__', ROOT.as_posix()) + source + '\n#undef main\n' + draw + fixture.read_text())
     manifest = dict(schema='native-transactions-source-v1', compiler_executed=False, native_executed=False, gpu_executed=False,
                     generated_cpp_sha256=sha(path), fixture_sha256=sha(fixture), driver_sha256=sha(__file__),
+                    compiler_extra_option="/bigobj",
                     shipping_readiness=False, explicit_role_readiness_adapter=True,
                     native_birth_ready=True, native_physical_detours_proved=False,
                     original_fixture_sha256=sha(HERE/'fsrd_nrd_e2e_fixture.cpp'))
@@ -118,7 +120,17 @@ def run():
     if args.prepare_only:
         print(json.dumps(dict(source=str(command[0]), compiler_executed=False, native_executed=False)))
         return
-    compile_cpp(*command, **keywords)
+    # The NEW full-host translation unit contains all actual production bodies.
+    # This is a compiler object-section limit, not a changed runtime policy.
+    prior_cl = os.environ.get('CL')
+    os.environ['CL'] = ((prior_cl + ' ') if prior_cl else '') + '/bigobj'
+    try:
+        compile_cpp(*command, **keywords)
+    finally:
+        if prior_cl is None:
+            os.environ.pop('CL', None)
+        else:
+            os.environ['CL'] = prior_cl
     _, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL)], out/'native_run')
     value = json.loads((out/'native-transactions-result.json').read_text())
     assert value['debug_errors'] == value['debug_warnings'] == 0

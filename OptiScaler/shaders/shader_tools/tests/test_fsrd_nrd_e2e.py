@@ -183,7 +183,8 @@ namespace D3d12Proxy {
     controls_names = (
         'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
         'static bool CaptureRootRestoreSnapshot(',
-        'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::BridgePredicationDisabled(',
+        'void D3D12Hooks::OnBridgeCommandListReset(', 'void D3D12Hooks::OnBridgeOpaqueCommand(',
+        'bool D3D12Hooks::BridgePredicationDisabled(',
         'bool D3D12Hooks::CanRestoreRootSignature(',
         'static bool BridgeGraphicsRestoreHooksReady(', 'static bool BridgeGraphicsSnapshotPair(',
         'bool D3D12Hooks::CanRestoreGraphicsRootSignature(', 'bool D3D12Hooks::RestoreGraphicsRootForBridge(',
@@ -202,6 +203,7 @@ struct D3D12Hooks {
  static void SetRootSignatureTracking(bool);
  static bool RootSignatureTrackingEnabled();
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
+ static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool) noexcept;
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
  static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept;
  static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept;
