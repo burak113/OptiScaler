@@ -8,6 +8,9 @@ namespace NrdBridgeStagePerf { struct Sample; }
 
 namespace NrdBridge
 {
+struct RRRecoveryFamily;
+// Optional graph budgets survive replacement temporal domains in one Service.
+std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept;
 struct RRSettings
 {
     // Bits0..5 select AMD scalar keys1..6 in values0..5; bit6 selects
@@ -27,6 +30,7 @@ struct RRSettings
 struct RRSettingsState
 {
     bool ready = false;
+    bool lobeRecoveryActive = false, lobeRecoveryFallback = false;
     RRSettings requested {};
     std::array<float, 8> defaults {}, effective {};
 };
@@ -55,6 +59,8 @@ class RRWrapper
     // Coordinator serializes this snapshot with dispatch; Config is never read here.
     bool Configure(const RRSettings&, std::string& error);
     RRSettingsState GetSettingsState() const noexcept;
+    // Call after Configure under the coordinator's existing injection serialization.
+    void SetRecoveryFamily(const std::shared_ptr<RRRecoveryFamily>&) noexcept;
     RRWrapperNativeDebugOutputSnapshot GetNativeDebugOutputSnapshot() const noexcept;
     // The coordinator proves same-recording or fence-published source ordering
     // before presentation. Output is borrowed for recording, then restored.

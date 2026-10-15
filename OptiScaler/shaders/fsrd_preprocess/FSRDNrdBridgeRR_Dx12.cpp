@@ -9,6 +9,7 @@
 #endif
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
 #include "precompile/FSRDNrdBridgeCommit_Shader.h"
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
@@ -18,10 +19,17 @@
 #include <bit>
 #include <cstdio>
 #include <sstream>
+#include <optional>
 #include <vector>
 
 namespace NrdBridge
 {
+struct RRRecoveryFamily { LobeRecovery::Family budget; };
+std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept
+{
+    try { return MakeOwnedShared<RRRecoveryFamily>(); }
+    catch (...) { return {}; } // Optional postprocessing never disables the RR bridge.
+}
 namespace
 {
 using Microsoft::WRL::ComPtr;
@@ -80,6 +88,7 @@ struct Context
     ComPtr<ID3D12PipelineState> commitPso;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
+    std::optional<LobeRecovery> recovery;
     ComPtr<ID3D12RootSignature> nativeDebugRoot;
     ComPtr<ID3D12PipelineState> nativeDebugPso;
     uint64_t zeroBytes = 0;
@@ -304,9 +313,21 @@ struct Context
         }
         return slot;
     }
+    void SetCommitInputs(const Slot& slot, ID3D12Resource* spec, ID3D12Resource* diff) noexcept
+    {
+        auto cpu = slot.descriptors->GetCPUDescriptorHandleForHeapStart();
+        for (auto* input : {spec,diff})
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC view {}; view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; view.Texture2D.MipLevels = 1;
+            view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            device->CreateShaderResourceView(input,&view,cpu); cpu.ptr += descriptorStride;
+        }
+    }
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
-                const TitleSignalConstants& titleConstants, float nativeSpecularBlend) noexcept
+                const TitleSignalConstants& titleConstants, float nativeSpecularBlend,
+                ID3D12Resource* committedSpec, ID3D12Resource* committedDiff) noexcept
     {
         const bool nativeConstants = HasNativeTitleSignalConstants(titleConstants);
         if (nativeConstants)
@@ -320,7 +341,7 @@ struct Context
         for (uint32_t i = 0; i < 2; ++i)
         {
             barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barriers[i].Transition = {i ? slot.diff.Get() : slot.spec.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            barriers[i].Transition = {i ? committedDiff : committedSpec, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
             barriers[i+2].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
             barriers[i+2].UAV.pResource = i ? outputDiff : outputSpec;
@@ -351,6 +372,7 @@ struct DispatchLease
 {
     std::shared_ptr<Context> context;
     std::shared_ptr<Context::Slot> slot;
+    LobeRecovery::Prepared recovery; // Retained before the provider; owns every graph binding.
     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
     std::array<ComPtr<ID3D12Resource>, 7> inputs;
 };
@@ -497,6 +519,8 @@ struct RRWrapper::Impl
     bool resetPending = true, historyValid = false;
     FrameParameters previous {};
     RRSettings settings {};
+    std::shared_ptr<RRRecoveryFamily> recoveryFamily;
+    bool recoveryActive = false, recoveryFallback = false, externalRecoveryFamily = false;
     RRWrapperNativeDebugOutputSnapshot nativeDebug {};
     std::string conventions;
 };
@@ -592,6 +616,8 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
     RRSettingsState state;
     if (!impl_) return state;
     state.requested = impl_->settings;
+    state.lobeRecoveryActive = impl_->recoveryActive;
+    state.lobeRecoveryFallback = impl_->recoveryFallback;
     if (impl_->context)
     {
         state.ready = true;
@@ -599,6 +625,10 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
         state.effective = impl_->context->configuredValues;
     }
     return state;
+}
+void RRWrapper::SetRecoveryFamily(const std::shared_ptr<RRRecoveryFamily>& family) noexcept
+{
+    if (impl_) { impl_->recoveryFamily = family; impl_->externalRecoveryFamily = true; }
 }
 RRWrapperNativeDebugOutputSnapshot RRWrapper::GetNativeDebugOutputSnapshot() const noexcept
 {
@@ -771,7 +801,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     error.clear();
     // Every failed/current dispatch replaces the published observation. Recorded
     // presentation leases retain their image independently through completion.
-    if (impl_) impl_->nativeDebug = {};
+    if (impl_) { impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false; }
     if (frame.outputEncoding != SignalEncoding::Rgb && frame.outputEncoding != SignalEncoding::YCoCg)
     {
         if (impl_) impl_->resetPending = true;
@@ -849,6 +879,51 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     lease->slot = impl_->context->AcquireSlot(outputSpec, outputDiff, error);
     if (!lease->slot) { impl_->resetPending = true; return false; }
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
+    const bool reset = frame.reset || impl_->resetPending || recreate;
+    auto* committedSpec = lease->slot->spec.Get();
+    auto* committedDiff = lease->slot->diff.Get();
+    const bool requestRecovery = impl_->settings.lobeRecovery && !lease->context->debugEnabled &&
+        (impl_->settings.recoverySpecular > 0.0f || impl_->settings.recoveryDiffuse > 0.0f);
+    if (requestRecovery)
+    {
+        // Optional preparation is entirely before provider recording and lifetime admission.
+        // All fallback paths leave the exact raw RR pair and RR history intact.
+        bool prepared = false;
+        try
+        {
+            if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily)
+                impl_->recoveryFamily = CreateRRRecoveryFamily();
+            if (impl_->recoveryFamily)
+            {
+                if (!lease->context->recovery) lease->context->recovery.emplace();
+                LobeRecoveryInputs recoveryInputs {input.spec,input.diff,input.linearDepth,input.motion,input.normals,
+                    committedSpec,committedDiff,input.width,input.height};
+                LobeRecoveryFrame recoveryFrame;
+                recoveryFrame.frameIndex = frame.frameIndex; recoveryFrame.reset = reset;
+                recoveryFrame.jitterPixels = {frame.jitter.x,frame.jitter.y};
+                // Primary RR motion includes jitter whether supplied by the title or added by conversion.
+                recoveryFrame.jitterDeltaUv = {(frame.previousJitter.x-frame.jitter.x)/input.width,
+                    (frame.previousJitter.y-frame.jitter.y)/input.height};
+                recoveryFrame.strength = {impl_->settings.recoverySpecular,impl_->settings.recoveryDiffuse};
+                std::string optionalError;
+                const std::shared_ptr<LobeRecovery::Family> family(impl_->recoveryFamily,&impl_->recoveryFamily->budget);
+                prepared = lease->context->recovery->Prepare(device.Get(),list,recoveryInputs,recoveryFrame,
+                    family,lease->recovery,optionalError);
+            }
+        }
+        catch (...) { prepared = false; }
+        if (prepared)
+        {
+            committedSpec = lease->recovery.specular; committedDiff = lease->recovery.diffuse;
+            lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
+        }
+        else
+        {
+            lease->recovery = {}; lease->context->recovery.reset();
+            impl_->recoveryFallback = true;
+        }
+    }
+    else lease->context->recovery.reset();
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
         return reject("RR recorded-dispatch lifetime tracking is unavailable");
     ffxDispatchDescDenoiserDirectDiffuse diffuse {};
@@ -882,7 +957,6 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     dispatch.diffuseAlbedo = ffxApiGetResourceDX12(input.diffAlbedo, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     dispatch.motionVectorScale = { 1.0f, 1.0f, 1.0f };
     dispatch.jitterOffsets = { frame.jitter.x, frame.jitter.y };
-    const bool reset = frame.reset || impl_->resetPending || recreate;
     dispatch.cameraPositionDelta = reset ? FfxApiFloatCoords3D {} : FfxApiFloatCoords3D {
         frame.previousCameraPosition.x - frame.cameraPosition.x,
         frame.previousCameraPosition.y - frame.cameraPosition.y,
@@ -906,23 +980,26 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         DiscardRecordingHistory();
         return Fail(error, "RR dispatch", result);
     }
+    // These passes touch only private resources, outside the title-admission gMutex.
+    // Guard denial below retires the entire physical context and speculative graph history.
+    if (lease->recovery.owner) lease->context->recovery->Record(list,lease->recovery);
     struct PreparedCommit
     {
         Context* context;
         ID3D12GraphicsCommandList* list;
         Context::Slot* slot;
-        ID3D12Resource *spec, *diff;
+        ID3D12Resource *spec, *diff, *committedSpec, *committedDiff;
         SignalEncoding encoding;
         TitleSignalConstants constants;
         float nativeSpecularBlend;
         NrdBridgeStagePerf::Sample* profiling;
-    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, frame.outputEncoding, frame.outputConstants,
+    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, committedSpec, committedDiff, frame.outputEncoding, frame.outputConstants,
         NormalizeNativeSpecularBlend(frame.nativeSpecularBlend),profiling};
     const auto record = +[](void* state) noexcept {
         const auto& prepared = *static_cast<PreparedCommit*>(state);
         NrdBridgeStagePerf::StackTimer outputCommit(prepared.profiling,NrdBridgeStagePerf::Stage::OutputCommit);
         prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants,
-            prepared.nativeSpecularBlend);
+            prepared.nativeSpecularBlend,prepared.committedSpec,prepared.committedDiff);
     };
     if (guard.admit && !guard.admit(guard.state, record, &commit))
     {
@@ -941,6 +1018,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         impl_->nativeDebug.width = input.width; impl_->nativeDebug.height = input.height;
         impl_->nativeDebug.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     }
+    impl_->recoveryActive = bool(lease->recovery.owner);
     impl_->previous = frame;
     impl_->previous.reset = reset;
     impl_->historyValid = true;
@@ -956,6 +1034,7 @@ void RRWrapper::DiscardRecordingHistory() noexcept
 {
     if (!impl_) return;
     impl_->nativeDebug = {};
+    impl_->recoveryActive = impl_->recoveryFallback = false;
     impl_->context.reset();
     impl_->historyValid = false;
     impl_->resetPending = true;
@@ -968,7 +1047,11 @@ uint64_t RRWrapper::OwnedStagingBytes() const noexcept
 }
 uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
 {
-    return impl_ && impl_->context ? impl_->context->AuxiliaryBytes() : 0;
+    uint64_t bytes = impl_ && impl_->context ? impl_->context->AuxiliaryBytes() : 0;
+    if (impl_ && impl_->recoveryFamily)
+        bytes += impl_->recoveryFamily->budget.graphBytes.load(std::memory_order_acquire) +
+            impl_->recoveryFamily->budget.slots.allocatedBytes.load(std::memory_order_acquire);
+    return bytes;
 }
 const std::string& RRWrapper::CameraConventionDescription() const noexcept
 {

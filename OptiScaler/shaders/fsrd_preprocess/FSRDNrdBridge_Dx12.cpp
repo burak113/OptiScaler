@@ -125,6 +125,7 @@ struct Service
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
     DiscoveryCache cache;
     NativeMaterialCapture nativeMaterialCapture;
+    std::shared_ptr<RRRecoveryFamily> recoveryFamily; // Stable across all temporal-domain replacements.
     std::array<NrdBridgeBirth::Token,9> cacheBirths {};
     std::shared_ptr<HistoryDomain> history;
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
@@ -281,6 +282,13 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeNativeTemporalMotion; })
         settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
+    if constexpr (requires { config.FfxDenoiserNrdBridgeLobeRecovery; config.FfxDenoiserNrdBridgeRecoverySpecular;
+        config.FfxDenoiserNrdBridgeRecoveryDiffuse; })
+    {
+        settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
+        settings.recoverySpecular = NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
+        settings.recoveryDiffuse = NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
+    }
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -357,7 +365,9 @@ bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
 {
     if (a.overrideMask != b.overrideMask || a.nativeDebugView != b.nativeDebugView ||
         a.nativeDebugViewport != b.nativeDebugViewport || a.preserveNativeMaterialIDs != b.preserveNativeMaterialIDs ||
-        a.nativeTemporalMotion != b.nativeTemporalMotion || a.nativeMaterialGuides != b.nativeMaterialGuides) return false;
+        a.nativeTemporalMotion != b.nativeTemporalMotion || a.nativeMaterialGuides != b.nativeMaterialGuides ||
+        a.lobeRecovery != b.lobeRecovery || a.recoverySpecular != b.recoverySpecular ||
+        a.recoveryDiffuse != b.recoveryDiffuse) return false;
     for (uint32_t i=0;i<8;++i)
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;
@@ -761,6 +771,12 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (reset) { history->conversion.ResetHistory(); history->rr.ResetHistory(); }
         const auto snapshot = StreamlineHooks::getSLConstantsSnapshot();
         succeeded = history->rr.Configure(rrSettings,error);
+        if (succeeded && rrSettings.lobeRecovery &&
+            (rrSettings.recoverySpecular > 0.0f || rrSettings.recoveryDiffuse > 0.0f))
+        {
+            if (!owner->recoveryFamily) owner->recoveryFamily = CreateRRRecoveryFamily();
+            history->rr.SetRecoveryFamily(owner->recoveryFamily);
+        }
         if (succeeded) succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
         parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
         parameters.nativeTemporalMotion = rrSettings.nativeTemporalMotion;
@@ -1721,13 +1737,16 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
             const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs ||
                 owner->rrSettings.nativeMaterialGuides != settings.nativeMaterialGuides;
+            const bool recoveryChanged = owner->rrSettings.lobeRecovery != settings.lobeRecovery ||
+                owner->rrSettings.recoverySpecular != settings.recoverySpecular ||
+                owner->rrSettings.recoveryDiffuse != settings.recoveryDiffuse;
             const bool rawDebugCleared = settings.nativeDebugView >= 0 && gDebug.exchange(DebugMode::Off,std::memory_order_acq_rel) != DebugMode::Off;
             if (!SameDebugSettings(owner->rrSettings,settings)) ClearNativeDebugSources(*owner,retired);
             owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
             owner->rrSettingsState = after; owner->rrSettingsState.requested = settings;
             gNativeDebug.store(settings.nativeDebugView >= 0,std::memory_order_release);
             gNativeMaterials.store(settings.nativeMaterialGuides,std::memory_order_release);
-            if (scalarChanged || motionChanged || materialChanged || debugChanged || rawDebugCleared || !configured)
+            if (scalarChanged || motionChanged || materialChanged || recoveryChanged || debugChanged || rawDebugCleared || !configured)
             {
                 DropPending(*owner,retired);
                 if (owner->status.runtimeEnabled)
