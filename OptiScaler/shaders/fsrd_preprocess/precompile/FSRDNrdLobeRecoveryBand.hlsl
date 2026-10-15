@@ -61,7 +61,7 @@ void ReadNoise(float2 position,float expectedDepth,float4 nr,
         const float4 noise=PrevNoise[q];
         if(!NrdRecoverySameGeometry(asfloat(geometry.x),NrdUnpackNormal(geometry.y),expectedDepth,nr)||!all(isfinite(noise)))continue;
         const float w=(off.x?f.x:1-f.x)*(off.y?f.y:1-f.y);
-        const bool2 counted=(noise.zw>0)&&(w>0);
+        const bool2 counted=bool2(noise.z>0&&w>0,noise.w>0&&w>0);
         const float2 weights=float2(counted.x?w:0,counted.y?w:0);
         variance+=weights*noise.xy;weight+=weights;
         age=min(age,float2(counted.x?noise.z:1e20f,counted.y?noise.w:1e20f));
@@ -100,7 +100,7 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
         energy*=1.0f/9.0f;
         const float4 bandS=sBandS[b.y][b.x],bandD=sBandD[b.y][b.x],metadata=ThisMetadata[p];
         const float2 coarseAge=MinCoarseAge((float2(p)+.5f)*.5f-.5f,coarseSize);
-        const bool2 eligible=(metadata.xy>0)&&(coarseAge>0);
+        const bool2 eligible=bool2(metadata.x>0&&coarseAge.x>0,metadata.y>0&&coarseAge.y>0);
         const float2 centre=(float2(p)+.5f)*scale;
         const int2 full=min(int2(centre),int2(FullSize.xy)-1);
         const float4 mv=Motion[full],nr=Normal[full];const float z=Depth[full];
@@ -109,7 +109,7 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
         {
             float2 oldVariance,oldAge;bool2 valid;
             ReadNoise((centre+mv.xy*FullSize.xy)/scale-.5f,z+mv.z,nr,oldVariance,oldAge,valid);
-            valid=valid&&eligible;
+            valid=bool2(valid.x&&eligible.x,valid.y&&eligible.y);
             const float2 rate=max(rcp(oldAge+1.0f),Confidence.y);
             variance=float2(valid.x?oldVariance.x+rate.x*(variance.x-oldVariance.x):variance.x,
                             valid.y?oldVariance.y+rate.y*(variance.y-oldVariance.y):variance.y);
@@ -120,7 +120,8 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
         const float margin=Control.y>=2?smoothstep(4.0f,20.0f,length(mv.xy*FullSize.xy)):0;
         const float threshold=Temporal.y*(1.0f+.5f*float(Control.y*Control.y)*margin);
         const float2 wiener=max(0.0f,1.0f-threshold*noise/max(energy,1e-30f));
-        const bool2 mature=eligible&&(metadata.xy>=Temporal.z)&&(noiseAge>=4.0f)&&(rcp(max(metadata.zw,1e-12f))>=Confidence.x);
+        const bool2 mature=bool2(eligible.x&&metadata.x>=Temporal.z&&noiseAge.x>=4.0f&&rcp(max(metadata.z,1e-12f))>=Confidence.x,
+                                eligible.y&&metadata.y>=Temporal.z&&noiseAge.y>=4.0f&&rcp(max(metadata.w,1e-12f))>=Confidence.x);
         sCorrectionS[l.y][l.x]=mature.x?bandS.rgb*wiener.x*LobeStrength.x:0;
         sCorrectionD[l.y][l.x]=mature.y?bandD.rgb*wiener.y*LobeStrength.y:0;
         if(all(l>=2)&&all(l<10)&&all(r==p))OutNoise[p]=float4(variance,noiseAge);
