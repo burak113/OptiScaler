@@ -1,3 +1,6 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #define FSRD_NRD_BRIDGE_RR_TEST_BACKEND
 #include "../../fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
 #include <d3d12sdklayers.h>
