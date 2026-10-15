@@ -44,7 +44,7 @@ static void ParamsTimings(Fixture& fixture,uint32_t width,uint32_t height)
     auto depth=fixture.Texture(width,height,DXGI_FORMAT_R32_FLOAT,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,&rgba8);
     auto motion=fixture.Texture(width,height,DXGI_FORMAT_R16G16B16A16_FLOAT,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,&rgba16);
     NrdBridge::NativeMaterialCapture capture; NrdBridge::ConversionPass conversion;std::string error;
-    need(capture.Initialize(fixture.device.Get(),width,height,error),error.c_str());
+    need(capture.InitializeParams(fixture.device.Get(),width,height,error),error.c_str());
     need(conversion.Initialize(fixture.device.Get(),width,height,error),error.c_str());
     auto frame=ParamsFrame(width,height);frame.nativeMaterialGuides=true;
     D3D12_QUERY_HEAP_DESC queryDesc{};queryDesc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;queryDesc.Count=samples*4;
@@ -90,6 +90,7 @@ int main(int argc,char** argv) try
     NrdBridge::NativeMaterialCapture::SnapshotLease legacy,snapshot;
     need(capture.Capture(fixture.list.Get(),base.Get(),params.Get(),legacy,error),error.c_str());
     need(!capture.RoughnessResource(legacy),"legacy Capture unexpectedly acquired new roughness resource");
+    need(capture.InitializeParams(fixture.device.Get(),width,height,error),error.c_str());
     need(capture.CaptureParams(fixture.list.Get(),base.Get(),params.Get(),snapshot,error),error.c_str());
     auto* roughness=capture.RoughnessResource(snapshot);
     need(roughness && roughness!=capture.Resource(snapshot),"roughness capture output missing/aliased");
