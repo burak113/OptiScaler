@@ -45,12 +45,19 @@ void notifyEffects(void* raw)noexcept{checkNativeContext();++notifyCalls;delete 
 namespace NrdBridgeNativeBirth{
  bool ObserveReleaseCoverage(IUnknown*)noexcept{checkNativeContext();++coverageCalls;return true;}
 }
+struct RootQIEvent{const void* object;GUID iid;bool alias;};
+std::array<RootQIEvent,8> rootQIEvents;unsigned rootQIEventCount=0;bool recordRootQI=false,rootQIOverflow=false;
+void RecordRootQI(const void* object,REFIID iid,bool alias){
+ if(!recordRootQI)return;
+ if(rootQIEventCount==rootQIEvents.size()){rootQIOverflow=true;return;}
+ rootQIEvents[rootQIEventCount++]={object,iid,alias};
+}
 struct FakeObject:ID3D12Object{
  std::array<std::byte,16> stamp{},countTag{};bool hasStamp=false,hasCount=false;
  bool armCountWrite=false,armCountRead=false;
  ULONG references=1;unsigned adds=0,releases=0,reads=0,writes=0;
  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid,void** out)override{
-  checkNativeContext();if(!out)return E_POINTER;*out=nullptr;
+  checkNativeContext();RecordRootQI(this,iid,false);if(!out)return E_POINTER;*out=nullptr;
   if(iid==__uuidof(IUnknown)||iid==__uuidof(ID3D12Object)||iid==__uuidof(ID3D12RootSignature)){
    *out=this;AddRef();return S_OK;
   }return E_NOINTERFACE;
@@ -86,7 +93,7 @@ struct FakeObject:ID3D12Object{
 struct AliasUnknown:IUnknown{
  FakeObject* root;ULONG refs=1;explicit AliasUnknown(FakeObject& object):root(&object){}
  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid,void** out)override{
-  checkNativeContext();if(iid==__uuidof(ID3D12RootSignature))return root->QueryInterface(iid,out);
+  checkNativeContext();RecordRootQI(this,iid,true);if(iid==__uuidof(ID3D12RootSignature))return root->QueryInterface(iid,out);
   if(iid==__uuidof(IUnknown)){*out=this;AddRef();return S_OK;}*out=nullptr;return E_NOINTERFACE;
  }
  ULONG STDMETHODCALLTYPE AddRef()override{checkNativeContext();return ++refs;}
@@ -169,10 +176,23 @@ void createdRootCases(){
  need(hkCreateRootSignature(nullptr,0,&blob,1,__uuidof(ID3D12RootSignature),&output)==E_FAIL&&output==nullptr&&originalCreateCalls==before+1,"failed native creator preserves HRESULT and null output exactly once");
  need(!rootSigParameterCount.contains(static_cast<ID3D12RootSignature*>(returnedRoot))&&!NrdBridgeBirth::Capture(returnedRoot),"failed creator publishes no root birth/count metadata");
  createResult=S_OK;AliasUnknown alias(objects[6]);returnedRoot=&alias;
- const auto refs=objects[6].references;const auto adds=objects[6].adds,releases=objects[6].releases;
+ const auto coldRefs=objects[6].references;const auto coldAdds=objects[6].adds,coldReleases=objects[6].releases;
+ rootQIEventCount=0;rootQIOverflow=false;recordRootQI=true;
  need(hkCreateRootSignature(nullptr,0,&blob,1,__uuidof(IUnknown),&output)==S_OK&&output==&alias,"arbitrary returned IID preserves original interface identity");
+ recordRootQI=false;
  const auto typed=objects[6].as<ID3D12RootSignature>();const auto born=NrdBridgeBirth::Capture(typed);const auto aliasBorn=NrdBridgeBirth::Capture(&alias);
  need(born&&aliasBorn&&born->InstanceStamp()==aliasBorn->InstanceStamp()&&rootSigParameterCount.at(typed)==7,"QI normalization registers proven output alias with the same physical stamp");
+ need(objects[6].references==coldRefs&&objects[6].adds==coldAdds+2&&objects[6].releases==coldReleases+2,
+      "full cold root creation owns exactly two balanced normalization and canonical identity references");
+ need(!rootQIOverflow&&rootQIEventCount==3&&rootQIEvents[0].alias&&rootQIEvents[0].object==&alias&&
+      rootQIEvents[0].iid==__uuidof(ID3D12RootSignature)&&!rootQIEvents[1].alias&&rootQIEvents[1].object==&objects[6]&&
+      rootQIEvents[1].iid==__uuidof(ID3D12RootSignature)&&!rootQIEvents[2].alias&&rootQIEvents[2].object==&objects[6]&&
+      rootQIEvents[2].iid==__uuidof(IUnknown),"cold creator normalizes returned alias before exact canonical IUnknown proof");
+ // The original assertion measures ReturnedRootInterface normalization itself,
+ // separately from the newer cold canonical identity protocol above.
+ const auto refs=objects[6].references;const auto adds=objects[6].adds,releases=objects[6].releases;
+ {ReturnedRootInterface normalized(&alias,__uuidof(IUnknown));
+  need(normalized.root==typed,"isolated normalization uses the already registered canonical typed root");}
  need(objects[6].references==refs&&objects[6].adds==adds+1&&objects[6].releases==releases+1,"QI normalization owns only one temporary balanced title reference outside all locks");
  retire(born);retire(aliasBorn);
  need(NrdBridgeBirth::Healthy(),"all valid creator/version/fallback/IID paths preserve metadata health");
