@@ -47,6 +47,7 @@ def run():
                 if (Path(path) / 'd3d12.h').is_file())).read_text()
     source = (ROOT / 'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
     signatures = (
+        'static bool RequiredComputeSubmissionAllowed(',
         'std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(',
         'void ResTrack_Dx12::hkExecuteCommandLists(',
         'static bool HasRetainedSubmissionParticipant(',
