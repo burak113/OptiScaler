@@ -9,10 +9,22 @@ constexpr auto PS=D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 constexpr auto UA=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 struct Seen {ID3D12Resource* resource;D3D12_RESOURCE_BARRIER_TYPE type;D3D12_RESOURCE_STATES before,after;};
 static std::array<ID3D12Resource*,2> activeSources{};
-static std::array<ID3D12Resource*,2> commitOutputs{};
-static unsigned commitOutputUav=0;
+static std::array<ID3D12Resource*,2> reconOutputs{},commitOutputs{};
+static unsigned reconOutputUav=0,commitOutputUav=0,rawReconUav=0,rawCommitUav=0;
+static unsigned rawTitleTransitions=0,uniqueTitleTransitions=0,forwardedTitle=0,matchedForwardedTitle=0,forwardedOtherThis=0;
+static std::array<D3D12_RESOURCE_BARRIER,8> outerPacket{};
+static UINT outerCount=0;
+static ID3D12GraphicsCommandList* outerList=nullptr;
 static std::array<Seen,8> seen{};
 static unsigned seenCount=0,unexpectedTitle=0;
+bool sameBarrier(const D3D12_RESOURCE_BARRIER& a,const D3D12_RESOURCE_BARRIER& b) noexcept
+{
+ if(a.Type!=b.Type||a.Flags!=b.Flags)return false;
+ if(a.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV)return a.UAV.pResource==b.UAV.pResource;
+ if(a.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)return a.Transition.pResource==b.Transition.pResource&&
+  a.Transition.Subresource==b.Transition.Subresource&&a.Transition.StateBefore==b.Transition.StateBefore&&a.Transition.StateAfter==b.Transition.StateAfter;
+ return false;
+}
 void audit(const D3D12_RESOURCE_BARRIER& value) noexcept
 {
  auto* resource=value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION?value.Transition.pResource:
@@ -20,8 +32,10 @@ void audit(const D3D12_RESOURCE_BARRIER& value) noexcept
  if(!resource||!titleTextures.contains(resource))return;
  if(std::find(activeSources.begin(),activeSources.end(),resource)==activeSources.end())
  {
-  // The production RGB Commit orders its two borrowed UAV outputs before and
-  // after the write. A UAV dependency never changes their resource states.
+  // Conversion orders the exact Recon p5 pair before reading it. Commit
+  // orders its exact output pair before/after writing RGB. Neither changes state.
+  if(value.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV&&std::find(reconOutputs.begin(),reconOutputs.end(),resource)!=reconOutputs.end())
+   {++reconOutputUav;return;}
   if(value.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV&&std::find(commitOutputs.begin(),commitOutputs.end(),resource)!=commitOutputs.end())
    {++commitOutputUav;return;}
   ++unexpectedTitle;return;
@@ -29,6 +43,26 @@ void audit(const D3D12_RESOURCE_BARRIER& value) noexcept
  if(seenCount==seen.size()){++unexpectedTitle;return;}
  seen[seenCount++]={resource,value.Type,value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION?value.Transition.StateBefore:D3D12_RESOURCE_STATE_COMMON,
   value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION?value.Transition.StateAfter:D3D12_RESOURCE_STATE_COMMON};
+}
+void auditPacket(ID3D12GraphicsCommandList* list,UINT count,const D3D12_RESOURCE_BARRIER* barriers,bool internal,unsigned depth) noexcept
+{
+ if(!internal)return;
+ if(!depth){outerList=list;outerCount=std::min<UINT>(count,UINT(outerPacket.size()));for(UINT i=0;i<outerCount;++i)outerPacket[i]=barriers[i];}
+ for(UINT i=0;i<count;++i)
+ {
+  const auto& value=barriers[i];auto* resource=value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION?value.Transition.pResource:
+   value.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV?value.UAV.pResource:nullptr;
+  if(!resource||!titleTextures.contains(resource))continue;
+  rawTitleTransitions+=value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+  if(value.Type==D3D12_RESOURCE_BARRIER_TYPE_UAV){rawReconUav+=std::find(reconOutputs.begin(),reconOutputs.end(),resource)!=reconOutputs.end();rawCommitUav+=std::find(commitOutputs.begin(),commitOutputs.end(),resource)!=commitOutputs.end();}
+  if(depth)
+  {
+   ++forwardedTitle;forwardedOtherThis+=list!=outerList;
+   for(UINT j=0;j<outerCount;++j)if(sameBarrier(value,outerPacket[j])){++matchedForwardedTitle;break;}
+   continue;
+  }
+  uniqueTitleTransitions+=value.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;audit(value);
+ }
 }
 struct Writer
 {
@@ -143,7 +177,8 @@ J frame(Host& h,Title& title,Writer& writer,UINT index,const States& states,bool
  return {{"frame",index},{"source_states",states},{"applied",applied},{"reset",expectedReset},{"source_transitions",sourceTransitions},{"snapshot_pair_allocation_bytes",pairBytes},{"active",true}};
 }
 }
-void ParamsHostAudit(const D3D12_RESOURCE_BARRIER& barrier) noexcept {ParamsHost::audit(barrier);}
+void ParamsHostAuditPacket(ID3D12GraphicsCommandList* list,UINT count,const D3D12_RESOURCE_BARRIER* barriers,bool internal,unsigned depth) noexcept
+{ParamsHost::auditPacket(list,count,barriers,internal,depth);}
 
 int main(int argc,char** argv)try
 {
@@ -154,7 +189,7 @@ int main(int argc,char** argv)try
  Config::Instance()->FfxDenoiserNrdBridge.value=true;NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);
  FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"install actual metadata-only FrameSurvey");
  need(NrdBridge::Initialize(h.device.Get()),"initialize actual production coordinator");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());
- Title title(h,128,128,true);ParamsHost::commitOutputs={title.tex[7].Get(),title.tex[8].Get()};NrdBridge::RRSettings settings;settings.nativeMaterialGuides=enabled;settings.nativeTemporalMotion=false;std::string error;
+ Title title(h,128,128,true);ParamsHost::reconOutputs={title.tex[4].Get(),title.tex[5].Get()};ParamsHost::commitOutputs={title.tex[7].Get(),title.tex[8].Get()};NrdBridge::RRSettings settings;settings.nativeMaterialGuides=enabled;settings.nativeTemporalMotion=false;std::string error;
  need(NrdBridge::ApplyRRSettings(settings,false,error),"apply explicit material-Params ON/OFF setting");ParamsHost::Writer writer(title);
  // The bounded witness learns a source pair only at its first actual writer.
  // Earlier unknown-address barriers cannot retroactively prove its state.
@@ -175,16 +210,22 @@ int main(int argc,char** argv)try
   rows.push_back(ParamsHost::frame(h,title,writer,i+2,variants[i],enabled,applied,i==0||applied!=previous,output,history,context));previous=applied;
   need(FfxApiProxy::creates==initialCreates+1,"all material cue/source-state frames use exactly one actual signed context");
  }
- std::cout<<"material source audit unexpected="<<ParamsHost::unexpectedTitle<<" exactCommitUav="<<ParamsHost::commitOutputUav<<" stateTransitions="<<titleTransitions<<std::endl;
- need(ParamsHost::unexpectedTitle==0,"no title resource outside exact temporary material sources is transitioned, and only actual commit outputs receive unrelated UAV dependencies");
+ std::cout<<"material source audit unexpected="<<ParamsHost::unexpectedTitle<<" nativeReconUav="<<ParamsHost::reconOutputUav<<" rawReconUav="<<ParamsHost::rawReconUav
+  <<" nativeCommitUav="<<ParamsHost::commitOutputUav<<" rawCommitUav="<<ParamsHost::rawCommitUav<<" nativeTransitions="<<ParamsHost::uniqueTitleTransitions<<" rawTransitions="<<titleTransitions
+  <<" forwardedTitle="<<ParamsHost::forwardedTitle<<" matchedForwarded="<<ParamsHost::matchedForwardedTitle<<" differentThis="<<ParamsHost::forwardedOtherThis<<std::endl;
+ need(ParamsHost::unexpectedTitle==0,"no foreign title barrier: only exact material state roundtrips, Recon read dependencies and Commit output dependencies are admitted");
+ need(ParamsHost::reconOutputUav==7u*2u,"all seven conversions order only the exact Recon p5 pair once before reading it");
  need(ParamsHost::commitOutputUav==7u*4u,"all seven actual RGB commits issue exactly two title-output UAV dependencies before and after their write");
+ need(ParamsHost::forwardedTitle==ParamsHost::matchedForwardedTitle,"every nested COM title-barrier observation exactly matches its outer native packet");
  need(enabled||NrdBridge::gService->nativeMaterialCapture.OwnedAuxiliaryBytes()==0,"explicit OFF creates no paired capture allocation");
  const auto warmBytes=NrdBridge::gService->nativeMaterialCapture.OwnedAuxiliaryBytes();
  unsigned exactSourceTransitions=0;for(const auto& row:rows)exactSourceTransitions+=row.at("source_transitions").get<unsigned>();
- need(titleTransitions==exactSourceTransitions&&titleTransitions==(enabled?10u:0u),"entire host records only the ten admitted material roundtrip transitions, and OFF records zero borrowed transitions");
+ need(titleTransitions==ParamsHost::rawTitleTransitions&&ParamsHost::uniqueTitleTransitions==exactSourceTransitions&&ParamsHost::uniqueTitleTransitions==(enabled?10u:0u),"old raw audit and new outer-packet audit agree; only ten native admitted material roundtrip transitions exist, and OFF has zero");
  history.reset();NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::contextToType.empty(),"all actual signed contexts retire after their submitted GPU fences");
  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();
- J result{{"enabled",enabled},{"frames",rows},{"native_checks",checks},{"debug_errors",debug[0]},{"debug_warnings",debug[1]},{"provider_dispatches",FfxApiProxy::dispatches},{"provider_contexts",FfxApiProxy::creates},{"warm_pair_bytes",warmBytes},{"unexpected_title_transitions",ParamsHost::unexpectedTitle},{"exact_commit_output_uav_barriers",ParamsHost::commitOutputUav},
+ J result{{"enabled",enabled},{"frames",rows},{"native_checks",checks},{"debug_errors",debug[0]},{"debug_warnings",debug[1]},{"provider_dispatches",FfxApiProxy::dispatches},{"provider_contexts",FfxApiProxy::creates},{"warm_pair_bytes",warmBytes},{"unexpected_title_transitions",ParamsHost::unexpectedTitle},{"exact_commit_output_uav_barriers",ParamsHost::commitOutputUav},{"exact_recon_output_uav_barriers",ParamsHost::reconOutputUav},
+  {"barrier_observations",{{"raw_commit_uav",ParamsHost::rawCommitUav},{"raw_recon_uav",ParamsHost::rawReconUav},{"raw_title_transitions",ParamsHost::rawTitleTransitions},{"native_title_transitions",ParamsHost::uniqueTitleTransitions},
+   {"forwarded_title",ParamsHost::forwardedTitle},{"matched_forwarded_title",ParamsHost::matchedForwardedTitle},{"forwarded_different_this",ParamsHost::forwardedOtherThis}}},
   {"scope","actual coordinator/CaptureParams/6SRV conversion/signed RR/restore; native source/state/roughness admission; NativeBirth READY=false and title hash/SL creation adapters; no game quality/FPS claim"}};
  std::ofstream(output/"material-params-host-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS material_params_host checks="<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"material Params host failure: "<<e.what()<<std::endl;return 1;}
