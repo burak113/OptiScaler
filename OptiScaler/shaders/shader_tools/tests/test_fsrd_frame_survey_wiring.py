@@ -121,7 +121,7 @@ void Detach() {
     exe = output/'fixture.exe'
     fixture.compile_cpp(source_file, exe, ('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',
                          str(ROOT/'OptiScaler/library/detours/detours.lib')),
-                        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',
+                        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/streamline', ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',
                          ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe),str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     row = json.loads((output/'host-result.json').read_text())

@@ -224,7 +224,7 @@ def main():
     exe = output/'fsrd_full_context_reference_recorder.exe'
     if args.compile_only:
         compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'bcrypt.lib'),
-                    (stubs, ROOT/'external/nlohmann', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                    (stubs, ROOT/'OptiScaler', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     elif args.cpu_only:
         result = subprocess.run([str(exe), str(output)], check=True, capture_output=True, text=True)
         report = json.loads(result.stdout)

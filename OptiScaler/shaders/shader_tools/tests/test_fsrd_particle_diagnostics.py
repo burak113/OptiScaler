@@ -90,7 +90,7 @@ def run():
     source.write_text(cpp)
     exe = output / 'particle_diagnostics.exe'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'bcrypt.lib'),
-                (stubs, root / 'external/nlohmann', root / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                (stubs, root / 'OptiScaler', root / 'external/streamline', root / 'external/nlohmann', root / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe), str(output)], check=True)
     folders = json.loads((output / 'particle-captures.json').read_text())
     checks = 0

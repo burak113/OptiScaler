@@ -172,7 +172,7 @@ def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude="", *, des
     fixture, exe = out/'birth_metadata.cpp', out/'birth_metadata.exe'
     fixture.write_text(cpp, encoding='utf-8')
     compile_cpp(fixture, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT/'OptiScaler/library/detours/detours.lib')),
-                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                (stubs, ROOT/'OptiScaler', ROOT/'OptiScaler/resource_tracking', ROOT/'OptiScaler/include', ROOT/'external/streamline', ROOT/'external/nlohmann', ROOT/'external/nvngx_dlss_sdk', ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     result = subprocess.run([str(exe), str(out/'result.json')], capture_output=True, text=True, timeout=90, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     (out/'native.log').write_text(result.stdout+result.stderr)
     result.check_returncode()
