@@ -1,0 +1,2 @@
+#define FSRD_NRD_MATERIAL_GUIDES 1
+#include "FSRDNrdBridgeGeometry.hlsl"
