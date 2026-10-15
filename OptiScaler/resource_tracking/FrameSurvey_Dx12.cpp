@@ -52,6 +52,7 @@ std::atomic<bool> gViewFailureAfterReverseForTesting {false};
 thread_local uint64_t gCopyViewSnapshotsForTesting = 0;
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
+std::atomic<GraphicsPipelineObserver> gGraphicsPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
 std::atomic<BirthReleaseObserver> gBirthReleaseObserver {nullptr};
 std::atomic<const char*> gDeferredMetadataFailure {nullptr};
@@ -425,6 +426,8 @@ struct RootLayout
     std::map<uint32_t,std::vector<Range>> tables;
     std::set<uint32_t> computeTables, computeVisibleTables;
     std::map<uint32_t,RootDescriptor> computeDescriptors;
+    std::set<uint32_t> pixelTables, pixelVisibleTables;
+    std::map<uint32_t,RootDescriptor> pixelDescriptors;
     bool complete = false, directIndexed = false;
     NrdBridgeBirth::Token birth;
 };
@@ -705,19 +708,24 @@ RootLayout ReadRoot(ID3D12RootSignature* root)
     for (UINT i=0;i<desc->Desc_1_1.NumParameters;++i)
     {
         const auto& param = desc->Desc_1_1.pParameters[i];
+        const bool pixelVisible = !(desc->Desc_1_1.Flags&D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS) &&
+            (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL || param.ShaderVisibility == D3D12_SHADER_VISIBILITY_PIXEL);
         if (param.ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
         {
-            if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL &&
+            if ((param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL || pixelVisible) &&
                 (param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV || param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_SRV ||
                  param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_UAV))
             {
                 const auto kind = param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV ? D3D12_DESCRIPTOR_RANGE_TYPE_CBV :
                     param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_SRV ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-                result.computeDescriptors[i] = {uint32_t(kind),param.Descriptor.ShaderRegister,param.Descriptor.RegisterSpace};
+                const RootDescriptor descriptor {uint32_t(kind),param.Descriptor.ShaderRegister,param.Descriptor.RegisterSpace};
+                if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL) result.computeDescriptors[i] = descriptor;
+                if (pixelVisible) result.pixelDescriptors[i] = descriptor;
             }
             continue;
         }
         if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL) result.computeVisibleTables.insert(i);
+        if (pixelVisible) result.pixelVisibleTables.insert(i);
         uint64_t offset = 0;
         for (UINT j=0;j<param.DescriptorTable.NumDescriptorRanges;++j)
         {
@@ -730,6 +738,7 @@ RootLayout ReadRoot(ID3D12RootSignature* root)
         }
         if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL && UnambiguousComputeRanges(result.tables[i]))
             result.computeTables.insert(i);
+        if (pixelVisible && UnambiguousComputeRanges(result.tables[i])) result.pixelTables.insert(i);
     }
     return result;
 }
@@ -1242,6 +1251,7 @@ ScopedRecording::ScopedRecording() noexcept { ++gRecordingDepth; }
 ScopedRecording::~ScopedRecording() { --gRecordingDepth; }
 bool OwnedRelease() noexcept { return gInternal && !gRecordingDepth; }
 void SetPipelineObserver(PipelineObserver observer) noexcept { gPipelineObserver.store(observer,std::memory_order_release); }
+void SetGraphicsPipelineObserver(GraphicsPipelineObserver observer) noexcept { gGraphicsPipelineObserver.store(observer,std::memory_order_release); }
 void SetReleaseObserver(ReleaseObserver observer) noexcept { gReleaseObserver.store(observer,std::memory_order_release); }
 void SetBirthReleaseObserver(BirthReleaseObserver observer) noexcept { gBirthReleaseObserver.store(observer,std::memory_order_release); }
 void FlushMetadataFailure() noexcept
@@ -1388,6 +1398,84 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
         out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;
     } catch (...) { MetadataFailed("Compute requested-binding allocation failed"); out.clear(); return false; }
 }
+static bool ResolveTextureBindings(const ComputeBindings& bindings, UINT parameter,
+    std::span<const ComputeTableRequest> requests, std::vector<BoundResource>& out, bool pixel) noexcept
+{
+    out.clear();
+    if (!Tracking() || !bindings.root || bindings.heaps.size() > 2 || requests.empty() || requests.size() > 8 ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::array<BoundResource,8> resolved {};
+        {
+            NativeSnapshotExclusive metadataSnapshot;
+            std::scoped_lock lock(gLifetimeMutex);
+            if (!gMetadataHealthy.load(std::memory_order_acquire) || !BirthAvailable(bindings.rootBirth,bindings.root)) return false;
+            if ((!bindings.heapBirths.empty() || NativeTracking()) && bindings.heapBirths.size() != bindings.heaps.size()) return false;
+            for (size_t i=0;i<bindings.heapBirths.size();++i)
+                if (!BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return false;
+            const auto layout = gRootLayouts.find(bindings.root);
+            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth ||
+                !(pixel ? layout->second.pixelVisibleTables : layout->second.computeVisibleTables).contains(parameter)) return false;
+            const auto table = layout->second.tables.find(parameter);
+            if (table == layout->second.tables.end()) return false;
+            uint64_t base = 0;
+            for (const auto& [index,handle] : bindings.tables) if (index == parameter)
+            {
+                if (base || !handle.ptr) return false;
+                base = handle.ptr;
+            }
+            if (!base) return false;
+            for (size_t i=0;i<requests.size();++i)
+            {
+                const auto& request = requests[i];
+                // Explicit snapshots admit texture SRVs/UAVs; pixel consumers require SRVs.
+                if ((request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) ||
+                    (pixel && request.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV) || !UniqueComputeMapping(table->second,request)) return false;
+                for (size_t j=0;j<i;++j)
+                    if (requests[j].descriptorOffset == request.descriptorOffset ||
+                        (requests[j].kind == request.kind && requests[j].shaderRegister == request.shaderRegister &&
+                         requests[j].registerSpace == request.registerSpace)) return false;
+            }
+            const Heap* heap = nullptr;
+            for (const auto object : bindings.heaps)
+            {
+                const auto found = gHeaps.find(object);
+                if (found == gHeaps.end()) continue;
+                const auto& candidate = found->second;
+                if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                    base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                    (base-candidate.gpu)%candidate.increment) continue;
+                if (heap) return false;
+                heap = &candidate;
+            }
+            if (!heap) return false;
+            const uint64_t first = (base-heap->gpu)/heap->increment;
+            for (size_t i=0;i<requests.size();++i)
+            {
+                const auto& request = requests[i];
+                const uint64_t index = first+request.descriptorOffset;
+                if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->cpu) return false;
+                const auto view = gViews.find(heap->cpu+index*heap->increment);
+                if (view == gViews.end() || view->second.kind != uint32_t(request.kind) ||
+                    !view->second.snapshotSupported || !FreshView(view->second,heap)) return false;
+                const auto resource = gResources.find(view->second.object);
+                if (resource == gResources.end() || resource->second.id != view->second.resource) return false;
+                resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
+                    request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth,resource->second.id};
+            }
+        }
+        out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;
+    } catch (...) { MetadataFailed("Explicit texture-binding allocation failed"); out.clear(); return false; }
+}
+
+bool ResolveComputeBindings(const ComputeBindings& bindings, UINT parameter,
+    std::span<const ComputeTableRequest> requests, std::vector<BoundResource>& out) noexcept
+{ return ResolveTextureBindings(bindings,parameter,requests,out,false); }
+bool ResolveGraphicsBindings(const ComputeBindings& bindings, UINT parameter,
+    std::span<const ComputeTableRequest> requests, std::vector<BoundResource>& out) noexcept
+{ return ResolveTextureBindings(bindings,parameter,requests,out,true); }
+
 bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
 {
     if (!Tracking() || !buffer.resource || !buffer.resourceGeneration || !buffer.address || buffer.address%256 ||
@@ -1624,6 +1712,106 @@ bool ValidateComputeConstantBinding(const ComputeBindings& current, UINT shaderR
 {
     BoundConstantBinding actual;
     return expected.root && ResolveComputeConstantBinding(current,shaderRegister,registerSpace,actual) &&
+        actual.root == expected.root && actual.rootParameter == expected.rootParameter && actual.address == expected.address &&
+        actual.descriptorHeap == expected.descriptorHeap && actual.descriptor.ptr == expected.descriptor.ptr && actual.tableBase == expected.tableBase &&
+        actual.rootBirth == expected.rootBirth && actual.descriptorHeapBirth == expected.descriptorHeapBirth;
+}
+bool ResolveGraphicsConstantBinding(const ComputeBindings& bindings, UINT shaderRegister, UINT registerSpace,
+    BoundConstantBinding& out, ConstantBufferDiagnostic* diagnostic) noexcept
+{
+    out = {};
+    if (diagnostic) *diagnostic = {};
+    const auto fail = [&](const char* reason) { out = {}; if (diagnostic) diagnostic->reason = reason; return false; };
+    if (!Tracking() || !bindings.root || bindings.heaps.size() > 2 ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer native binding is unavailable");
+    try
+    {
+        // Identity-only POD rows use catalog/mirror guards; slot readers still drain the snapshot gate.
+        std::scoped_lock lock(gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer root/heap metadata is unhealthy");
+        if (!BirthAvailable(bindings.rootBirth,bindings.root)) return fail("Consumer native root birth is stale");
+        if ((!bindings.heapBirths.empty() || NativeTracking()) && bindings.heapBirths.size() != bindings.heaps.size()) return fail("Consumer heap births are unavailable");
+        for (size_t i=0;i<bindings.heapBirths.size();++i) if (!BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return fail("Consumer heap birth is stale");
+        const auto layout = gRootLayouts.find(bindings.root);
+        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth) return fail("Consumer root layout is unavailable");
+        UINT parameter = UINT_MAX;
+        uint64_t descriptorOffset = 0;
+        bool tableBinding = false;
+        for (const auto& [index,descriptor] : layout->second.pixelDescriptors)
+        {
+            if (descriptor.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || descriptor.shaderRegister != shaderRegister ||
+                descriptor.registerSpace != registerSpace) continue;
+            if (parameter != UINT_MAX) return fail("Consumer b-register maps to multiple root parameters");
+            parameter = index;
+        }
+        for (const auto& [index,ranges] : layout->second.tables)
+        {
+            if (!layout->second.pixelVisibleTables.contains(index)) continue;
+            for (const auto& range : ranges)
+            {
+                if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || range.registerSpace != registerSpace) continue;
+                if (!ValidComputeRange(range)) return fail("Consumer CBV table range is invalid");
+                if (shaderRegister < range.shaderRegister ||
+                    (range.count != UINT_MAX && uint64_t(shaderRegister)-range.shaderRegister >= range.count)) continue;
+                const uint64_t offset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
+                if (offset > UINT_MAX || parameter != UINT_MAX ||
+                    !UniqueComputeMapping(ranges,{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT(offset),shaderRegister,registerSpace}))
+                    return fail("Consumer CBV register mapping is ambiguous");
+                parameter = index; tableBinding = true; descriptorOffset = offset;
+            }
+        }
+        if (parameter == UINT_MAX) return fail("Consumer b-register is absent from pixel root layout");
+        if (diagnostic) { diagnostic->rootParameter = parameter; diagnostic->table = tableBinding; }
+        out.root = bindings.root; out.rootParameter = parameter; out.rootBirth = bindings.rootBirth;
+        if (!tableBinding)
+        {
+            bool found = false;
+            for (const auto& view : bindings.views) if (view.parameter == parameter)
+            {
+                if (found || view.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || !view.address || view.address%256)
+                    return fail("Consumer root CBV argument is missing or invalid");
+                found = true; out.address = view.address;
+            }
+            if (!found) return fail("Consumer root CBV argument is missing");
+            if (diagnostic) { diagnostic->address = out.address; diagnostic->reason = "native root CBV"; }
+            return true;
+        }
+        uint64_t tableBase = 0;
+        for (const auto& [index,handle] : bindings.tables) if (index == parameter)
+        {
+            if (tableBase || !handle.ptr) return fail("Consumer CBV table base is missing or duplicated");
+            tableBase = handle.ptr;
+        }
+        if (!tableBase) return fail("Consumer CBV table base is missing");
+        if (diagnostic) diagnostic->tableBase = tableBase;
+        const Heap* heap = nullptr;
+        // A native command list binds at most two heaps. Never scan the heap/resource registry.
+        for (const auto object : bindings.heaps)
+        {
+            const auto found = gHeaps.find(object);
+            if (found == gHeaps.end()) continue;
+            const auto& candidate = found->second;
+            if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                tableBase < candidate.gpu || tableBase-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                (tableBase-candidate.gpu)%candidate.increment) continue;
+            if (heap) return fail("Consumer CBV table matches multiple bound heaps");
+            heap = &candidate;
+        }
+        if (!heap) return fail("Consumer CBV shader-visible heap is unavailable");
+        const uint64_t index = (tableBase-heap->gpu)/heap->increment+descriptorOffset;
+        if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->gpu)
+            return fail("Consumer CBV slot is outside its heap");
+        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment}; out.tableBase = tableBase; out.descriptorHeapBirth = heap->birth;
+        if (diagnostic) { diagnostic->descriptorCpu = heap->cpu+index*heap->increment; diagnostic->reason = "native table CBV"; }
+        // The title reads this same volatile slot. Do not infer its GPUVA or inspect its buffer owner.
+        return true;
+    } catch (...) { return fail("Consumer native binding resolution threw"); }
+}
+bool ValidateGraphicsConstantBinding(const ComputeBindings& current, UINT shaderRegister, UINT registerSpace,
+    const BoundConstantBinding& expected) noexcept
+{
+    BoundConstantBinding actual;
+    return expected.root && ResolveGraphicsConstantBinding(current,shaderRegister,registerSpace,actual) &&
         actual.root == expected.root && actual.rootParameter == expected.rootParameter && actual.address == expected.address &&
         actual.descriptorHeap == expected.descriptorHeap && actual.descriptor.ptr == expected.descriptor.ptr && actual.tableBase == expected.tableBase &&
         actual.rootBirth == expected.rootBirth && actual.descriptorHeapBirth == expected.descriptorHeapBirth;
@@ -2038,6 +2226,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STAT
         auto text = data.dump(); StorePipelineMetadata(pso,text); pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,data["shader_hashes"]["CS"].get_ref<const std::string&>().c_str());
+        if (const auto observer = gGraphicsPipelineObserver.load(std::memory_order_acquire)) observer(pso,nullptr);
     } catch (...) { MetadataFailed("Compute shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc) noexcept
@@ -2054,6 +2243,8 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STA
         StorePipelineMetadata(pso,text);
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire)) observer(pso,nullptr);
+        if (const auto observer = gGraphicsPipelineObserver.load(std::memory_order_acquire))
+            observer(pso,hashes.contains("PS") ? hashes["PS"].get_ref<const std::string&>().c_str() : nullptr);
     } catch (...) { MetadataFailed("Graphics shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM_DESC& desc) noexcept
@@ -2084,6 +2275,9 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,SUCCEEDED(result) && parser.shaders.contains("CS") ?
                 parser.shaders["CS"].get_ref<const std::string&>().c_str() : nullptr);
+        if (const auto observer = gGraphicsPipelineObserver.load(std::memory_order_acquire))
+            observer(pso,SUCCEEDED(result) && parser.shaders.contains("PS") ?
+                parser.shaders["PS"].get_ref<const std::string&>().c_str() : nullptr);
     } catch (...) { MetadataFailed("Pipeline stream shader hash failed"); }
 }
 void Released(void* object) noexcept
@@ -3189,7 +3383,8 @@ void Shutdown() noexcept
     gMetadataHealthy.store(false,std::memory_order_release);
     gTracking.store(false,std::memory_order_release);
     gSurveyBindings.store(false,std::memory_order_release); gBindingWindow.store(false,std::memory_order_release);
-    gPipelineObserver.store(nullptr,std::memory_order_release); gReleaseObserver.store(nullptr,std::memory_order_release);
+    gPipelineObserver.store(nullptr,std::memory_order_release); gGraphicsPipelineObserver.store(nullptr,std::memory_order_release);
+    gReleaseObserver.store(nullptr,std::memory_order_release);
     const bool installed = gHooksInstalled.exchange(false,std::memory_order_acq_rel);
     gEnabled.store(false,std::memory_order_release); gRecording.store(false,std::memory_order_release);
     try
