@@ -294,7 +294,7 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         RawTransition(list,output.spec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
         RawTransition(list,output.diff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
         RawTransition(list,record->slot->resource.Get(),kRawRead,D3D12_RESOURCE_STATE_COMMON);
-        record->slot->flag.RawTransition(list,false);record->phase.store(2,std::memory_order_release);
+        record->slot->flag.Transition(list,false);record->phase.store(2,std::memory_order_release);
         error.clear();return true;
     }
     catch(const std::exception& exception){record->phase.store(0,std::memory_order_release);error=exception.what();return false;}

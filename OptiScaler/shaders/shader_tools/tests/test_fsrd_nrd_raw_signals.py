@@ -68,6 +68,7 @@ def sources():
     need('record->phase.compare_exchange_strong' in helper,'single-use decode admission')
     need('RawTransition(list,output.spec,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)' in helper,'only owned lighting UAV transition')
     need('Transition(list,source.' not in helper and 'ComPtr<ID3D12DescriptorHeap> nativeHeap' not in helper,'no native source transitions/retention')
+    need('->flag.Transition(list,false)' in helper and '.RawTransition' not in helper,'existing owned flag balance member is unchanged')
     need('retiredSlots.swap(previous->slots)' in helper,'retired caches release idle slots while leases retain needed slots')
     getter=helper[helper.index('RawSignalSnapshot RawSignalSnapshotPass::GetSnapshot'):helper.index('uint64_t RawSignalSnapshotPass::OwnedBytes')]
     need('GetGPUVirtualAddress' not in getter,'snapshot getter contains no COM calls')
