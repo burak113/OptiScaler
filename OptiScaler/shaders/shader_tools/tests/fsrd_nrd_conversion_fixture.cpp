@@ -197,9 +197,9 @@ struct Fixture
 static ULONG References(ID3D12Resource* resource) { const auto value = resource->AddRef(); resource->Release(); return value; }
 struct InputSet
 {
-    std::array<ComPtr<ID3D12Resource>, 5> textures;
+    std::array<ComPtr<ID3D12Resource>, 6> textures;
     NrdBridge::ConversionInputs Inputs() const
-    { return {textures[0].Get(), textures[1].Get(), textures[2].Get(), textures[3].Get(), textures[4].Get()}; }
+    { return {textures[0].Get(), textures[1].Get(), textures[2].Get(), textures[3].Get(), textures[4].Get(), textures[5].Get()}; }
     static InputSet Read(Fixture& fixture, const fs::path& path, uint32_t width, uint32_t height)
     {
         InputSet result;
@@ -212,6 +212,13 @@ struct InputSet
             result.textures[i] = fixture.Texture(width, height, formats[i], i < 2
                 ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, &data);
             (i < 2 ? gNrdReconInputs : gNrdGuideInputs).insert(result.textures[i].Get());
+        }
+        if (fs::exists(path / "material.bin"))
+        {
+            auto data = load(path / "material.bin");
+            result.textures[5] = fixture.Texture(width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                D3D12_RESOURCE_STATE_COMMON, &data);
+            gNrdOwnedMaterials.insert(result.textures[5].Get());
         }
         return result;
     }
@@ -233,6 +240,8 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     if (stream >> projectedDepth) result.cameraProjectedDepthDelta = projectedDepth != 0;
     uint32_t nativeMaterialIDs = 0;
     if (stream >> nativeMaterialIDs) result.preserveNativeMaterialIDs = nativeMaterialIDs != 0;
+    uint32_t nativeMaterialGuides = 0;
+    if (stream >> nativeMaterialGuides) result.nativeMaterialGuides = nativeMaterialGuides != 0;
     result.camera.view = DirectX::XMLoadFloat4x4(&view);
     result.camera.inverseView = DirectX::XMMatrixInverse(nullptr, result.camera.view);
     result.camera.projection = DirectX::XMLoadFloat4x4(&projection);
@@ -252,6 +261,7 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
     std::vector<InputSet> inputs; std::vector<std::array<ComPtr<ID3D12Resource>, 2>> outputs;
     std::vector<std::array<Readback, 9>> snapshots;
     std::vector<std::array<Readback, 4>> encodedSnapshots;
+    std::vector<std::array<Readback, 3>> materialSourceSnapshots;
     std::vector<std::array<ComPtr<ID3D12Resource>, 2>> consumerConstants;
     for (uint32_t frameIndex = 0; frameIndex < frames; ++frameIndex)
     {
@@ -277,6 +287,18 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!pass->Dispatch(fixture.list.Get(), input.Inputs(), invalid, rejected, error), "NaN motion scale accepted");
             need(!RecordedComputeLease::Capture(fixture.list.Get()) && gNrdAuditedBarriers == auditedBefore,
                  "invalid conversion recorded GPU work");
+            if (frame.nativeMaterialGuides && input.textures[5])
+            {
+                for (auto malformed : {fixture.Texture(width, height, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_STATE_COMMON),
+                                       fixture.Texture(width + 1, height, DXGI_FORMAT_R16G16B16A16_FLOAT, D3D12_RESOURCE_STATE_COMMON)})
+                {
+                    auto bad = input.Inputs(); bad.nativeMaterial = malformed.Get();
+                    need(!pass->Dispatch(fixture.list.Get(), bad, frame, rejected, error) && !rejected.spec,
+                         "malformed owned material texture shape/format accepted");
+                    need(!RecordedComputeLease::Capture(fixture.list.Get()) && gNrdAuditedBarriers == auditedBefore,
+                         "malformed material recorded work or registered a lease");
+                }
+            }
         }
         if (frameIndex == 4 && !cameraCases) pass->ResetHistory();
         NrdBridge::ConvertedResources resources;
@@ -288,7 +310,10 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
         }
+        const auto materialBarriersBefore = gNrdMaterialBarriers;
         need(pass->Dispatch(fixture.list.Get(), currentInputs, frame, resources, error), error.c_str());
+        need(gNrdMaterialBarriers - materialBarriersBefore == (frame.nativeMaterialGuides && input.textures[5] ? 2u : 0u),
+             "owned material must balance exactly COMMON/SRV/COMMON, and remain unused when OFF or unknown");
         if (deferred)
         {
             const auto before = gNrdAuditedBarriers;
@@ -302,6 +327,8 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "depth mode changed within the Recon ticket");
             stale = frame; stale.preserveNativeMaterialIDs = !frame.preserveNativeMaterialIDs;
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "material mode changed within the Recon ticket");
+            stale = frame; stale.nativeMaterialGuides = !frame.nativeMaterialGuides;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "material-guide mode changed within the Recon ticket");
             need(before == gNrdAuditedBarriers, "invalid deferred motion recorded GPU work");
             Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
                 D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -312,6 +339,14 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
         }
         for (uint32_t i = 0; i < 5; ++i)
             need(References(input.textures[i].Get()) == before[i], "conversion AddRef'd a title input");
+        std::array<Readback, 3> materialSources;
+        if (frame.nativeMaterialGuides)
+        {
+            for (uint32_t i = 0; i < 2; ++i)
+                materialSources[i] = fixture.Snapshot(input.textures[i].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            if (input.textures[5]) materialSources[2] = fixture.Snapshot(input.textures[5].Get(), D3D12_RESOURCE_STATE_COMMON);
+        }
+        materialSourceSnapshots.push_back(std::move(materialSources));
         std::array<ComPtr<ID3D12Resource>, 2> output;
         for (auto& texture : output)
         {
@@ -419,6 +454,11 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
     const char* encodedNames[] = {"debug_ycocg_spec.bin", "debug_ycocg_diff.bin", "debug_cancel_spec.bin", "debug_cancel_diff.bin"};
     for (uint32_t f = 0; f < frames; ++f)
         for (uint32_t i = 0; i < 4; ++i) save(root / ("frame" + std::to_string(f)) / encodedNames[i], encodedSnapshots[f][i].Data());
+    const char* sourceNames[] = {"source_spec.bin", "source_diff.bin", "source_material.bin"};
+    for (uint32_t f = 0; f < frames; ++f)
+        for (uint32_t i = 0; i < 3; ++i)
+            if (materialSourceSnapshots[f][i].buffer)
+                save(root / ("frame" + std::to_string(f)) / sourceNames[i], materialSourceSnapshots[f][i].Data());
     // Fail before recording any work when the actual queue/list lease contract is unavailable.
     RecordedComputeLease::SetHooksAvailable(false, false);
     NrdBridge::ConversionPass denied; need(denied.Initialize(fixture.device.Get(), width, height, error), error.c_str());
@@ -441,6 +481,7 @@ static void TableSequence(const fs::path& root, bool deferred)
     // Addresses may now be reused; its fixture-only role sets must not classify
     // newly allocated resources according to the previous object's role.
     gNrdReconInputs.clear(); gNrdGuideInputs.clear(); gNrdTitleOutputs.clear();
+    gNrdOwnedMaterials.clear();
     std::cout << "table stage previous fixture GPU retired; audit role sets reset\n";
     std::ifstream meta(root / "meta.txt"); uint32_t frames, width, height; meta >> frames >> width >> height;
     Fixture fixture(width < 64); auto input = InputSet::Read(fixture, root / "frame0", width, height);

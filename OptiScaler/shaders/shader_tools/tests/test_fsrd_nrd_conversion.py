@@ -6,6 +6,7 @@ GPU validation and descriptor/barrier instrumentation verify the required views.
 """
 from pathlib import Path
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -18,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fsrd_toolchain import compile_cpp, dxc
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(os.environ.get('FSRD_NRD_PRODUCTION_ROOT', Path(__file__).resolve().parents[4])).resolve()
 PASS = ROOT / 'OptiScaler/shaders/fsrd_preprocess'
 OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/13b-inputs/tests/nrd_conversion'))
 REPORT = Path(os.environ.get('FSRD_NRD_REPORT_OUTPUT', f'E:/FSRD/sol_batch/{OUT.parents[1].name}/conversion-evidence'))
@@ -28,8 +29,8 @@ DEFERRED = False
 
 AUDIT = r'''
 #include <unordered_set>
-static uint32_t gNrdDescriptorAllocations = 0, gNrdAuditedViews = 0, gNrdAuditedBarriers = 0;
-static std::unordered_set<ID3D12Resource*> gNrdReconInputs, gNrdGuideInputs, gNrdTitleOutputs;
+static uint32_t gNrdDescriptorAllocations = 0, gNrdAuditedViews = 0, gNrdAuditedBarriers = 0, gNrdMaterialBarriers = 0;
+static std::unordered_set<ID3D12Resource*> gNrdReconInputs, gNrdGuideInputs, gNrdTitleOutputs, gNrdOwnedMaterials;
 static void AuditNrdSrv(ID3D12Resource* resource)
 {
     ++gNrdAuditedViews;
@@ -40,6 +41,7 @@ static void AuditNrdUav(ID3D12Resource* resource)
 {
     ++gNrdAuditedViews;
     if (gNrdGuideInputs.contains(resource)) throw std::runtime_error("Borrowed guide bound through a UAV");
+    if (gNrdOwnedMaterials.contains(resource)) throw std::runtime_error("Owned material snapshot bound through a UAV");
 }
 static void AuditedNrdBarriers(ID3D12GraphicsCommandList* list, UINT count, const D3D12_RESOURCE_BARRIER* barriers)
 {
@@ -52,6 +54,15 @@ static void AuditedNrdBarriers(ID3D12GraphicsCommandList* list, UINT count, cons
              gNrdGuideInputs.contains(barrier.Transition.pResource) ||
              gNrdTitleOutputs.contains(barrier.Transition.pResource)))
             throw std::runtime_error("Bridge transitioned a borrowed title resource");
+        if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && gNrdOwnedMaterials.contains(barrier.Transition.pResource))
+        {
+            ++gNrdMaterialBarriers;
+            const auto before = barrier.Transition.StateBefore, after = barrier.Transition.StateAfter;
+            if (barrier.Transition.Subresource != D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES ||
+                !((before == D3D12_RESOURCE_STATE_COMMON && after == D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) ||
+                  (after == D3D12_RESOURCE_STATE_COMMON && before == D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)))
+                throw std::runtime_error("Owned material snapshot did not use exact COMMON/SRV/COMMON contract");
+        }
     }
     list->ResourceBarrier(count, barriers);
 }
@@ -65,13 +76,8 @@ def check(name, condition):
         raise AssertionError(name)
 
 
-def build():
+def build(prepare_only=False):
     OUT.mkdir(parents=True, exist_ok=True)
-    consumer_shader = OUT / 'consumer.cso'
-    subprocess.run([str(dxc()), '-T', 'cs_6_2', '-E', 'CSMain', '-O3', '-force-rootsig-ver', 'rootsig_1_0',
-                    str(Path(__file__).with_name('nrd_bridge_consumer_fixture.hlsl')), '-Fo', str(consumer_shader)], check=True)
-    (OUT / 'consumer_shader.h').write_text('const unsigned char ConsumerShaderBytes[] = {' +
-                                         ','.join(str(x) for x in consumer_shader.read_bytes()) + '};\n', encoding='utf-8')
     source = (PASS / 'FSRDNrdBridgePass_Dx12.cpp').read_text(encoding='utf-8')
     support = Path(__file__).with_name('dx12_shader_test_support.h').as_posix()
     source = source.replace('#include "pch.h"', f'#include "{support}"\n' + AUDIT)
@@ -79,16 +85,27 @@ def build():
     source = source.replace('#include "State.h"', '')
     check('one descriptor instrumentation point', source.count('slots.push_back(slot);') == 1)
     source = source.replace('slots.push_back(slot);', '++gNrdDescriptorAllocations; slots.push_back(slot);')
-    check('two production barrier call sites', source.count('list->ResourceBarrier(') == 3)
-    # One call is the audit wrapper itself, two are the production pass's helpers.
+    check('six production barrier call sites plus audit forwarding', source.count('list->ResourceBarrier(') == 7)
+    check('two native shadow barriers', source.count('list->ResourceBarrier(1, &shadowBarrier);') == 2)
+    check('two owned material barriers', source.count('list->ResourceBarrier(1,&materialBarrier);') == 2)
     source = source.replace('list->ResourceBarrier(1, &barrier);', 'AuditedNrdBarriers(list, 1, &barrier);')
     source = source.replace('list->ResourceBarrier(2, barriers);', 'AuditedNrdBarriers(list, 2, barriers);')
+    source = source.replace('list->ResourceBarrier(1, &shadowBarrier);', 'AuditedNrdBarriers(list, 1, &shadowBarrier);')
+    source = source.replace('list->ResourceBarrier(1,&materialBarrier);', 'AuditedNrdBarriers(list, 1, &materialBarrier);')
+    check('every production barrier is audited', source.count('list->ResourceBarrier(') == 1)
     check('one production SRV descriptor loop', source.count('for (auto* resource : srvs)\n        {') == 1)
     check('one production UAV descriptor loop', source.count('for (auto* resource : uavs)\n        {') == 1)
     source = source.replace('for (auto* resource : srvs)\n        {', 'for (auto* resource : srvs)\n        {\n            AuditNrdSrv(resource);')
     source = source.replace('for (auto* resource : uavs)\n        {', 'for (auto* resource : uavs)\n        {\n            AuditNrdUav(resource);')
     (OUT / 'production_nrd_pass.cpp').write_text(source, encoding='utf-8')
     shutil.copyfile(Path(__file__).with_name('fsrd_nrd_conversion_fixture.cpp'), OUT / 'fixture.cpp')
+    if prepare_only:
+        return None
+    consumer_shader = OUT / 'consumer.cso'
+    subprocess.run([str(dxc()), '-T', 'cs_6_2', '-E', 'CSMain', '-O3', '-force-rootsig-ver', 'rootsig_1_0',
+                    str(Path(__file__).with_name('nrd_bridge_consumer_fixture.hlsl')), '-Fo', str(consumer_shader)], check=True)
+    (OUT / 'consumer_shader.h').write_text('const unsigned char ConsumerShaderBytes[] = {' +
+                                         ','.join(str(x) for x in consumer_shader.read_bytes()) + '};\n', encoding='utf-8')
     exe = OUT / 'fsrd_nrd_conversion_fixture.exe'
     compile_cpp(OUT / 'fixture.cpp', exe, ('d3d12.lib', 'dxgi.lib'),
                 (OUT, Path(__file__).parent, PASS, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/streamline'))
@@ -150,12 +167,15 @@ def packed_nr(values):
 
 def write_case(directory, inputs, params):
     directory.mkdir(parents=True, exist_ok=True)
+    if 'material' not in inputs:
+        (directory / 'material.bin').unlink(missing_ok=True)
     for name, value in inputs.items():
         value.tofile(directory / f'{name}.bin')
     values = [params['near'], params['far'], params['sign'], *params['scale'], *params['jitter'],
               *params['previous_jitter'], int(params['jittered']), int(params['reset']),
               int(params['previous_valid']), params['mode'], *params['view'].ravel(), *params['projection'].ravel(),
-              int(params.get('camera_projected_depth_delta', False)), int(params.get('preserve_native_material_ids', False))]
+              int(params.get('camera_projected_depth_delta', False)), int(params.get('preserve_native_material_ids', False)),
+              int(params.get('native_material_guides', False))]
     (directory / 'frame.txt').write_text(' '.join(str(value) for value in values), encoding='utf-8')
 
 
@@ -240,6 +260,109 @@ def read_outputs(directory, width, height):
     return result
 
 
+def material_brdf_polynomials(no_v, alpha):
+    """Independent scalar expansion of AMD denoising.md 5.5.2, evaluated in FP64."""
+    n, a = no_v, alpha
+    return (
+        .99044 - 1.28514*n + 1.29678*a - .755907*a*n,
+        1 + 2.92338*n + 59.4188*n**3 + 20.3225*a - 27.0302*a*n + 222.592*a*n**3
+          + 121.563*a**3 + 626.13*a**3*n + 316.627*a**3*n**3,
+        .0365463 + 3.32707*n + 9.0632*a - 9.04756*a*n,
+        1 + 3.59685*n**2 - 1.36772*n**3 + 9.04401*a - 16.3174*a*n**2 + 9.22949*a*n**3
+          + 5.56589*a**3 + 19.7886*a**3*n**2 - 20.2123*a**3*n**3)
+
+
+def material_guide_bounds(input_values, output, square_roughness=True):
+    """Per-pixel forward intervals, never an empirical image-error tolerance.
+
+    NoV was stored from the very same scalar used by GGX. FLOAT->UNORM permits
+    0.6 integer ULP (D3D functional spec 3.2.3.6), so this bounds that hidden FP32
+    scalar without assuming an exact rsqrt/matrix implementation. Existing angle
+    and ON/OFF-alpha checks independently validate the geometry. Each polynomial
+    gets gamma64 * sum(abs(terms)), covering all serial FP32/FMA reorderings,
+    rounded coefficients/powers; rcp gets its specified 2^-21 relative bound.
+    The final output gets exactly another 0.6/255 storage bound, no FP16 rounding.
+    https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm
+    """
+    base_metal = input_values['material'].astype(np.float64)
+    known = (input_values['nr'] >> np.uint32(30)) != 3
+    known &= np.isfinite(base_metal).all(-1) & (base_metal >= 0).all(-1) & (base_metal <= 1).all(-1)
+    clean = np.where(known[..., None], base_metal, 0)
+    base, metal = clean[..., :3], clean[..., 3:]
+    f0 = .04 * (1-metal) + base * metal
+    diffuse = base * (1-metal)
+    no_v = output['spec_albedo'][..., 3].astype(np.float64) / 255
+    rough = ((input_values['nr'] >> 20) & 1023).astype(np.float64) / 1023
+    alpha = rough**2 if square_roughness else rough
+    nb, db, ns, ds = material_brdf_polynomials(no_v, alpha)
+    bias = np.maximum(nb/db, 0) * np.clip(f0[..., 1] * 50, 0, 1)
+    specular = f0 * np.maximum(ns/ds, 0)[..., None] + bias[..., None]
+    diffuse = np.where(known[..., None], diffuse, 1)
+    specular = np.where(known[..., None], specular, 1)
+
+    eps = 2.0**-23  # one relative FP32 ULP, also covers worst unfused MAD steps
+    gamma64 = (64*eps) / (1-64*eps)
+    unorm = .6/255
+    n = (np.maximum(0, no_v-unorm), np.minimum(1, no_v+unorm))
+    r = (np.maximum(0, rough-eps), np.minimum(1, rough+eps))
+    a = (r[0]**2, r[1]**2) if square_roughness else r
+    a = (np.maximum(0, a[0]-eps), np.minimum(1, a[1]+eps))
+    terms = (
+        ((.99044,0,0),(-1.28514,1,0),(1.29678,0,1),(-.755907,1,1)),
+        ((1,0,0),(2.92338,1,0),(59.4188,3,0),(20.3225,0,1),(-27.0302,1,1),
+         (222.592,3,1),(121.563,0,3),(626.13,1,3),(316.627,3,3)),
+        ((.0365463,0,0),(3.32707,1,0),(9.0632,0,1),(-9.04756,1,1)),
+        ((1,0,0),(3.59685,2,0),(-1.36772,3,0),(9.04401,0,1),(-16.3174,2,1),
+         (9.22949,3,1),(5.56589,0,3),(19.7886,2,3),(-20.2123,3,3)))
+
+    def polynomial(coefficients):
+        lo, hi, mass = np.zeros_like(no_v), np.zeros_like(no_v), np.zeros_like(no_v)
+        for coefficient, npower, apower in coefficients:
+            c = float(np.float32(coefficient))
+            low, high = n[0]**npower * a[0]**apower, n[1]**npower * a[1]**apower
+            left, right = (c*low, c*high) if c >= 0 else (c*high, c*low)
+            lo += left; hi += right; mass += np.maximum(abs(left), abs(right))
+        return lo-gamma64*mass, hi+gamma64*mass
+
+    def multiply(left, right):
+        values = np.stack([l*r for l in left for r in right])
+        return values.min(0), values.max(0)
+
+    def ratio(numerator, denominator):
+        check('material rational denominator interval remains strictly positive', np.all(denominator[0] > 0))
+        reciprocal = ((1-2.0**-21)/denominator[1], (1+2.0**-21)/denominator[0])
+        return multiply(numerator, reciprocal)
+
+    b = ratio(polynomial(terms[0]), polynomial(terms[1]))
+    s = ratio(polynomial(terms[2]), polynomial(terms[3]))
+    f0_error = (4*eps)/(1-4*eps) * (.04 + base*metal)
+    f = (np.maximum(0, f0-f0_error), np.minimum(1, f0+f0_error))
+    bias_gate = (np.clip(f[0][..., 1]*50, 0, 1), np.clip(f[1][..., 1]*50, 0, 1))
+    b = multiply((np.maximum(b[0], 0), np.maximum(b[1], 0)), bias_gate)
+    spec = multiply(f, (np.maximum(s[0], 0)[..., None], np.maximum(s[1], 0)[..., None]))
+    lo, hi = spec[0]+b[0][..., None], spec[1]+b[1][..., None]
+    final_error = (8*eps)/(1-8*eps) * np.maximum(abs(lo), abs(hi))
+    spec_bounds = (np.clip(lo-final_error, 0, 1)-unorm, np.clip(hi+final_error, 0, 1)+unorm)
+    diff_error = (3*eps)/(1-3*eps) * np.abs(base*(1-metal))
+    diff_bounds = (np.clip(diffuse-diff_error, 0, 1)-unorm, np.clip(diffuse+diff_error, 0, 1)+unorm)
+    return dict(known=known, specular=np.clip(specular,0,1), diffuse=diffuse,
+                spec_bounds=spec_bounds, diff_bounds=diff_bounds, f0=f0)
+
+
+def verify_native_material_guides(directory, input_values, output):
+    oracle = material_guide_bounds(input_values, output)
+    for name, bound_name in (('spec_albedo','spec_bounds'), ('diff_albedo','diff_bounds')):
+        actual = output[name][..., :3].astype(np.float64)/255
+        lo, hi = oracle[bound_name]
+        known = oracle['known']
+        check(f'{directory.name} {name} independent SDK rational/linear guide within derived FP32+UNORM8 interval',
+              np.all((actual[known] >= lo[known]) & (actual[known] <= hi[known])))
+        check(f'{directory.name} {name} model1/malformed owned material exact-white fallback',
+              np.all(output[name][~known, :3] == 255))
+    check(f'{directory.name} material diffuse alpha remains zero', np.all(output['diff_albedo'][..., 3] == 0))
+    return oracle
+
+
 def verify_case(directory, input_values, params, previous_depth=None, history_valid=False, expected_camera_delta=None):
     height, width = input_values['depth'].shape
     output = read_outputs(directory, width, height)
@@ -286,8 +409,11 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
         check(f'{directory.name} packed normals RGB preserved alpha zero', np.array_equal(output['nr'], input_values['nr'] & 0x3fffffff))
     check(f'{directory.name} motion scale jitter depth delta and W', np.allclose(output['motion'], motion, rtol=1e-3, atol=2e-4))
     check(f'{directory.name} motion finite', np.isfinite(output['motion']).all())
-    check(f'{directory.name} white specular albedo', np.all(output['spec_albedo'][..., :3] == 255))
-    check(f'{directory.name} white diffuse albedo zero metalness', np.all(output['diff_albedo'][..., :3] == 255) and np.all(output['diff_albedo'][..., 3] == 0))
+    if params.get('native_material_guides', False) and 'material' in input_values:
+        verify_native_material_guides(directory, input_values, output)
+    else:
+        check(f'{directory.name} white specular albedo', np.all(output['spec_albedo'][..., :3] == 255))
+        check(f'{directory.name} white diffuse albedo zero metalness', np.all(output['diff_albedo'][..., :3] == 255) and np.all(output['diff_albedo'][..., 3] == 0))
     check(f'{directory.name} exact world-normal NoV within storage quantization',
           np.max(np.abs(output['spec_albedo'][..., 3] / 255 - no_v)) <= 1.0 / 255 + 1e-5)
     if params['mode'] == 2:
@@ -503,6 +629,105 @@ def material_ids(exe):
                 note='Exact guide A/B evidence; actual title ID distribution/flags and visual quality unmeasured.')
 
 
+def native_material(exe):
+    width, height, count = 13, 11, 8
+    y, x = np.mgrid[:height, :width]
+    cases = []
+    for index in range(count):
+        value = inputs(width, height, index, extremes=True)
+        category = ((x+y+index) % 4).astype('<u4')
+        value['nr'] = (value['nr'] & np.uint32(0x3fffffff)) | (category << np.uint32(30))
+        material = np.empty((height,width,4), '<f2')
+        material[..., 0] = (x % 7)/6
+        material[..., 1] = ((y+index) % 5)/4
+        material[..., 2] = ((x+y) % 9)/8
+        material[..., 3] = np.asarray([0,.25,.5,1], '<f2')[(x+2*y+index) % 4]
+        if index in (1,6):
+            material[0,:8] = [[np.nan,.2,.3,0],[.1,np.inf,.3,.5],[.1,.2,-np.inf,1],
+                              [-.1,.2,.3,0],[1.1,.2,.3,.5],[.1,.2,.3,-.1],
+                              [.1,.2,.3,1.1],[0,0,0,0]]
+        if index != 3:  # A missing authoritative source must keep white guides even with the option ON.
+            value['material'] = material
+        params = dict(frame(width,height,index), mode=1, preserve_native_material_ids=True)
+        cases.append((value,params))
+
+    mode_outputs, evidence = {}, {}
+    for enabled in (False,True):
+        mode = 'on' if enabled else 'off'
+        directory = OUT/'native_material'/mode
+        directory.mkdir(parents=True,exist_ok=True)
+        (directory/'meta.txt').write_text(f'{count} {width} {height}',encoding='utf-8')
+        for index,(value,params) in enumerate(cases):
+            write_case(directory/f'frame{index}',value,dict(params,native_material_guides=enabled))
+        if exe is None:
+            continue
+        stdout = run_fixture(exe,'sequence',directory)
+        previous, outputs = None, []
+        for index,(value,params) in enumerate(cases):
+            previous = verify_case(directory/f'frame{index}',value,dict(params,native_material_guides=enabled),
+                                   previous,index > 0 and index != 4)
+            outputs.append(read_outputs(directory/f'frame{index}',width,height))
+            if enabled:
+                for name in ('spec','diff','material'):
+                    if name in value:
+                        check(f'native material frame{index} source {name} every byte unchanged',
+                              (directory/f'frame{index}'/f'source_{name}.bin').read_bytes() == value[name].tobytes())
+        verify_table_consumer(directory,width,height)
+        mode_outputs[mode] = outputs
+        evidence[mode] = dict(fixture_checks=int(re.search(r'fixture_checks=(\d+)',stdout)[1]),
+                              table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)',stdout)[1]))
+    if exe is None:
+        for value,params in cases:
+            if 'material' in value:
+                _,_,no_v = reference(value,params,None,False)
+                mock = {'spec_albedo':np.zeros((height,width,4),'u1')}
+                mock['spec_albedo'][...,3] = np.rint(no_v*255).astype('u1')
+                oracle = material_guide_bounds(value,mock)
+                for name,bounds in (('specular','spec_bounds'),('diffuse','diff_bounds')):
+                    lo,hi = oracle[bounds]; known = oracle['known']; expected = oracle[name]
+                    check('independent FP64 point lies inside analytically propagated material interval',
+                          np.all((expected[known] >= lo[known]) & (expected[known] <= hi[known])))
+        return dict(prepared=True,frames=count,modes=['off','on'],native_table_cases=8,
+                    cpu_oracle='FP64 SDK rational expansion; per-pixel FP32/rcp and 0.6-ULP UNORM8 intervals')
+
+    rejected_f0 = rejected_roughness = rejected_gamma = known_pixels = fallback_pixels = 0
+    maximum_spec_interval = maximum_diff_interval = 0.0
+    for index,((value,params),off,on) in enumerate(zip(cases,mode_outputs['off'],mode_outputs['on'])):
+        for name in ('spec','diff','depth','motion','nr','debug_spec','debug_diff'):
+            check(f'native material frame{index} {name} byte identity across A/B',on[name].tobytes() == off[name].tobytes())
+        check(f'native material frame{index} NoV A unchanged byte-for-byte',
+              np.array_equal(on['spec_albedo'][...,3],off['spec_albedo'][...,3]))
+        check(f'native material frame{index} diffuse guide A unchanged byte-for-byte',
+              np.array_equal(on['diff_albedo'][...,3],off['diff_albedo'][...,3]))
+        if 'material' not in value:
+            check('unknown material source NULL keeps both original white guide images exact',
+                  np.array_equal(on['spec_albedo'],off['spec_albedo']) and np.array_equal(on['diff_albedo'],off['diff_albedo']))
+            continue
+        oracle = material_guide_bounds(value,on); known = oracle['known']
+        known_pixels += int(known.sum()); fallback_pixels += int((~known).sum())
+        actual_spec = on['spec_albedo'][...,:3].astype(np.float64)/255
+        actual_diff = on['diff_albedo'][...,:3].astype(np.float64)/255
+        wrong_f0 = np.clip(oracle['f0'],0,1)
+        rejected_f0 += int(np.any(np.abs(actual_spec-wrong_f0) > .6/255 + 8*2.0**-23,axis=-1)[known].sum())
+        wrong_roughness = material_guide_bounds(value,on,square_roughness=False)
+        lo,hi = wrong_roughness['spec_bounds']
+        rejected_roughness += int(np.any((actual_spec < lo) | (actual_spec > hi),axis=-1)[known].sum())
+        wrong_gamma = np.sqrt(np.clip(oracle['diffuse'],0,1))
+        rejected_gamma += int(np.any(np.abs(actual_diff-wrong_gamma) > .6/255 + 8*2.0**-23,axis=-1)[known].sum())
+        maximum_spec_interval = max(maximum_spec_interval,float(np.max(oracle['spec_bounds'][1][known]-oracle['spec_bounds'][0][known])))
+        maximum_diff_interval = max(maximum_diff_interval,float(np.max(oracle['diff_bounds'][1][known]-oracle['diff_bounds'][0][known])))
+    check('material cases exercise known guides and white model1/malformed fallbacks',known_pixels > 0 and fallback_pixels > 0)
+    check('actual GGX guides reject the F0-only negative model',rejected_f0 > 0)
+    check('actual GGX guides reject roughness-instead-of-roughness-squared',rejected_roughness > 0)
+    check('actual linear diffuse guides reject unintended sqrt/gamma encoding',rejected_gamma > 0)
+    return dict(frames=count,width=width,height=height,fixtures=evidence,native_table_cases=8,
+                known_pixels=known_pixels,white_fallback_pixels=fallback_pixels,
+                negative_models_rejected=dict(f0_only=rejected_f0,unsquared_roughness=rejected_roughness,sqrt_diffuse=rejected_gamma),
+                max_spec_interval_width=maximum_spec_interval,max_diff_interval_width=maximum_diff_interval,
+                quantization='FP32 forward intervals + 0.6 integer ULP UNORM8; no intermediate half conversion',
+                scope='actual production ConversionPass; lighting/source bytes/normal/NoV unchanged; no quality/FPS claim')
+
+
 def synthetic(exe):
     directory = OUT / 'synthetic'
     directory.mkdir(parents=True, exist_ok=True)
@@ -611,10 +836,15 @@ def normal_evidence():
                 note='Different G-buffer resource. Unit length is guaranteed by oct decoding and does not establish this older resource role. Installed-title oct/B packing is independently attested; the missing exact captured normal guide remains synthetic.')
 
 
-def benchmark(exe, width, height):
-    directory = OUT / f'timing_{width}x{height}'
+def benchmark(exe, width, height, native_material_guides=None):
+    label = '' if native_material_guides is None else ('material_on_' if native_material_guides else 'material_off_')
+    directory = OUT / f'timing_{label}{width}x{height}'
     value = inputs(width, height)
     params = frame(width, height, captured=True)
+    if native_material_guides is not None:
+        value['material'] = np.full((height,width,4),.25,'<f2')
+        value['material'][...,1] = .5; value['material'][...,2] = .75; value['material'][...,3] = .5
+        params['native_material_guides'] = native_material_guides
     write_case(directory / 'frame0', value, params)
     (directory / 'meta.txt').write_text(f'1 {width} {height}', encoding='utf-8')
     stdout = run_fixture(exe, 'benchmark', directory)
@@ -628,7 +858,8 @@ def benchmark(exe, width, height):
             check(label + ' nine timestamp samples', len(values) == 9 and all(x > 0 for x in values))
             components[label + '_median_ms'] = float(np.median(values))
             components[label + '_samples_ms'] = values
-    return dict(width=width, height=height, median_ms=float(np.median(samples)), min_ms=min(samples), max_ms=max(samples),
+    return dict(width=width, height=height, native_material_guides=native_material_guides,
+                median_ms=float(np.median(samples)), min_ms=min(samples), max_ms=max(samples),
                 **components,
                 samples_ms=samples, repetitions_per_batch=16, warm_batches=2, measured_batches=9,
                 owned_texture_bytes=int(re.search(r'texture_bytes=(\d+)', stdout)[1]),
@@ -639,18 +870,31 @@ def benchmark(exe, width, height):
 def main():
     global DEFERRED
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark', 'projected-depth', 'material-ids'), default='all')
+    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark', 'projected-depth', 'material-ids', 'native-material'), default='all')
     parser.add_argument('--deferred', action='store_true', help='Production Recon plus current-Temporal motion path')
+    parser.add_argument('--prepare-only', action='store_true', help='Generate audited production source and CPU material cases without DXC/compiler/GPU')
     args = parser.parse_args()
     DEFERRED = args.deferred
-    exe = build()
-    result = dict(production_source=(PASS / 'FSRDNrdBridgePass_Dx12.cpp').as_posix(), phase=args.phase, deferred_motion=DEFERRED)
+    exe = build(args.prepare_only)
+    result = dict(production_source=(PASS / 'FSRDNrdBridgePass_Dx12.cpp').as_posix(), phase=args.phase, deferred_motion=DEFERRED,
+                  production_source_sha256=hashlib.sha256((PASS/'FSRDNrdBridgePass_Dx12.cpp').read_bytes()).hexdigest())
+    if args.prepare_only:
+        if args.phase == 'native-material':
+            result['native_material'] = native_material(None)
+        result['prepared_only'] = True; result['python_checks'] = CHECKS
+        (OUT/f'prepared_{args.phase}.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
+        print(json.dumps(result,indent=2)); return
     if args.phase in ('all', 'synthetic'):
         result['synthetic'] = synthetic(exe)
     if args.phase in ('all', 'projected-depth'):
         result['projected_depth'] = projected_depth(exe)
     if args.phase in ('all', 'material-ids'):
         result['material_ids'] = material_ids(exe)
+    if args.phase in ('all', 'native-material'):
+        result['native_material'] = native_material(exe)
+        result['native_material_timings'] = [benchmark(exe,width,height,enabled)
+            for width,height in ((1505,847),(2560,1440)) for enabled in (False,True)]
+        result['native_material_shader_sha256'] = hashlib.sha256((PASS/'precompile/FSRDNrdBridgeMaterial_Shader.cso').read_bytes()).hexdigest()
     if args.phase in ('all', 'capture'):
         result['captured'] = captured(exe)
         result['normal_evidence'] = normal_evidence()
