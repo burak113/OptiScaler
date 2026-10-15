@@ -12,6 +12,14 @@ namespace NrdBridgeStagePerf { struct Sample; }
 namespace NrdBridge
 {
 struct RRRecoveryFamily;
+// D06/D07 proposed control-model vocabulary for requested/effective recovery
+// tiers and fallback reasons. Diagnostic names only; not INI/API keys.
+enum class LobeRecoveryTier : uint32_t { None = 0, FullPrecision = 1, MixedPrecision = 2 };
+enum class LobeRecoveryFallbackReason : uint32_t
+{
+    None = 0, NotRequested = 1, DebugConstraint = 2, ZeroStrength = 3,
+    ExternalFamilyUnavailable = 4, FamilyCapacity = 5, PreparationFailed = 6
+};
 // Optional graph budgets survive replacement temporal domains in one Service.
 std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept;
 // Config/UI inputs use a safe default; direct API validation remains strict.
@@ -73,6 +81,10 @@ struct RRRecordedOutputSnapshot
     uint32_t frameSL = UINT32_MAX, width = 0, height = 0, frameIndex = 0;
     uint64_t contextGeneration = 0, recordingId = 0;
     bool outputCommitted = false, recoveryActive = false, recoveryFallback = false;
+    // D06/D07 per-frame recovery diagnostics (control-model vocabulary; names
+    // are proposed, not keys). Text travels outside the hashed settings lineage.
+    uint32_t recoveryTier = 0, recoveryFallbackReason = 0;
+    std::string recoveryErrorText;
     D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     // Published only after late native flag capture is recorded; this is an owned snapshot, never the title CBV.
     ID3D12Resource* encodingFlag = nullptr;
@@ -138,7 +150,7 @@ class RRWrapper
         uint32_t retainedSlots = 0, rejections = 0;
         bool byteAdmissionActive = false;
     };
-    StagingLedgerSnapshot StagingLedgerSnapshot() const noexcept;
+    StagingLedgerSnapshot SnapshotStagingLedger() const noexcept;
     const std::string& CameraConventionDescription() const noexcept;
 };
 }

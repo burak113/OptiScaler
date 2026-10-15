@@ -34,26 +34,6 @@ std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept
     try { return MakeOwnedShared<RRRecoveryFamily>(); }
     catch (...) { return {}; } // Optional postprocessing never disables the RR bridge.
 }
-namespace
-{
-using Microsoft::WRL::ComPtr;
-static_assert(FFX_DENOISER_VERSION_MAJOR == 1 && FFX_DENOISER_VERSION_MINOR == 2);
-static_assert(sizeof(ffxDispatchDescDenoiser) == 448u);
-static_assert(offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 264u);
-static_assert(sizeof(ffxDispatchDescDenoiser) - offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 184u);
-
-template<class Proxy> std::string OwnedProviderAttestation(ffxContext context) noexcept
-{
-    if constexpr (requires { Proxy::DenoiserRouteAttestationDx12(context); })
-        return Proxy::DenoiserRouteAttestationDx12(context);
-    return {}; // Minimal test proxies cannot attest an actual module route.
-}
-
-bool Fail(std::string& error, const char* operation, ffxReturnCode_t code)
-{
-    error = std::string(operation) + " failed (FFX code " + std::to_string(code) + ")";
-    return false;
-}
 const char* LobeRecoveryTierName(uint32_t tier) noexcept
 {
     switch (tier)
@@ -75,6 +55,26 @@ const char* LobeRecoveryFallbackReasonName(uint32_t reason) noexcept
     case uint32_t(LobeRecoveryFallbackReason::PreparationFailed): return "preparation_failed";
     default: return "none";
     }
+}
+namespace
+{
+using Microsoft::WRL::ComPtr;
+static_assert(FFX_DENOISER_VERSION_MAJOR == 1 && FFX_DENOISER_VERSION_MINOR == 2);
+static_assert(sizeof(ffxDispatchDescDenoiser) == 448u);
+static_assert(offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 264u);
+static_assert(sizeof(ffxDispatchDescDenoiser) - offsetof(ffxDispatchDescDenoiser, motionVectorScale) == 184u);
+
+template<class Proxy> std::string OwnedProviderAttestation(ffxContext context) noexcept
+{
+    if constexpr (requires { Proxy::DenoiserRouteAttestationDx12(context); })
+        return Proxy::DenoiserRouteAttestationDx12(context);
+    return {}; // Minimal test proxies cannot attest an actual module route.
+}
+
+bool Fail(std::string& error, const char* operation, ffxReturnCode_t code)
+{
+    error = std::string(operation) + " failed (FFX code " + std::to_string(code) + ")";
+    return false;
 }
 // Rate-limited classification from the helper's stable message constants;
 // the full optional error text is always preserved verbatim regardless.
@@ -1183,6 +1183,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
+    result.recoveryTier = impl_->recoveryTier;
+    result.recoveryFallbackReason = impl_->recoveryFallbackReason;
+    result.recoveryErrorText = impl_->recoveryErrorText;
     result.providerControl = output->providerControl;
     result.providerVersionId = lease->context->overrideVersion.versionId;
     result.providerApiVersion = lease->context->create.version;
@@ -1321,7 +1324,7 @@ uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
             impl_->recoveryFamily->budget.slots.allocatedBytes.load(std::memory_order_acquire);
     return bytes;
 }
-RRWrapper::StagingLedgerSnapshot RRWrapper::StagingLedgerSnapshot() const noexcept
+RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexcept
 {
     StagingLedgerSnapshot result;
     if (!impl_ || !impl_->context || !impl_->context->ledger) return result;

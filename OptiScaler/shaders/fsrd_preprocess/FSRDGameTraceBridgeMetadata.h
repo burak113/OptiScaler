@@ -70,14 +70,18 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"preserve_native_material_ids",p.preserveNativeMaterialIDs},{"native_temporal_motion",p.nativeTemporalMotion},
         {"native_material_guides",p.nativeMaterialGuides},{"lobe_recovery",p.lobeRecovery},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
-        {"lobe_recovery_requested_tier",s.lobeRecoveryRequestedTier},
-        {"lobe_recovery_tier",s.lobeRecoveryTier},
-        {"lobe_recovery_requested_tier_name",NrdBridge::LobeRecoveryTierName(s.lobeRecoveryRequestedTier)},
-        {"lobe_recovery_tier_name",NrdBridge::LobeRecoveryTierName(s.lobeRecoveryTier)},
-        {"lobe_recovery_fallback_reason",s.lobeRecoveryFallbackReason},
-        {"lobe_recovery_fallback_reason_name",NrdBridge::LobeRecoveryFallbackReasonName(s.lobeRecoveryFallbackReason)},
-        {"lobe_recovery_last_error",s.lobeRecoveryLastError},
         {"native_nrd_output_used",false}};
+}
+// D06/D07 proposed diagnostic vocabulary (control-model names, not keys).
+// This payload is attached per recorded frame and is NOT part of the hashed
+// settings lineage; the free recovery error text may change between frames.
+inline Json RecordedRecovery(const NrdBridge::RRRecordedOutputSnapshot& output)
+{
+    return {{"tier",NrdBridge::LobeRecoveryTierName(output.recoveryTier)},
+        {"tier_value",output.recoveryTier},
+        {"fallback_reason",NrdBridge::LobeRecoveryFallbackReasonName(output.recoveryFallbackReason)},
+        {"fallback_reason_value",output.recoveryFallbackReason},
+        {"last_error",output.recoveryErrorText}};
 }
 inline Json Contract()
 {

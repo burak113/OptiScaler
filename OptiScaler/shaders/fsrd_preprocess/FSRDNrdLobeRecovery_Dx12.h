@@ -69,9 +69,10 @@ class LobeRecovery
         // Includes in-progress reservations and all retained old Contexts.
         std::atomic<uint64_t> graphBytes {0};
         // Monotone metadata-only diagnostics: retained high-water, cold cooldown
-        // denials and failed preparations. Zero cost on success paths.
+        // windows that were set, cold attempts denied while cooling down and
+        // failed preparations. Only failure/cold paths touch them.
         std::atomic<uint64_t> retainedPeakBytes {0};
-        std::atomic<uint32_t> coldRetryDenials {0}, preparationFailures {0};
+        std::atomic<uint32_t> coldCooldowns {0}, coldRetryDenials {0}, preparationFailures {0};
         std::atomic<uint64_t> retryUntilTick {0};
     };
 
@@ -167,7 +168,7 @@ class LobeRecovery
     const Storage storage_;
     static void DelayColdRetry(Family& family,uint64_t now) noexcept
     {
-        family.coldRetryDenials.fetch_add(1,std::memory_order_relaxed);
+        family.coldCooldowns.fetch_add(1,std::memory_order_relaxed);
         const uint64_t until = now>UINT64_MAX-1000 ? UINT64_MAX : now+1000;
         auto previous = family.retryUntilTick.load(std::memory_order_acquire);
         while (previous<until && !family.retryUntilTick.compare_exchange_weak(previous,until,std::memory_order_acq_rel)) {}
@@ -419,7 +420,7 @@ class LobeRecovery
         uint64_t familyRetainedPeakBytes = 0;
         uint64_t ownedTextureBytes = 0, ownedAuxiliaryBytes = 0;
         uint32_t warmRetainedSlots = 0, familySlots = 0;
-        uint32_t coldRetryDenials = 0, preparationFailures = 0;
+        uint32_t coldCooldowns = 0, coldRetryDenials = 0, preparationFailures = 0;
         uint64_t recordedFrames = 0;
     };
     DiagnosticsSnapshot SnapshotDiagnostics() const noexcept
@@ -436,15 +437,20 @@ class LobeRecovery
             result.ownedAuxiliaryBytes = auxiliary;
             result.recordedFrames = context_->recordedFrames;
         }
-        if (context_ && context_->family)
-        {
-            const auto& family = *context_->family;
-            result.familyGraphBytes = family.graphBytes.load(std::memory_order_relaxed);
-            result.familyRetainedPeakBytes = family.retainedPeakBytes.load(std::memory_order_relaxed);
-            result.familySlots = family.slots.allocatedSlots.load(std::memory_order_relaxed);
-            result.coldRetryDenials = family.coldRetryDenials.load(std::memory_order_relaxed);
-            result.preparationFailures = family.preparationFailures.load(std::memory_order_relaxed);
-        }
+        if (context_ && context_->family) result = FamilyDiagnosticsSnapshot(*context_->family, result);
+        return result;
+    }
+    // Family-level counters readable even when this helper has no context:
+    // cold failures happen exactly there. Cheap metadata reads.
+    static DiagnosticsSnapshot FamilyDiagnosticsSnapshot(const Family& family,
+        DiagnosticsSnapshot result = {}) noexcept
+    {
+        result.familyGraphBytes = family.graphBytes.load(std::memory_order_relaxed);
+        result.familyRetainedPeakBytes = family.retainedPeakBytes.load(std::memory_order_relaxed);
+        result.familySlots = family.slots.allocatedSlots.load(std::memory_order_relaxed);
+        result.coldCooldowns = family.coldCooldowns.load(std::memory_order_relaxed);
+        result.coldRetryDenials = family.coldRetryDenials.load(std::memory_order_relaxed);
+        result.preparationFailures = family.preparationFailures.load(std::memory_order_relaxed);
         return result;
     }
     struct Prepared
@@ -476,7 +482,10 @@ class LobeRecovery
             {
                 coldTick = GetTickCount64();
                 if (coldTick<family->retryUntilTick.load(std::memory_order_acquire))
-                { error = "Lobe recovery cold allocation retry is cooling down"; return false; }
+                {
+                    family->coldRetryDenials.fetch_add(1,std::memory_order_relaxed);
+                    error = "Lobe recovery cold allocation retry is cooling down"; return false;
+                }
             }
             if (!Validate(device,list,inputs,frame,family,error)) { rejected(); return false; }
             if (storage_!=Storage::FullPrecision && storage_!=Storage::MixedPrecision)

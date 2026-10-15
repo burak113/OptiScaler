@@ -60,25 +60,46 @@ plus the **real helper error text** (never truncated) published next to the
 effective fallback in `RRSettingsState`.
 
 Counter surfaces added this round (metadata-only, off the hot path):
-- `LobeRecovery::Family`: `retainedPeakBytes`, `coldRetryDenials`,
+- `LobeRecovery::Family`: `retainedPeakBytes`, `coldCooldowns` (windows set),
+  `coldRetryDenials` (attempts denied while cooling),
   `preparationFailures` (monotone; only failure/cold paths touch them).
-- `LobeRecovery::SnapshotDiagnostics()` exposes helper+family totals.
+- `LobeRecovery::SnapshotDiagnostics()` (helper + its family) and
+  `LobeRecovery::FamilyDiagnosticsSnapshot(family)` (readable even with no
+  context, i.e. exactly for cold failures).
 - The per-pixel GPU counters are NOT added in this graph: the Control flag
   name `NRD_RECOVERY_REJECT_STATS (8u)` is RESERVED for that future opt-in
   pass, which must bring its own UAV contract. Evidence class: code-level
   behavior (function getters) plus model arithmetic in the eligibility
   matrix test; no live pixel distribution was captured.
 
+Tier/fallback publication rules (D07): the hashed trace lineage keeps the
+settings payload unchanged; tier/reason/error travel INSIDE the per-frame
+recovery witness (`RecordedRecovery(output)` -> `recovery.effective`), which
+is not hashed, so a fallback on one frame and success on the next cannot
+poison the settings lineage hash.
+
+Base-state note (evidence discipline): at base `bdab0c01` the real-provider
+fixture fails its own pre-admission probe ("private preparation is not
+published...") — the publication point moved inside the recording step by
+commit `a3b63952` (owned recording / late pure-commit separation, Oct 15)
+without re-running the provider fixture; a detached base-control run at
+`bdab0c01` reproduced the identical failure before this branch touched the
+probe. This branch aligns the probe to the shipped recorded-vs-committed
+publication split: at admission the state must truthfully say the last
+RECORDING ran the graph (no invented success, no fallback claim), and the
+post-commit truth checks are unchanged. The shipped `GetSettingsState()`
+behavior itself is untouched by this fix.
+
 ## 2. D07 — tier, byte admission and accounting
 
 - The two native chains (A/B) share ONE `RRRecoveryFamily`; the 2 GiB family
-  cap already sees both chains' cumulative charge. Effective-vs-requested
-  tier is now published per recorded chain via `RRSettingsState`
-  (`requestedTier=full_precision` when requested; `effectiveTier` locked to
-  `FullPrecision` only after an admitted commit; fallback reason + error
-  text otherwise). No automatic Mixed downgrade was implemented this round;
-  automatic Mixed selection remains an open hypothesis (history-structure
-  transition and tier flapping require a stable-selection policy first).
+  cap already sees both chains' cumulative charge. - Effective-vs-requested tier is now published per recorded chain:
+  `RRSettingsState` carries the proposed tier/reason/`LastError` values and
+  `RRRecordedOutputSnapshot` carries the per-frame ones. Tier is locked to
+  `full_precision` only after an admitted commit. No automatic Mixed
+  downgrade was implemented this round; automatic Mixed selection remains an
+  open hypothesis (history-structure transition and tier flapping require a
+  stable-selection policy first).
 - Staging byte admission: `NrdBridgeCaptureBudget::StagingLedger` is shared
   across retained staging generations of one wrapper, counts slot pair
   bytes only, records a retained high-water and a monotone retired total,
@@ -128,3 +149,11 @@ tests (CPU). NOT claimed: live alpha0 population, resident VRAM totals,
 FPS/quality change, automatic Mixed tier behavior, live A/B retention
 high-water under a real provider session. Live capture requests are listed
 in the work report.
+
+Menu/trace visibility: the fallback reason and real error text are visible
+in the NRD bridge menu row (fallback branch extends `reason (text)`), the
+per-frame GameTrace metadata carries them in `recovery.effective`
+(unhashed), and `RRSettingsState` returns them to any caller. An AGGREGATED
+A/B two-chain view (requestedTier/effectiveTier pairs side by side +
+combined reserved/retired bytes) is a documented next step: the per-chain
+values exist, the Service-level aggregated readout does not.
