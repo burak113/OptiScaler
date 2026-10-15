@@ -5,7 +5,11 @@
 
 #ifdef FSRD_NRD_MATERIAL_GUIDES
 #include "FSRDNrdMaterialGuides.hlsli"
+#ifdef FSRD_NRD_MATERIAL_PARAMS
+#define NrdGuideSrvCount "6"
+#else
 #define NrdGuideSrvCount "5"
+#endif
 #else
 #define NrdGuideSrvCount "4"
 #endif
@@ -22,6 +26,9 @@ Texture2D<float4> InMotion : register(t2);
 Texture2D<float> InPreviousDepth : register(t3);
 #ifdef FSRD_NRD_MATERIAL_GUIDES
 Texture2D<float4> InNativeBaseMetal : register(t4);
+#ifdef FSRD_NRD_MATERIAL_PARAMS
+Texture2D<float> InNativeMaterialRoughness : register(t5);
+#endif
 #endif
 // Recon just wrote these through UAVs. They must be read as UAVs, never SRVs.
 RWTexture2D<float4> InReconSpec : register(u0);
@@ -106,7 +113,15 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     const float4 baseMetal = InNativeBaseMetal[p];
     // Guide outputs keep the provider's preferred RGBA8_UNORM format; its
     // normalized store clamps/rounds directly, without an intermediate half conversion.
+#ifdef FSRD_NRD_MATERIAL_PARAMS
+    const float rawMaterialRoughness = InNativeMaterialRoughness[p];
+    // Match the attested compositor material parameter without changing RR normal.B.
+    // Preserve malformed values for the existing finite-value white fallback.
+    const float guideRoughness = isfinite(rawMaterialRoughness) ? clamp(rawMaterialRoughness, 0.04f, 1.0f) : rawMaterialRoughness;
+    OutSpecAlbedo[p] = float4(NrdSpecularMaterialGuide(baseMetal, normalRoughness.a, guideRoughness, noV), noV);
+#else
     OutSpecAlbedo[p] = float4(NrdSpecularMaterialGuide(baseMetal, normalRoughness.a, normalRoughness.b, noV), noV);
+#endif
     OutDiffAlbedo[p] = float4(NrdDiffuseMaterialGuide(baseMetal, normalRoughness.a), 0.0f);
 #else
     OutSpecAlbedo[p] = float4(1.0f, 1.0f, 1.0f, noV);

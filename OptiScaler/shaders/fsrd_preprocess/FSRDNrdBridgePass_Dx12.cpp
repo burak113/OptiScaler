@@ -6,6 +6,7 @@
 #include "State.h"
 #include "precompile/FSRDNrdBridge_Shader.h"
 #include "precompile/FSRDNrdBridgeMaterial_Shader.h"
+#include "precompile/FSRDNrdBridgeMaterialParams_Shader.h"
 #include "precompile/FSRDNrdBridgeCopy_Shader.h"
 #include "precompile/FSRDNrdBridgeMotion_Shader.h"
 #include "precompile/FSRDNrdBridgeMotionNative_Shader.h"
@@ -160,8 +161,8 @@ struct ConversionPass::Impl
     uint64_t textureBytes = 0;
     bool historyValid = false;
     std::mutex mutex;
-    Pipeline conversion, materialConversion, copy, motionPass, nativeMotionPass;
-    bool materialInitialized = false;
+    Pipeline conversion, materialConversion, materialParamsConversion, copy, motionPass, nativeMotionPass;
+    bool materialInitialized = false, materialParamsInitialized = false;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint64_t zeroBytes = 0;
@@ -259,12 +260,20 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         const bool materialGuides = frame.nativeMaterialGuides && inputs.nativeMaterial;
         if (materialGuides && !TextureMatches(inputs.nativeMaterial,owner->width,owner->height,DXGI_FORMAT_R16G16B16A16_FLOAT,false))
         { error="Native material snapshot shape/format differs from same-frame Recon"; return false; }
-        if (materialGuides && !owner->materialInitialized)
+        const bool materialParams = materialGuides && inputs.nativeMaterialRoughness;
+        if (materialParams && !TextureMatches(inputs.nativeMaterialRoughness,owner->width,owner->height,DXGI_FORMAT_R16_FLOAT,false))
+        { error="Native material roughness snapshot shape/format differs from same-frame Recon"; return false; }
+        if (materialParams && !owner->materialParamsInitialized)
+        {
+            owner->materialParamsConversion.Initialize(owner->device.Get(),FSRDNrdBridgeMaterialParams_cso,sizeof(FSRDNrdBridgeMaterialParams_cso),6,9);
+            owner->materialParamsInitialized = true;
+        }
+        if (materialGuides && !materialParams && !owner->materialInitialized)
         {
             owner->materialConversion.Initialize(owner->device.Get(),FSRDNrdBridgeMaterial_cso,sizeof(FSRDNrdBridgeMaterial_cso),5,9);
             owner->materialInitialized = true;
         }
-        auto& pipeline = materialGuides ? owner->materialConversion : owner->conversion;
+        auto& pipeline = materialParams ? owner->materialParamsConversion : (materialGuides ? owner->materialConversion : owner->conversion);
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
         lease->slot = pipeline.Acquire(owner->device.Get());
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
@@ -300,6 +309,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         DirectX::XMStoreFloat4x4(&constants.worldToView, frame.camera.view);
         std::vector<ID3D12Resource*> srvs {inputs.normals,inputs.viewDepth,inputs.motion,owner->depth[owner->previousIndex].resource.Get()};
         if (materialGuides) srvs.push_back(inputs.nativeMaterial);
+        if (materialParams) srvs.push_back(inputs.nativeMaterialRoughness);
         pipeline.Describe(owner->device.Get(), *lease->slot, srvs,
             {inputs.reconSpec, inputs.reconDiff, owner->spec.resource.Get(), owner->diff.resource.Get(),
              writeDepth.resource.Get(), owner->motion.resource.Get(), owner->normals.resource.Get(),
@@ -309,18 +319,27 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
                                                    &owner->normals, &owner->specAlbedo, &owner->diffAlbedo};
         for (auto* texture : outputs) texture->Transition(list, kWrite);
         D3D12_RESOURCE_BARRIER materialBarrier {};
+        const std::array<ID3D12Resource*,2> materialSources {inputs.nativeMaterial,materialParams ? inputs.nativeMaterialRoughness : nullptr};
         if (materialGuides)
         {
             materialBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            materialBarrier.Transition = {inputs.nativeMaterial,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-                D3D12_RESOURCE_STATE_COMMON,kRead};
-            list->ResourceBarrier(1,&materialBarrier);
+            for (auto* material : materialSources)
+            {
+                if (!material) continue;
+                materialBarrier.Transition = {material,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,D3D12_RESOURCE_STATE_COMMON,kRead};
+                list->ResourceBarrier(1,&materialBarrier);
+            }
         }
         pipeline.Record(list, *lease->slot, &constants, 52, owner->width, owner->height);
         if (materialGuides)
         {
             std::swap(materialBarrier.Transition.StateBefore,materialBarrier.Transition.StateAfter);
-            list->ResourceBarrier(1,&materialBarrier);
+            for (auto* material : materialSources)
+            {
+                if (!material) continue;
+                materialBarrier.Transition.pResource = material;
+                list->ResourceBarrier(1,&materialBarrier);
+            }
         }
         for (auto* texture : outputs) texture->Transition(list, kRead);
         owner->pendingMotion = inputs.motion == nullptr;
