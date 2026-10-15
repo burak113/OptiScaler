@@ -1064,6 +1064,9 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterialParams_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterialParams.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMaterialParams_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeTemporalConstants_Dx12.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporal.hlsli" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.h" />
