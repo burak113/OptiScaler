@@ -840,6 +840,9 @@ struct Mirror
 };
 FrameSurveyMetadata::MetadataMutex<std::mutex,FrameSurveyMetadata::MetadataLock::Mirror> gMirrorMutex;
 std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
+// Independent of the short root/table window: an OM binding can precede Recon.
+// Each list holds at most eight weak, exact native resource identities.
+std::unordered_map<ID3D12GraphicsCommandList*,RecordedRenderTargets> gRecordedRenderTargets;
 std::unordered_map<void*,std::unordered_set<ID3D12GraphicsCommandList*>> gMirrorOwners;
 std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> gPipelineBirths;
 struct RetiredMetadata
@@ -850,6 +853,7 @@ struct RetiredMetadata
     decltype(gPipelineMetadata)::node_type pipeline;
     decltype(gIndirectSignatures)::node_type signature;
     decltype(gMirror)::node_type list;
+    decltype(gRecordedRenderTargets)::node_type renderTargets;
     decltype(gMirrorOwners)::node_type references;
     std::shared_ptr<NativeResourceNode> nativeResource;
     std::shared_ptr<NativeHeapNode> nativeHeap;
@@ -2414,6 +2418,9 @@ bool DetachReleaseMetadata(const NrdBridgeBirth::Token& birth, RetirementEffects
                 UpdateMirrorOwners(receiver,MirrorReferences(found->second),MirrorReferences(Mirror{}));
                 detached.list = gMirror.extract(found);
             }
+            if (const auto found = gRecordedRenderTargets.find(receiver);
+                found != gRecordedRenderTargets.end() && found->second.receiverBirth == birth)
+                detached.renderTargets = gRecordedRenderTargets.extract(found);
             if (const auto owners = gMirrorOwners.find(effects.object); owners != gMirrorOwners.end())
             {
                 for (auto it = owners->second.begin(); it != owners->second.end();)
@@ -2824,6 +2831,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
 
 void Reset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
 {
+    ResetRenderTargets(cmd);
     if ((!BindingTracking() && !Recording()) || gInternal || !cmd) return;
     NrdBridgeBirth::Token initialBirth;
     { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gPipelineBirths.find(initial); found != gPipelineBirths.end()) initialBirth = found->second; }
@@ -2922,8 +2930,108 @@ void Table(ID3D12GraphicsCommandList* cmd, bool graphics, UINT index, D3D12_GPU_
         (graphics ? list.graphics : list.compute).tables[index] = handle.ptr;
     } catch (...) { Fail("Root table binding metadata failed"); }
 }
+bool ValidateRecordedRenderTargets(const RecordedRenderTargets& expected) noexcept
+{
+    if (!NativeTracking() || !expected.known || expected.count > expected.targets.size() ||
+        !expected.receiverBirth || !BirthAvailable(expected.receiverBirth,expected.receiverBirth->Address()) ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        NativeSnapshotExclusive snapshot;
+        std::shared_lock catalog(gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        for (UINT index=0;index<expected.count;++index)
+        {
+            const auto& target=expected.targets[index];
+            if (!target.resource || !target.generation || !BirthAvailable(target.birth,target.resource)) return false;
+            const auto found=gResources.find(target.resource);
+            if (found==gResources.end() || found->second.id!=target.generation || found->second.birth!=target.birth ||
+                !(found->second.desc.Flags&D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)) return false;
+        }
+        return true;
+    }
+    catch (...) { return false; }
+}
+bool ResolveRecordedRenderTargets(ID3D12GraphicsCommandList* cmd, RecordedRenderTargets& out) noexcept
+{
+    out={};
+    if (!cmd || gInternal || !NativeTracking()) return false;
+    try
+    {
+        { std::scoped_lock lock(gMirrorMutex);
+          const auto found=gRecordedRenderTargets.find(cmd);
+          if (found==gRecordedRenderTargets.end()) return false;
+          out=found->second; }
+        if (!out.receiverBirth || out.receiverBirth->Address()!=cmd || !ValidateRecordedRenderTargets(out))
+        { out={}; return false; }
+        return true;
+    }
+    catch (...) { out={}; return false; }
+}
+void ResetRenderTargets(ID3D12GraphicsCommandList* cmd) noexcept
+{
+    if (!cmd || gInternal || !NativeTracking()) return;
+    ForgetRenderTargets(cmd);
+    try
+    {
+        const auto receiver=ReceiverBirth(cmd);NrdBridgeBirth::CurrentGuard current(receiver);
+        if (!receiver || !current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return;
+        RecordedRenderTargets empty;empty.receiverBirth=receiver;empty.known=true;
+        NativeSnapshotShared snapshot;std::scoped_lock lock(gMirrorMutex);
+        gRecordedRenderTargets[cmd]=std::move(empty);
+    }
+    catch (...) { MetadataFailed("Native render target reset metadata failed"); }
+}
+void ForgetRenderTargets(ID3D12GraphicsCommandList* cmd) noexcept
+{
+    if (!cmd || gInternal || !NativeTracking()) return;
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex);
+        if (const auto found=gRecordedRenderTargets.find(cmd);found!=gRecordedRenderTargets.end()) found->second.known=false;
+    }
+    catch (...) { MetadataFailed("Native render target invalidation failed"); }
+}
+static void RecordNativeRenderTargets(ID3D12GraphicsCommandList* cmd, UINT count,
+    const D3D12_CPU_DESCRIPTOR_HANDLE* handles, BOOL contiguous) noexcept
+{
+    if (!cmd || gInternal || !NativeTracking()) return;
+    ForgetRenderTargets(cmd); // A failed new bind must never reuse a previous exclusion proof.
+    try
+    {
+        const auto receiver=ReceiverBirth(cmd);NrdBridgeBirth::CurrentGuard current(receiver);
+        if (!receiver || !current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return;
+        RecordedRenderTargets recorded;recorded.receiverBirth=receiver;recorded.count=count;
+        recorded.known=count<=recorded.targets.size() && (!count || handles);
+        NativeSnapshotExclusive snapshot;
+        {
+            std::shared_lock catalog(gLifetimeMutex);
+            recorded.known=recorded.known && gMetadataHealthy.load(std::memory_order_acquire);
+            const auto* first=count && handles && contiguous ? HeapAtCpu(handles[0].ptr) : nullptr;
+            if (count && contiguous && (!first || first->type!=D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) recorded.known=false;
+            for (UINT index=0;recorded.known && index<count;++index)
+            {
+                const uint64_t offset=contiguous ? uint64_t(index)*first->increment : 0;
+                if (contiguous && offset>UINT64_MAX-handles[0].ptr) { recorded.known=false;break; }
+                const auto handle=contiguous ? handles[0].ptr+offset : handles[index].ptr;
+                const auto* heap=HeapAtCpu(handle);const auto view=gViews.find(handle);
+                if (!heap || heap->type!=D3D12_DESCRIPTOR_HEAP_TYPE_RTV || !BirthAvailable(heap->birth,heap->object) ||
+                    view==gViews.end() || view->second.kind!=4 || !FreshView(view->second,heap))
+                { recorded.known=false;break; }
+                const auto resource=gResources.find(view->second.object);
+                if (resource==gResources.end() || resource->second.id!=view->second.resource ||
+                    !BirthAvailable(resource->second.birth,view->second.object))
+                { recorded.known=false;break; }
+                recorded.targets[index]={view->second.object,resource->second.birth,resource->second.id};
+            }
+        }
+        std::scoped_lock lock(gMirrorMutex);gRecordedRenderTargets[cmd]=std::move(recorded);
+    }
+    catch (...) { MetadataFailed("Native render target binding metadata failed"); }
+}
 void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE* handles, BOOL contiguous) noexcept
 {
+    RecordNativeRenderTargets(cmd,count,handles,contiguous);
     if (!Recording()) return;
     try
     {
@@ -3590,6 +3698,16 @@ HRESULT STDMETHODCALLTYPE Signature(ID3D12Device* device, const D3D12_COMMAND_SI
 void STDMETHODCALLTYPE BeginRender(ID3D12GraphicsCommandList4* cmd, UINT count,
     const D3D12_RENDER_PASS_RENDER_TARGET_DESC* targets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC* depth, D3D12_RENDER_PASS_FLAGS flags)
 {
+    if (NativeTracking() && !gInternal && !Recording())
+    {
+        std::array<D3D12_CPU_DESCRIPTOR_HANDLE,D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> handles {};
+        if (count<=handles.size() && (!count || targets))
+        {
+            for (UINT index=0;index<count;++index) handles[index]=targets[index].cpuDescriptor;
+            RecordNativeRenderTargets(cmd,count,handles.data(),FALSE);
+        }
+        else ForgetRenderTargets(cmd);
+    }
     if (Recording())
     {
         try
@@ -3616,6 +3734,7 @@ void STDMETHODCALLTYPE BeginRender(ID3D12GraphicsCommandList4* cmd, UINT count,
 void STDMETHODCALLTYPE EndRender(ID3D12GraphicsCommandList4* cmd)
 {
     oEndRender(cmd);
+    ForgetRenderTargets(cmd);
     if (Recording())
     {
         try { std::scoped_lock lock(gRecordMutex); if (Recording()) GetList(cmd).inRenderPass = false; }
@@ -3731,7 +3850,7 @@ void Shutdown() noexcept
         { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
         {
         NativeSnapshotExclusive metadataSnapshot;
-        { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear(); }
+        { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear(); gRecordedRenderTargets.clear(); }
         std::scoped_lock lock(gLifetimeMutex); gNativeMetadataEpoch.fetch_add(1,std::memory_order_acq_rel);
         gNativeResources.Clear(); gNativeHeaps.Clear(); gNativeBuffers.Clear();
         for (auto& ranges : gNativeHeapRanges) ranges.Clear();

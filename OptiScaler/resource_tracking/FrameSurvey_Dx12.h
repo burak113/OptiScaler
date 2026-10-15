@@ -92,6 +92,28 @@ struct TextureBindingWitness
     DXGI_FORMAT viewFormat = DXGI_FORMAT_UNKNOWN;
     UINT subresource = 0;
 };
+// RTV descriptors are copied into the command list at OMSetRenderTargets /
+// BeginRenderPass. Retain those resource identities, not mutable CPU slots.
+struct RecordedRenderTarget
+{
+    ID3D12Resource* resource = nullptr;
+    NrdBridgeBirth::Token birth;
+    uint64_t generation = 0;
+    bool operator==(const RecordedRenderTarget&) const noexcept = default;
+};
+struct RecordedRenderTargets
+{
+    std::array<RecordedRenderTarget,D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> targets {};
+    NrdBridgeBirth::Token receiverBirth;
+    UINT count = 0;
+    bool known = false;
+    bool operator==(const RecordedRenderTargets&) const noexcept = default;
+};
+bool ResolveRecordedRenderTargets(ID3D12GraphicsCommandList*, RecordedRenderTargets&) noexcept;
+bool ValidateRecordedRenderTargets(const RecordedRenderTargets&) noexcept;
+void ResetRenderTargets(ID3D12GraphicsCommandList*) noexcept;
+void ForgetRenderTargets(ID3D12GraphicsCommandList*) noexcept;
+
 enum class IndirectSignatureKind : uint8_t { Unknown, Dispatch, DrawIndexed };
 struct IndirectSignatureInfo
 {

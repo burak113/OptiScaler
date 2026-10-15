@@ -75,10 +75,27 @@ while RR is requested: the supported native profile requires direct Dispatch for
 its raw capture, filter omission and late commit. Binding inheritance alone does
 not authorize an indirect native denoiser invocation.
 
+The game's B targets have RTV as well as UAV creation flags. Intervening graphics
+work therefore checks the actual bound render targets, rather than rejecting a
+target merely because it is renderable. At most eight bind-time RTV identities
+are captured independently of the short root/table window. Only distinct output
+sets consume a retained proof slot; repeated actor draws into the same targets do
+not exhaust the bounded proof. Actual B overlap, missing output metadata and
+depth-capable pending targets still deny admission. Exact resource births and
+generations are validated again before submission. CPU RTV descriptor slots may
+be reused after binding: their contents have already been copied into the command
+list ([Microsoft's non-shader-visible descriptor contract](https://learn.microsoft.com/en-us/windows/win32/direct3d12/non-shader-visible-descriptor-heaps)).
+Reset/ClearState discard the previous output state, and list retirement detaches
+only that exact list birth. No global resource or heap traversal is added.
+
 Failed initial native admission records its exact `gate` and `reason`, including
 restore configuration, missing setters/heaps/PSO/tables, unknown predication,
 stale births, unknown root parameter counts, source/target tables and b6 mapping.
 These diagnostics do not relax admission or enable a native denoiser fallback.
+Invalidated pending work also records the first cause, chain mask and complete
+available shader identities. Submission rejection distinguishes missing output,
+retained texture/constant/pipeline/signature/output proof, and unpublished history
+ordering. Fence callback failures include their phase and exact recording IDs.
 
 The descriptor admission protocol joins each native descriptor mutation with its
 metadata publication. Writers use fixed sharded atomic counters. A participating

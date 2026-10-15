@@ -5381,6 +5381,7 @@ static void STDMETHODCALLTYPE hkBridgeClearState(ID3D12GraphicsCommandList* This
     if (gNrdBridgeWrappers)
     {
         D3D12Hooks::OnBridgeCommandListClearState(This,initial);
+        FrameSurvey::ResetRenderTargets(This);
         NrdBridge::InvalidateRecordingProof(This,"ClearState invalidated the current root/dispatch proof");
         FrameSurvey::RootBinding(This,false,nullptr); FrameSurvey::RootBinding(This,true,nullptr);
         FrameSurvey::DescriptorHeaps(This,0,nullptr); FrameSurvey::SetPipeline(This,initial);

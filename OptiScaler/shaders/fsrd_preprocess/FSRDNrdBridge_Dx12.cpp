@@ -43,6 +43,7 @@ struct RecordingToken
     // Once a title history pass is omitted, this exact recording must commit RR.
     // These latches outlive Service, runtime toggles and later Recon transactions.
     std::atomic<bool> commitRequired {false}, skipInvalidated {false}, submissionRetained {false};
+    std::atomic<const char*> invalidationGate {nullptr}; // Static diagnostic labels only.
     std::atomic<SubmissionPhase> phase {SubmissionPhase::Recorded};
     std::mutex publicationMutex;
     RecordedComputeLease::FencePointPtr completion;
@@ -97,7 +98,8 @@ struct NativeCommitProof
     std::array<NativeConstantProof,3> constants;
     std::array<FrameSurvey::PipelineShaderIdentity,20> pipelines;
     std::array<FrameSurvey::IndirectSignatureInfo,20> signatures;
-    size_t constantCount = 0, pipelineCount = 0, signatureCount = 0;
+    std::array<FrameSurvey::RecordedRenderTargets,36> rasterOutputs;
+    size_t constantCount = 0, pipelineCount = 0, signatureCount = 0, rasterOutputCount = 0;
     std::weak_ptr<RecordedComputeLease::Recording> recording;
     NrdBridgeBirth::Token listBirth;
     uint64_t recordingId = 0;
@@ -570,10 +572,11 @@ void RetireNativeRecording(Service& owner, ListState& list) noexcept
             stage->history->discardPending.store(true,std::memory_order_release);owner.discardRequested=true;
         }
 }
-void InvalidateSkippedRecording(ListState& list) noexcept
+void InvalidateSkippedRecording(ListState& list, const char* gate="recording_invalidated") noexcept
 {
     for (const auto& stage : list.native) if (stage && !stage->committed)
     {
+        const char* empty=nullptr;stage->recording->invalidationGate.compare_exchange_strong(empty,gate,std::memory_order_acq_rel);
         stage->invalidated = true; stage->recording->skipInvalidated.store(true,std::memory_order_release);
         stage->history->uncertain.store(true,std::memory_order_release);
         stage->history->discardPending.store(true,std::memory_order_release);
@@ -853,27 +856,37 @@ bool AppendNativeConstantProof(const std::shared_ptr<NativeCommitProof>& proof,
     row.bindings = bindings; row.constant = constant; row.pixel = pixel; ++proof->constantCount;
     return true;
 }
+struct NativeCommitDiagnostic { const char* gate="unavailable";size_t row=0; };
 bool ValidateNativeCommitProof(const NativeCommitProof& proof,
-    const RecordedComputeLease::SubmissionInfo& info) noexcept
+    const RecordedComputeLease::SubmissionInfo& info, NativeCommitDiagnostic& diagnostic) noexcept
 {
-    if (!NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread() || !NrdBridgeDescriptorAdmission::Healthy() ||
-        !proof.sealed.load(std::memory_order_acquire) || !proof.recordingId || proof.recordingId != info.recordingId ||
-        !FrameSurvey::MetadataHealthy()) return false;
+    const auto reject=[&](const char* gate,size_t row=0){diagnostic={gate,row};return false;};
+    if (!NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread() || !NrdBridgeDescriptorAdmission::Healthy()) return reject("descriptor_admission");
+    if (!proof.sealed.load(std::memory_order_acquire) || !proof.recordingId || proof.recordingId != info.recordingId) return reject("recording_seal");
+    if (!FrameSurvey::MetadataHealthy()) return reject("metadata");
     NrdBridgeLifetime::ScopedBorrow borrow;
-    if (!borrow.Acquired() || !BirthLive(proof.listBirth)) return false;
+    if (!borrow.Acquired() || !BirthLive(proof.listBirth)) return reject("recording_lifetime");
     const auto recording = proof.recording.lock();
-    if (!recording || recording->id != info.recordingId || proof.textures.empty() ||
-        !FrameSurvey::ValidateTextureBindingWitnesses(proof.textures)) return false;
+    if (!recording || recording->id != info.recordingId || proof.textures.empty()) return reject("recording_identity");
+    if (!FrameSurvey::ValidateTextureBindingWitnesses(proof.textures))
+    {
+        for(size_t row=0;row<proof.textures.size();++row)
+            if(!FrameSurvey::ValidateTextureBindingWitnesses(std::span(&proof.textures[row],1)))return reject("texture_binding",row);
+        return reject("texture_binding");
+    }
     for (size_t index=0;index<proof.constantCount;++index)
     {
         const auto& row=proof.constants[index];
         if (!(row.pixel ? FrameSurvey::ValidateGraphicsConstantBinding(row.bindings,6,0,row.constant) :
-            FrameSurvey::ValidateComputeConstantBinding(row.bindings,6,0,row.constant))) return false;
+            FrameSurvey::ValidateComputeConstantBinding(row.bindings,6,0,row.constant))) return reject(row.pixel ? "pixel_constant" : "compute_constant",index);
     }
     for (size_t index=0;index<proof.pipelineCount;++index)
-        if (!FrameSurvey::ValidatePipelineShaderIdentity(proof.pipelines[index])) return false;
+        if (!FrameSurvey::ValidatePipelineShaderIdentity(proof.pipelines[index])) return reject("pipeline_identity",index);
     for (size_t index=0;index<proof.signatureCount;++index)
-        if (!FrameSurvey::ValidateIndirectSignature(proof.signatures[index])) return false;
+        if (!FrameSurvey::ValidateIndirectSignature(proof.signatures[index])) return reject("indirect_signature",index);
+    for (size_t index=0;index<proof.rasterOutputCount;++index)
+        if (proof.rasterOutputs[index].receiverBirth!=proof.listBirth ||
+            !FrameSurvey::ValidateRecordedRenderTargets(proof.rasterOutputs[index])) return reject("raster_resource_birth",index);
     return true;
 }
 RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_ptr<Service>& owner,
@@ -881,9 +894,24 @@ RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_p
 {
     RecordedComputeLease::SubmissionCallbacks submission;
     submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
-        if (!AdmitRecordingSubmission(*ownership->token)) return false;
-        if (ownership->nativeProof && !ValidateNativeCommitProof(*ownership->nativeProof,info))
+        if (!AdmitRecordingSubmission(*ownership->token))
         {
+            LOG_ERROR("[NRD_BRIDGE] submit rejected gate=required_output cause={} chain={} recording={} submission={} committed={} invalidated={} abandoned={}",
+                ownership->token->invalidationGate.load(std::memory_order_acquire) ? ownership->token->invalidationGate.load(std::memory_order_relaxed) : "consumer_missing",
+                ownership->history->semanticChain,info.recordingId,info.submissionId,
+                ownership->token->outputCommitted.load(std::memory_order_acquire),
+                ownership->token->skipInvalidated.load(std::memory_order_acquire),
+                ownership->token->abandoned.load(std::memory_order_acquire));
+            return false;
+        }
+        NativeCommitDiagnostic diagnostic;
+        if (ownership->nativeProof && !ValidateNativeCommitProof(*ownership->nativeProof,info,diagnostic))
+        {
+            const auto& proof=*ownership->nativeProof;
+            LOG_ERROR("[NRD_BRIDGE] submit rejected gate=native_commit_proof reason={} witness={} chain={} recording={} submission={} sealed={} textures={} constants={} pipelines={} signatures={} raster_outputs={} descriptor_admission={}",
+                diagnostic.gate,diagnostic.row,ownership->history->semanticChain,info.recordingId,info.submissionId,proof.sealed.load(std::memory_order_acquire),
+                proof.textures.size(),proof.constantCount,proof.pipelineCount,proof.signatureCount,proof.rasterOutputCount,
+                NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread());
             ownership->token->skipInvalidated.store(true,std::memory_order_release);
             ownership->history->uncertain.store(true,std::memory_order_release);
             RecordedComputeLease::DenySubmission(E_FAIL); return false;
@@ -919,7 +947,11 @@ RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_p
             // A prior Execute without a newly published fence cannot be ordered by
             // an older completion point. Already-recorded successors must stop too.
             if (domain.pendingSubmission && domain.latestSubmissionId != info.submissionId)
-            { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
+            {
+                LOG_ERROR("[NRD_BRIDGE] submit rejected gate=history_pending chain={} recording={} submission={} prior_submission={}",
+                    domain.semanticChain,info.recordingId,info.submissionId,domain.latestSubmissionId);
+                RecordedComputeLease::DenySubmission(E_FAIL); return false;
+            }
             predecessor = domain.completion;
             domain.latestSubmissionId = info.submissionId; domain.pendingSubmission = true;
         }
@@ -945,6 +977,8 @@ RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_p
     };
     const std::weak_ptr<Service> weakOwner = owner;
     submission.failed = [ownership,weakOwner](const auto& info, auto failure) {
+        LOG_ERROR("[NRD_BRIDGE] submission failed phase={} chain={} recording={} submission={} replay={}",
+            uint32_t(failure),ownership->history->semanticChain,info.recordingId,info.submissionId,info.recordingSubmission);
         ownership->history->uncertain.store(true,std::memory_order_release);
         RecordedComputeLease::FencePointPtr retiredPoint; bool nativeReplay = false;
         {
@@ -1800,45 +1834,62 @@ struct NativeInjectionScope
         D3D12Hooks::SetRootSignatureTracking(previousTracking);
     }
 };
+thread_local const char* gNativeWorkFailure="unclassified_work";
 bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd,
     ID3D12CommandSignature* signature, bool pixel)
 {
+    gNativeWorkFailure="unclassified_work";
+    const auto reject=[](const char* gate){gNativeWorkFailure=gate;return false;};
     // Caller owns injection serialization and physical Borrow. Only recognized
     // pipeline candidates reach binding vectors/metadata snapshots.
     std::array<std::shared_ptr<NativeTransaction>,2> pending;
     ID3D12PipelineState* pipeline=nullptr;InterveningPipeline selected;size_t count=0;
     {
         std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
-        if(gService!=owner||found==owner->lists.end()||!ListLive(found->second))return false;
+        if(gService!=owner||found==owner->lists.end()||!ListLive(found->second))return reject("work_list_birth");
         const auto& list=found->second;pipeline=list.currentPipeline;selected=list.intervening;
-        if(!pipeline||selected.profile<0||selected.birth!=list.pipelineBirth)return false;
+        if(!pipeline||selected.profile<0||selected.birth!=list.pipelineBirth)return reject("work_pipeline_profile");
         for(const auto& stage:list.native)if(stage&&!stage->committed&&!stage->invalidated)pending[count++]=stage;
     }
     if(!count)return true;
     FrameSurvey::PipelineShaderIdentity identity;
     if(!D3D12Hooks::BridgePredicationDisabled(cmd)||!FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity)||
-        !identity.complete||identity.pipelineBirth!=selected.birth)return false;
-    if(pixel?identity.presentStages!=(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS):identity.presentStages!=FrameSurvey::PipelineCS)return false;
+        !identity.complete||identity.pipelineBirth!=selected.birth)return reject("work_pipeline_identity_or_predication");
+    if(pixel?identity.presentStages!=(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS):identity.presentStages!=FrameSurvey::PipelineCS)return reject("work_pipeline_stages");
     if(!selected.testing)
     {
         if(pixel)
         {
             if(selected.profile<2||selected.profile>4||std::string_view(identity.pixel.data())!=NativeInterveningPS[selected.profile-2]||
-                std::string_view(identity.vertex.data())!=NativeInterveningVS[selected.profile-2])return false;
+                std::string_view(identity.vertex.data())!=NativeInterveningVS[selected.profile-2])return reject("work_graphics_hashes");
         }
-        else if(selected.profile>1||InterveningComputeProfile(identity.compute.data())!=selected.profile)return false;
+        else if(selected.profile>1||InterveningComputeProfile(identity.compute.data())!=selected.profile)return reject("work_compute_hash");
     }
     FrameSurvey::IndirectSignatureInfo indirect;
     if(signature&&(!FrameSurvey::ResolveIndirectSignature(signature,indirect)||
         indirect.kind!=(pixel?FrameSurvey::IndirectSignatureKind::DrawIndexed:FrameSurvey::IndirectSignatureKind::Dispatch)||
-        indirect.byteStride!=(pixel?20u:12u)))return false;
+        indirect.byteStride!=(pixel?20u:12u)))return reject("work_indirect_signature");
     // These exact shader families have only fixed Texture2D accesses; structured
     // buffer and cube declarations cannot alias single-slice B Texture2D targets.
-    // A graphics draw can also write RTV/DSV, so resource flags must exclude those.
+    // A graphics draw can also write RTV/DSV. RTV capability alone is not an
+    // overlap: the native B outputs themselves have RTV|UAV flags. Check the
+    // actual bind-time outputs. Keep the depth-capable target case denied.
+    bool needsRasterOutputs=false;
     for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
     {
-        if(!target.resource||target.description.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||target.description.DepthOrArraySize!=1)return false;
-        if(pixel&&(target.description.Flags&(D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET|D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)))return false;
+        if(!target.resource||target.description.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||target.description.DepthOrArraySize!=1)return reject("work_target_dimension");
+        if(pixel&&(target.description.Flags&D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))return reject("work_target_depth_capability");
+        needsRasterOutputs|=pixel && (target.description.Flags&D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    }
+    FrameSurvey::RecordedRenderTargets rasterOutputs;
+    if(needsRasterOutputs)
+    {
+        if(!FrameSurvey::ResolveRecordedRenderTargets(cmd,rasterOutputs))return reject("raster_outputs_unknown");
+        for(UINT output=0;output<rasterOutputs.count;++output)
+            for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
+                if(rasterOutputs.targets[output].resource==target.resource ||
+                    (rasterOutputs.targets[output].birth && target.resourceBirth &&
+                     rasterOutputs.targets[output].birth->InstanceStamp()==target.resourceBirth->InstanceStamp()))return reject("raster_output_overlap");
     }
     std::array<FrameSurvey::TextureTableRequest,9> requests;size_t requestCount=0;
     auto add=[&](D3D12_DESCRIPTOR_RANGE_TYPE kind,UINT reg){requests[requestCount++]={UINT_MAX,{kind,UINT_MAX,reg,0}};};
@@ -1848,28 +1899,40 @@ bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
     else if(selected.profile==4){for(const UINT reg:{3u,5u,6u,68u})add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,reg);}
     FrameSurvey::ComputeBindings bindings;ID3D12PipelineState* current=nullptr;
     if(!(pixel?D3D12Hooks::GetGraphicsBindingsForBridge(cmd,bindings,current):D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings))||
-        (pixel&&current!=pipeline))return false;
+        (pixel&&current!=pipeline))return reject("work_root_bindings");
     std::vector<FrameSurvey::BoundResource> resources;
     std::vector<FrameSurvey::TextureBindingWitness> witnesses;
     if(requestCount)
     {
         const auto requested=std::span(requests.data(),requestCount);
         if(!(pixel?FrameSurvey::ResolveGraphicsTextureBindings(bindings,requested,resources,&witnesses):
-            FrameSurvey::ResolveComputeTextureBindings(bindings,requested,resources,&witnesses))||resources.size()!=requestCount)return false;
+            FrameSurvey::ResolveComputeTextureBindings(bindings,requested,resources,&witnesses))||resources.size()!=requestCount)return reject("work_texture_bindings");
         for(const auto& resource:resources)for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
             if(resource.resource==target.resource || (resource.resourceBirth&&target.resourceBirth&&
-                resource.resourceBirth->InstanceStamp()&&resource.resourceBirth->InstanceStamp()==target.resourceBirth->InstanceStamp()))return false;
+                resource.resourceBirth->InstanceStamp()&&resource.resourceBirth->InstanceStamp()==target.resourceBirth->InstanceStamp()))return reject("work_texture_overlap");
     }
     for(size_t index=0;index<count;++index)
     {
         auto& proof=*pending[index]->ownership->nativeProof;
-        if(requestCount&&!AppendNativeTextureProof(pending[index]->ownership->nativeProof,witnesses))return false;
+        if(needsRasterOutputs)
+        {
+            if(rasterOutputs.receiverBirth!=proof.listBirth)return reject("raster_proof_capacity_or_birth");
+            // Only distinct bind-time sets need retention; repeated actor draws
+            // into the same output must not consume a finite proof slot each time.
+            const auto end=proof.rasterOutputs.begin()+proof.rasterOutputCount;
+            if(std::find(proof.rasterOutputs.begin(),end,rasterOutputs)==end)
+            {
+                if(proof.rasterOutputCount==proof.rasterOutputs.size())return reject("raster_proof_capacity_or_birth");
+                proof.rasterOutputs[proof.rasterOutputCount++]=rasterOutputs;
+            }
+        }
+        if(requestCount&&!AppendNativeTextureProof(pending[index]->ownership->nativeProof,witnesses))return reject("work_texture_proof_capacity");
         bool known=false;for(size_t p=0;p<proof.pipelineCount;++p)known|=proof.pipelines[p].pipeline==identity.pipeline&&proof.pipelines[p].pipelineBirth==identity.pipelineBirth;
-        if(!known){if(proof.pipelineCount==proof.pipelines.size())return false;proof.pipelines[proof.pipelineCount++]=identity;}
+        if(!known){if(proof.pipelineCount==proof.pipelines.size())return reject("work_pipeline_proof_capacity");proof.pipelines[proof.pipelineCount++]=identity;}
         if(signature)
         {
             known=false;for(size_t p=0;p<proof.signatureCount;++p)known|=proof.signatures[p].signature==signature&&proof.signatures[p].birth==indirect.birth;
-            if(!known){if(proof.signatureCount==proof.signatures.size())return false;proof.signatures[proof.signatureCount++]=indirect;}
+            if(!known){if(proof.signatureCount==proof.signatures.size())return reject("work_signature_proof_capacity");proof.signatures[proof.signatureCount++]=indirect;}
         }
     }
     return true;
@@ -2495,23 +2558,36 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         else if (firstTemporal && !observedEarly) FinalizeMotion(owner,cmd,frame,currentMotion);
     } catch (...) { CoordinatorException("Exception while preparing current NRD input bindings"); }
 }
-void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason) noexcept
+void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason, const char* gate) noexcept
 {
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !cmd) return;
     try
     {
-        std::scoped_lock lock(gMutex); if (!gService) return;
+        std::unique_lock lock(gMutex); if (!gService) return;
         const auto found = gService->lists.find(cmd); if (found == gService->lists.end()) return;
-        auto& list = found->second; InvalidateSkippedRecording(list);
+        auto& list = found->second;
+        uint32_t pending=0;
+        for(size_t index=0;index<list.native.size();++index)
+            if(list.native[index]&&!list.native[index]->committed&&!list.native[index]->invalidated)pending|=1u<<index;
+        auto* pipeline=list.currentPipeline;
+        InvalidateSkippedRecording(list,gate ? gate : "recording_invalidated");
         list.nativeContract = false; list.role = Role::None; list.pipelineBirth.reset();
         list.currentPipeline=nullptr;list.intervening={};
         list.converted = list.motionReady = list.ownedReady = false;
         StopFollowing(*gService,cmd,list);RefreshNativeTransactions(*gService);
         if (gService->pendingList == cmd) gService->pendingList = nullptr;
-        if (list.recording && !RequiredOutputComplete(*list.recording))
+        if (pending || (list.recording && !RequiredOutputComplete(*list.recording)))
         {
             gService->status.active = false; gService->status.phase = "Inactive";
             gService->status.reason = reason ? reason : "RR-only recording proof was invalidated; submission requires restart";
+        }
+        lock.unlock();
+        if(pending)
+        {
+            FrameSurvey::PipelineShaderIdentity identity;FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity);
+            LOG_ERROR("[NRD_BRIDGE] recording invalidated gate={} pending_chain_mask={} cmd={:#x} pipeline={:#x} CS={} VS={} PS={} reason={}",
+                gate ? gate : "recording_invalidated",pending,reinterpret_cast<uintptr_t>(cmd),reinterpret_cast<uintptr_t>(pipeline),
+                identity.compute.data(),identity.vertex.data(),identity.pixel.data(),reason ? reason : "unavailable");
         }
     } catch (...) {}
 }
@@ -2519,7 +2595,8 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
 {
     if (kind != DispatchKind::Direct)
     {
-        InvalidateRecordingProof(cmd,kind == DispatchKind::Bundle ? "ExecuteBundle invalidated an incomplete RR-only recording" : "ExecuteIndirect invalidated an incomplete RR-only recording");
+        InvalidateRecordingProof(cmd,kind == DispatchKind::Bundle ? "ExecuteBundle invalidated an incomplete RR-only recording" : "ExecuteIndirect invalidated an incomplete RR-only recording",
+            kind == DispatchKind::Bundle ? "opaque_bundle" : gNativeWorkFailure);
         return DispatchDisposition::Forward;
     }
     if(!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() ||
@@ -2547,7 +2624,7 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
         }
         if(otherWork)
         {
-            if(!PreserveNativeWork(owner,cmd,nullptr,false))InvalidateRecordingProof(cmd,"Unattested compute work intersects an incomplete RR-only interval");
+            if(!PreserveNativeWork(owner,cmd,nullptr,false))InvalidateRecordingProof(cmd,"Unattested compute work intersects an incomplete RR-only interval",gNativeWorkFailure);
             return DispatchDisposition::Forward;
         }
         const auto snapshot=RawSignalSnapshotPass::GetSnapshot(stage->raw);
@@ -2585,6 +2662,7 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
 }
 bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSignature* signature) noexcept
 {
+    gNativeWorkFailure="work_indirect_signature_or_state";
     if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady())return false;
     bool required = false;
     try
@@ -2955,22 +3033,25 @@ void BeforeGraphicsConsumer(ID3D12GraphicsCommandList* cmd) noexcept
         !gNativeTransactions.load(std::memory_order_relaxed)||FrameSurvey::Internal())return;
     try
     {
-        std::shared_ptr<Service> owner;bool intervening=false;
+        std::shared_ptr<Service> owner;bool intervening=false,unknown=false;
         {
             std::scoped_lock lock(gMutex);owner=gService;if(!owner)return;
             const auto found=owner->lists.find(cmd);if(found==owner->lists.end())return;
             auto& list=found->second;
             if(!list.graphicsConsumerCandidate)
             {
-                if(list.intervening.profile<2){InvalidateSkippedRecording(list);RefreshNativeTransactions(*owner);return;}
-                intervening=true;
+                unknown=list.intervening.profile<2;
+                intervening=!unknown;
             }
             else if(!list.native[1]||list.native[1]->committed)return;
         }
-        if(intervening)
+        if(unknown)
+            InvalidateRecordingProof(cmd,"Unclassified graphics work intersects an incomplete RR-only interval","work_graphics_profile");
+        else if(intervening)
         {
             std::scoped_lock injection(gInjectionMutex);NrdBridgeLifetime::ScopedBorrow borrow;
-            if(!borrow.Acquired()||!PreserveNativeWork(owner,cmd,nullptr,true))InvalidateRecordingProof(cmd,"Unattested graphics work intersects an incomplete RR-only interval");
+            if(!borrow.Acquired())InvalidateRecordingProof(cmd,"Graphics work lost its physical lifetime proof","work_physical_borrow");
+            else if(!PreserveNativeWork(owner,cmd,nullptr,true))InvalidateRecordingProof(cmd,"Unattested graphics work intersects an incomplete RR-only interval",gNativeWorkFailure);
         }
         else CommitNativeTransaction(owner,cmd,true);
     }
@@ -3114,7 +3195,11 @@ void OnRecordingClosed(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
             // Missing late Consumer remains an explicit BeforeSubmission denial;
             // Close never makes an incomplete native transaction submittable.
             for(const auto& stage:found->second.native)
-                if(stage && !stage->committed)stage->recording->skipInvalidated.store(true,std::memory_order_release);
+                if(stage && !stage->committed)
+                {
+                    const char* empty=nullptr;stage->recording->invalidationGate.compare_exchange_strong(empty,"consumer_missing",std::memory_order_acq_rel);
+                    stage->recording->skipInvalidated.store(true,std::memory_order_release);
+                }
         }
     } catch (...) {}
 }
