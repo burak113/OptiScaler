@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import unittest
 
@@ -49,6 +50,31 @@ class SourceProof(unittest.TestCase):
         self.assertEqual(order, sorted(order))
         self.assertNotIn('Config::Instance()', body)
 
+    def test_actual_sdk_vtable_slots_and_both_assignments(self):
+        sdk = Path(os.environ.get('FSRD_D3D12_HEADER', 'C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um/d3d12.h'))
+        block = sdk.read_text().split('typedef struct ID3D12GraphicsCommandListVtbl', 1)[1].split('} ID3D12GraphicsCommandListVtbl;', 1)[0]
+        names = re.findall(r'\(\s*STDMETHODCALLTYPE\s*\*(\w+)\s*\)', block)
+        text = SOURCE.read_text(); reader = function(text, 'static void ReadBridgeGraphicsArgumentHooks(')
+        for name, index in [('SetGraphicsRootDescriptorTable', 32), ('SetGraphicsRoot32BitConstant', 34),
+                            ('SetGraphicsRoot32BitConstants', 36), ('SetGraphicsRootConstantBufferView', 38),
+                            ('SetGraphicsRootShaderResourceView', 40), ('SetGraphicsRootUnorderedAccessView', 42)]:
+            self.assertEqual(names[index], name)
+            for mode in ('early', 'late'):
+                self.assertIn(f's_{name}.o_{mode}Hook = (PFN_{name}) table[{index}]', reader)
+        self.assertEqual(names[11], 'ClearState'); self.assertEqual(names[55], 'SetPredication')
+
+    def test_actual_installers_use_shared_extension_and_actual_unhook(self):
+        text = SOURCE.read_text()
+        early = function(text, 'static void HookToCommandList(')
+        late = function(text, 'void D3D12Hooks::HookToCommandListLate(')
+        for body, mode in ((early, 'false'), (late, 'true')):
+            self.assertIn(f'ReadBridgeGraphicsArgumentHooks(pVTable,{mode})', body)
+            self.assertIn(f'AttachBridgeGraphicsArgumentHooks({mode})', body)
+            self.assertIn('DetourTransactionAbort()', body)
+            self.assertIn(f'ClearBridgeGraphicsArgumentHooks({mode})', body)
+        unhook = function(text, 'void D3D12Hooks::Unhook(')
+        self.assertLess(unhook.index('UnhookBridgeGraphicsArguments()'), unhook.index('if (o_D3D12CreateDevice == nullptr)'))
+
 
 def run():
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
@@ -62,8 +88,16 @@ def run():
     cpp = original.read_text()
     marker = 'int main(int argc,char**argv)try{'
     assert cpp.count(marker) == 1 and cpp.count(' rootBirthCases();') == 1
-    cpp = cpp.replace(marker, (HERE/'fsrd_nrd_command_state_fixture.cpp').read_text()+'\n'+marker)
+    production = SOURCE.read_text()
+    installers = production[production.index('// These six argument hooks'):production.index('void D3D12Hooks::HookToCommandListLate(')]
+    for name in ('hkSetPipelineStateLate', 'hkSetDescriptorHeapsLate'):
+        installers += '\n'+function(production, 'static void '+name+'(')
+    installers += '\n'+function(production, 'void D3D12Hooks::HookToCommandListLate(')
+    install_fixture = (HERE/'fsrd_nrd_graphics_installer_fixture.cpp').read_text().replace('__INSTALLER_BODIES__', installers)
+    cpp = cpp.replace('struct D3D12Hooks{', 'struct D3D12Hooks{\n static void HookToCommandListLate(ID3D12GraphicsCommandList*);')
+    cpp = cpp.replace(marker, install_fixture+'\n'+(HERE/'fsrd_nrd_command_state_fixture.cpp').read_text()+'\n'+marker)
     cpp = cpp.replace(' rootBirthCases();', ' rootBirthCases();\n commandStateCases();')
+    cpp = cpp.replace(' commandStateCases();', ' graphicsInstallerCases();\n commandStateCases();')
     source, exe = out/'command_state.cpp', out/'command_state.exe'
     source.write_text(cpp)
     born.base.compile_cpp(source, exe, libraries=['bcrypt.lib'])

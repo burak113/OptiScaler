@@ -43,7 +43,7 @@ unsigned warningCalls=0;
 #define LOG_WARN(...) (++warningCalls)
 #define LOG_TRACE(...) ((void)0)
 namespace FrameSurvey {
- thread_local bool internalScope=false; bool Internal() { return internalScope; }
+ thread_local bool internalScope=false; bool Internal() { return internalScope; } bool OwnedRelease() noexcept { return internalScope; }
  void MetadataHookFailed(const char*) noexcept {} void FlushMetadataFailure() noexcept {}
  struct ComputeRootView { UINT parameter=UINT_MAX; D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_CBV; D3D12_GPU_VIRTUAL_ADDRESS address=0; };
  struct ComputeBindings { ID3D12RootSignature* root=nullptr; std::vector<ID3D12DescriptorHeap*> heaps; std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables; std::vector<ComputeRootView> views; NrdBridgeBirth::Token receiverBirth,rootBirth,pipelineBirth;std::vector<NrdBridgeBirth::Token> heapBirths; };
