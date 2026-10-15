@@ -1177,7 +1177,7 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
                 if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
             }
             else if (const auto found = owner.lists.find(cmd); found != owner.lists.end())
-            { InvalidateSkippedRecording(found->second); found->second.role = Role::None; found->second.nativeContract = false; found->second.pipelineBirth = pipelineBirth; }
+            { found->second.role = Role::None; found->second.nativeContract = false; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                 (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
