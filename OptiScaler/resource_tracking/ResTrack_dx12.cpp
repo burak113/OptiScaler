@@ -112,6 +112,9 @@ typedef void(STDMETHODCALLTYPE* PFN_SetPipelineState)(ID3D12GraphicsCommandList*
 typedef HRESULT(STDMETHODCALLTYPE* PFN_Reset)(ID3D12GraphicsCommandList* This,
                                               ID3D12CommandAllocator* pAllocator,
                                               ID3D12PipelineState* pInitialState);
+typedef void(STDMETHODCALLTYPE* PFN_ClearState)(ID3D12GraphicsCommandList* This, ID3D12PipelineState* initial);
+typedef void(STDMETHODCALLTYPE* PFN_SetPredication)(ID3D12GraphicsCommandList* This, ID3D12Resource* predicate,
+    UINT64 offset, D3D12_PREDICATION_OP operation);
 typedef void(STDMETHODCALLTYPE* PFN_SetMarker)(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData,
                                               UINT Size);
 typedef void(STDMETHODCALLTYPE* PFN_BeginEvent)(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData,
@@ -153,6 +156,10 @@ static PFN_ExecuteBundle o_ExecuteBundle = nullptr;
 static PFN_ResourceBarrier o_ResourceBarrier = nullptr;
 static PFN_SetPipelineState o_SetPipelineState = nullptr;
 static PFN_Reset o_Reset = nullptr;
+static PFN_ClearState o_ClearState = nullptr;
+static PFN_SetPredication o_SetPredication = nullptr;
+static void STDMETHODCALLTYPE hkBridgeClearState(ID3D12GraphicsCommandList*, ID3D12PipelineState*);
+static void STDMETHODCALLTYPE hkBridgeSetPredication(ID3D12GraphicsCommandList*, ID3D12Resource*, UINT64, D3D12_PREDICATION_OP);
 static PFN_SetMarker o_SetMarker = nullptr;
 static PFN_BeginEvent o_BeginEvent = nullptr;
 static PFN_EndEvent o_EndEvent = nullptr;
@@ -4308,6 +4315,11 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 gCommandListReleaseEntry = releaseEntry;
                 o_CommandListRelease = reinterpret_cast<PFN_CommandListRelease>(releaseEntry);
             }
+            if (gNrdBridgeWrappers)
+            {
+                o_ClearState = (PFN_ClearState) pVTable[11];
+                o_SetPredication = (PFN_SetPredication) pVTable[55];
+            }
             o_SetPipelineState = (PFN_SetPipelineState) pVTable[25];
             o_ResourceBarrier = (PFN_ResourceBarrier) pVTable[26];
             o_SetMarker = (PFN_SetMarker) pVTable[56];
@@ -4351,6 +4363,10 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
 
                 const auto resetAttachResult = resetAlreadyHooked ? NO_ERROR :
                     (o_Reset ? DetourAttach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset) : ERROR_INVALID_FUNCTION);
+                const auto clearStateAttachResult = !gNrdBridgeWrappers ? NO_ERROR : (o_ClearState ?
+                    DetourAttach(&(PVOID&) o_ClearState,hkBridgeClearState) : ERROR_INVALID_FUNCTION);
+                const auto predicationAttachResult = !gNrdBridgeWrappers ? NO_ERROR : (o_SetPredication ?
+                    DetourAttach(&(PVOID&) o_SetPredication,hkBridgeSetPredication) : ERROR_INVALID_FUNCTION);
                 const auto releaseAttachResult = releaseAlreadyHooked ? NO_ERROR : (o_CommandListRelease ?
                     DetourAttach(&(PVOID&) o_CommandListRelease, hkCommandListRelease) :
                     (sharedRelease ? NO_ERROR : ERROR_INVALID_FUNCTION));
@@ -4374,7 +4390,8 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     DetourAttach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
                 const auto criticalAttachResult = resetAttachResult != NO_ERROR ? resetAttachResult :
-                    releaseAttachResult != NO_ERROR ? releaseAttachResult : closeAttachResult != NO_ERROR ? closeAttachResult : barrierAttachResult;
+                    releaseAttachResult != NO_ERROR ? releaseAttachResult : closeAttachResult != NO_ERROR ? closeAttachResult :
+                    barrierAttachResult != NO_ERROR ? barrierAttachResult : clearStateAttachResult != NO_ERROR ? clearStateAttachResult : predicationAttachResult;
                 const auto commitResult = criticalAttachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
                 const auto detourResult = criticalAttachResult == NO_ERROR ? commitResult : criticalAttachResult;
                 if (detourResult != NO_ERROR)
@@ -4387,7 +4404,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     o_Dispatch = nullptr;
                     o_Close = nullptr; gRRRecordingCloseEntry = gRRRecordingBarrierEntry = nullptr;
                     o_SetComputeRootDescriptorTable = nullptr;
-                    o_ExecuteBundle = nullptr;
+                    o_ExecuteBundle = nullptr; o_ClearState = nullptr; o_SetPredication = nullptr;
                     if (!resetAlreadyHooked) { o_Reset = nullptr; gComputeResetEntry = nullptr; }
                     if (!releaseAlreadyHooked) { o_CommandListRelease = nullptr; gCommandListReleaseEntry = nullptr; }
                 }
@@ -4817,6 +4834,8 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     if (o_Reset != nullptr)
         DetourDetach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset);
+    if (o_ClearState != nullptr) DetourDetach(&(PVOID&) o_ClearState,hkBridgeClearState);
+    if (o_SetPredication != nullptr) DetourDetach(&(PVOID&) o_SetPredication,hkBridgeSetPredication);
     if (o_CommandListRelease != nullptr)
         DetourDetach(&(PVOID&) o_CommandListRelease, hkCommandListRelease);
 
@@ -5293,6 +5312,38 @@ void ResTrack_Dx12::hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
     if (gNrdBridgeWrappers) NrdBridge::OnSetPipeline(This,pPipelineState);
 }
 
+static void STDMETHODCALLTYPE hkBridgeClearState(ID3D12GraphicsCommandList* This, ID3D12PipelineState* initial)
+{
+    if (FrameSurvey::Internal()) { o_ClearState(This,initial); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::ClearState,gNrdBridgeWrappers);
+    if (forwarding.Nested()) { o_ClearState(This,initial); return; }
+    if (gNrdBridgeWrappers) NrdBridge::InvalidateRecordingProof(This,"ClearState before native forwarding");
+    o_ClearState(This,initial);
+    if (gNrdBridgeWrappers)
+    {
+        D3D12Hooks::OnBridgeCommandListClearState(This,initial);
+        NrdBridge::InvalidateRecordingProof(This,"ClearState invalidated the current root/dispatch proof");
+        FrameSurvey::RootBinding(This,false,nullptr); FrameSurvey::RootBinding(This,true,nullptr);
+        FrameSurvey::DescriptorHeaps(This,0,nullptr); FrameSurvey::SetPipeline(This,initial);
+    }
+}
+
+static void STDMETHODCALLTYPE hkBridgeSetPredication(ID3D12GraphicsCommandList* This, ID3D12Resource* predicate,
+    UINT64 offset, D3D12_PREDICATION_OP operation)
+{
+    if (FrameSurvey::Internal()) { o_SetPredication(This,predicate,offset,operation); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Predication,gNrdBridgeWrappers);
+    if (forwarding.Nested()) { o_SetPredication(This,predicate,offset,operation); return; }
+    if (gNrdBridgeWrappers && predicate)
+        NrdBridge::InvalidateRecordingProof(This,"Predication enabled before native forwarding");
+    o_SetPredication(This,predicate,offset,operation);
+    if (gNrdBridgeWrappers)
+    {
+        D3D12Hooks::OnBridgeSetPredication(This,predicate != nullptr);
+        if (predicate) NrdBridge::InvalidateRecordingProof(This,"Predicated recording cannot admit owned RR work");
+    }
+}
+
 HRESULT ResTrack_Dx12::hkSurveyReset(ID3D12GraphicsCommandList* This,
                                ID3D12CommandAllocator* pAllocator,
                                ID3D12PipelineState* pInitialState)
@@ -5347,10 +5398,15 @@ void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT Threa
     NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Dispatch, gNrdBridgeWrappers);
     if (forwarding.Nested()) { hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
     if (gNrdBridgeWrappers) NrdBridge::BeforeDispatch(This);
+    const bool suppress = gNrdBridgeWrappers &&
+        NrdBridge::OriginalDispatchDisposition(This,NrdBridge::DispatchKind::Direct) == NrdBridge::DispatchDisposition::Suppress;
     const std::array<uint64_t,3> args {ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ};
-    FrameSurvey::Pass(This,"Dispatch",args);
-    hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ);
-    FrameSurvey::SnapshotWrites(This);
+    FrameSurvey::Pass(This,suppress ? "DispatchSkipped" : "Dispatch",args);
+    if (!suppress)
+    {
+        hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ);
+        FrameSurvey::SnapshotWrites(This);
+    }
     if (gNrdBridgeWrappers) NrdBridge::AfterDispatch(This);
 }
 
@@ -5375,9 +5431,24 @@ void ResTrack_Dx12::hkSurveyDrawIndexedInstanced(ID3D12GraphicsCommandList* This
 
 void ResTrack_Dx12::hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D12GraphicsCommandList* pCommandList)
 {
+    if (FrameSurvey::Internal()) { hkExecuteBundle(This,pCommandList); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Bundle,gNrdBridgeWrappers);
+    if (forwarding.Nested()) { hkExecuteBundle(This,pCommandList); return; }
+    if (gNrdBridgeWrappers)
+    {
+        NrdBridge::OriginalDispatchDisposition(This,NrdBridge::DispatchKind::Bundle);
+        D3D12Hooks::OnBridgeOpaqueCommand(This,true);
+    }
     const std::array<uint64_t,1> args {uint64_t(reinterpret_cast<uintptr_t>(pCommandList))};
     FrameSurvey::Pass(This,"ExecuteBundle",args);
     hkExecuteBundle(This,pCommandList);
+    if (gNrdBridgeWrappers)
+    {
+        D3D12Hooks::OnBridgeOpaqueCommand(This,true);
+        NrdBridge::InvalidateRecordingProof(This,"ExecuteBundle invalidated the current root/dispatch proof");
+        FrameSurvey::RootBinding(This,false,nullptr); FrameSurvey::RootBinding(This,true,nullptr);
+        FrameSurvey::DescriptorHeaps(This,0,nullptr); FrameSurvey::SetPipeline(This,nullptr);
+    }
     FrameSurvey::SnapshotWrites(This);
 }
 

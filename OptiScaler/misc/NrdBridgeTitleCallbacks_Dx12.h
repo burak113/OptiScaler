@@ -3,7 +3,7 @@
 
 namespace NrdBridgeTitleCallbacks
 {
-enum class Method : unsigned { Pipeline, Dispatch, Reset, Count };
+enum class Method : unsigned { Pipeline, Dispatch, Reset, ClearState, Predication, Bundle, Indirect, Count };
 
 // Debug/Streamline decorators can forward a title call through the same detour
 // with another COM This. Keep the original/legacy call for both identities, but
