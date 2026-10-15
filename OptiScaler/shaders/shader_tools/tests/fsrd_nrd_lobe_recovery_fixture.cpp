@@ -224,7 +224,7 @@ static PfnFfxDispatch nativeDispatch=nullptr;
 static unsigned signedCalls=0,inspectionChecks=0,privateDispatches=0,commits=0;
 struct Probe
 {
- LobeObservedList* list=nullptr;Scene* scene=nullptr;
+ LobeObservedList* list=nullptr;Scene* scene=nullptr;RRWrapper* wrapper=nullptr;
  bool recovery=false,deny=false,returnFailure=false,nativeDebug=false;
  uint64_t historyBefore=0;
  unsigned commandsBefore=0,afterProvider=0,providerCalls=0,guards=0,actions=0;
@@ -236,6 +236,8 @@ struct Probe
  static bool Admit(void* state,OutputCommitGuard::Action action,void* prepared) noexcept
  {
   auto& p=*static_cast<Probe*>(state);++p.guards;
+  const auto publication=p.wrapper->GetSettingsState();
+  p.check(!publication.lobeRecoveryActive&&!publication.lobeRecoveryFallback,"private preparation is not published as successful recovery/fallback before title admission");
   p.check(p.providerCalls==1&&p.nativeResult==FFX_API_RETURN_OK,"output admission follows exactly one successful actual signed SDK call");
   p.check(bool(p.lease),"the pre-provider strong DispatchLease survives through final admission");
   if(p.lease)
@@ -258,6 +260,8 @@ ffxReturnCode_t Dispatch(ffxContext* context,const ffxDispatchDescHeader* desc)
 {
  need(active&&nativeDispatch,"signed provider facade has an explicit current observation and actual export");
  auto& p=*active;++p.providerCalls;
+ const auto publication=p.wrapper->GetSettingsState();
+ p.check(!publication.lobeRecoveryActive&&!publication.lobeRecoveryFallback,"real SDK observes no prematurely published current recovery/fallback status");
  auto recording=RecordedComputeLease::Capture(p.list);std::shared_ptr<void> owner;
  p.check(bool(recording),"actual production RR retains its complete lease before calling the provider");
  if(recording)
@@ -318,7 +322,7 @@ StepResult step(Host& host,LobeObservedList& list,Scene& scene,RRWrapper& wrappe
  auto snapshot=camera(token,1.f);snapshot.constants.motionVectorsJittered=sl::Boolean::eFalse;
  need(wrapper.PrepareFrame(snapshot,false,frame,error),"prepare the exact actual RR frame for recovery integration");
  need(frame.reset==expectedReset,"optional recovery does not invent or suppress the caller's continuous RR reset policy");
- Probe probe;probe.list=&list;probe.scene=&scene;probe.recovery=recovery;probe.historyBefore=historyBefore;
+ Probe probe;probe.list=&list;probe.scene=&scene;probe.wrapper=&wrapper;probe.recovery=recovery;probe.historyBefore=historyBefore;
  probe.deny=deny;probe.returnFailure=fail;probe.nativeDebug=wrapper.GetSettingsState().requested.nativeDebugView!=-1;probe.commandsBefore=list.commands;
  const auto calls=FfxApiProxy::dispatches,realCalls=signedCalls,destroys=FfxApiProxy::destroys;
  bool accepted=false;{ActiveScope observation(probe);accepted=wrapper.Dispatch(&list,scene.resources,scene.spec(),scene.diff(),frame,error,{&probe,Probe::Admit});}
