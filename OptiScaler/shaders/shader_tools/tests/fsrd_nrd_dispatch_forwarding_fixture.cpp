@@ -129,7 +129,7 @@ int main() { try {
  need(count("mirror.graphics")==1 && count("mirror.compute")==1 && count("mirror.heaps")==1 && count("mirror.pipeline")==1,"ClearState clears metadata without recording Reset");
  reset();FrameSurvey::gInternal=true;Hooks::hkBridgeClearState(cmd,nullptr);
  need(events==std::vector<std::string>{"native.clear"},"internal ClearState is not a title invalidation");
- reset();partial=true;effect=[] {proof=true;};Hooks::hkBridgeSetPredication(cmd,reinterpret_cast<ID3D12Resource*>(0xdead0000),128,D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
+ reset();partial=true;effect=[] {proof=true;};Hooks::hkBridgeSetPredication(cmd,reinterpret_cast<ID3D12Resource*>(uintptr_t(0xdead0000)),128,D3D12_PREDICATION_OP_NOT_EQUAL_ZERO);
  need(originalPredicate==1 && poisoned && !proof && count("invalidate")==2 && count("cache.predicate.on")==1,"non-null predication invalidates before and after native forwarding");
  reset();partial=true;Hooks::hkBridgeSetPredication(cmd,nullptr,0,D3D12_PREDICATION_OP_EQUAL_ZERO);
  need(originalPredicate==1 && !poisoned && proof && count("invalidate")==0 && count("cache.predicate.off")==1,"null predication is benign known OFF");
