@@ -114,7 +114,7 @@ void CSMain(uint3 threadID:SV_GroupThreadID,uint3 groupID:SV_GroupID)
                                    geometry&&all(isfinite(inputD))&&inputD.a>0);
         NrdReferenceHistory h;h.valid=false;h.age=0;h.q=1;h.gradient=0;h.spec=h.diff=0;
         if(NrdRecoveryFlag(NRD_RECOVERY_HISTORY)&&geometry)
-            h=ReadReference(float2(p)+mv.xy*FullSize.xy-(PixelJitters.zw-PixelJitters.xy),z+mv.z,nr);
+            h=ReadReference(float2(p)+(mv.xy-PixelJitters.zw)*FullSize.xy,z+mv.z,nr);
         h.valid=h.valid&&eligible;
         float3 valueS=inputS.rgb,valueD=inputD.rgb,referenceS=inputS.rgb,referenceD=inputD.rgb;
         float4 gradient=0;float2 age=float2(eligible.x?1:0,eligible.y?1:0),q=1,innovation=0;

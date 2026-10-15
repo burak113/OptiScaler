@@ -16,7 +16,7 @@ cbuffer NrdLobeRecoveryConstants : register(b0)
     float4 FullSize;       // width,height,reciprocals
     float4 LevelSize;      // this width,height,next-coarser width,height
     float4 LobeStrength;   // spec,diff,local Anchor,negative fraction cap
-    float4 PixelJitters;  // currentXY,previousXY; signed render-pixel units
+    float4 PixelJitters;  // current signed render-pixel XY, provided normalized jitterDeltaUV
     float4 Temporal;      // response,band noise threshold,minimum age,gradient age
     float4 Surface;       // relative depth,normal dot,roughness delta,min footprint
     float4 Confidence;    // minimum effective count,noise response,unused,unused
