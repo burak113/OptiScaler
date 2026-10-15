@@ -36,6 +36,7 @@ double ms(Clock::time_point a,Clock::time_point b)
 {return std::chrono::duration<double,std::milli>(b-a).count();}
 PfnFfxDispatch actualDispatch=nullptr;
 ID3D12QueryHeap* query=nullptr;
+std::ostream* evidence=nullptr; // Dedicated stream: provider diagnostics never share its file handle.
 unsigned exportCalls=0;
 double currentExportCpuMs=0;
 ffxReturnCode_t timedExport(ffxContext* context,const ffxDispatchDescHeader* header)
@@ -55,7 +56,7 @@ ffxReturnCode_t timedExport(ffxContext* context,const ffxDispatchDescHeader* hea
 struct Row{unsigned frame;double prepareCpu,wrapperCpu,exportCpu,submitWaitCpu,gpuBefore,gpuProvider,gpuCommit,gpuTotal;};
 void sample(const Row& r,uint32_t width,uint32_t height,bool warm)
 {
-    std::cout<<"SAMPLE {\"width\":"<<width<<",\"height\":"<<height<<",\"frame\":"<<r.frame<<",\"warmup\":"<<(warm?"true":"false")
+    *evidence<<"SAMPLE {\"width\":"<<width<<",\"height\":"<<height<<",\"frame\":"<<r.frame<<",\"warmup\":"<<(warm?"true":"false")
         <<",\"cpu_prepare_ms\":"<<r.prepareCpu<<",\"cpu_wrapper_record_ms\":"<<r.wrapperCpu
         <<",\"cpu_signed_export_ms\":"<<r.exportCpu<<",\"cpu_submit_wait_ms\":"<<r.submitWaitCpu
         <<",\"gpu_before_export_ms\":"<<r.gpuBefore<<",\"gpu_provider_ms\":"<<r.gpuProvider
@@ -111,28 +112,33 @@ void run(Host& host,uint32_t width,uint32_t height,unsigned warm,unsigned count)
     }
     query=nullptr;RecordedComputeLease::Poll();
     need(FfxApiProxy::destroys==destroys+1,"completed standalone context destroys exactly once");
-    std::cout<<"RESOLUTION {\"width\":"<<width<<",\"height\":"<<height<<",\"warmup\":"<<warm<<",\"samples\":"<<count
+    *evidence<<"RESOLUTION {\"width\":"<<width<<",\"height\":"<<height<<",\"warmup\":"<<warm<<",\"samples\":"<<count
         <<",\"staging_bytes\":"<<staging<<",\"auxiliary_bytes\":"<<auxiliary<<",\"contexts_created\":1,\"contexts_destroyed\":1}\n";
 }
 }
 int main(int argc,char** argv)try
 {
     SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);
-    need(argc==3,"standalone timing requires warmup/sample counts");
+    need(argc==4,"standalone timing requires warmup/sample counts and dedicated evidence path");
     const unsigned warm=std::stoul(argv[1]),count=std::stoul(argv[2]);
     need(warm>=4&&warm<=16&&count>=8&&count<=64,"bounded standalone timing sample budget");
-    std::cout<<std::setprecision(12);loadReal();need(FfxApiProxy::real,"signed provider required");
+    std::ofstream evidence(argv[3],std::ios::binary);need(bool(evidence),"dedicated machine evidence file opened");
+    evidence<<std::setprecision(12);StandaloneCost::evidence=&evidence;
+    loadReal();need(FfxApiProxy::real,"signed provider required");
     StandaloneCost::actualDispatch=FfxApiProxy::dispatchFunction;
     FfxApiProxy::dispatchFunction=&StandaloneCost::timedExport;
     Host host;ComPtr<IDXGIFactory6> factory;ComPtr<IDXGIAdapter1> adapter;DXGI_ADAPTER_DESC1 adapterDesc{};
     hr(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));hr(factory->EnumAdapterByLuid(host.device->GetAdapterLuid(),IID_PPV_ARGS(&adapter)));
     hr(adapter->GetDesc1(&adapterDesc));need(!(adapterDesc.Flags&DXGI_ADAPTER_FLAG_SOFTWARE),"timing requires hardware adapter, never WARP fallback");
-    std::cout<<"ADAPTER {\"vendor_id\":"<<adapterDesc.VendorId<<",\"device_id\":"<<adapterDesc.DeviceId
+    evidence<<"ADAPTER {\"vendor_id\":"<<adapterDesc.VendorId<<",\"device_id\":"<<adapterDesc.DeviceId
         <<",\"software\":false,\"debug_layer\":true,\"gpu_based_validation\":false,\"queue\":\"DIRECT\"}\n";
     StandaloneCost::run(host,1505,847,warm,count);StandaloneCost::run(host,2560,1440,warm,count);
     FfxApiProxy::dispatchFunction=StandaloneCost::actualDispatch;
     need(FfxApiProxy::creates==2&&FfxApiProxy::destroys==2&&FfxApiProxy::live.empty(),"two resolutions balance provider lifetime");
     hr(host.list->Close());host.checkDebug();
+    evidence.flush();need(bool(evidence),"all80 samples and metadata flushed before final PASS");
+    evidence.close();need(!evidence.fail(),"dedicated machine evidence closed successfully");
+    StandaloneCost::evidence=nullptr;
     std::cout<<"PASS checks="<<checks<<" signed_export_calls="<<StandaloneCost::exportCalls
         <<" context_creates=2 context_destroys=2 real_detours=0 game_hooks=0 conversion=0 upscaler=0 debug_errors=0 debug_warnings=0\n";
     return 0;
@@ -203,11 +209,14 @@ def main():
                         (work, root / "OptiScaler", root / "OptiScaler/include", root / "external/streamline",
                          root / "external/FidelityFX-SDK/ffx-api/include/ffx_api"))
     (work / "build.json").write_text(json.dumps(build, indent=2), encoding="utf-8")
-    text, peak, seconds, log = bounded_run([str(exe), str(args.warmup), str(args.samples)], work / "standalone")
-    samples = [json.loads(line[7:]) for line in text.splitlines() if line.startswith("SAMPLE ")]
-    summaries = [json.loads(line[11:]) for line in text.splitlines() if line.startswith("RESOLUTION ")]
-    adapters = [json.loads(line[8:]) for line in text.splitlines() if line.startswith("ADAPTER ")]
+    machine = work / "samples.jsonl"
+    text, peak, seconds, log = bounded_run([str(exe), str(args.warmup), str(args.samples), str(machine)], work / "standalone")
+    records = machine.read_text(encoding="utf-8").splitlines()
+    samples = [json.loads(line[7:]) for line in records if line.startswith("SAMPLE ")]
+    summaries = [json.loads(line[11:]) for line in records if line.startswith("RESOLUTION ")]
+    adapters = [json.loads(line[8:]) for line in records if line.startswith("ADAPTER ")]
     assert len(samples) == 2 * (args.warmup + args.samples) and len(summaries) == 2
+    assert len(records) == len(samples) + len(summaries) + len(adapters)
     assert len(adapters) == 1 and not adapters[0]["software"]
     assert "real_detours=0 game_hooks=0 conversion=0 upscaler=0 debug_errors=0 debug_warnings=0" in text
     for row in summaries:
@@ -217,7 +226,8 @@ def main():
         row["first_frame"] = selected[0]
         row["steady"] = {key: summary([value[key] for value in steady]) for key in steady[0] if key.endswith("_ms")}
     result = {"contract": contract, "samples": samples, "resolutions": summaries, "adapter": adapters[0], "seconds": seconds,
-              "peak_resident_bytes": peak, "native_log": str(log), "exe_sha256": fingerprint(exe)}
+              "peak_resident_bytes": peak, "native_log": str(log), "machine_evidence": str(machine),
+              "machine_sha256": fingerprint(machine), "exe_sha256": fingerprint(exe)}
     (work / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 
 
