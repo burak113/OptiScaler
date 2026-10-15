@@ -13,6 +13,8 @@ import sys
 import unittest
 
 HERE=Path(__file__).resolve().parent
+sys.path.insert(0,str(HERE))
+from test_fsrd_nrd_root_restore import function
 ROOT=HERE.parents[3]
 PRE=ROOT/'OptiScaler/shaders/fsrd_preprocess/precompile'
 OUT=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT','F:/FSRD/sol_batch/15-nrd-ghosting/tests/pixel-flag'))
@@ -28,13 +30,17 @@ def fixture_source():
         'static_cast<uint32_t*>(pointer)[303]=word;':
             'static_cast<uint32_t*>(pointer)[sourceWord]=word;static_cast<uint32_t*>(pointer)[sourceWord==303?36:303]=word?0u:1u;',
         'need(capture.Initialize(fixture.device.Get(),error),error.c_str());':
-            'need(capture.Initialize(fixture.device.Get(),error),error.c_str());'
-            'auto keptRoot=capture.rootPso;auto keptTable=capture.pso;'
+            'need(!capture.Prepared(303)&&!capture.Prepared(36)&&!capture.Prepared(37),"fresh capture owns no prepared profile");'
+            'need(capture.Initialize(fixture.device.Get(),error,303),error.c_str());'
+            'need(capture.Prepared(303)&&!capture.Prepared(36),"compute word first use prepares exactly its own table/direct pair");'
+            'auto keptRoot=capture.rootPso;auto keptTable=capture.pso;auto keptDirect=capture.directRoot;auto keptRootTable=capture.root;'
             'need(capture.Initialize(fixture.device.Get(),error,36),error.c_str());'
-            'need(capture.rootPso.Get()==keptRoot.Get() && capture.pso.Get()==keptTable.Get(),"pixel preparation must retain recorded compute flag PSOs");'
-            'auto pixelRoot=capture.pixelRootPso;auto pixelTable=capture.pixelPso;'
+            'need(capture.Prepared(303)&&capture.Prepared(36)&&capture.pso.Get()==keptTable.Get()&&capture.rootPso.Get()==keptRoot.Get()&&'
+            'capture.root.Get()==keptRootTable.Get()&&capture.directRoot.Get()==keptDirect.Get(),"pixel profile switch retains the recorded compute flag PSOs and roots");'
+            'auto pixelRoot=capture.pixelRootPso;auto pixelTable=capture.pixelPso;auto pixelDirect=capture.pixelDirectRoot;auto pixelRootTable=capture.pixelRoot;'
             'need(!capture.Initialize(fixture.device.Get(),error,37),"unsupported source word must fail before GPU recording");'
-            'need(capture.pixelRootPso.Get()==pixelRoot.Get() && capture.pixelPso.Get()==pixelTable.Get(),"failed preparation must preserve both profiles");error.clear();',
+            'need(capture.Prepared(303)&&capture.Prepared(36)&&capture.pixelRootPso.Get()==pixelRoot.Get()&&capture.pixelPso.Get()==pixelTable.Get()&&'
+            'capture.pixelRoot.Get()==pixelRootTable.Get()&&capture.pixelDirectRoot.Get()==pixelDirect.Get(),"failed preparation must preserve both profiles");error.clear();',
         'for(const auto test:cases)for(const auto coefficient:coefficients)':
             'for(const uint32_t sourceWord:{303u,36u})for(const auto test:cases)for(const auto coefficient:coefficients)',
         'PureSetFlag(first.Get(),test.flag?0u:1u);PureSetFlag(second.Get(),test.flag?0u:1u);':
@@ -71,6 +77,27 @@ class CpuProof(unittest.TestCase):
         self.assertIn('constants.wordIndex=sourceWord',source)
         self.assertIn('coefficient_bitpatterns=6',source)
         self.assertIn('opaque title alpha',source)
+    def test_write_debug_prepares_accepted_word_before_record(self):
+        body=function((ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.cpp').read_text(),'bool ConversionPass::WriteDebug(')
+        self.assertIn('flagCapture.Initialize(owner->device.Get(), error, titleConstants.wordIndex)',body)
+        self.assertIn('flagCapture.Prepared(titleConstants.wordIndex)',body)
+        self.assertLess(body.index('Prepared(titleConstants.wordIndex)'),body.index('guard.admit'),
+                        'accepted-word preparation must precede the deferred commit')
+        self.assertIn('flagCapture.Record(prepared.list, prepared.titleConstants, prepared.slot->flag)',body)
+        self.assertNotIn('flagCapture.Initialize(owner->device.Get(), error))',body,
+                         'default-word preparation would miss the accepted pixel word36 profile')
+    def test_prepared_covers_both_root_forms_and_words(self):
+        header=(PRE.parent/'FSRDNrdSignalConstants_Dx12.h').read_text()
+        prepared=function(header,'bool Prepared(uint32_t wordIndex) const noexcept')
+        self.assertIn('wordIndex == 36',prepared)
+        self.assertIn('wordIndex == 303',prepared)
+        self.assertIn('pixelRoot && pixelDirectRoot && pixelPso && pixelRootPso',prepared)
+        self.assertIn('root && directRoot && pso && rootPso',prepared)
+        self.assertIn('return false;',prepared)
+        record=function(header,'void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,')
+        self.assertIn('const bool pixel = constants.wordIndex == 36;',record)
+        self.assertIn('list->SetPipelineState(pixel ? pixelPso.Get() : pso.Get());',record)
+        self.assertIn('list->SetPipelineState(pixel ? pixelRootPso.Get() : rootPso.Get());',record)
 
 def native():
     sys.path.insert(0,str(HERE.parent))
