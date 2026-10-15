@@ -18,7 +18,7 @@ unsigned checks=0;
 void need(bool value,const char* message) { if(!value) throw std::runtime_error(message); ++checks; }
 std::vector<std::string> events;
 void event(const std::string& value) { events.push_back(value); }
-bool startup=true, suppress=false, recording=false, proof=true, poisoned=false, partial=false;
+bool startup=true, suppress=false, recording=false, proof=true, poisoned=false, partial=false, preserveIndirect=false;
 unsigned originalDispatch=0,legacyDispatch=0,originalBundle=0,originalClear=0,originalPredicate=0,originalIndirect=0;
 unsigned originalDraw=0,originalIndexed=0,legacyDraw=0,legacyIndexed=0,physicalDraw=0;
 bool drawDecorator=false;std::array<uint64_t,6> drawArguments{},passArguments{};
@@ -30,6 +30,7 @@ bool StartupEnabled() noexcept { return startup; }
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept { event("before"); }
 void AfterDispatch(ID3D12GraphicsCommandList*) noexcept { event("after"); }
 void BeforeGraphicsConsumer(ID3D12GraphicsCommandList*) noexcept { event("graphics.before"); }
+bool PreserveIndirectRecording(ID3D12GraphicsCommandList*,ID3D12CommandSignature*) noexcept { event("preserve.indirect");return preserveIndirect; }
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*,DispatchKind kind) noexcept {
  event(kind==DispatchKind::Direct?"query.direct":kind==DispatchKind::Bundle?"query.bundle":"query.indirect");
  if(kind!=DispatchKind::Direct) { poisoned|=partial; proof=false; }
@@ -94,7 +95,7 @@ void hkExecuteBundle(ID3D12GraphicsCommandList*,ID3D12GraphicsCommandList*) { ++
 __HOOKS__
 }
 void reset() {
- events.clear();effect={};startup=Hooks::gNrdBridgeWrappers=true;suppress=false;recording=false;proof=true;poisoned=partial=false;
+ events.clear();effect={};startup=Hooks::gNrdBridgeWrappers=true;suppress=false;recording=false;proof=true;poisoned=partial=preserveIndirect=false;
  FrameSurvey::gInternal=false;FrameSurvey::list={};originalDispatch=legacyDispatch=originalBundle=originalClear=originalPredicate=originalIndirect=0;
  originalDraw=originalIndexed=legacyDraw=legacyIndexed=physicalDraw=0;drawDecorator=false;drawArguments.fill(0);passArguments.fill(0);
 }
@@ -145,6 +146,14 @@ int main() { try {
  need(events==std::vector<std::string>{"native.indirect"},"owned indirect bypasses public tracking");
  reset();{NrdBridgeTitleCallbacks::Scope scope(NrdBridgeTitleCallbacks::Method::Indirect,true);FrameSurvey::Indirect(alias,nullptr,1,nullptr,0,nullptr,0);}
  need(originalIndirect==1 && count("query.indirect")==0 && count("snapshot")==0,"indirect decorator is observed once");
+ reset();preserveIndirect=true;partial=true;FrameSurvey::Indirect(cmd,nullptr,3,nullptr,0,nullptr,0);
+ need(originalIndirect==1&&count("preserve.indirect")==1&&count("query.indirect")==0,"proved pure indirect still forwards once without generic poisoning");
+ need(proof&&!poisoned&&count("cache.indirect")==0&&count("mirror.compute")==0&&count("mirror.graphics")==0&&count("mirror.heaps")==0&&count("mirror.pipeline")==0,"proved pure indirect preserves exact D3D and mirror bindings");
+ need(count("pass.ExecuteIndirect")==1&&count("snapshot")==1,"preserved invocation retains exactly one executed recorder observation");
+ reset();preserveIndirect=true;FrameSurvey::gInternal=true;FrameSurvey::Indirect(cmd,nullptr,1,nullptr,0,nullptr,0);
+ need(originalIndirect==1&&count("preserve.indirect")==0,"internal indirect never asks native graph preservation");
+ reset();preserveIndirect=true;{NrdBridgeTitleCallbacks::Scope scope(NrdBridgeTitleCallbacks::Method::Indirect,true);FrameSurvey::Indirect(alias,nullptr,1,nullptr,0,nullptr,0);}
+ need(originalIndirect==1&&count("preserve.indirect")==0,"nested indirect decorator does not duplicate preservation query");
  unsigned graphicsCases=0;
  for(bool indexed:{false,true}){
   reset();suppress=true;
@@ -165,6 +174,9 @@ int main() { try {
  reset();recording=true;partial=true;need(NrdBridgeLifetime::EnableConcurrentReleases(),"actual lifetime gate enabled for denied nested borrow control");
  {NrdBridgeLifetime::ScopedRelease release(true);FrameSurvey::Indirect(cmd,nullptr,1,nullptr,0,nullptr,0);}
  need(originalIndirect==1 && poisoned && count("query.indirect")==1 && count("snapshot")==0,"denied recorder borrow cannot bypass irreversible-skip invalidation");
- std::cout<<Json{{"checks",checks},{"cases",19+graphicsCases},{"graphics_cases",graphicsCases},{"method_pairs",unsigned(NrdBridgeTitleCallbacks::Method::Count)*unsigned(NrdBridgeTitleCallbacks::Method::Count)},
+ reset();recording=true;partial=true;preserveIndirect=true;NrdBridgeLifetime::EnableConcurrentReleases();
+ {NrdBridgeLifetime::ScopedRelease release(true);FrameSurvey::Indirect(cmd,nullptr,1,nullptr,0,nullptr,0);}
+ need(originalIndirect==1&&poisoned&&!proof&&count("query.indirect")==0&&count("snapshot")==0,"even prior preservation cannot bypass an unavailable recorder borrow");
+ std::cout<<Json{{"checks",checks},{"cases",23+graphicsCases},{"graphics_cases",graphicsCases},{"method_pairs",unsigned(NrdBridgeTitleCallbacks::Method::Count)*unsigned(NrdBridgeTitleCallbacks::Method::Count)},
   {"scope","actual production hook bodies and method/lifetime guards; CPU observer/native-call spies, no GPU or provider"}}.dump()<<'\n';return 0;
  }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;} }
