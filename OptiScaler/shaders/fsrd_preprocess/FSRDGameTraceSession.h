@@ -12,6 +12,7 @@ namespace NrdBridge
 {
 struct ConvertedResources;
 struct FrameParameters;
+struct TitleSignalConstants;
 struct RRSettingsState;
 struct RRRecordedOutputSnapshot;
 }
@@ -38,6 +39,7 @@ public:
         enum class CapturePath { Legacy, NrdBridge };
         CapturePath capturePath = CapturePath::Legacy;
         uint64_t bridgeDomain = 0; // Zero binds the first eligible domain; never merges chains.
+        bool bridgeWaitForReset = false; // Only a dedicated explicit USER reset request sets this.
     };
     struct Status
     {
@@ -45,7 +47,7 @@ public:
         uint32_t captured = 0, recorded = 0, target = FrameCount;
         uint32_t manifestPublished = 0;
         uint32_t pending = 0, staged = 0, awaitingDetach = 0, delayRemainingMs = 0;
-        bool active = false;
+        bool active = false, nrdBridge = false;
         uint64_t cpuQueuedBytes = 0, retainedReadbackBytes = 0, estimatedPayloadBytes = 0;
         uint64_t estimatedFrameReadbackBytes = 0;
         uint64_t manifestWrites = 0, manifestBytesWritten = 0;
@@ -60,6 +62,7 @@ public:
     static bool WantsFullContextReference() noexcept;
     static bool WantsParticleLayerDiagnostics() noexcept;
     static bool IsNrdBridgeCaptureActive() noexcept; // Atomic OFF gate, before metadata/native work.
+    static bool TakeNrdBridgeHistoryResetRequest(uint64_t domain = 0) noexcept;
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };
     struct Source
@@ -134,7 +137,8 @@ public:
     // proves the current native targets. Never AddRef/queue a title source pointer.
     // The updated owned snapshot supplies the GPU-captured live encoding flag.
     bool CompleteBridgeFrame(const BridgeFrameToken&, ID3D12GraphicsCommandList*, const BridgeIdentity&,
-        const std::array<Source,2>& encodedTargets, const NrdBridge::RRRecordedOutputSnapshot&) noexcept;
+        const std::array<Source,2>& encodedTargets, const NrdBridge::RRRecordedOutputSnapshot&,
+        const NrdBridge::TitleSignalConstants& sourceConstants) noexcept;
     void CancelBridgeFrame(const BridgeFrameToken&, std::string_view reason) noexcept;
 
     FSRDGameTraceSession();

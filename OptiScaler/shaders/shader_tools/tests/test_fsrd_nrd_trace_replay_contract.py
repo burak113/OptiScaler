@@ -1,0 +1,99 @@
+"""Adversarial replay-contract checks on a copy of an actual recorder fixture.
+
+Mutations are negative contract controls, not alternative game observations.
+Source captures are read only and only their published prefix is copied.
+"""
+from pathlib import Path
+import copy
+import json
+import shutil
+from fsrd_nrd_trace_replay import inspect_capture
+
+
+def exercise(source, output):
+    source, output = Path(source), Path(output)
+    output.mkdir(parents=True, exist_ok=False)
+    original = json.loads((source / "capture.json").read_text(encoding="utf-8-sig"))
+    count = original["manifest_published_frames"]
+    assert count == 2
+    for frame in original["frames"][:count]:
+        for row in frame["images"] + [frame["provider_controls"]]:
+            dst = output / row["file"]
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source / row["file"], dst)
+    checks = []
+
+    def write(value):
+        (output / "capture.json").write_text(json.dumps(value) + "\n", encoding="utf-8")
+
+    def rejected(name, mutate):
+        value = copy.deepcopy(original)
+        mutate(value)
+        write(value)
+        try:
+            inspect_capture(output)
+        except ValueError:
+            checks.append(name)
+        else:
+            raise AssertionError("invalid trace accepted: " + name)
+
+    write(original)
+    baseline = inspect_capture(output)
+    assert baseline["published_frames"] == 2 and baseline["payload_hashes_verified"]
+    checks.append("actual_fenced_recorder_prefix_verified")
+    assert baseline["full_temporal_replay_eligible"] is False
+    assert "actual_provider_binary_attestation_unavailable" in baseline["ineligibility_reasons"]
+    checks.append("CPU_provider_adapter_never_signed_replay_eligible")
+    assert inspect_capture(output, verify_payload=False)["full_temporal_replay_eligible"] is False
+    checks.append("unverified_payloads_not_replay_eligible")
+    private = copy.deepcopy(original)
+    private["frames"].append({"ordinal": 2, "images": [{"file": "../../forbidden.bin"}]})
+    write(private)
+    assert inspect_capture(output)["published_frames"] == 2
+    checks.append("unpublished_forensic_rows_never_read")
+    roi = copy.deepcopy(original)
+    roi["region_mode"] = "square"
+    write(roi)
+    assert "cropped_inputs_cannot_reconstruct_full_frame_temporal_history" in inspect_capture(output)["ineligibility_reasons"]
+    checks.append("ROI_inspect_only_not_complete_replay")
+    rejected("mixed_domain", lambda m: m["frames"][1]["identity"].update(domain=22))
+    rejected("zero_recording_generation", lambda m: m["frames"][0]["identity"].update(recording_generation=0))
+    rejected("SL_gap", lambda m: m["frames"][1]["identity"].update(streamline_frame=123))
+    rejected("context_change", lambda m: m["frames"][1].update(context_generation=99))
+    rejected("settings_hash_mismatch", lambda m: m["frames"][0]["settings"].update(native_material_guides=True))
+    rejected("actual_controls_frame_mismatch", lambda m: m["frames"][0].update(sdk_frame_index=123))
+    rejected("missing_actual_RESET_proof", lambda m: m["frames"][0].update(actual_reset=False))
+    rejected("uncommitted_output", lambda m: m["frames"][0].update(output_committed=False))
+    rejected("missing_submission_gate", lambda m: m["frames"][0]["ticket_proof"].update(submission_gate_protected=False))
+    rejected("ambiguous_submission", lambda m: m["frames"][0]["ticket_proof"].update(ambiguous_submission=True))
+    rejected("fence_not_completed", lambda m: m["frames"][0]["ticket_proof"].update(fence_completed=0))
+    rejected("forbidden_native_output", lambda m: m["frames"][0]["images"][0].update(name="native_nrd_specular"))
+    rejected("wrong_typed_format", lambda m: m["frames"][0]["images"][0].update(dxgi_format=28))
+    rejected("wrong_payload_size", lambda m: m["frames"][0]["images"][0].update(bytes=1))
+    rejected("payload_path_traversal", lambda m: m["frames"][0]["images"][0].update(file="frames/0/../../forbidden.bin"))
+    rejected("cross_frame_payload", lambda m: m["frames"][0]["images"][0].update(file="frames/1/input_specular.bin"))
+    rejected("cyclic_alias", lambda m: m["frames"][0]["roles"].update(raw_rr_specular="selected_rr_specular"))
+    rejected("encoded_stage_not_raw_alias", lambda m: m["frames"][0]["roles"].update(encoded_commit_specular="raw_rr_specular"))
+    rejected("native_source_word_not_private_sink", lambda m: m["frames"][0]["encoding"].update(native_source_word=37))
+    rejected("native_flag_false_with_payload", lambda m: m["frames"][0]["encoding"].update(native_flag_captured=False))
+    rejected("invented_native_skip_payload", lambda m: m["frames"][0]["skipped_original_dispatches"][0].update(native_output_payload=True))
+    rejected("skip_bound", lambda m: m["frames"][0].update(skipped_original_dispatches=[m["frames"][0]["skipped_original_dispatches"][0]] * 65))
+    write(original)
+    row = original["frames"][0]["images"][0]
+    path = output / row["file"]
+    unchanged = path.read_bytes()
+    path.write_bytes(bytes([unchanged[0] ^ 1]) + unchanged[1:])
+    try:
+        inspect_capture(output)
+    except ValueError as error:
+        assert "SHA-256" in str(error)
+        checks.append("corrupt_payload_hash")
+    else:
+        raise AssertionError("corrupt payload accepted")
+    finally:
+        path.write_bytes(unchanged)
+    write(original)
+    assert inspect_capture(output)["published_frames"] == count
+    checks.append("negative_controls_restore_unchanged_source_contract")
+    return {"status": "PASS", "checks": len(checks), "cases": checks,
+            "scope": "actual recorder fixture plus adversarial offline metadata/payload mutations; no SDK/IQ claim"}
