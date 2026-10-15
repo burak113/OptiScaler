@@ -91,9 +91,10 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     OutDepth[p] = depth;
 
     // A null-MV Recon conversion defers this read until the current Temporal table is known.
+    // Z provenance: default camera-only estimate, explicit legacy rollback only.
     [branch] if (Reserved.x == 0u)
         OutMotion[p] = ConvertNrdMotion(p, RenderSize, InMotion[p].xy, depth, PreviousValid,
-                                        InPreviousDepth, MotionScale, JitterDeltaUv, Reserved.y,
+                                        InPreviousDepth, MotionScale, JitterDeltaUv, CameraReserved.y,
                                         InverseProjection, PreviousViewDepthRow, CurrentJitterUv);
     else OutMotion[p] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 

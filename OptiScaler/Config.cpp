@@ -194,6 +194,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridge.reset();
     FfxDenoiserNrdBridgeEnabled.reset();
     FfxDenoiserNrdBridgeMotionDepthMode.reset();
+    FfxDenoiserNrdBridgeLegacyMotionDepth.reset();
     FfxDenoiserNrdBridgeNativeTemporalMotion.reset();
     FfxDenoiserNrdBridgeNativeMaterialGuides.reset();
     FfxDenoiserNrdBridgeMaterialIDs.reset();
@@ -540,6 +541,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridge.set_from_config(readBool("FSR-RR", "NrdBridge"));
             FfxDenoiserNrdBridgeEnabled.set_from_config(readBool("FSR-RR", "NrdBridgeEnabled"));
             FfxDenoiserNrdBridgeMotionDepthMode.set_from_config(readBool("FSR-RR", "NrdBridgeMotionDepthMode"));
+            FfxDenoiserNrdBridgeLegacyMotionDepth.set_from_config(readBool("FSR-RR", "NrdBridgeLegacyMotionDepth"));
             FfxDenoiserNrdBridgeNativeTemporalMotion.set_from_config(readBool("FSR-RR", "NrdBridgeNativeTemporalMotion"));
             FfxDenoiserNrdBridgeNativeMaterialGuides.set_from_config(readBool("FSR-RR", "NrdBridgeNativeMaterialGuides"));
             FfxDenoiserNrdBridgeMaterialIDs.set_from_config(readBool("FSR-RR", "NrdBridgeMaterialIDs"));
@@ -1541,6 +1543,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridge", GetBoolValue(Instance()->FfxDenoiserNrdBridge.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeEnabled", GetBoolValue(Instance()->FfxDenoiserNrdBridgeEnabled.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMotionDepthMode", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMotionDepthMode.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeLegacyMotionDepth", GetBoolValue(Instance()->FfxDenoiserNrdBridgeLegacyMotionDepth.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeTemporalMotion", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeTemporalMotion.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeMaterialGuides", GetBoolValue(Instance()->FfxDenoiserNrdBridgeNativeMaterialGuides.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMaterialIDs", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMaterialIDs.value_for_config()).c_str());

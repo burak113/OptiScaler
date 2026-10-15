@@ -242,6 +242,8 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     if (stream >> nativeMaterialIDs) result.preserveNativeMaterialIDs = nativeMaterialIDs != 0;
     uint32_t nativeMaterialGuides = 0;
     if (stream >> nativeMaterialGuides) result.nativeMaterialGuides = nativeMaterialGuides != 0;
+    uint32_t legacyMotionDepth = 0;
+    if (stream >> legacyMotionDepth) result.legacyMotionDepth = legacyMotionDepth != 0;
     result.camera.view = DirectX::XMLoadFloat4x4(&view);
     result.camera.inverseView = DirectX::XMMatrixInverse(nullptr, result.camera.view);
     result.camera.projection = DirectX::XMLoadFloat4x4(&projection);
@@ -325,6 +327,8 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "3D motion accepted");
             stale = frame; stale.cameraProjectedDepthDelta = !frame.cameraProjectedDepthDelta;
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "depth mode changed within the Recon ticket");
+            stale = frame; stale.legacyMotionDepth = !frame.legacyMotionDepth;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "legacy motion rollback changed within the Recon ticket");
             stale = frame; stale.preserveNativeMaterialIDs = !frame.preserveNativeMaterialIDs;
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "material mode changed within the Recon ticket");
             stale = frame; stale.nativeMaterialGuides = !frame.nativeMaterialGuides;

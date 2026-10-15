@@ -61,6 +61,12 @@ def prepare(inputs, destination):
         expected = camera_b if fallback else expected_surface
         if index == 0:
             expected.fill(0)
+        # Camera-only default: the current surface's previous-camera depth. The
+        # first frame has no coherent previous camera row and stays exactly 0;
+        # the native fallback index is the same static-surface estimate.
+        expected_camera = camera_b.copy()
+        if index == 0:
+            expected_camera.fill(0)
         # Native half-MV quantization has a known bounded effect on decoded B.
         # Check the encoder against the independent unquantized geometry NOW.
         decoded = (raw_z - (coefficient * (raw_z + raw_motion[..., 2].astype(np.float64) * scale_z) + offset))
@@ -110,6 +116,7 @@ def prepare(inputs, destination):
         payloads['native_constants'] = put(folder, 'native-constants.bin', np.frombuffer(b6, 'u1'))
         payloads['native_shadow'] = put(folder, 'native-shadow.bin', np.frombuffer(shadow, 'u1'))
         payloads['expected_b'] = put(folder, 'expected-b.bin', expected.astype('<f4'))
+        payloads['expected_camera_b'] = put(folder, 'expected-camera-b.bin', expected_camera.astype('<f4'))
         jitter = np.asarray(frame['jitter'])
         rr_xy = raw_motion[..., :2].astype(np.float64) + (np.zeros(2) if previous_jitter is None else previous_jitter - jitter) / (width, height)
         pixel = (uv + rr_xy) * (width, height)

@@ -3334,6 +3334,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     NrdBridge::RRSettings settings;
     settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
+    settings.legacyMotionDepth = config.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default();
     settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
@@ -3399,7 +3400,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Uses NRD Temporal's current b6 camera and object-motion constants to predict the same surface's previous depth. "
                           "Prevents a previously visible occluder from validating the wrong history. "
-                          "Takes priority over camera-only depth. Resets history when changed. Default off.");
+                          "Overrides the camera-only default. Resets history when changed. Default off.");
     bool cameraDepth = config->FfxDenoiserNrdBridgeMotionDepthMode.value_or_default();
     if (ImGui::Checkbox("Camera-projected depth delta (experimental)", &cameraDepth))
     {
@@ -3409,7 +3410,19 @@ static void DrawNrdBridgeRRTuning(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Predicts previous-camera depth from camera geometry instead of the depth of "
                           "the previously visible surface. The title's current motion input stays unchanged. "
-                          "Switching resets RR and conversion histories. Default off.");
+                          "Switching resets RR and conversion histories. Default off. Camera-only depth is now "
+                          "the default flow even with this off; this option no longer selects the legacy path.");
+    bool legacyDepth = config->FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default();
+    if (ImGui::Checkbox("Legacy previous-visible-depth motion Z (A/B rollback)", &legacyDepth))
+    {
+        config->FfxDenoiserNrdBridgeLegacyMotionDepth = legacyDepth;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Restores the pre-fix Z estimate that samples the previously visible surface's depth "
+                          "at the reprojected pixel. That texel can be the old occluder, and the same wrong "
+                          "occluder then passes its own prediction test with a zero residual. Use only for A/B "
+                          "evidence; switching resets RR and conversion histories. Default off.");
     bool materialIDs = config->FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     if (ImGui::Checkbox("Preserve native material IDs (experimental)", &materialIDs))
     {
@@ -3484,9 +3497,9 @@ static void DrawNrdBridgeInputMap()
         row("Linear VIEWZ", "Bridge-owned depth is built from the title's unfiltered view-space depth and copied native source origin, signed for the RR camera convention and clamped to the camera depth bounds.");
         row("Motion + jitter", NrdBridge::GetRRSettingsState().requested.nativeTemporalMotion
             ? "Current title motion XY uses Streamline scale/jitter. Optional native surface reprojection uses copied b6 operands and bridge-owned positive ViewZ; invalid pixels use camera-only depth. Native NRD history is not read."
-            : NrdBridge::CameraProjectedDepthEnabled()
-            ? "Current title motion XY uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry and bridge-owned history."
-            : "Current title motion XY uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel, using bridge-owned depth history.");
+            : NrdBridge::GetRRSettingsState().requested.legacyMotionDepth
+            ? "Legacy A/B rollback requested: Z samples the bridge-owned previous-frame depth at the reprojected pixel, whose texel can be the old occluder. Not a default estimate."
+            : "Current title motion XY uses Streamline scale and jitter correction. Z is a camera-only estimate of the current surface in the previous camera; static geometry only, object motion is not reconstructed. Without a previous coherent camera row, Z stays a finite 0. Motion W stays constant 1; it is not a confidence mask.");
         row("Albedo guides", NrdBridge::GetRRSettingsState().requested.nativeMaterialGuides
             ? (NrdBridge::GetStatus().nativeMaterialGuidesActive
                 ? "Proven same-writer guides use linear baseColor*(1-metal) for diffuse and AMD analytic GGX specular RGB. Unknown source state/material falls back to white. Albedo alpha is unused by AMD RR1.2."

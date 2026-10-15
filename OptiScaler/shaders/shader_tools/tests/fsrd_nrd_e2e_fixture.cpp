@@ -15,6 +15,9 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+// The test-only bridge adapters below are declared under this guard; it must be
+// visible before the first header include, not only before the .cpp include.
+#define FSRD_NRD_BRIDGE_TEST
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #include "__ROOT__/OptiScaler/include/detours/detours.h"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
@@ -117,7 +120,6 @@ void DetachRoots() {
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdRawSignals_Dx12.cpp"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.cpp"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
-#define FSRD_NRD_BRIDGE_TEST
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp"
 namespace NrdBridgeNativeBirth {
 std::atomic<unsigned> fixtureNativeCoverageRequests {0};
@@ -924,7 +926,7 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
     currentXY &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+c])-(raw+jitter))<.0002f;
    }
    if(!index)projectedDelta &= motion[at+2]==0;
-   if(projected&&x>=16&&x+16<title.width&&y>=16&&y+16<title.height)projectedDelta &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+2])-expectedDelta[pixel])<.005f;
+   if(x>=16&&x+16<title.width&&y>=16&&y+16<title.height)projectedDelta &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+2])-expectedDelta[pixel])<.005f;
   }
   gpuNR.resource->Unmap(0,nullptr);gpuDepth.resource->Unmap(0,nullptr);need(currentDepth&&currentNormal,"actual GPU guides use every current native normal/depth byte after each identity rotation");need(currentXY,"actual GPU motion XY uses the current native vector and jitter once");need(projectedDelta,"candidate GPU B matches the independent same-surface camera oracle in the interior");
   void* timestampData=nullptr;hr(stamps->Map(0,nullptr,&timestampData));const auto* ticks=static_cast<const UINT64*>(timestampData);need(ticks[1]>=ticks[0],"quality diagnostic timestamp pair is ordered");const double gpuMs=double(ticks[1]-ticks[0])*1000./frequency;stamps->Unmap(0,nullptr);

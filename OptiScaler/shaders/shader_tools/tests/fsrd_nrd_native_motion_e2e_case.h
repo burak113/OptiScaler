@@ -49,7 +49,7 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
     need(NrdBridge::ApplyRRSettings(settings,false,error),"apply native Temporal convention coherently before discovery");
     const unsigned initialCreates=FfxApiProxy::creates,initialCalls=FfxApiProxy::dispatches;
     const uint64_t initialBridged=NrdBridge::GetStatus().framesBridged;
-    std::shared_ptr<NrdBridge::HistoryDomain> history;ffxContext context=nullptr;uint64_t warmedShadowBytes=0;
+    std::shared_ptr<NrdBridge::HistoryDomain> history;ffxContext context=nullptr;uint64_t warmedShadowBytes=0,legacyDivergence=0;
     J frames=J::array();std::vector<uint8_t> lastConstants;
     const std::array<std::pair<const char*,UINT>,5> slots{{{"spec",0},{"diff",1},{"normals",2},{"raw_view_z",3},{"native_motion",6}}};
     for(UINT index=0;index<64;++index)
@@ -60,8 +60,10 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
         for(UINT n=0;n<slots.size();++n){const auto [name,slot]=slots[n];const UINT bpp=slot==2||slot==3?4:8;inputs[n]=qualityPayload(directory,frame["payloads"][name],size_t(title.width)*title.height*bpp);qualityUpload(title,slot,inputs[n],bpp);}
         const auto constants=qualityPayload(directory,frame["payloads"]["native_constants"],1536);
         const auto shadowBytes=qualityPayload(directory,frame["payloads"]["native_shadow"],256);
-        const char* expectedKey=nativeEnabled?"expected_b":"expected_legacy_b";
+        const char* expectedKey=nativeEnabled?"expected_b":"expected_camera_b";
         const auto expected=qualityPayload(directory,frame["payloads"][expectedKey],size_t(title.width)*title.height*4);
+        std::vector<uint8_t> legacyPayload;
+        if(!nativeEnabled)legacyPayload=qualityPayload(directory,frame["payloads"]["expected_legacy_b"],size_t(title.width)*title.height*4);
         nativeConstantsWrite(title.cb.Get(),constants,false);
         if(index==0)
         {
@@ -102,6 +104,7 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
         if(nativeEnabled){void* mapped=nullptr;hr(shadow->Map(0,nullptr,&mapped));need(std::memcmp(mapped,shadowBytes.data(),256)==0,"actual direct/table GPU capture copies all256 selected native operand bytes from final execution-time binding");shadow->Unmap(0,nullptr);}
         void* nativeMap=nullptr;void* signedMap=nullptr;hr(nativeZ.resource->Map(0,nullptr,&nativeMap));hr(signedZ.resource->Map(0,nullptr,&signedMap));
         const auto gpuMotion=motion.signal();const auto* rawZ=reinterpret_cast<const float*>(inputs[3].data());const auto* rawMV=reinterpret_cast<const uint16_t*>(inputs[4].data());const auto* expectedB=reinterpret_cast<const float*>(expected.data());
+        const auto* legacyB=legacyPayload.empty()?nullptr:reinterpret_cast<const float*>(legacyPayload.data());
         bool exactNativeZ=true,exactCurrentZ=true,exactXY=true,correctB=true;const auto& parameters=state.parameters;
         for(UINT y=0;y<title.height;++y)for(UINT x=0;x<title.width;++x)
         {
@@ -111,6 +114,7 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
             exactNativeZ&=std::bit_cast<UINT>(currentNative)==std::bit_cast<UINT>(rawZ[pixel]);exactCurrentZ&=std::bit_cast<UINT>(currentSigned)==std::bit_cast<UINT>(-rawZ[pixel]);
             for(UINT c=0;c<2;++c){const float jitter=c?(parameters.previousJitter.y-parameters.jitter.y)/title.height:(parameters.previousJitter.x-parameters.jitter.x)/title.width;exactXY&=std::abs(PackedVector::XMConvertHalfToFloat(gpuMotion[at+c])-(PackedVector::XMConvertHalfToFloat(rawMV[at+c])+jitter))<.0002f;}
             if(x>=16&&x+16<title.width&&y>=16&&y+16<title.height)correctB&=std::abs(PackedVector::XMConvertHalfToFloat(gpuMotion[at+2])-expectedB[pixel])<.005f;
+            if(legacyB&&x>=16&&x+16<title.width&&y>=16&&y+16<title.height&&std::abs(legacyB[pixel]-expectedB[pixel])>.05f)++legacyDivergence;
         }
         nativeZ.resource->Unmap(0,nullptr);signedZ.resource->Unmap(0,nullptr);
         need(exactNativeZ&&exactCurrentZ,"actual title PrePass t4 and bridge signed depth carry every current native source pixel");need(exactXY,"native full-B feature preserves the canonical XY and single jitter delta");
@@ -122,6 +126,7 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
         h.reset();lastConstants=constants;
     }
     need(FfxApiProxy::dispatches==initialCalls+64&&NrdBridge::GetStatus().framesBridged==initialBridged+64,"all64 continuous original-title quality chains bridge without cancellation or missed frame");
+    need(nativeEnabled||legacyDivergence>100,"camera-only baseline B observably differs from the preserved legacy previous-visible expectation on moving/reveal pixels");
     if(nativeEnabled)
     {
         const unsigned calls=FfxApiProxy::dispatches,beforeRestores=restores;
@@ -139,5 +144,5 @@ void nativeMotionQualityCase(Host& h,Title& title,J& result,const std::filesyste
         settings.nativeTemporalMotion=true;need(NrdBridge::ApplyRRSettings(settings,false,error),"native ON restores a coherent future frame convention");const unsigned onRestores=restores;title.frame(70);
         need(restores==onRestores+4&&FfxApiProxy::dispatches==modeCalls+2&&(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"native ON next frame recovers all four injections and a new history RESET");title.rrChecks(title.finish());
     }
-    result["native_motion_quality"]={{"native_enabled",nativeEnabled},{"table_binding",title.tableConstants},{"submitted_quality_frames",64},{"source_manifest_sha256",RRTraceAdditiveIO::Sha256({manifestBytes.data(),manifestBytes.size()})},{"same_history_context",true},{"first_only_quality_reset",true},{"current_prepass_r32_t4_every_pixel",true},{"full_native_shadow_256_bytes",nativeEnabled},{"warmed_shadow_bytes",warmedShadowBytes},{"post_capture_cancel_recovered",nativeEnabled},{"frames",frames},{"scope",manifest["native_operand_scope"]},{"native_world_mode_tested",false}};
+    result["native_motion_quality"]={{"native_enabled",nativeEnabled},{"table_binding",title.tableConstants},{"submitted_quality_frames",64},{"source_manifest_sha256",RRTraceAdditiveIO::Sha256({manifestBytes.data(),manifestBytes.size()})},{"same_history_context",true},{"first_only_quality_reset",true},{"current_prepass_r32_t4_every_pixel",true},{"full_native_shadow_256_bytes",nativeEnabled},{"warmed_shadow_bytes",warmedShadowBytes},{"post_capture_cancel_recovered",nativeEnabled},{"baseline_expectation",nativeEnabled?"native_same_surface":"camera_only"},{"legacy_divergence_pixels",legacyDivergence},{"frames",frames},{"scope",manifest["native_operand_scope"]},{"native_world_mode_tested",false}};
 }

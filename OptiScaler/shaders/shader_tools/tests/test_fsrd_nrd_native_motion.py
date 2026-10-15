@@ -149,22 +149,25 @@ def verify(cases):
         for route in ('root','table'):
             actual=np.fromfile(path/f'{route}-motion.bin',dtype='<f2').reshape(shape).astype(np.float32)
             camera=np.fromfile(path/f'{route}-camera.bin',dtype='<f2').reshape(shape).astype(np.float32)
+            ordinary=np.fromfile(path/f'{route}-default.bin',dtype='<f2').reshape(shape).astype(np.float32)
             visible=np.fromfile(path/f'{route}-visible.bin',dtype='<f2').reshape(shape).astype(np.float32)
             need((path/f'{route}-shadow.bin').read_bytes()==(path/'expected-shadow.bin').read_bytes(),f'{case["name"]}/{route} exact selected native operands after late binding overwrite')
             need(np.array_equal(actual[...,:2],camera[...,:2]),f'{case["name"]}/{route} outputXY byte parity')
             need(np.isfinite(actual).all() and np.all(actual[...,3]==1),f'{case["name"]}/{route} finite motion and preservedW')
+            need(np.array_equal(ordinary,camera),f'{case["name"]}/{route} default flow is byte-exact camera-only B without the legacy rollback flag')
             error=float(np.max(np.abs(actual[...,2]-expected)))
             errors[case['name']+'/'+route]=error
             if case['negative_control']:need(error>=2.0,'deliberately wrong nativeZ fails independent moving-surface oracle')
             else:need(error<=0.004,f'{case["name"]}/{route} previous surface Z oracle error{error}')
             if case['fallback']:need(np.array_equal(actual[...,2],camera[...,2]),f'{case["name"]}/{route} invalid native uses exact camera fallback')
-            if case['name']=='screen_positive':need(float(np.max(np.abs(visible[2:-2,2:-2,2]-expected[2:-2,2:-2])))>=8,'old visible occluder depth is a distinct wrong negative control')
+            if case['name']=='screen_positive':need(float(np.max(np.abs(visible[2:-2,2:-2,2]-expected[2:-2,2:-2])))>=8,'legacy rollback is the distinct old-visible-depth negative control')
+            if case['name']=='screen_positive':need(float(np.max(np.abs(visible[2:-2,2:-2,2]-camera[2:-2,2:-2,2])))>=6,'legacy previous-visible B observably differs from the camera-only default')
     need((OUT/'cases'/'canceled-shadow.bin').read_bytes()==(OUT/'cases'/'screen_positive'/'expected-shadow.bin').read_bytes(),'canceled recording retains exact GPU shadow')
     return errors
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--prepare-only',action='store_true')
-    parser.add_argument('--compiled-root',type=Path,default=Path('F:/OptiRevelations/OSA-15-nrd-ghosting/OptiScaler/shaders/fsrd_preprocess/precompile'))
+    parser.add_argument('--compiled-root',type=Path,default=PASS/'precompile')
     args=parser.parse_args();cases=prepare_inputs();shaders=build_sources(args.compiled_root)
     if args.prepare_only:print(json.dumps({'prepared_cases':len(cases),'shaders':shaders,'checks':PY_CHECKS}));return
     sys.path.insert(0,str(TEST.parent));from fsrd_toolchain import compile_cpp

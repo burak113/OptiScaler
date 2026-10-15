@@ -277,7 +277,7 @@ struct D3D12Hooks {
                              for name, call in zip((name for name in early if name not in graphics_arguments),
                                                    (part.strip() for part in roots_attach.split(';') if part.strip())))
     roots_detach = roots_attach.replace('DetourAttach', 'DetourDetach')
-    roots_attach += '\nneed(AttachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument installer\"); bridgeGraphicsEarlyAttached=true;'
+    roots_attach += '\nneed(AttachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument installer\"); bridgeGraphicsEarlyAttached=gNrdBridgeDeviceWrappers;'
     roots_detach += '\nneed(DetachBridgeGraphicsArgumentHooks(false)==NO_ERROR,\"actual six graphics argument detach\"); bridgeGraphicsEarlyAttached=false;'
     cpp = Path(__file__).with_name('fsrd_nrd_e2e_fixture.cpp').read_text()
     replacements = dict(
@@ -299,6 +299,9 @@ struct D3D12Hooks {
     source.write_text(cpp)
     exe = out / 'nrd_e2e.exe'
     os.environ['FSRD_CPP_CACHE'] = str(out / 'cache')
+    # The single-translation-unit production fixture exceeds the default section
+    # limit; the sibling native fixtures already compile with /bigobj.
+    os.environ['CL'] = ((os.environ.get('CL', '') + ' ') if os.environ.get('CL') else '') + '/bigobj'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib',
         'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT / 'OptiScaler/library/detours/detours.lib')),
         (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',

@@ -17,6 +17,10 @@ struct Status
     uint64_t nativeMaterialAttempts = 0, nativeMaterialSnapshots = 0, nativeMaterialFramesApplied = 0;
     uint64_t nativeMaterialUnknownState = 0, nativeMaterialKnownPSR = 0, nativeMaterialUnsupportedState = 0;
     uint64_t nativeMaterialCaptureFailures = 0, nativeMaterialModeResets = 0;
+    // Frame-level effective motion-Z provenance totals of the current conversion
+    // domain (see MotionProvenanceTotals). Not a per-pixel population.
+    uint64_t motionProvenanceDispatches = 0, motionProvenanceNative = 0, motionProvenanceCameraOnly = 0;
+    uint64_t motionProvenanceUnknown = 0, motionProvenanceLegacy = 0;
     uint32_t width = 0, height = 0;
 };
 bool SupportedExecutable() noexcept;
