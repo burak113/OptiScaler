@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 #include "misc/NrdBridgeOwned_Dx12.h"
+#include "misc/NrdBridgeCaptureSlotBudget_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdNativeMaterialCapture_Shader.h"
@@ -29,6 +30,9 @@ class NativeMaterialCapture
     using ComResource = Microsoft::WRL::ComPtr<ID3D12Resource>;
     struct Slot
     {
+        // First member dies last: permits account resources through native Release.
+        NrdBridgeCaptureBudget::Permit permit;
+        explicit Slot(NrdBridgeCaptureBudget::Permit&& reservation) noexcept : permit(std::move(reservation)) {}
         ComResource resource;
         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptors;
         uint64_t bytes = 0;
@@ -39,6 +43,8 @@ class NativeMaterialCapture
         Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
         uint32_t width = 0, height = 0, stride = 0;
+        bool retired = false;
+        std::shared_ptr<NrdBridgeCaptureBudget::Family> budget;
         std::vector<std::shared_ptr<Slot>> slots;
         std::mutex mutex;
     };
@@ -50,37 +56,39 @@ class NativeMaterialCapture
     };
     mutable std::mutex mutex_;
     std::shared_ptr<Context> context_;
+    std::shared_ptr<NrdBridgeCaptureBudget::Family> budget_; // Lazy; survives extent/device replacement.
 
     static void Check(HRESULT code, const char* operation)
     {
         if (FAILED(code)) throw std::runtime_error(std::string(operation) +
             " (HRESULT " + std::to_string(code) + ")");
     }
-    static std::shared_ptr<Slot> Acquire(Context& context)
+    static void Acquire(Context& context, std::shared_ptr<Slot>& candidate)
     {
-        for (const auto& slot : context.slots) if (slot.use_count() == 1) return slot;
-        if (context.slots.size() >= 32)
-            throw std::runtime_error("Native material capture has 32 unretired recordings");
-        auto slot = MakeOwnedShared<Slot>();
+        for (const auto& slot : context.slots)
+            if (slot.use_count() == 1) { candidate = slot; return; }
+        auto reservation = NrdBridgeCaptureBudget::Permit::TryAcquire(context.budget);
+        if (!reservation) throw std::runtime_error("Native material capture family has 32 allocated snapshot slots");
+        candidate = MakeOwnedShared<Slot>(std::move(reservation));
         D3D12_RESOURCE_DESC desc {}; desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         desc.Width = context.width; desc.Height = context.height;
         desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1;
         desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
         desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        const auto allocation = context.device->GetResourceAllocationInfo(0,1,&desc);
+        if (!candidate->permit.SetBytes(allocation.SizeInBytes))
+            throw std::runtime_error("Native material snapshot allocation size is invalid");
+        candidate->bytes = allocation.SizeInBytes;
         D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
         Check(context.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,
-            D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&slot->resource)),
+            D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&candidate->resource)),
             "Native material snapshot allocation failed");
-        const auto allocation = context.device->GetResourceAllocationInfo(0,1,&desc);
-        if (allocation.SizeInBytes == UINT64_MAX)
-            throw std::runtime_error("Native material snapshot allocation size is invalid");
-        slot->bytes = allocation.SizeInBytes;
         D3D12_DESCRIPTOR_HEAP_DESC descriptors {};
         descriptors.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         descriptors.NumDescriptors = 3; descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        Check(context.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&slot->descriptors)),
+        Check(context.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&candidate->descriptors)),
             "Native material snapshot descriptor allocation failed");
-        context.slots.push_back(slot); return slot;
+        context.slots.push_back(candidate);
     }
     static bool TextureMatches(ID3D12Resource* resource, const Context& context,
                                DXGI_FORMAT format) noexcept
@@ -110,10 +118,18 @@ class NativeMaterialCapture
         try
         {
             FrameSurvey::ScopedInternal internal; ScopedSkipHeapCapture skip;
-            std::lock_guard lock(mutex_);
-            if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
-            { error.clear(); return true; }
-            auto next = MakeOwnedShared<Context>(); next->device = device;
+            std::shared_ptr<NrdBridgeCaptureBudget::Family> budget;
+            std::shared_ptr<Context> next, previous;
+            std::vector<std::shared_ptr<Slot>> retiredSlots;
+            {
+                std::lock_guard lock(mutex_);
+                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
+                { error.clear(); return true; }
+                if (!budget_) budget_ = MakeOwnedShared<NrdBridgeCaptureBudget::Family>();
+                budget = budget_;
+            }
+            // Native creation and every losing/failed candidate die outside helper locks.
+            next = MakeOwnedShared<Context>(); next->device = device; next->budget = budget;
             next->width = width; next->height = height;
             next->stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             if (!next->stride) throw std::runtime_error("Native material descriptor stride is zero");
@@ -124,7 +140,25 @@ class NativeMaterialCapture
             desc.CS = {FSRDNrdNativeMaterialCapture_cso,sizeof(FSRDNrdNativeMaterialCapture_cso)};
             Check(device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&next->pso)),
                 "Native material capture pipeline creation failed");
-            next->slots.reserve(32); context_ = std::move(next); error.clear(); return true;
+            next->slots.reserve(NrdBridgeCaptureBudget::Family::Capacity);
+            {
+                std::lock_guard lock(mutex_);
+                // A concurrent same-extent initializer may already have published.
+                if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
+                { error.clear(); return true; }
+                previous = std::move(context_);
+                if (previous)
+                {
+                    std::lock_guard contextLock(previous->mutex);
+                    previous->retired = true;
+                    // Snapshot owns Slot directly. Drop ALL cache references now,
+                    // so later-idle slots cannot remain pinned by an old context.
+                    retiredSlots.swap(previous->slots);
+                }
+                context_ = std::move(next);
+            }
+            // Idle slots release here; pending snapshots retain only their needed slots.
+            retiredSlots.clear(); previous.reset(); error.clear(); return true;
         }
         catch (const std::exception& exception) { error = exception.what(); return false; }
         catch (...) { error = "Native material capture initialization allocation failed"; return false; }
@@ -148,8 +182,12 @@ class NativeMaterialCapture
             { error = "Native material source format/extent/device does not match the exact profile"; return false; }
             if (baseColor == materialParams)
             { error = "Native material source textures alias"; return false; }
+            // These owners precede the guard, so failure releases native candidates after unlock.
+            auto lease = MakeOwnedShared<Snapshot>(); lease->owner = owner;
+            std::shared_ptr<Slot> candidate;
             std::lock_guard lock(owner->mutex);
-            auto lease = MakeOwnedShared<Snapshot>(); lease->owner = owner; lease->slot = Acquire(*owner);
+            if (owner->retired) { error = "Native material capture context retired before recording"; return false; }
+            Acquire(*owner,candidate); lease->slot = candidate;
             auto cpu = lease->slot->descriptors->GetCPUDescriptorHandleForHeapStart();
             for (auto* source : {baseColor,materialParams})
             {
@@ -191,12 +229,9 @@ class NativeMaterialCapture
     {
         try
         {
-            std::shared_ptr<Context> owner;
-            { std::lock_guard lock(mutex_); owner = context_; }
-            if (!owner) return 0;
-            std::lock_guard lock(owner->mutex); uint64_t bytes = 0;
-            for (const auto& slot : owner->slots) bytes += slot->bytes;
-            return bytes;
+            std::shared_ptr<NrdBridgeCaptureBudget::Family> budget;
+            { std::lock_guard lock(mutex_); budget = budget_; }
+            return budget ? budget->allocatedBytes.load(std::memory_order_acquire) : 0;
         }
         catch (...) { return 0; }
     }
