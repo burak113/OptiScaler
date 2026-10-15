@@ -27,6 +27,7 @@ import fsrd_nrd_rr_material_quality as sealed
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
+sys.path.insert(0, str(HERE.parent))
 CASE = Path('F:/FSRD/sol_batch/15c-rr/ggx-v5-demod/r123')
 ORIGINAL_CPP_SHA = 'ba873fd2505b05b4a4dd11b9068d60907b3461da3a5830a18385089fe25624c3'
 
