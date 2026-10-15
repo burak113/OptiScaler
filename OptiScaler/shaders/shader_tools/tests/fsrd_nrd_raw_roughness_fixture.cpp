@@ -123,6 +123,24 @@ static void cases(const fs::path& directory)
  need(!negative.Capture(f.list.Get(),b,failed,error)&&!failed&&gRawCommands==before,"failed actual recording lease records zero GPU commands");
  const auto allocated=gRawAllocations;RecordedComputeLease::SetHooksAvailable(true,true);need(negative.Capture(f.list.Get(),b,failed,error),error.c_str());need(gRawAllocations==allocated,"failed-lease cold slot is safely reused");
  r.restore();r.dispatch();f.Submit();failed.reset();f.Reset();gRawBorrowed.clear();
+ // Warming32 buffers does not pin31 idle buffers behind one old-generation
+ // snapshot after resize. Count only private metadata construction/destruction.
+ const auto beforeResize=gRawLiveSlots;
+ {
+  Capture resize;NativeFixture old(f,directory/"codes");need(resize.Initialize(f.device.Get(),old.width,old.height,error),error.c_str());
+  for(unsigned i=0;i<32;++i){Capture::SnapshotLease warm;need(resize.Capture(f.list.Get(),old.binding(),warm,error),error.c_str());}
+  f.Submit();f.Reset();need(gRawLiveSlots==beforeResize+32,"warm32 buffers remain reusable");
+  const auto familyBytes=resize.OwnedAuxiliaryBytes();need(familyBytes&&familyBytes%32==0,"family charges all32 allocated warm buffers");const auto oldBytes=familyBytes/32;
+  Capture::SnapshotLease pending;need(resize.Capture(f.list.Get(),old.binding(),pending,error),error.c_str());pending.reset();
+  NativeFixture fresh(f,directory/"positive");need(resize.Initialize(f.device.Get(),fresh.width,fresh.height,error),error.c_str());
+  need(gRawLiveSlots==beforeResize+1,"resize retires idle31 private buffers outside locks");
+  need(resize.OwnedAuxiliaryBytes()==oldBytes,"current helper includes the retained old-generation buffer bytes");
+  Capture::SnapshotLease current;need(resize.Capture(f.list.Get(),fresh.binding(),current,error),error.c_str());
+  const auto currentDesc=Capture::Resource(current)->GetDesc();const auto currentBytes=f.device->GetResourceAllocationInfo(0,1,&currentDesc).SizeInBytes;
+  need(resize.OwnedAuxiliaryBytes()==oldBytes+currentBytes,"family includes both extent generations");current.reset();
+  f.Submit();f.Reset();need(gRawLiveSlots==beforeResize+1&&resize.OwnedAuxiliaryBytes()==currentBytes,"completed old generation releases its last buffer and exact bytes");gRawBorrowed.clear();
+ }
+ need(gRawLiveSlots==beforeResize,"new generation idle buffer dies with its owner");
  // Keep32 distinct snapshots on one actual recording. The33rd cannot issue GPU
  // work; dropping every CPU ticket/context must preserve all32 through GPU+Reset.
  auto owner=std::make_unique<Capture>();NativeFixture retained(f,directory/"codes");need(owner->Initialize(f.device.Get(),retained.width,retained.height,error),error.c_str());
@@ -131,6 +149,8 @@ static void cases(const fs::path& directory)
  for(unsigned i=0;i<32;++i){Capture::SnapshotLease ticket;need(owner->Capture(f.list.Get(),retained.binding(),ticket,error),error.c_str());auto* raw=Capture::Resource(ticket);if(!i)first=raw;need(unique.insert(raw).second,"in-flight slot is never overwritten");weak.emplace_back(ticket);}
  noWork(f,*owner,retained.binding(),"33rd unretired slot rejected");
  need(refs(retained.source.Get())==retainedSourceRefs&&refs(retained.heap.Get())==retainedHeapRefs,"32 retained snapshots add no title COM owner");
+ NativeFixture resized(f,directory/"positive");need(owner->Initialize(f.device.Get(),resized.width,resized.height,error),error.c_str());
+ noWork(f,*owner,resized.binding(),"new extent cannot bypass total32 allocated-buffer family budget");
  owner.reset();for(const auto& w:weak)need(!w.expired(),"cancel retains snapshot before submit");
  retained.restore();auto canceled=readBuffer(f,first,retained.count,D3D12_RESOURCE_STATE_COMMON);f.Submit();save(directory/"canceled-raw.bin",read(canceled.Get(),size_t(retained.count)));
  for(const auto& w:weak)need(!w.expired(),"GPU completion retains still-executable closed recording");f.Reset();for(const auto& w:weak)need(w.expired(),"successful Reset retires the actual private lease");

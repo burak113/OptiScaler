@@ -74,12 +74,18 @@ def prepare():
     source=source.replace('list->ResourceBarrier(1,&barrier);','rawBarrier(list,1,&barrier);')
     source=source.replace('list->SetDescriptorHeaps(1,heaps);','rawHeaps(list,1,heaps,binding.nativeHeap);')
     source=source.replace('list->','(++gRawCommands,list)->')
-    source=source.replace('context.slots.push_back(slot);','++gRawAllocations; context.slots.push_back(slot);')
+    need(source.count('context.slots.push_back(out);')==1,'exact private buffer allocation seam')
+    source=source.replace('context.slots.push_back(out);','++gRawAllocations; context.slots.push_back(out);')
+    need(source.count('struct Slot\n    {')==1,'exact private-slot lifetime instrumentation seam')
+    constructor='explicit Slot(NrdBridgeCaptureBudget::Permit&& reservation) : permit(std::move(reservation)) {}'
+    need(source.count(constructor)==1,'exact move-only permit slot constructor seam')
+    source=source.replace(constructor,constructor[:-2]+'{++gRawLiveSlots;}')
+    source=source.replace('struct Slot\n    {','struct Slot\n    {\n        ~Slot(){--gRawLiveSlots;}')
     support=(TEST/'dx12_shader_test_support.h').as_posix()
     audit=r'''
 #include <unordered_set>
 inline std::unordered_set<ID3D12Resource*> gRawBorrowed;
-inline uint64_t gRawCommands=0,gRawAllocations=0,gRawBarriers=0,gRawHeapSets=0;
+inline uint64_t gRawCommands=0,gRawAllocations=0,gRawBarriers=0,gRawHeapSets=0,gRawLiveSlots=0;
 inline void rawBarrier(ID3D12GraphicsCommandList* list,UINT count,const D3D12_RESOURCE_BARRIER* barriers){
  ++gRawCommands;
  for(UINT i=0;i<count;++i){++gRawBarriers;if(barriers[i].Type!=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION||gRawBorrowed.contains(barriers[i].Transition.pResource))throw std::runtime_error("raw capture touched borrowed source state");}

@@ -1,5 +1,6 @@
 #pragma once
 #include "misc/NrdBridgeOwned_Dx12.h"
+#include "misc/NrdBridgeCaptureSlotBudget_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdRawRoughnessCapture_Shader.h"
@@ -50,6 +51,9 @@ class NativeRawRoughnessCapture
 {
     struct Slot
     {
+        explicit Slot(NrdBridgeCaptureBudget::Permit&& reservation) : permit(std::move(reservation)) {}
+        // First member dies last, after the resource and any future descriptors.
+        NrdBridgeCaptureBudget::Permit permit;
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;
         uint64_t bytes = 0;
     };
@@ -59,8 +63,10 @@ class NativeRawRoughnessCapture
         Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
         uint32_t width = 0, height = 0;
+        std::shared_ptr<NrdBridgeCaptureBudget::Family> budget;
         std::vector<std::shared_ptr<Slot>> slots;
         std::mutex mutex;
+        bool retired = false;
     };
     struct Snapshot
     {
@@ -75,21 +81,28 @@ class NativeRawRoughnessCapture
     {
         if (FAILED(code)) throw std::runtime_error(std::string(operation) + " (HRESULT " + std::to_string(code) + ")");
     }
-    static std::shared_ptr<Slot> Acquire(Context& context)
+    static void Acquire(Context& context, std::shared_ptr<Slot>& out)
     {
-        for (const auto& slot : context.slots) if (slot.use_count() == 1) return slot;
+        for (const auto& slot : context.slots) if (slot.use_count() == 1) { out = slot; return; }
         if (context.slots.size() >= 32) throw std::runtime_error("Native raw roughness has 32 unretired recordings");
-        auto slot = MakeOwnedShared<Slot>();
+        // The outer Snapshot is declared before the context lock. It keeps a
+        // failed candidate alive until that lock has ended, including COM delete.
         D3D12_RESOURCE_DESC desc {}; desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
         desc.Width = uint64_t(context.width) * context.height * sizeof(uint32_t);
         desc.Height = desc.DepthOrArraySize = desc.MipLevels = 1;
         desc.SampleDesc.Count = 1; desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        const auto allocation = context.device->GetResourceAllocationInfo(0,1,&desc).SizeInBytes;
+        if (!allocation || allocation == UINT64_MAX) throw std::runtime_error("Native raw roughness allocation size is invalid");
+        auto permit = NrdBridgeCaptureBudget::Permit::TryAcquire(context.budget);
+        if (!permit) throw std::runtime_error("Native raw roughness family has 32 allocated buffers");
+        if (!permit.SetBytes(allocation)) throw std::runtime_error("Native raw roughness family byte accounting failed");
+        out = MakeOwnedShared<Slot>(std::move(permit));
+        out->bytes = allocation;
         D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
         Check(context.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_COMMON,
-            nullptr,IID_PPV_ARGS(&slot->resource)),"Native raw roughness snapshot allocation failed");
-        slot->bytes = context.device->GetResourceAllocationInfo(0,1,&desc).SizeInBytes;
-        context.slots.push_back(slot); return slot;
+            nullptr,IID_PPV_ARGS(&out->resource)),"Native raw roughness snapshot allocation failed");
+        context.slots.push_back(out);
     }
     static bool ValidateHeap(const NativeRawRoughnessBinding& binding, ID3D12Device* device, std::string& error)
     {
@@ -122,6 +135,7 @@ class NativeRawRoughnessCapture
             height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION)
         { error = "Native raw roughness device/extent is invalid"; return false; }
         std::shared_ptr<Context> retired;
+        std::vector<std::shared_ptr<Slot>> retiredSlots;
         try
         {
             FrameSurvey::ScopedInternal internal; ScopedSkipHeapCapture skip;
@@ -129,12 +143,22 @@ class NativeRawRoughnessCapture
             if (context_ && context_->device.Get() == device && context_->width == width && context_->height == height)
             { error.clear(); return true; }
             auto next = MakeOwnedShared<Context>(); next->device = device; next->width = width; next->height = height;
+            // Every allocated Slot carries its permit across extent generations.
+            next->budget = context_ ? context_->budget : MakeOwnedShared<NrdBridgeCaptureBudget::Family>();
             Check(device->CreateRootSignature(0,FSRDNrdRawRoughnessCapture_cso,sizeof(FSRDNrdRawRoughnessCapture_cso),
                 IID_PPV_ARGS(&next->root)),"Native raw roughness root creation failed");
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc {}; desc.pRootSignature = next->root.Get();
             desc.CS = {FSRDNrdRawRoughnessCapture_cso,sizeof(FSRDNrdRawRoughnessCapture_cso)};
             Check(device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&next->pso)),"Native raw roughness PSO creation failed");
             next->slots.reserve(32);
+            if (context_)
+            {
+                std::lock_guard old(context_->mutex);
+                context_->retired = true;
+                // Active snapshots keep exactly their slots. Drop the old
+                // generation's idle pool after both locks have ended.
+                retiredSlots.swap(context_->slots);
+            }
             retired = std::move(context_); context_ = std::move(next);
             error.clear(); return true;
         }
@@ -155,8 +179,11 @@ class NativeRawRoughnessCapture
             if (!NativeRawRoughnessProfileSupported(binding,owner->width,owner->height))
             { error = "Native raw roughness exact t5 writer/profile/view is unsupported"; return false; }
             if (!ValidateHeap(binding,owner->device.Get(),error)) return false;
+            auto lease = MakeOwnedShared<Snapshot>(); lease->owner = owner;
             std::lock_guard lock(owner->mutex);
-            auto lease = MakeOwnedShared<Snapshot>(); lease->owner = owner; lease->slot = Acquire(*owner);
+            if (owner->retired)
+            { error = "Native raw roughness extent generation retired"; return false; }
+            Acquire(*owner,lease->slot);
             // Admission precedes the first GPU command; rejection cannot change
             // native state or leave an unleased private dispatch in the list.
             if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),list,lease))
@@ -192,9 +219,7 @@ class NativeRawRoughnessCapture
             std::shared_ptr<Context> owner;
             { std::lock_guard lock(mutex_); owner = context_; }
             if (!owner) return 0;
-            std::lock_guard lock(owner->mutex); uint64_t bytes = 0;
-            for (const auto& slot : owner->slots) bytes += slot->bytes;
-            return bytes;
+            return owner->budget->allocatedBytes.load(std::memory_order_acquire);
         }
         catch (...) { return 0; }
     }
