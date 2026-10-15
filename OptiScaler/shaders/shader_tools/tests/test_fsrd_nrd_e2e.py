@@ -356,6 +356,25 @@ def native_motion_quality(exe, out):
     print(json.dumps(dict(result=str(out / 'native-motion-quality-comparison.json'), python_checks=27), indent=2))
 
 
+def native_material_guides(exe, out):
+    from fsrd_nrd_native_material_e2e import validate
+    runs = {}
+    for mode, flag in (('off', '--native-material-guides-off'), ('on', '--native-material-guides')):
+        directory = out / ('native_material_' + mode)
+        directory.mkdir(parents=True, exist_ok=True)
+        text, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), flag], directory / 'native_run')
+        value = json.loads((directory / 'native-material-result.json').read_text(encoding='utf-8'))
+        count = validate(directory, value)
+        value.update(python_checks=count, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                     dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest())
+        (directory / 'native-material-result.json').write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+        runs[mode] = value
+    result = dict(runs=runs, python_checks=sum(v['python_checks'] for v in runs.values()),
+                  scope='actual production material-before-writer capture/state/generation admission/conversion/signed RR/restore; synthetic title writer and legacy creation/lifetime adapters; no game quality claim')
+    (out / 'native-material-comparison.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(dict(result=str(out / 'native-material-comparison.json'), python_checks=result['python_checks']), indent=2))
+
+
 def validate_native_blend(value):
     trace = value['native_blend']
     assert trace['binding'] in ('root VA', 'native table')
@@ -427,6 +446,9 @@ def run():
         return
     if '--native-blend-only' in sys.argv:
         print(json.dumps(native_blend_replay(exe, out), indent=2))
+        return
+    if '--native-material-guides-only' in sys.argv:
+        native_material_guides(exe, out)
         return
     if '--native-motion-quality-only' in sys.argv:
         native_motion_quality(exe, out)
