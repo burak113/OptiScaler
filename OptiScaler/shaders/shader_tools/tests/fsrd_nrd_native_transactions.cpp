@@ -119,7 +119,7 @@ RWTexture2D<float4> U0:register(u0),U1:register(u1);
   FrameSurvey::PipelineShaderIdentity identity;need(FrameSurvey::ResolvePipelineShaderIdentity(pipeline.Get(),identity)&&identity.complete&&identity.presentStages==FrameSurvey::PipelineCS&&identity.compute[0],"opaque profile retains actual native shader identity, never a substituted title hash");
   need(NrdBridge::RegisterInterveningPipelineForTesting(pipeline.Get(),1),"explicit fixture profile selection retains real shader/stamp validation");
   for(UINT i=0;i<13;++i){D3D12_SHADER_RESOURCE_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;view.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;view.Texture2D.MipLevels=1;auto* resource=title.noisyB[0].Get();const auto dst=Cpu(96+i);h.device->CreateShaderResourceView(resource,&view,dst);FrameSurvey::View(resource,dst,&view);}
-  for(UINT i=0;i<2;++i){D3D12_UNORDERED_ACCESS_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;const auto dst=Cpu(109+i);auto* resource=title.tex[9+i].Get();h.device->CreateUnorderedAccessView(resource,nullptr,&view,dst);FrameSurvey::View(resource,dst,&view);}
+  for(UINT i=0;i<2;++i){D3D12_UNORDERED_ACCESS_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;const auto dst=Cpu(109+i);auto* resource=title.tex[9+i].Get();h.device->CreateUnorderedAccessView(resource,nullptr,&view,dst);FrameSurvey::View(resource,dst,&view);const auto cpu=CpuReadable(109+i);h.device->CreateUnorderedAccessView(resource,nullptr,&view,cpu);FrameSurvey::View(resource,cpu,&view);}
   const D3D12_INDIRECT_ARGUMENT_DESC argument{D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH};const D3D12_COMMAND_SIGNATURE_DESC sd{12,1,&argument,0};
   // Actual native creation trampoline, then caller-strong coverage and production
   // publication: the fixture does not pretend to install physical Release hooks.
@@ -128,10 +128,11 @@ RWTexture2D<float4> U0:register(u0),U1:register(u1);
   arguments=h.upload(0);void* mapped=nullptr;hr(arguments->Map(0,nullptr,&mapped));const UINT groups[3]={16,16,1};std::memcpy(mapped,groups,sizeof(groups));arguments->Unmap(0,nullptr);
  }
  D3D12_CPU_DESCRIPTOR_HANDLE Cpu(UINT index)const{return {title.visible->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(index)*title.increment};}
+ D3D12_CPU_DESCRIPTOR_HANDLE CpuReadable(UINT index)const{return {title.staging->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(index)*title.increment};}
  D3D12_GPU_DESCRIPTOR_HANDLE Gpu(UINT index)const{return {title.visible->GetGPUDescriptorHandleForHeapStart().ptr+UINT64(index)*title.increment};}
  void Record(){const auto stage=NrdBridge::gService->lists.at(h.list.Get()).native[1];need(stage&&!stage->committed&&!stage->invalidated,"B is independently mandatory across the real opaque work");const auto before=stage->ownership->nativeProof->textures.size();
   h.list->SetComputeRootSignature(root.Get());h.list->SetPipelineState(pipeline.Get());h.list->SetComputeRootDescriptorTable(0,Gpu(96));h.list->SetComputeRootDescriptorTable(1,Gpu(109));const float zero[4]{};
-  for(UINT i=0;i<2;++i){h.list->ClearUnorderedAccessViewFloat(Gpu(109+i),Cpu(109+i),title.tex[9+i].Get(),zero,0,nullptr);h.uav(title.tex[9+i].Get());}
+  for(UINT i=0;i<2;++i){h.list->ClearUnorderedAccessViewFloat(Gpu(109+i),CpuReadable(109+i),title.tex[9+i].Get(),zero,0,nullptr);h.uav(title.tex[9+i].Get());}
   h.list->ExecuteIndirect(signature.Get(),1,arguments.Get(),0,nullptr,0);for(UINT i=0;i<2;++i)h.uav(title.tex[9+i].Get());
   need(!stage->invalidated&&!stage->recording->skipInvalidated&&stage->ownership->nativeProof->textures.size()==before+9&&stage->ownership->nativeProof->signatureCount==1,"actual indirect hook preserves B only after nine exact used-slot and native signature witnesses");
  }
