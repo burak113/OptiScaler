@@ -32,6 +32,8 @@ VARIANTS = {
     'lobe-gradient-threshold3-anchor4': ReferenceSettings(),
     'lobe-gradient-threshold3-no-anchor': ReferenceSettings(anchor=0),
     'rr-band-gain3sigma-anchor4': BandGainSettings(),
+    'lobe-gradient-threshold3-local-anchor4': ReferenceSettings(bound_projection='local_anchor'),
+    'rr-band-gain3sigma-local-anchor4': BandGainSettings(bound_projection='local_anchor'),
 }
 CHECKS = 0
 
@@ -201,7 +203,12 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     manifest = json.loads(manifest_path.read_bytes())
     run_info = json.loads((completed/'runs.json').read_bytes())
     need(run_info['prepared_manifest_sha256'] == file_sha(manifest_path), 'signed RR runs match exact prepared data')
-    need(run_info['provider_dll_sha256'] == PROVIDER_SHA, 'actual signed AMD1.2 baseline')
+    native_seal = run_info
+    if 'provider_dll_sha256' not in native_seal:
+        native_seal = json.loads((completed.parent/'runs.json').read_bytes())
+        need(native_seal['schema'] == 'fsrd-positive-ggx-nearest-surface-v5-signed-runs', 'exact V5 parent signed-run seal')
+        need(native_seal['runs'][completed.name] == run_info['runs'][view_name], 'case/parent record is identical, including output hashes')
+    need(native_seal['provider_dll_sha256'] == PROVIDER_SHA, 'actual signed AMD1.2 baseline')
     need(view_name in manifest['views'] and view_name in run_info['runs'], 'explicit measured view exists in sealed inputs and signed outputs')
     need(len(manifest['frames']) == 64, 'complete original64-frame history, no selected easy phase')
     metric_sha = manifest.get('camera_source_sha256')
@@ -212,9 +219,18 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
         metric_sha = matches[0]
     metric = original_metrics(oracle_source,metric_sha)
     native = run_info['runs'][view_name]
+    native_directory = Path(native['directory'])
+    need(native_directory.resolve().is_relative_to(completed.resolve()), 'sealed actual output directory stays inside declared completed run')
     need(native['debug_errors'] == native['debug_warnings'] == 0, 'baseline native debug errors/warnings zero')
-    need(native['effective_words'] == run_info['probe']['effective_words'], 'same sealed SDK setting bits')
+    need(native['effective_words'] == native_seal['probe']['effective_words'], 'same sealed SDK setting bits')
     view, prepared = Path(manifest['views'][view_name]), manifest_path.parent
+    physical = None
+    if 'physical_case' in manifest:
+        physical_root = Path(manifest['physical_case'])
+        physical_path = physical_root/'ggx-sequence.json'
+        need(file_sha(physical_path) == manifest['physical_manifest_sha256'], 'shared physical source manifest remains immutable')
+        physical = json.loads(physical_path.read_bytes())
+        need(len(physical['frames']) == len(manifest['frames']), 'physical/demod histories align')
     models = {name:{signal:(RRBandGainRecovery(settings) if isinstance(settings,BandGainSettings) else
         LobeReferenceRecovery(settings) if isinstance(settings,ReferenceSettings) else Recovery(settings))
         for signal in ('spec','diff')} for name,settings in VARIANTS.items()}
@@ -226,10 +242,15 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
     jitters = {int(row[0]):tuple(float(word) for word in row[-2:]) for row in replay_rows[1:]}
     rows,images = [],[]
     uncertainty = {name:{signal:PairedMSE(manifest['comparison_crop']) for signal in ('spec','diff')} for name in VARIANTS}
+    if physical is not None:
+        for by_signal in uncertainty.values():
+            by_signal['physical_spec'] = PairedMSE(manifest['comparison_crop'])
     output.mkdir(parents=True)
     for index,frame in enumerate(manifest['frames']):
         folder = prepared/'dataset'/frame['directory']
-        data = {name:load(folder,record) for name,record in frame['payloads'].items()}
+        derived = set(frame.get('derived_names',()))
+        data = {name:load((physical_root/'dataset'/frame['directory'] if physical is not None and name not in derived else folder),record)
+            for name,record in frame['payloads'].items()}
         # A view may change only declared roughness for V4's mismatch control.
         # Validate the actual GPU-bound bytes rather than assuming source normals.
         for name in ('spec','diff','depth','motion','normals'):
@@ -246,7 +267,7 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
         lighting = dict(noisy_input={signal:data[signal] for signal in ('spec','diff')},rr={})
         row = dict(frame=frame['frame'],signals={signal:{} for signal in ('spec','diff')},operator={})
         for signal in ('spec','diff'):
-            path = completed/view_name/frame['directory']/(signal+'.bin')
+            path = native_directory/frame['directory']/(signal+'.bin')
             raw = path.read_bytes()
             need(sha(raw) == native['outputs'][str(frame['frame'])][signal], 'every actual signed output hash unchanged')
             rr = np.frombuffer(raw,'<f2').reshape(data[signal].shape)
@@ -278,6 +299,32 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
                 row['signals'][signal][name] = dict(original=metric(by_signal[signal],references[signal],data['reveal_age'],
                     data['ghost_'+signal],manifest['comparison_crop']), same_surface=same_surface_detail(by_signal[signal],
                     references[signal],ids,manifest['comparison_crop']),cohorts=cohort_metrics(by_signal[signal],references[signal],masks))
+        if physical is not None:
+            old = physical['frames'][index]
+            need(old['frame'] == frame['frame'] and old['directory'] == frame['directory'], 'exact physical/reference frame alignment')
+            physical_data = {name:load(physical_root/'dataset'/old['directory'],old['payloads'][name]) for name in
+                ('reference_spec','reference_spec_a','reference_spec_b','ghost_spec')}
+            qs = data['spec_albedo'][...,:3].astype(np.float64)/255
+            need(np.all(qs>0), 'exact positive quantized guide; no epsilon remodulation')
+            physical_lighting = {name:dict(spec=by_signal['spec'][...,:3].astype(np.float64)*qs,diff=by_signal['diff'])
+                for name,by_signal in lighting.items()}
+            physical_references = dict(spec=physical_data['reference_spec'],diff=references['diff'])
+            row['physical_signals'] = dict(spec={},diff=row['signals']['diff'])
+            ids = data['object'].astype(np.int32)*3+data['secondary_object']
+            masks = evaluation_masks(data,physical_references['spec'],'spec',manifest['comparison_crop'])
+            replicas = dict(mean=physical_data['reference_spec'],a=physical_data['reference_spec_a'],b=physical_data['reference_spec_b'])
+            for name,by_signal in physical_lighting.items():
+                value = by_signal['spec']
+                row['physical_signals']['spec'][name] = dict(original=metric(value,physical_references['spec'],data['reveal_age'],
+                    physical_data['ghost_spec'],manifest['comparison_crop']),same_surface=same_surface_detail(value,
+                    physical_references['spec'],ids,manifest['comparison_crop']),cohorts=cohort_metrics(value,physical_references['spec'],masks))
+                if name in VARIANTS:
+                    uncertainty[name]['physical_spec'].update(index,physical_lighting['rr']['spec'],value,replicas)
+            if frame['frame'] in (28,33,65):
+                physical_crops = output/'physical-crops'
+                physical_crops.mkdir(exist_ok=True)
+                images.append(dict(domain='remodulated_physical',**crop_sheet(physical_crops,frame['frame'],physical_lighting,
+                    physical_references,manifest['comparison_crop'])))
         rows.append(row)
         if frame['frame'] in (28,33,65):
             images.append(crop_sheet(output,frame['frame'],lighting,references,manifest['comparison_crop']))
@@ -290,11 +337,12 @@ def replay(manifest_path, completed, view_name, output, oracle_source):
         Path(__file__).with_name('fsrd_nrd_recovery_uncertainty.py')]
     result = dict(schema='fsrd-separate-nrd-lobe-recovery-cpu-v1',manifest=str(manifest_path),manifest_sha256=file_sha(manifest_path),
         actual_signed_runs=str(completed/'runs.json'),actual_signed_runs_sha256=file_sha(completed/'runs.json'),
-        native_provider_sha256=PROVIDER_SHA,native_executable_sha256=run_info['executable_sha256'],
+        native_provider_sha256=PROVIDER_SHA,native_executable_sha256=native_seal['executable_sha256'],
         view=view_name,seed=manifest.get('seed',manifest.get('input_seed')),variants={name:asdict(settings) for name,settings in VARIANTS.items()},
         paired_reference_uncertainty={name:{signal:value.summarize() for signal,value in by_signal.items()} for name,by_signal in uncertainty.items()},
         dataset_contract={key:manifest[key] for key in ('schema','roughness','noisy_sampling','reference_sampling','albedo_guide','units','native_nrd_paired') if key in manifest},
         scripts={str(path):file_sha(path) for path in paths},summaries=aggregate(rows,names),
+        physical_summaries=(aggregate([dict(signals=row['physical_signals']) for row in rows],names) if physical is not None else None),
         phases={name:aggregate(values,names) for name,values in phases.items()},frames=rows,crops=images,
         checks=CHECKS,elapsed_seconds=time.perf_counter()-start,peak_resident_bytes=peak_resident_bytes(),
         gpu_executed=False,compiler_executed=False,native_parity_measured=False,game_fps_measured=False,
