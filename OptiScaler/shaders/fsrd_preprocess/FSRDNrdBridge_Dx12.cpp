@@ -1835,11 +1835,15 @@ struct NativeInjectionScope
     }
 };
 thread_local const char* gNativeWorkFailure="unclassified_work";
+// Narrow sub-reason detail for the last rejected gate. Diagnostic/audit only:
+// it is never read by an admission decision and no whitelist is derived from it.
+thread_local const char* gNativeWorkDetail=nullptr;
 bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd,
     ID3D12CommandSignature* signature, bool pixel)
 {
-    gNativeWorkFailure="unclassified_work";
+    gNativeWorkFailure="unclassified_work";gNativeWorkDetail=nullptr;
     const auto reject=[](const char* gate){gNativeWorkFailure=gate;return false;};
+    const auto rejectDetail=[](const char* gate,const char* detail){gNativeWorkFailure=gate;gNativeWorkDetail=detail;return false;};
     // Caller owns injection serialization and physical Borrow. Only recognized
     // pipeline candidates reach binding vectors/metadata snapshots.
     std::array<std::shared_ptr<NativeTransaction>,2> pending;
@@ -1848,7 +1852,12 @@ bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
         std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
         if(gService!=owner||found==owner->lists.end()||!ListLive(found->second))return reject("work_list_birth");
         const auto& list=found->second;pipeline=list.currentPipeline;selected=list.intervening;
-        if(!pipeline||selected.profile<0||selected.birth!=list.pipelineBirth)return reject("work_pipeline_profile");
+        // Fail-closed: every sub-reason below still rejects the unknown work. The
+        // full-hash identity/overlap contract for this pipeline is never inferred
+        // from selection state alone.
+        if(!pipeline)return rejectDetail("work_pipeline_profile","pipeline_absent");
+        if(selected.profile<0)return rejectDetail("work_pipeline_profile","profile_unclassified");
+        if(selected.birth!=list.pipelineBirth)return rejectDetail("work_pipeline_profile","pipeline_birth_changed");
         for(const auto& stage:list.native)if(stage&&!stage->committed&&!stage->invalidated)pending[count++]=stage;
     }
     if(!count)return true;
@@ -2285,8 +2294,10 @@ bool Initialize(ID3D12Device* device) noexcept
                 uint64_t admissionTicks=0;
                 for(const auto& hook:perf.hooks) admissionTicks+=hook.waitTicks[size_t(NrdBridgePerf::WaitKind::DescriptorAdmission)];
                 const double admissionUs=perf.frames&&perf.frequency ? double(admissionTicks)*1000000.0/double(perf.frequency)/double(perf.frames) : 0.0;
-                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=all_external_hook_wall_times_including_native consumer_time_valid={} consumer_elapsed_ms={:.3f} consumer_avg_interval_ms={:.3f} consumer_intervals_per_second={:.3f} cadence_scope=CPU_Consumer_recording_not_GPU_or_FG_display_FPS cpu_hooks_sum_ms_per_frame={:.3f} lock_wait_sum_ms_per_frame={:.3f} top_sum_ms_per_frame={} admission_wait_us_per_consumer={:.3f} admission_scope=per_Consumer_interval wait_scope=metadata+physical_borrow+tracking+coordinator+descriptor_admission CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
-                    perf.frames,perf.firstFrame,perf.lastFrame,perf.ConsumerTimeValid(),perf.ConsumerElapsedMs(),perf.AverageConsumerIntervalMs(),perf.ConsumerIntervalsPerSecond(),perf.SumMsPerFrame(),perf.SumMsPerFrame(true),top,admissionUs,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
+                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=all_external_hook_wall_times_including_native consumer_time_valid={} consumer_elapsed_ms={:.3f} consumer_avg_interval_ms={:.3f} consumer_intervals_per_second={:.3f} cadence_scope=CPU_Consumer_recording_not_GPU_or_FG_display_FPS consumer_interval_p50_ms={:.3f} consumer_interval_p95_ms={:.3f} consumer_interval_p99_ms={:.3f} consumer_interval_quantile_scope=actual_per_interval_CPU_Consumer_recording_samples cpu_hook_thread_time_sum_ms_per_interval={:.3f} lock_wait_thread_time_sum_ms_per_interval={:.3f} top_thread_time_sum_ms_per_interval={} time_scope=thread_time_sums_over_overlapping_threads_never_frame_critical_path;sum_of_per_hook_p95_is_not_frame_p95 admission_wait_us_per_consumer={:.3f} admission_scope=per_Consumer_interval wait_scope=metadata+physical_borrow+tracking+coordinator+descriptor_admission;serial_region_not_measured_in_this_window CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
+                    perf.frames,perf.firstFrame,perf.lastFrame,perf.ConsumerTimeValid(),perf.ConsumerElapsedMs(),perf.AverageConsumerIntervalMs(),perf.ConsumerIntervalsPerSecond(),
+                    perf.ConsumerIntervalP50Ms(),perf.ConsumerIntervalP95Ms(),perf.ConsumerIntervalP99Ms(),
+                    perf.ThreadTimeSumMsPerInterval(),perf.ThreadTimeSumMsPerInterval(true),top,admissionUs,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
                     perf.AverageWaitUs(H::ConstantBufferView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ConstantBufferView)].calls,
                     perf.AverageUs(H::ShaderResourceView),perf.AverageWaitUs(H::ShaderResourceView),
                     perf.AverageWaitUs(H::ShaderResourceView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ShaderResourceView)].calls,
@@ -2593,9 +2604,21 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
         lock.unlock();
         if(pending)
         {
-            FrameSurvey::PipelineShaderIdentity identity;FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity);
-            LOG_ERROR("[NRD_BRIDGE] recording invalidated gate={} pending_chain_mask={} cmd={:#x} pipeline={:#x} CS={} VS={} PS={} reason={}",
-                gate ? gate : "recording_invalidated",pending,reinterpret_cast<uintptr_t>(cmd),reinterpret_cast<uintptr_t>(pipeline),
+            // Cold reject path only. The identity record is already retained by the
+            // creation observer; resolve it here for this exact pipeline hash set
+            // (no DXIL parse, no descriptor scan, no new admission input).
+            FrameSurvey::PipelineShaderIdentity identity;
+            const bool identityRecorded=FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity);
+            const int knownComputeProfile=identityRecorded&&identity.presentStages==FrameSurvey::PipelineCS?
+                InterveningComputeProfile(identity.compute.data()):-1;
+            const int knownGraphicsProfile=identityRecorded&&
+                identity.presentStages==(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS)?
+                InterveningGraphicsProfile(identity.pixel.data()):-1;
+            const char* detail=gNativeWorkDetail;gNativeWorkDetail=nullptr;
+            LOG_ERROR("[NRD_BRIDGE] recording invalidated gate={} subreason={} identity_recorded={} stages={} known_compute_profile={} known_graphics_profile={} pending_chain_mask={} cmd={:#x} pipeline={:#x} CS={} VS={} PS={} reason={}",
+                gate ? gate : "recording_invalidated",detail ? detail : "none",
+                identityRecorded,identity.presentStages,knownComputeProfile,knownGraphicsProfile,pending,
+                reinterpret_cast<uintptr_t>(cmd),reinterpret_cast<uintptr_t>(pipeline),
                 identity.compute.data(),identity.vertex.data(),identity.pixel.data(),reason ? reason : "unavailable");
         }
     } catch (...) {}
@@ -2671,7 +2694,7 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
 }
 bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSignature* signature) noexcept
 {
-    gNativeWorkFailure="work_indirect_signature_or_state";
+    gNativeWorkFailure="work_indirect_signature_or_state";gNativeWorkDetail=nullptr;
     if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady())return false;
     bool required = false;
     try

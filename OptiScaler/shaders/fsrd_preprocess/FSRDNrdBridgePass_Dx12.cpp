@@ -651,7 +651,12 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
     {
         ScopedSkipHeapCapture skipHeapCapture;
         const bool nativeConstants = HasNativeTitleSignalConstants(titleConstants);
-        if (nativeConstants && !owner->flagCapture.Initialize(owner->device.Get(), error)) return false;
+        // Prepare the exact accepted word (303 compute / 36 pixel); Record selects
+        // its PSO/root pair from titleConstants.wordIndex. Both allocations happen
+        // before any guarded/deferred commit, never inside the record callback.
+        if (nativeConstants && !owner->flagCapture.Initialize(owner->device.Get(), error, titleConstants.wordIndex)) return false;
+        if (nativeConstants && !owner->flagCapture.Prepared(titleConstants.wordIndex))
+        { error = "NRD debug-copy native flag profile is unprepared for the accepted Consumer word"; return false; }
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
         lease->slot = owner->copy.Acquire(owner->device.Get());
         if (nativeConstants)

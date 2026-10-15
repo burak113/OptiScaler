@@ -92,7 +92,8 @@ struct SignalFlagCapture
         if (wordIndex != 303 && wordIndex != 36)
         { error = "NRD consumer signal flag word is unsupported"; return false; }
         const bool pixel = wordIndex == 36;
-        if (pixel ? (pixelPso && pixelRootPso) : (pso && rootPso)) return true;
+        if (pixel ? (pixelRoot && pixelDirectRoot && pixelPso && pixelRootPso)
+                  : (root && directRoot && pso && rootPso)) return true;
         const auto* tableCode = pixel ? FSRDNrdBridgeFlagPixel_cso : FSRDNrdBridgeFlag_cso;
         const auto tableBytes = pixel ? sizeof(FSRDNrdBridgeFlagPixel_cso) : sizeof(FSRDNrdBridgeFlag_cso);
         const auto* rootCode = pixel ? FSRDNrdBridgeFlagPixelRoot_cso : FSRDNrdBridgeFlagRoot_cso;
@@ -121,6 +122,17 @@ struct SignalFlagCapture
         else
         { root = nextRoot; directRoot = nextDirectRoot; pso = nextPso; rootPso = nextRootPso; }
         return true;
+    }
+    // Record() selects its PSO/root pair from constants.wordIndex. Callers must
+    // therefore prepare the exact accepted word before any possibly deferred GPU
+    // recording and never allocate a fallible pair inside the record callback.
+    // Both words keep their profiles alive together: publishing one word never
+    // releases the other profile's recorded PSOs.
+    bool Prepared(uint32_t wordIndex) const noexcept
+    {
+        if (wordIndex == 36) return bool(pixelRoot && pixelDirectRoot && pixelPso && pixelRootPso);
+        if (wordIndex == 303) return bool(root && directRoot && pso && rootPso);
+        return false;
     }
     void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
                 const SignalFlagSnapshot& snapshot) const noexcept

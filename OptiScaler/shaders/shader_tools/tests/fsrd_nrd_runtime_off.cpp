@@ -20,6 +20,27 @@ void CheckDisabled()
     need(NrdBridge::gDispatchCandidate == nullptr && !NrdBridge::gNativeTransactions.load(),
          "runtime OFF cannot nominate a dispatch for native omission");
 }
+
+// P01/P03: the startup-hook-installed but RR-disabled run ("B") still measures
+// the CPU Consumer cadence. These assertions pin the new naming split so the
+// thread-time sums and the per-interval cadence quantiles are actually measured
+// in an integrated run, never inferred from a sum of per-hook p95 values.
+void CheckPerfReport()
+{
+    const auto& value = report;
+    need(value.ConsumerTimeValid() && value.consumerIntervalTicks > 0,
+         "runtime OFF still freezes the actual 100-interval Consumer cadence span");
+    size_t sampled = 0;
+    for (const auto ticks : value.intervalTicks) sampled += ticks != 0;
+    need(sampled == 100, "all 100 complete Consumer intervals retain their own per-interval sample");
+    need(value.ConsumerIntervalP50Ms() <= value.ConsumerIntervalP95Ms() &&
+         value.ConsumerIntervalP95Ms() <= value.ConsumerIntervalP99Ms() &&
+         value.ConsumerIntervalP99Ms() > 0.0,
+         "per-interval cadence quantiles are ordered and genuinely measured");
+    need(value.ThreadTimeSumMsPerInterval() == value.SumMsPerFrame() &&
+         value.ThreadTimeSumMsPerInterval(true) == value.SumMsPerFrame(true),
+         "thread-time accessors expose the identical measured hook sums");
+}
 }
 
 int main(int argc, char** argv) try
@@ -85,6 +106,7 @@ int main(int argc, char** argv) try
         need(RuntimeOffFixture::reports == 1 && RuntimeOffFixture::report.frames == 100 &&
              RuntimeOffFixture::report.firstFrame == 1 && RuntimeOffFixture::report.lastFrame == 100 &&
              !NrdBridgePerf::NeedsConsumerFrames(), "only identified Consumers finish the single 100-interval gameplay report");
+        RuntimeOffFixture::CheckPerfReport();
         need(h.denied == 0 && h.tick == 101, "all 101 actual native GPU submissions finish without a denial");
     }
     const auto debug = h.debugCounts();
