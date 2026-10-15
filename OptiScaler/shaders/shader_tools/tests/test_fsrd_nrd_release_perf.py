@@ -36,7 +36,7 @@ struct Data {
    info->gpuStart=0x10000000+i*64;info->gpuEnd=info->gpuStart+32;info->version=i+1;
    info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource;info->occupiedSlots.insert(0);
    __REGISTER__
-   infos.push_back(info);_trackedResources[resource]={{info,info->version.load(),0}};
+   infos.push_back(info);FixtureSeedTrackedSlot(resource,info,info->version.load(),0);
    gRRResourceStates.insert(resource);gRRResourceActivity.insert(resource);SeedFixtureRRCache(resource);
    heapMetadata.insert(heap);heapMetadata.insert(resource);heapMetadata.insert(pso);heapMetadata.insert(list);
    __PREPARE_PSO__
@@ -114,8 +114,6 @@ struct CountedHeapPool:std::vector<std::shared_ptr<HeapInfo>>{using Base=std::ve
     cpp=cpp.replace('std::array<std::shared_mutex,DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;','mutable std::array<std::shared_mutex,DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;')
     cpp=cpp.replace('struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };','struct HeapInfo;using HeapSlot=HeapInfo;')
     cpp=cpp.replace('struct HeapInfo {','struct HeapInfo : std::enable_shared_from_this<HeapInfo> {')
-    cpp=cpp.replace('struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; size_t index=0; uint64_t heapVersion=0; };','struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; uint64_t heapVersion=0; UINT index=0; };')
-    cpp=cpp.replace('std::weak_ptr<HeapSlot>{},0,info->version.load()','std::weak_ptr<HeapSlot>{},info->version.load(),0')
     if occupied and 'std::mutex occupiedSlotsMutex;' not in cpp:
         cpp=cpp.replace('UINT numDescriptors=1;','UINT numDescriptors=1;std::mutex occupiedSlotsMutex;std::unordered_set<UINT> occupiedSlots;')
     # Use the actual ResourceInfo shape, including the trailing exact birth token.
@@ -264,18 +262,18 @@ void sparseTests(){
   auto heap=std::make_shared<HeapInfo>(nullptr,0x100000,0x100000+1000000*32ull,0x20000000,0x20000000+1000000*32ull,1000000,32,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   need(heap->info.reads==0&&!heap->info[999999].buffer,"actual million-slot constructor relies on ResourceInfo initialization and performs no extra whole-descriptor scan");
   heap->version=123;ResourceInfo resource{};resource.buffer=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x5000));
-  if(populated){heap->SetByCpuHandle(heap->cpuStart+999999*32ull,resource);need(heap->occupiedSlots.size()==1&&_trackedResources.at(resource.buffer).size()==1&&_trackedResources.at(resource.buffer)[0].heapVersion==123&&_trackedResources.at(resource.buffer)[0].index==999999,"actual SetByCpuHandle indexes the one populated slot at the end of a million-slot heap");}
+  if(populated){heap->SetByCpuHandle(heap->cpuStart+999999*32ull,resource);need(heap->occupiedSlots.size()==1&&FixtureTrackedSlots(resource.buffer).size()==1&&FixtureTrackedSlot(resource.buffer,123,999999).heapVersion==123&&FixtureTrackedSlot(resource.buffer,123,999999).index==999999,"actual SetByCpuHandle indexes the one populated slot at the end of a million-slot heap");}
   const auto reads=heap->info.reads;const auto start=std::chrono::steady_clock::now();need(heap->DeactivateAndClear(),"sparse heap deactivation succeeds");const auto elapsed=std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count();const auto touched=heap->info.reads-reads;
   need(touched==(populated?3u:0u),"million-slot deactivation reads exactly its zero/one real descriptor, never all empty slots");need(!heap->info&&heap->occupiedSlots.empty()&&!_trackedResources.contains(resource.buffer)&&!heap->active,"sparse final cleanup clears storage, occupancy and exact resource reverse reference");
   std::cout<<"SPARSE slots=1000000 populated="<<populated<<" descriptor_reads="<<touched<<" final_us="<<elapsed<<'\n';
  }
  auto heap=std::make_shared<HeapInfo>();heap->numDescriptors=1024;heap->cpuStart=0x100000;heap->cpuEnd=heap->cpuStart+32768;heap->gpuStart=0x20000000;heap->gpuEnd=heap->gpuStart+32768;heap->info=std::make_shared<HeapInfo::Info[]>(1024);heap->version=145;
  ResourceInfo a{},b{};a.buffer=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x5000));b.buffer=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x6000));
- heap->SetByCpuHandle(heap->cpuStart+3*32,a);heap->SetByGpuHandle(heap->gpuStart+3*32,b);need(!_trackedResources.contains(a.buffer)&&heap->occupiedSlots.size()==1&&_trackedResources.at(b.buffer).size()==1,"CPU/GPU descriptor replacement keeps one occupied slot and only its current resource reverse edge");
- heap->SetByCpuHandle(heap->cpuStart+3*32,b);need(heap->occupiedSlots.size()==1&&_trackedResources.at(b.buffer).size()==1,"same-resource descriptor metadata refresh creates no duplicate occupancy/reverse entry");
+  heap->SetByCpuHandle(heap->cpuStart+3*32,a);heap->SetByGpuHandle(heap->gpuStart+3*32,b);need(!_trackedResources.contains(a.buffer)&&heap->occupiedSlots.size()==1&&FixtureTrackedSlots(b.buffer).size()==1,"CPU/GPU descriptor replacement keeps one occupied slot and only its current resource reverse edge");
+  heap->SetByCpuHandle(heap->cpuStart+3*32,b);need(heap->occupiedSlots.size()==1&&FixtureTrackedSlots(b.buffer).size()==1,"same-resource descriptor metadata refresh creates no duplicate occupancy/reverse entry");
  heap->ClearByGpuHandle(heap->gpuStart+3*32);need(heap->occupiedSlots.empty()&&!_trackedResources.contains(b.buffer)&&!heap->info[3].buffer,"explicit GPU descriptor clear removes occupancy and reverse edge");
  heap->SetByCpuHandle(heap->cpuStart+4*32,a);{std::lock_guard lock(_trackedResourcesMutex);_trackedResources.erase(a.buffer);}heap->ClearSlotIfMatches(4,a.buffer);need(heap->occupiedSlots.empty()&&!heap->info[4].buffer,"resource-final descriptor cleanup removes occupancy after global reverse map was already detached");
- heap->SetByCpuHandle(heap->cpuStart+5*32,a);{std::lock_guard lock(_trackedResourcesMutex);_trackedResources.erase(a.buffer);}heap->SetByCpuHandle(heap->cpuStart+5*32,b);need(heap->occupiedSlots.size()==1&&_trackedResources.at(b.buffer).size()==1,"descriptor overwrite handles a previously detached resource reverse map without stale occupancy");
+  heap->SetByCpuHandle(heap->cpuStart+5*32,a);{std::lock_guard lock(_trackedResourcesMutex);_trackedResources.erase(a.buffer);}heap->SetByCpuHandle(heap->cpuStart+5*32,b);need(heap->occupiedSlots.size()==1&&FixtureTrackedSlots(b.buffer).size()==1,"descriptor overwrite handles a previously detached resource reverse map without stale occupancy");
  heap->ClearByCpuHandle(heap->cpuStart+5*32);need(heap->occupiedSlots.empty()&&!_trackedResources.contains(b.buffer),"explicit CPU descriptor clear removes the last occupied slot");need(heap->DeactivateAndClear(),"cleared heap safely deactivates without scanning empty slots");
 }
 int main()try{SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);sparseTests();std::cout<<"PASS: "<<checks<<" sparse heap occupancy/actual mutation checks\n";return 0;}catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}

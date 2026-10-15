@@ -20,9 +20,38 @@ from fsrd_toolchain import compile_cpp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_fsrd_nrd_root_restore import function
 import test_fsrd_frame_survey_game_scale as native
-from test_fsrd_nrd_release import tracked_resource_cache
+from test_fsrd_nrd_release import tracked_resource_cache, tracked_resource_slots
 
 BASELINE = '6edf7d3d1c639250db6534496227fc91fc3e5306'
+
+ALLOCATION_PROBE = r'''
+// Identical allocator forwarding in candidate/frozen fixtures. The counter is
+// enabled only for the separate probe, outside all contention timing phases.
+// This observes this executable's C++ allocations, not native-driver HeapAlloc.
+#include <cstdlib>
+#include <new>
+#include <malloc.h>
+thread_local bool fixtureCountNew=false;
+thread_local uint64_t fixtureNewCalls=0;
+void* operator new(size_t bytes){if(fixtureCountNew)++fixtureNewCalls;if(auto* p=std::malloc(bytes?bytes:1))return p;throw std::bad_alloc();}
+void* operator new[](size_t bytes){return ::operator new(bytes);}
+void operator delete(void* p)noexcept{std::free(p);}void operator delete[](void* p)noexcept{std::free(p);}
+void operator delete(void* p,size_t)noexcept{std::free(p);}void operator delete[](void* p,size_t)noexcept{std::free(p);}
+void* operator new(size_t bytes,std::align_val_t align){if(fixtureCountNew)++fixtureNewCalls;if(auto* p=_aligned_malloc(bytes?bytes:1,size_t(align)))return p;throw std::bad_alloc();}
+void* operator new[](size_t bytes,std::align_val_t align){return ::operator new(bytes,align);}
+void operator delete(void* p,std::align_val_t)noexcept{_aligned_free(p);}void operator delete[](void* p,std::align_val_t)noexcept{_aligned_free(p);}
+void operator delete(void* p,size_t,std::align_val_t)noexcept{_aligned_free(p);}void operator delete[](void* p,size_t,std::align_val_t)noexcept{_aligned_free(p);}
+J commonNativeReleaseAllocations(ID3D12Resource* object,bool active){
+ if(!active)return{{"measured",false},{"scope","frozen vector control; no native-retirement allocation claim"}};
+ need(NrdBridgeNativeBirth::Ready()&&NrdBridgeLifetime::ConcurrentReleasesEnabled()&&UseNrdNativeRetirement(),"allocation probe exercises actual configured native retirement and physical release gate");
+ object->AddRef();need(hkRelease(object)>0,"warm native nonfinal release preserves its real caller owner");
+ fixtureNewCalls=0;bool alive=true;constexpr unsigned samples=64;
+ for(unsigned i=0;i<samples;++i){object->AddRef();ULONG result=0;{struct Count{Count(){fixtureCountNew=true;}~Count(){fixtureCountNew=false;}} count;result=hkRelease(object);}alive=alive&&result>0;}
+ need(alive&&FrameSurvey::MetadataHealthy(),"native allocation probe balances every temporary caller reference without retirement");
+ need(fixtureNewCalls==0,"common actual native nonfinal Release allocates zero C++ objects after warmup");
+ return{{"measured",true},{"samples",samples},{"cpp_new_calls",fixtureNewCalls},{"native_birth_ready",true},{"scope","actual native nonfinal Release after warmup; executable global new/new[] including aligned forms only; no driver/process HeapAlloc claim"}};
+}
+'''
 
 ADAPTER = r'''
 #include "misc/NrdBridgeLifetime_Dx12.h"
@@ -33,9 +62,9 @@ __BASELINE_FAILURE_ADAPTER__
 __USE_NATIVE__
 namespace D3D12Hooks {inline void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*){}inline void OnBridgeObjectReleased(const NrdBridgeBirth::Token&)noexcept{}}
 bool gSurveyWrappers=true;
-struct TrackedResourceSlot {std::weak_ptr<HeapInfo> heap;uint64_t heapVersion=0;UINT index=0;};
+__TRACKED_SLOT_TYPES__
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> _trackedResourcesMutex;
-std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedResources;
+std::unordered_map<ID3D12Resource*,TrackedResourceSlots> _trackedResources;
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex,gRRPsoMutex;
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity;
 __RR_RELEASE_HELPERS__
@@ -329,7 +358,7 @@ struct Cache {
    if(r.va){FrameSurvey::gAddresses.emplace(r.va,object);FrameSurvey::gBufferAddresses.Insert(r.va,r.desc.Width,r.id,object);}
    const uint64_t slot=0x600000000000ull+(i+1)*64;FrameSurvey::ViewInfo view{object,r.id,r.va?uint32_t(D3D12_DESCRIPTOR_RANGE_TYPE_CBV):uint32_t(D3D12_DESCRIPTOR_RANGE_TYPE_SRV),uint32_t(r.desc.Format),0,!r.va};
    view.descriptorCpu=slot;view.rootVa=r.va;view.constantBytes=r.va?1536:0;
-   FrameSurvey::gViews.emplace(slot,view);FrameSurvey::IndexView(view);_trackedResources.emplace(object,std::vector<TrackedResourceSlot>{});objects.push_back(object);
+   FrameSurvey::gViews.emplace(slot,view);FrameSurvey::IndexView(view);_trackedResources.emplace(object,TrackedResourceSlots{});objects.push_back(object);
   }
   need(FrameSurvey::gResources.size()==prior+logicalRecords,"100k logical resources plus actual native objects live together");
   need(!FrameSurvey::gRecording.load()&&!FrameSurvey::BindingWindow(),"normal hot path has no recorder and closed binding window");
@@ -555,7 +584,7 @@ int main(int argc,char** argv)try{
  if(bornMode){need(NrdBridgeNativeBirth::ConfigureRetirement(PrepareNativeRetirement,DetachNativeRetirement,NotifyNativeRetirement),"actual native retirement dispatcher configured");need(NrdBridgeLifetime::EnableConcurrentReleases(),"actual concurrent physical release gate enabled");}
  (void)RecordedComputeLease::GetRegistry();
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;FrameSurvey::SetReleaseObserver(&onRelease);if(bornMode)FrameSurvey::SetBirthReleaseObserver(&onBirthRelease);
- startupAndIndirectRegressions(h,profile);metadataRegressions(h);nativeMetadataPendingReleaseRegressions(h);samplerNativeRegressions(h);J rows=J::array();const auto cacheBegin=qpc();
+  startupAndIndirectRegressions(h,profile);metadataRegressions(h);nativeMetadataPendingReleaseRegressions(h);samplerNativeRegressions(h);const auto allocations=commonNativeReleaseAllocations(h.buffer.Get(),bornMode);J rows=J::array();const auto cacheBegin=qpc();
  {
   Cache cache(h);const double insertionMs=(qpc()-cacheBegin)*1000.0/double(frequency());
   for(size_t threads:{size_t(1),size_t(8),size_t(16)})for(UINT burst:{64u,1024u}){
@@ -572,7 +601,7 @@ int main(int argc,char** argv)try{
  }
  need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");
  hr(h.list->Close());releaseNativeHost(h);need(peakRss()<2ull*1024*1024*1024,"measured peak process working set below2GB");
- J result{{"variant","__VARIANT__"},{"profile",profile},{"adapter",gUseHardware?"hardware":"WARP"},{"checks",checks},{"rows",rows},
+  J result{{"variant","__VARIANT__"},{"profile",profile},{"adapter",gUseHardware?"hardware":"WARP"},{"checks",checks},{"rows",rows},{"common_native_release_allocations",allocations},
   {"gpu_dispatches",0},{"ExecuteCommandLists_calls",0},{"synthetic_objects_passed_to_com",false},{"logical_registry_records",logicalRecords},
   {"descriptor_shards",FrameSurveyMetadata::DescriptorShards},{"descriptor_layout_bytes",{{"handles_per_owner",sizeof(FrameSurveyMetadata::DescriptorHandles)},{"owner_wrapper",sizeof(FrameSurveyMetadata::DescriptorHandleOwner)},{"global_slot_mutexes",sizeof(FrameSurvey::gViewMutexes)},{"heap_legal_mask",sizeof(FrameSurveyMetadata::DescriptorShardMask)}}},{"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
  std::ofstream(std::filesystem::path(argv[1])/(std::string("result-")+argv[2]+".json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
@@ -611,7 +640,7 @@ struct Cache {
    view.descriptorCpu=slot;view.rootVa=p.address;view.constantBytes=p.address?1536:0;view.heapKnown=true;
    view.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(logicalHeap));view.resourceOwner=resourceOwner;view.heapOwner=heapOwner;
    {FrameSurvey::NativeSnapshotShared snapshot;std::scoped_lock slotLock(FrameSurvey::gViewMutexes[FrameSurveyMetadata::DescriptorShard(slot)]);FrameSurvey::NativeReplaceView(view);}
-   _trackedResources.emplace(object,std::vector<TrackedResourceSlot>{});objects.push_back(object);
+   _trackedResources.emplace(object,TrackedResourceSlots{});objects.push_back(object);
   }
   need(FrameSurvey::gResources.size()==prior+logicalRecords,"100k logical resources plus actual native objects live together");
   need(!FrameSurvey::gRecording.load()&&!FrameSurvey::BindingWindow(),"normal hot path has no recorder and closed binding window");
@@ -710,10 +739,13 @@ struct OriginalForwardTimer {
     gates = 'static std::atomic<bool> gRRInspectorLifetimeProtection{false};\n' + function(current_hooks, 'static bool NeedsNativeReleaseGate(') + '\n' + function(current_hooks, 'static bool UseNrdNativeRetirement(')
     rr_helpers = tracked_resource_cache(current_hooks) + '\n// Optional inspector proof map is inactive; no proof is published in this fixture.\nvoid ForgetRRRecording(void*,const NrdBridgeBirth::Token& = NrdBridgeBirth::Token()) noexcept {}\n'
     adapter = ADAPTER.replace('__RELEASE_HEADER__', measured_helper.as_posix()).replace('__USE_NATIVE__', gates).replace('__RR_RELEASE_HELPERS__', rr_helpers)
+    slot_header = snapshot('OptiScaler/resource_tracking/ResTrack_dx12.h', args.baseline)
+    adapter = adapter.replace('__TRACKED_SLOT_TYPES__', tracked_resource_slots(slot_header, 'HeapInfo')[0])
     adapter = adapter.replace('__BASELINE_FAILURE_ADAPTER__', 'namespace FrameSurvey {void FlushMetadataFailure() noexcept{}}' if args.baseline else '')
     if args.baseline:
         retirement = 'void* PrepareNativeRetirement() noexcept {std::terminate();} bool DetachNativeRetirement(void*,const NrdBridgeBirth::Token&) noexcept {std::terminate();} void NotifyNativeRetirement(void*) noexcept {std::terminate();}'
     adapter = adapter.replace('__NATIVE_RETIREMENT__', retirement).replace('__RELEASE__', measured_body(release)).replace('__HEAP_RELEASE__', measured_body(heap_release))
+    adapter += ALLOCATION_PROBE
     guard = 'std::scoped_lock copyWriter(FrameSurvey::gLifetimeMutex);' if args.baseline else 'FrameSurvey::NativeSnapshotShared copyWriter;'
     if not args.baseline and 'NativeSnapshotShared' not in source:
         guard = 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
