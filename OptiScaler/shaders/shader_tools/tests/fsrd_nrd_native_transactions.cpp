@@ -23,7 +23,8 @@ bool Execute(Host& h,bool close=true) {
  NrdBridgeDescriptorAdmission::Submission admission(true);need(admission.Acquired(),"actual descriptor admission closes and drains native writers before proof");
  ID3D12CommandList* list=h.list.Get();RecordedComputeLease::SubmissionDecision decision;
  auto batch=ResTrack_Dx12::BeforeComputeSubmission(h.queue.Get(),1,&list,&decision);
- if(!decision.allowed){++h.denied;h.lastOrderingFailure=decision.orderingFailure;return false;}
+ if(!decision.allowed){++h.denied;h.lastOrderingFailure=decision.orderingFailure;
+  const auto status=NrdBridge::GetStatus();std::cerr<<"native submission denied sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<" decision="<<decision.orderingFailure<<std::dec<<std::endl;return false;}
  h.queue->ExecuteCommandLists(1,&list);RecordedComputeLease::AfterSubmission(batch);hr(h.queue->Signal(h.fence.Get(),++h.tick));
  h.waitComplete();return true;
 }
@@ -92,40 +93,110 @@ struct NativeTitle:Title {
   h.barrier(tex[11].Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.barrier(tex[12].Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
  }
 };
+// Synthetic register-use profile only; all native shader hashes, roots,
+// GUID births, pure command signature and retained current-slot proofs are real.
+struct OpaqueWork {
+ Host& h;NativeTitle& title;ComPtr<ID3D12RootSignature> root;ComPtr<ID3D12PipelineState> pipeline;
+ ComPtr<ID3D12CommandSignature> signature;ComPtr<ID3D12Resource> arguments;
+ OpaqueWork(Host& host,NativeTitle& owner):h(host),title(owner){
+  D3D12_DESCRIPTOR_RANGE ranges[2]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,13,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,2,0,0,0}};
+  D3D12_ROOT_PARAMETER params[2]{};for(UINT i=0;i<2;++i){params[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;params[i].DescriptorTable={1,&ranges[i]};}
+  D3D12_ROOT_SIGNATURE_DESC desc{2,params,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};ComPtr<ID3DBlob> blob,error;
+  hr(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&blob,&error));hr(h.device->CreateRootSignature(0,blob->GetBufferPointer(),blob->GetBufferSize(),IID_PPV_ARGS(&root)));
+  rootSigParameterCount[root.Get()]=2;NativeFixtureRootCreated(root.Get(),blob->GetBufferPointer(),blob->GetBufferSize());
+  const char code[]=R"(
+Texture2D<float4> T0:register(t0);
+Texture2D<float4> T1:register(t1);
+Texture2D<float4> T2:register(t2);
+Texture2D<float4> T4:register(t4);
+Texture2D<float4> T5:register(t5);
+Texture2D<float4> T9:register(t9);
+Texture2D<float4> T12:register(t12);
+RWTexture2D<float4> U0:register(u0),U1:register(u1);
+[numthreads(8,8,1)]void main(uint2 p:SV_DispatchThreadID){float3 value=T0[p].rgb+T1[p].rgb+T2[p].rgb+T4[p].rgb+T5[p].rgb+T9[p].rgb+T12[p].rgb;U0[p]=float4(value,U0[p].w+1);U1[p]=float4(value,U1[p].w+1);})";
+  ComPtr<ID3DBlob> shader;hr(D3DCompile(code,sizeof(code),nullptr,nullptr,nullptr,"main","cs_5_1",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&shader,&error));
+  D3D12_COMPUTE_PIPELINE_STATE_DESC pd{};pd.pRootSignature=root.Get();pd.CS={shader->GetBufferPointer(),shader->GetBufferSize()};hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pipeline)));NativeFixturePipelineCreated(pipeline.Get(),pd);
+  FrameSurvey::PipelineShaderIdentity identity;need(FrameSurvey::ResolvePipelineShaderIdentity(pipeline.Get(),identity)&&identity.complete&&identity.presentStages==FrameSurvey::PipelineCS&&identity.compute[0],"opaque profile retains actual native shader identity, never a substituted title hash");
+  need(NrdBridge::RegisterInterveningPipelineForTesting(pipeline.Get(),1),"explicit fixture profile selection retains real shader/stamp validation");
+  for(UINT i=0;i<13;++i){D3D12_SHADER_RESOURCE_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;view.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;view.Texture2D.MipLevels=1;auto* resource=title.noisyB[0].Get();const auto dst=Cpu(96+i);h.device->CreateShaderResourceView(resource,&view,dst);FrameSurvey::View(resource,dst,&view);}
+  for(UINT i=0;i<2;++i){D3D12_UNORDERED_ACCESS_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;const auto dst=Cpu(109+i);auto* resource=title.tex[9+i].Get();h.device->CreateUnorderedAccessView(resource,nullptr,&view,dst);FrameSurvey::View(resource,dst,&view);}
+  const D3D12_INDIRECT_ARGUMENT_DESC argument{D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH};const D3D12_COMMAND_SIGNATURE_DESC sd{12,1,&argument,0};
+  // Actual native creation trampoline, then caller-strong coverage and production
+  // publication: the fixture does not pretend to install physical Release hooks.
+  hr(FrameSurvey::oSignature(h.device.Get(),&sd,nullptr,IID_PPV_ARGS(&signature)));NativeFixtureRegister(signature.Get());FrameSurvey::CommandSignatureCreated(signature.Get(),sd,nullptr);
+  FrameSurvey::IndirectSignatureInfo proof;need(FrameSurvey::ResolveIndirectSignature(signature.Get(),proof)&&proof.kind==FrameSurvey::IndirectSignatureKind::Dispatch&&proof.byteStride==12&&proof.birth,"actual native pure-dispatch signature metadata is live and exact");
+  arguments=h.upload(0);void* mapped=nullptr;hr(arguments->Map(0,nullptr,&mapped));const UINT groups[3]={16,16,1};std::memcpy(mapped,groups,sizeof(groups));arguments->Unmap(0,nullptr);
+ }
+ D3D12_CPU_DESCRIPTOR_HANDLE Cpu(UINT index)const{return {title.visible->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(index)*title.increment};}
+ D3D12_GPU_DESCRIPTOR_HANDLE Gpu(UINT index)const{return {title.visible->GetGPUDescriptorHandleForHeapStart().ptr+UINT64(index)*title.increment};}
+ void Record(){const auto stage=NrdBridge::gService->lists.at(h.list.Get()).native[1];need(stage&&!stage->committed&&!stage->invalidated,"B is independently mandatory across the real opaque work");const auto before=stage->ownership->nativeProof->textures.size();
+  h.list->SetComputeRootSignature(root.Get());h.list->SetPipelineState(pipeline.Get());h.list->SetComputeRootDescriptorTable(0,Gpu(96));h.list->SetComputeRootDescriptorTable(1,Gpu(109));const float zero[4]{};
+  for(UINT i=0;i<2;++i){h.list->ClearUnorderedAccessViewFloat(Gpu(109+i),Cpu(109+i),title.tex[9+i].Get(),zero,0,nullptr);h.uav(title.tex[9+i].Get());}
+  h.list->ExecuteIndirect(signature.Get(),1,arguments.Get(),0,nullptr,0);for(UINT i=0;i<2;++i)h.uav(title.tex[9+i].Get());
+  need(!stage->invalidated&&!stage->recording->skipInvalidated&&stage->ownership->nativeProof->textures.size()==before+9&&stage->ownership->nativeProof->signatureCount==1,"actual indirect hook preserves B only after nine exact used-slot and native signature witnesses");
+ }
+ void MutateToB(){NrdBridgeDescriptorAdmission::Mutation mutation(true);need(mutation.Acquired(),"native plus metadata mutation is inside the actual descriptor writer gate");D3D12_UNORDERED_ACCESS_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;h.device->CreateUnorderedAccessView(title.tex[11].Get(),nullptr,&view,Cpu(109));FrameSurvey::View(title.tex[11].Get(),Cpu(109),&view);}
+ void Check(const Readback& read){const auto values=read.signal();for(size_t p=3;p<values.size();p+=4)need(values[p]==PackedVector::XMConvertFloatToHalf(1.f),"the real native indirect shader executed exactly once at every pixel");}
+};
 void RootChecks(Host& h,NativeTitle& title,const ComPtr<ID3D12Resource>& read){void* p=nullptr;hr(read->Map(0,nullptr,&p));const auto* words=static_cast<const UINT*>(p);
  for(UINT role=1;role<=10;++role){need(words[role*16+11]==UINT(role==1||role==10),"all native denoising originals have zero GPU executions; PrepLast and A composition execute once");}
  const UINT expected[8]={11,22,33,40,55,66,128,128};for(UINT role:{1u,10u,14u}){need(std::equal(expected,expected+8,words+role*16),"actual GPU sparse root constants/CBV/SRV/UAV/extent restored exactly");need(words[role*16+11]==1,"each surviving title shader executes exactly once");}read->Unmap(0,nullptr);}
-J Positive(Host& h,NativeTitle& title){J rows=J::array();std::array<std::shared_ptr<NrdBridge::HistoryDomain>,2> histories;std::array<ffxContext,2> contexts{};UINT firstCreates=FfxApiProxy::creates;
+J Positive(Host& h,NativeTitle& title,OpaqueWork* opaque=nullptr){J rows=J::array();std::array<std::shared_ptr<NrdBridge::HistoryDomain>,2> histories;std::array<ffxContext,2> contexts{};UINT firstCreates=FfxApiProxy::creates;
  for(UINT frame=1;frame<=6;++frame){const UINT before=FfxApiProxy::dispatches;title.Begin(frame);title.A();title.B();need(FfxApiProxy::dispatches==before,"raw/geometry/motion capture runs before either late Consumer without provider or title writes");
-  title.ConsumerA();title.ConsumerB();const auto& state=NrdBridge::gService->lists.at(h.list.Get());auto a=state.native[0],b=state.native[1];need(a&&b&&a->committed&&b->committed&&a->recording!=b->recording,"independent A/B transactions each commit their own exact retained token");need(FfxApiProxy::dispatches==before+2&&NrdBridge::GetStatus().active,"two real signed provider calls produce active RR-only A and B outputs");
+  title.ConsumerA();if(opaque)opaque->Record();title.ConsumerB();const auto& state=NrdBridge::gService->lists.at(h.list.Get());auto a=state.native[0],b=state.native[1];need(a&&b&&a->committed&&b->committed&&a->recording!=b->recording,"independent A/B transactions each commit their own exact retained token");need(FfxApiProxy::dispatches==before+2&&NrdBridge::GetStatus().active,"two real signed provider calls produce active RR-only A and B outputs");
   const auto as=a->history->rr.GetOwnedOutputSnapshot(a->owned),bs=b->history->rr.GetOwnedOutputSnapshot(b->owned);
   const std::array<Readback,2> outA{title.readback(7),title.readback(8)},outB{title.readback(11),title.readback(12)};
   const std::array<Readback,2> rrA{title.readback(as.selectedSpec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS),title.readback(as.selectedDiff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)},rrB{title.readback(bs.selectedSpec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS),title.readback(bs.selectedDiff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)};
+  std::optional<Readback> opaqueRead;if(opaque)opaqueRead.emplace(title.readback(title.tex[9].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
   auto root=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);h.list->CopyBufferRegion(root.Get(),0,title.checksum.Get(),0,1024);h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-  need(Execute(h),"complete A/B required transactions are allowed by actual descriptor/ledger submission");RootChecks(h,title,root);
+  need(Execute(h),"complete A/B required transactions are allowed by actual descriptor/ledger submission");RootChecks(h,title,root);if(opaque)opaque->Check(*opaqueRead);
   UINT64 exact=0;for(UINT chain=0;chain<2;++chain)for(UINT lobe=0;lobe<2;++lobe){const auto out=(chain?outB:outA)[lobe].signal(),rr=(chain?rrB:rrA)[lobe].signal();for(size_t p=0;p<out.size();p+=4){for(UINT c=0;c<3;++c){need(std::isfinite(PackedVector::XMConvertHalfToFloat(rr[p+c])),"actual signed RR stage RGB finite");need(out[p+c]==rr[p+c],"title RGB exclusively equals this chain's actual staged RR");++exact;}need(out[p+3]==PackedVector::XMConvertFloatToHalf(lobe?11.f:9.f),"every original opaque title alpha bit survives pure RR commit");}}
   for(UINT c=0;c<2;++c){const auto stage=c?b:a;const auto provider=FfxApiProxy::records[before+c];if(frame==1){histories[c]=stage->history;contexts[c]=provider.context;}need(histories[c]==stage->history&&contexts[c]==provider.context,"continuous A/B histories and physical providers are independent and stable");need(bool(provider.flags&FFX_DENOISER_DISPATCH_RESET)==(frame==1),"only first frame resets each native A/B provider history");}
-  rows.push_back({{"SL_frame",frame},{"signed_dispatches",2},{"exact_rr_rgb_words",exact},{"native_filter_gpu_executions",0},{"A_context",uint64_t(uintptr_t(contexts[0]))},{"B_context",uint64_t(uintptr_t(contexts[1]))}});h.reset();
+  rows.push_back({{"SL_frame",frame},{"signed_dispatches",2},{"exact_rr_rgb_words",exact},{"native_filter_gpu_executions",0},{"opaque_original_gpu_executions",opaque?1:0},{"A_context",uint64_t(uintptr_t(contexts[0]))},{"B_context",uint64_t(uintptr_t(contexts[1]))}});h.reset();
  }
  need(FfxApiProxy::creates==firstCreates+2,"six submitted A/B frames create exactly two physical SDK contexts");
- const auto deniedBefore=h.denied,dispatchBefore=FfxApiProxy::dispatches;
+ const auto dispatchBefore=FfxApiProxy::dispatches;
+ // Discard an unsubmitted partial recording BEFORE testing the intentionally
+ // process-sticky real Execute denial. This recovery never clears a latch.
  title.Begin(7);title.A();title.B();title.ConsumerB();
  const auto incomplete=NrdBridge::gService->lists.at(h.list.Get()).native;
  need(incomplete[0]&&!incomplete[0]->committed&&incomplete[1]&&incomplete[1]->committed,"B's successful late RR commit cannot complete A's independent missing-Consumer token");
- need(!Execute(h)&&h.denied==deniedBefore+1&&FAILED(h.lastOrderingFailure),"actual beforeSubmit explicitly denies original native Execute for missing A Consumer");
- need(FfxApiProxy::dispatches==dispatchBefore+1,"incomplete denied chain recorded only B's actual signed SDK call");h.reset();
+ need(FfxApiProxy::dispatches==dispatchBefore+1,"unsubmitted canceled chain recorded only B's actual signed SDK call");
+ hr(h.list->Close());NrdBridge::OnRecordingClosed(h.list.Get(),S_OK);h.reset();
  title.Begin(8);title.A();title.B();title.ConsumerA();title.ConsumerB();
- need(Execute(h),"fresh complete native A/B transactions recover after discarded incomplete recording");
+ need(Execute(h),"fresh complete native A/B transactions recover after Reset discarded the incomplete recording without submission");
  need(FfxApiProxy::dispatches==dispatchBefore+3,"recovery records exactly one new actual signed call for each chain");
  for(UINT chain=0;chain<2;++chain){const auto& record=FfxApiProxy::records[dispatchBefore+1+chain];need(record.context!=contexts[chain]&&(record.flags&FFX_DENOISER_DISPATCH_RESET),"unsubmitted discarded predecessor gets physically fresh RESET history, never stale native fallback");}h.reset();
  return rows;
 }
+J DeliberateDeny(Host& h,NativeTitle& title,OpaqueWork* opaque){
+ title.Begin(1);title.A();title.B();if(opaque){title.ConsumerA();opaque->Record();}title.ConsumerB();
+ const auto stages=NrdBridge::gService->lists.at(h.list.Get()).native;
+ need(stages[0]&&stages[1]&&stages[1]->committed&&bool(stages[0]->committed)==bool(opaque),"independent A/B transaction completeness matches the exact isolated negative");
+ if(opaque)opaque->MutateToB();
+ const auto old=RecordedComputeLease::Capture(h.list.Get());need(old&&old->id,"negative owns a real native recording before actual submission admission");
+ need(!Execute(h)&&h.denied==1&&FAILED(h.lastOrderingFailure),opaque?"pre-submit descriptor mutation explicitly denies actual native Execute":"actual beforeSubmit explicitly denies original native Execute for missing A Consumer");
+ {auto& registry=RecordedComputeLease::GetRegistry();std::scoped_lock lock(registry.mutex);need(registry.completionFailed&&registry.recordings.size()==1&&registry.submissions.size()==1,"uncertain denied batch retains exactly one recording and submission quarantine");need(registry.recordings.begin()->second==old&&!old->leases.empty(),"exact denied recording keeps its private leases, never a replacement identity");}
+ need(RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL,"failed retained B status observation escalates exact E_FAIL into the process-sticky required submission latch");
+ need(!Execute(h,false)&&h.denied==2,"a denied mandatory recording remains denied on repeated submission without native fallback");
+ need(FfxApiProxy::dispatches==(opaque?2u:1u),"isolated denial records exactly the expected signed providers before any native Execute");
+ need(h.tick==0,"a rejected batch never executes or publishes a native title fence");h.reset();
+ need(RecordedComputeLease::Capture(h.list.Get())==old&&RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL,"successful native Reset cannot clear deliberate failed-recording quarantine or sticky failure");
+ return {{"negative",opaque?"opaque_descriptor_mutation":"missing_A_Consumer"},{"quarantined_recordings",1},{"quarantined_submissions",1},{"intentionally_retained_contexts",opaque?2:1}};
+}
 }
 int main(int argc,char** argv)try{
- need(argc==3,"scratch output and actual signed AMD DLL");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
+ need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation;need(mode.empty()||missing||useOpaque,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"actual native metadata registry installed");need(NrdBridge::Initialize(h.device.Get()),"actual production coordinator initialized");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
- J result;{NativeFixture::NativeTitle title(h,false);result["frames"]=NativeFixture::Positive(h,title);NrdBridge::Shutdown();RecordedComputeLease::Poll();}
- need(FfxApiProxy::creates==FfxApiProxy::destroys,"all actual native A/B provider contexts retire after fenced recording detach");NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["missing_A_Consumer_denials"]=h.denied;result["discard_recovery"]=true;
+ struct HookLifetime{bool active=true;void Stop()noexcept{if(!active)return;active=false;try{NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();}catch(...){std::cerr<<"native hook cleanup failed after original assertion"<<std::endl;}}~HookLifetime(){Stop();}} hookLifetime;
+ struct EmitLifetime{~EmitLifetime(){emitDebug={};}} emitLifetime;
+ J result;{NativeFixture::NativeTitle title(h,false);
+  std::optional<NativeFixture::OpaqueWork> opaque;if(useOpaque)opaque.emplace(h,title);
+  struct Cleanup{Host& host;~Cleanup(){try{host.waitComplete();NrdBridge::Shutdown();const auto recording=RecordedComputeLease::Capture(host.list.Get());RecordedComputeLease::Detach(recording);RecordedComputeLease::Poll();}catch(...){std::cerr<<"native cleanup failed after original assertion"<<std::endl;}}}cleanup{h};
+  try{if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
+ }
+ if(missing||mutation)need(FfxApiProxy::creates==(mutation?2u:1u)&&FfxApiProxy::destroys==0,"only exact deliberately quarantined provider contexts remain retained until process recovery");
+ else need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==4,"all four actual native A/B provider contexts retire after fenced recording detach");hookLifetime.Stop();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["provider_destroys"]=FfxApiProxy::destroys;result["missing_A_Consumer_denials"]=missing?1:0;result["repeated_denials"]=h.denied;result["discard_recovery"]=!missing&&!mutation;result["opaque_case"]=useOpaque;result["mode"]=mode;
  result["scope"]="actual hardware/coordinator/raw/geometry/motion/signedRR/303compute+36pixel/requiredledger; synthetic shipping role/readiness and caller-strong native Release-coverage adapters, not full title startup/physical Release detour proof";
  std::ofstream(std::filesystem::path(argv[1])/"native-transactions-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
-}catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;if(emitDebug)emitDebug();return 1;}
+}catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;return 1;}
