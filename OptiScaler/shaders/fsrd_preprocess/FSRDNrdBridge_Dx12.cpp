@@ -121,6 +121,38 @@ struct ResourceIdentityHash
     { return std::hash<void*>{}(identity.address) ^ (std::hash<const void*>{}(identity.birth.get()) << 1); }
 };
 struct PipelineIdentity { Role role = Role::None; NrdBridgeBirth::Token birth; bool nativeContract = false; };
+struct InterveningPipeline { int profile = -1; NrdBridgeBirth::Token birth; bool testing = false; };
+constexpr std::array<const char*,9> NativeInterveningCS {{
+    "f50f483dc26a369be13f71426a7212fc37c88511daed5ef43aad6efc71e2c6ae",
+    "13a3e4f687ed0da0d83fafa72b1d45c253f26e83638da400e92a03a5d80e6841",
+    "3134fb986fbd2ac518859a670a2faf82cc800dabf74da2f37d4aee11bcd34725",
+    "ab6deb230e344ef0badfcd29a4c10fda4da50056e721884eb9f08563c0ed24a1",
+    "f854724693c3cdb10c513bf7368ec5ba479e34ace37ff90bf51da40352056025",
+    "e99a3ca6fb1b04f16934c1dc2cababd31718b5503575fbac7a387b77e87b4aec",
+    "9138cd1d0d5d2a53c3c260aaebbb00618706a17eed29f7433ee161e5db1c030f",
+    "111e21909ad0260f6b2d86b5706649983ba21995941f18f349956460926d8fe2",
+    "ba416a36c394da372ea9e1408966360411a65369aca3ad6d81537d015b07ae36"}};
+constexpr const char* NativeInterveningAc7f="ac7f46728fe9cfd07bfe11d934d3ce09363289cc1689a2aa7d8aa99ac3bac7b5";
+constexpr std::array<const char*,3> NativeInterveningPS {{
+    "b86e70d1d6445513ca5fd3b903c195428c292d78e3423df65b852167c07e3d2f",
+    "60b155558e409c232051ca645b23aab89a143007ba57ec3dc25a511ab2fd5c88",
+    "0e5b5f0f3219b961fcb715b056f1d9fa81125db7a78c9e47efaefe9675823703"}};
+constexpr std::array<const char*,3> NativeInterveningVS {{
+    "5406cf74f00ed29c9b1730142efb086d4b9860c92d855f70a730430c2be953cc",
+    "b696ecc34fe5f3f2f0794e5bbcaa33456020099d75b115dd3a1ed5c43d03b810",
+    "487033c28340b5eae2b77aa327420e52ade4e802c5eb7ad04eb21a32303f348f"}};
+int InterveningComputeProfile(const char* hash) noexcept
+{
+    if (!hash) return -1; const std::string_view value(hash);
+    if (value==NativeInterveningAc7f) return 0;
+    return std::find_if(NativeInterveningCS.begin(),NativeInterveningCS.end(),[&](const char* candidate){return value==candidate;})!=NativeInterveningCS.end()?1:-1;
+}
+int InterveningGraphicsProfile(const char* hash) noexcept
+{
+    if (!hash) return -1;
+    for(size_t index=0;index<NativeInterveningPS.size();++index)if(std::string_view(hash)==NativeInterveningPS[index])return int(index)+2;
+    return -1;
+}
 struct MaterialSnapshot
 {
     NativeMaterialCapture::SnapshotLease snapshot;
@@ -180,6 +212,8 @@ struct ListState
     ID3D12PipelineState* graphicsConsumer = nullptr;
     NrdBridgeBirth::Token graphicsConsumerBirth;
     bool harmlessPipeline = false;
+    ID3D12PipelineState* currentPipeline = nullptr;
+    InterveningPipeline intervening;
     uint64_t frame = 0, generation = 0, resetSerial = 0;
     FrameParameters parameters {};
     ConvertedResources inputs {};
@@ -196,6 +230,7 @@ struct Service
     std::unordered_map<ID3D12PipelineState*,PipelineIdentity> roles;
     std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> graphicsConsumers;
     std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> harmlessPipelines;
+    std::unordered_map<ID3D12PipelineState*,InterveningPipeline> interveningPipelines;
     std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists;
     std::unordered_map<ResourceIdentity,std::unordered_set<ID3D12GraphicsCommandList*>,ResourceIdentityHash> chainUsers;
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
@@ -1464,11 +1499,11 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
             if (!chain)
             {
                 InvalidateSkippedRecording(list); RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
-                const auto role = list.role; const auto birth = list.birth, pipelineBirth = list.pipelineBirth;
+                const auto role = list.role; const auto birth = list.birth, pipelineBirth = list.pipelineBirth;auto* pipeline=list.currentPipeline;
                 retiredList.emplace(std::move(list)); list = {};
                 list.material = std::move(retiredList->pendingMaterial); list.materialStates = std::move(retiredList->materialStates);
                 list.materialIdentityRevision = retiredList->materialIdentityRevision;
-                list.role = role; list.birth = birth; list.pipelineBirth = pipelineBirth;
+                list.role = role; list.birth = birth; list.pipelineBirth = pipelineBirth;list.currentPipeline=pipeline;
                 list.nativeContract = list.rrOnlyTransaction = list.nativeReconPrepared = true;
                 list.followingRecon = list.nrdList = true; list.frame = ++owner->frame; list.chain = typed;
                 list.generation = list.frame; list.resetSerial = owner->cancellationSerial;
@@ -1736,6 +1771,80 @@ struct NativeInjectionScope
         D3D12Hooks::SetRootSignatureTracking(previousTracking);
     }
 };
+bool PreserveNativeWork(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd,
+    ID3D12CommandSignature* signature, bool pixel)
+{
+    // Caller owns injection serialization and physical Borrow. Only recognized
+    // pipeline candidates reach binding vectors/metadata snapshots.
+    std::array<std::shared_ptr<NativeTransaction>,2> pending;
+    ID3D12PipelineState* pipeline=nullptr;InterveningPipeline selected;size_t count=0;
+    {
+        std::scoped_lock lock(gMutex);const auto found=owner->lists.find(cmd);
+        if(gService!=owner||found==owner->lists.end()||!ListLive(found->second))return false;
+        const auto& list=found->second;pipeline=list.currentPipeline;selected=list.intervening;
+        if(!pipeline||selected.profile<0||selected.birth!=list.pipelineBirth)return false;
+        for(const auto& stage:list.native)if(stage&&!stage->committed&&!stage->invalidated)pending[count++]=stage;
+    }
+    if(!count)return true;
+    FrameSurvey::PipelineShaderIdentity identity;
+    if(!D3D12Hooks::BridgePredicationDisabled(cmd)||!FrameSurvey::ResolvePipelineShaderIdentity(pipeline,identity)||
+        !identity.complete||identity.pipelineBirth!=selected.birth)return false;
+    if(pixel?identity.presentStages!=(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS):identity.presentStages!=FrameSurvey::PipelineCS)return false;
+    if(!selected.testing)
+    {
+        if(pixel)
+        {
+            if(selected.profile<2||selected.profile>4||std::string_view(identity.pixel.data())!=NativeInterveningPS[selected.profile-2]||
+                std::string_view(identity.vertex.data())!=NativeInterveningVS[selected.profile-2])return false;
+        }
+        else if(selected.profile>1||InterveningComputeProfile(identity.compute.data())!=selected.profile)return false;
+    }
+    FrameSurvey::IndirectSignatureInfo indirect;
+    if(signature&&(!FrameSurvey::ResolveIndirectSignature(signature,indirect)||
+        indirect.kind!=(pixel?FrameSurvey::IndirectSignatureKind::DrawIndexed:FrameSurvey::IndirectSignatureKind::Dispatch)||
+        indirect.byteStride!=(pixel?20u:12u)))return false;
+    // These exact shader families have only fixed Texture2D accesses; structured
+    // buffer and cube declarations cannot alias single-slice B Texture2D targets.
+    // A graphics draw can also write RTV/DSV, so resource flags must exclude those.
+    for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
+    {
+        if(!target.resource||target.description.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||target.description.DepthOrArraySize!=1)return false;
+        if(pixel&&(target.description.Flags&(D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET|D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)))return false;
+    }
+    std::array<FrameSurvey::TextureTableRequest,9> requests;size_t requestCount=0;
+    auto add=[&](D3D12_DESCRIPTOR_RANGE_TYPE kind,UINT reg){requests[requestCount++]={UINT_MAX,{kind,UINT_MAX,reg,0}};};
+    if(selected.profile==0){add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0);add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1);add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,64);add(D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0);}
+    else if(selected.profile==1){for(const UINT reg:{0u,1u,2u,4u,5u,9u,12u})add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,reg);add(D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0);add(D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1);}
+    else if(selected.profile==3){for(const UINT reg:{1u,2u,4u})add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,reg);}
+    else if(selected.profile==4){for(const UINT reg:{3u,5u,6u,68u})add(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,reg);}
+    FrameSurvey::ComputeBindings bindings;ID3D12PipelineState* current=nullptr;
+    if(!(pixel?D3D12Hooks::GetGraphicsBindingsForBridge(cmd,bindings,current):D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings))||
+        (pixel&&current!=pipeline))return false;
+    std::vector<FrameSurvey::BoundResource> resources;
+    std::vector<FrameSurvey::TextureBindingWitness> witnesses;
+    if(requestCount)
+    {
+        const auto requested=std::span(requests.data(),requestCount);
+        if(!(pixel?FrameSurvey::ResolveGraphicsTextureBindings(bindings,requested,resources,&witnesses):
+            FrameSurvey::ResolveComputeTextureBindings(bindings,requested,resources,&witnesses))||resources.size()!=requestCount)return false;
+        for(const auto& resource:resources)for(size_t index=0;index<count;++index)for(const auto& target:pending[index]->targets)
+            if(resource.resource==target.resource || (resource.resourceBirth&&target.resourceBirth&&
+                resource.resourceBirth->InstanceStamp()&&resource.resourceBirth->InstanceStamp()==target.resourceBirth->InstanceStamp()))return false;
+    }
+    for(size_t index=0;index<count;++index)
+    {
+        auto& proof=*pending[index]->ownership->nativeProof;
+        if(requestCount&&!AppendNativeTextureProof(pending[index]->ownership->nativeProof,witnesses))return false;
+        bool known=false;for(size_t p=0;p<proof.pipelineCount;++p)known|=proof.pipelines[p].pipeline==identity.pipeline&&proof.pipelines[p].pipelineBirth==identity.pipelineBirth;
+        if(!known){if(proof.pipelineCount==proof.pipelines.size())return false;proof.pipelines[proof.pipelineCount++]=identity;}
+        if(signature)
+        {
+            known=false;for(size_t p=0;p<proof.signatureCount;++p)known|=proof.signatures[p].signature==signature&&proof.signatures[p].birth==indirect.birth;
+            if(!known){if(proof.signatureCount==proof.signatures.size())return false;proof.signatures[proof.signatureCount++]=indirect;}
+        }
+    }
+    return true;
+}
 void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, bool graphics)
 {
     std::shared_ptr<NativeTransaction> stage;
@@ -2104,6 +2213,9 @@ void OnPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
         if(hash && std::string_view(hash)=="ac7f46728fe9cfd07bfe11d934d3ce09363289cc1689a2aa7d8aa99ac3bac7b5")
             gService->harmlessPipelines[pipeline]=birth;
         else gService->harmlessPipelines.erase(pipeline);
+        const int profile=InterveningComputeProfile(hash);
+        if(profile>=0)gService->interveningPipelines[pipeline]={profile,birth,false};
+        else gService->interveningPipelines.erase(pipeline);
     } catch (...) {}
 }
 void OnGraphicsPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
@@ -2118,6 +2230,9 @@ void OnGraphicsPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) 
         if (!gService || !BirthLive(birth)) return;
         if (consumer) gService->graphicsConsumers[pipeline] = birth;
         else gService->graphicsConsumers.erase(pipeline);
+        const int profile=InterveningGraphicsProfile(hash);
+        if(profile>=0)gService->interveningPipelines[pipeline]={profile,birth,false};
+        else if(hash)gService->interveningPipelines.erase(pipeline);
     } catch (...) {}
 }
 void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline) noexcept
@@ -2148,6 +2263,10 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             if (const auto found = owner.lists.find(cmd); found != owner.lists.end())
             {
                 found->second.harmlessPipeline=harmlessPipeline;
+                found->second.currentPipeline=pipeline;
+                const auto profile=owner.interveningPipelines.find(pipeline);
+                found->second.intervening=profile!=owner.interveningPipelines.end()&&profile->second.birth==pipelineBirth?
+                    profile->second:InterveningPipeline{};
                 found->second.graphicsConsumerCandidate = pixelConsumer;
                 found->second.graphicsConsumer = pixelConsumer ? pipeline : nullptr;
                 found->second.graphicsConsumerBirth = pixelConsumer ? pipelineBirth : NrdBridgeBirth::Token {};
@@ -2205,7 +2324,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                 retiredList.emplace(std::move(found->second)); found->second = {};
                 found->second.materialStates = std::move(rememberedMaterialStates); found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
                 found->second.nativeContract = found->second.role != Role::None && owner.roles.at(initial).nativeContract;
-                found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
+                found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;found->second.currentPipeline=initial;
                 found->second.materialIdentityRevision = rememberedMaterialRevision;
                 if (owner.rrSettings.nativeMaterialGuides)
                     owner.materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
@@ -2336,6 +2455,7 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
         const auto found = gService->lists.find(cmd); if (found == gService->lists.end()) return;
         auto& list = found->second; InvalidateSkippedRecording(list);
         list.nativeContract = false; list.role = Role::None; list.pipelineBirth.reset();
+        list.currentPipeline=nullptr;list.intervening={};
         list.converted = list.motionReady = list.ownedReady = false;
         StopFollowing(*gService,cmd,list);RefreshNativeTransactions(*gService);
         if (gService->pendingList == cmd) gService->pendingList = nullptr;
@@ -2359,28 +2479,27 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
     {
         std::scoped_lock injection(gInjectionMutex);
         NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return DispatchDisposition::Forward;
-        std::shared_ptr<Service> owner;std::shared_ptr<NativeTransaction> stage;Role role=Role::None;
+        std::shared_ptr<Service> owner;std::shared_ptr<NativeTransaction> stage;Role role=Role::None;bool otherWork=false;
         {
             std::scoped_lock lock(gMutex);owner=gService;if(!owner)return DispatchDisposition::Forward;
             const auto found=owner->lists.find(cmd);if(found==owner->lists.end())return DispatchDisposition::Forward;
             auto& list=found->second;role=list.role;
-            if(role==Role::None)
-            {
-                // Setting an unknown PSO is harmless by itself. Actual unknown
-                // work inside an omitted interval needs independent full-hash proof.
-                if(!list.harmlessPipeline){InvalidateSkippedRecording(list);RefreshNativeTransactions(*owner);}
-                return DispatchDisposition::Forward;
-            }
-            switch(role)
+            if(role==Role::None)otherWork=true;
+            if(!otherWork)switch(role)
             {
             case Role::Recon:case Role::PrePass:case Role::Temporal:case Role::Chain3:
             case Role::HistSave:case Role::HistFix:case Role::Clamp:case Role::ATrous:break;
             default:return DispatchDisposition::Forward;
             }
-            if(!list.nativeContract || !list.rrOnlyTransaction || !list.nativeReconPrepared)return DispatchDisposition::Forward;
-            stage=list.native[list.nativeChain];
-            if(!NativeTransactionCurrent(*owner,list,stage) || !stage->geometryReady ||
-                ((role!=Role::Recon && role!=Role::PrePass) && !stage->motionReady))return DispatchDisposition::Forward;
+            if(!otherWork&&(!list.nativeContract || !list.rrOnlyTransaction || !list.nativeReconPrepared))return DispatchDisposition::Forward;
+            if(!otherWork)stage=list.native[list.nativeChain];
+            if(!otherWork&&(!NativeTransactionCurrent(*owner,list,stage) || !stage->geometryReady ||
+                ((role!=Role::Recon && role!=Role::PrePass) && !stage->motionReady)))return DispatchDisposition::Forward;
+        }
+        if(otherWork)
+        {
+            if(!PreserveNativeWork(owner,cmd,nullptr,false))InvalidateRecordingProof(cmd,"Unattested compute work intersects an incomplete RR-only interval");
+            return DispatchDisposition::Forward;
         }
         const auto snapshot=RawSignalSnapshotPass::GetSnapshot(stage->raw);
         const auto actual=RecordedComputeLease::Capture(cmd);const auto captured=snapshot.nativeRecording.lock();
@@ -2414,6 +2533,18 @@ DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, 
         CoordinatorException("Exception while admitting native RR-only dispatch omission");
         return DispatchDisposition::Forward;
     }
+}
+bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSignature* signature) noexcept
+{
+    if(!cmd||!signature||FrameSurvey::Internal()||!NativeElisionReady()||!gNativeTransactions.load(std::memory_order_relaxed))return false;
+    try
+    {
+        std::scoped_lock injection(gInjectionMutex);NrdBridgeLifetime::ScopedBorrow borrow;if(!borrow.Acquired())return false;
+        FrameSurvey::IndirectSignatureInfo info;if(!FrameSurvey::ResolveIndirectSignature(signature,info))return false;
+        std::shared_ptr<Service> owner;{std::scoped_lock lock(gMutex);owner=gService;if(!owner)return false;}
+        return PreserveNativeWork(owner,cmd,signature,info.kind==FrameSurvey::IndirectSignatureKind::DrawIndexed);
+    }
+    catch(...){RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);return false;}
 }
 void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 {
@@ -2691,27 +2822,32 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 }
 void BeforeGraphicsConsumer(ID3D12GraphicsCommandList* cmd) noexcept
 {
-    if(!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) ||
-        !gNativeTransactions.load(std::memory_order_relaxed) || FrameSurvey::Internal())return;
+    if(!gInstalled.load(std::memory_order_relaxed)||!gRuntime.load(std::memory_order_relaxed)||
+        !gNativeTransactions.load(std::memory_order_relaxed)||FrameSurvey::Internal())return;
     try
     {
-        std::shared_ptr<Service> owner;
+        std::shared_ptr<Service> owner;bool intervening=false;
         {
-            // No binding snapshot/vector/resolver/allocation for unrelated draws.
             std::scoped_lock lock(gMutex);owner=gService;if(!owner)return;
-            const auto found=owner->lists.find(cmd);
-            if(found==owner->lists.end())return;
-            if(!found->second.graphicsConsumerCandidate)
+            const auto found=owner->lists.find(cmd);if(found==owner->lists.end())return;
+            auto& list=found->second;
+            if(!list.graphicsConsumerCandidate)
             {
-                if(!found->second.harmlessPipeline){InvalidateSkippedRecording(found->second);RefreshNativeTransactions(*owner);}
-                return;
+                if(list.intervening.profile<2){InvalidateSkippedRecording(list);RefreshNativeTransactions(*owner);return;}
+                intervening=true;
             }
-            if(!found->second.native[1] || found->second.native[1]->committed)return;
+            else if(!list.native[1]||list.native[1]->committed)return;
         }
-        CommitNativeTransaction(owner,cmd,true);
+        if(intervening)
+        {
+            std::scoped_lock injection(gInjectionMutex);NrdBridgeLifetime::ScopedBorrow borrow;
+            if(!borrow.Acquired()||!PreserveNativeWork(owner,cmd,nullptr,true))InvalidateRecordingProof(cmd,"Unattested graphics work intersects an incomplete RR-only interval");
+        }
+        else CommitNativeTransaction(owner,cmd,true);
     }
-    catch(...){CoordinatorException("Exception while committing native pixel-composition RR output");}
+    catch(...){RecordedComputeLease::FailUntrackedRequiredSubmission(E_OUTOFMEMORY);CoordinatorException("Exception while observing native pixel-composition work");}
 }
+
 void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
 {
     if (!gInstalled.load(std::memory_order_relaxed) || !object) return;
@@ -2727,6 +2863,8 @@ void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
                 pixel != owner.graphicsConsumers.end() && pixel->second == birth) owner.graphicsConsumers.erase(pixel);
             if(const auto safe=owner.harmlessPipelines.find(reinterpret_cast<ID3D12PipelineState*>(object));
                 safe!=owner.harmlessPipelines.end() && safe->second==birth)owner.harmlessPipelines.erase(safe);
+            if(const auto profile=owner.interveningPipelines.find(reinterpret_cast<ID3D12PipelineState*>(object));
+                profile!=owner.interveningPipelines.end()&&profile->second.birth==birth)owner.interveningPipelines.erase(profile);
             if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end() && found->second.birth == birth)
             {
                 AbandonDebugPresentations(found->second,retiredPresentations);RetireNativeRecording(owner,found->second);
@@ -3240,6 +3378,21 @@ void SetNativeElisionContractForTesting(bool enabled) noexcept
     std::scoped_lock lock(gMutex);
     if (!enabled && gService && gService->status.nativeHistoryDirty) return;
     gNativeElisionForTesting.store(enabled,std::memory_order_release);
+}
+bool RegisterInterveningPipelineForTesting(ID3D12PipelineState* pipeline,uint32_t profile) noexcept
+{
+    // Only the shader-family selection is an adapter. Keep the REAL native PSO
+    // hash/stamp, actual roots/typed descriptors and submission witness checks.
+    FrameSurvey::PipelineShaderIdentity actual;
+    if(profile>4||!FrameSurvey::ResolvePipelineShaderIdentity(pipeline,actual)||!actual.complete||
+        (profile<2?actual.presentStages!=FrameSurvey::PipelineCS:
+            actual.presentStages!=(FrameSurvey::PipelineVS|FrameSurvey::PipelinePS)))return false;
+    try
+    {
+        std::scoped_lock lock(gMutex);if(!gService)return false;
+        gService->interveningPipelines[pipeline]={int(profile),actual.pipelineBirth,true};return true;
+    }
+    catch(...){return false;}
 }
 void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role, bool nativeContract) noexcept
 {
