@@ -273,7 +273,8 @@ struct Frame
     FSRDGameTraceSession::BridgeIdentity bridgeIdentity {};
     std::shared_ptr<void> bridgeInputOwner, bridgeOutputOwner;
     Json bridgeMetadata;
-    Image bridgeControlHeader;
+    Image bridgeControlHeader, bridgeControlStatus;
+    FSRDGameTraceSession::BridgeControlStatusObserver bridgeControlStatusObserver = nullptr;
     std::shared_ptr<void> bridgeControlOwner;
     std::array<size_t,14> bridgeRoles {};
     std::vector<bool> bridgeCopied;
@@ -858,6 +859,7 @@ uint64_t FramePayload(const Frame& f)
 {
     uint64_t bytes = f.constants.size()+f.geometryConstants.size()+f.flatDetailConstants.size();
     if (f.bridgeControlHeader.readback) bytes += f.bridgeControlHeader.width;
+    if (f.bridgeControlStatus.readback) bytes += f.bridgeControlStatus.width;
     for (size_t i=0;i<f.surveyImages.size();++i)
         if (!f.bridge || f.bridgeCopied[i])
         { const auto& image = f.surveyImages[i]; bytes += uint64_t(image.width)*image.height*image.bpp; }
@@ -1003,8 +1005,8 @@ Image PlanBridgeFlag(ID3D12Device* device)
 {
     Image image;
     image.width = 4; image.height = image.bpp = image.channels = 1;
-    image.footprint.Footprint = {DXGI_FORMAT_UNKNOWN,32,1,1,256};
-    image.footprintBytes = 32; image.allocationBytes = ChargedReadbackBytes(device,32);
+    image.footprint.Footprint = {DXGI_FORMAT_UNKNOWN,40,1,1,256};
+    image.footprintBytes = 40; image.allocationBytes = ChargedReadbackBytes(device,40);
     return image;
 }
 void RecordBridgeCopy(ID3D12GraphicsCommandList* list, Frame& f, Image& image,
@@ -1221,6 +1223,14 @@ struct FSRDGameTraceSession::Impl
                     metadata["readback_allocation_shared_with"] = "private_encoding_flag_reserved_readback";
                     packet->row["native_control_header"] = std::move(metadata);
                 }
+                if (f->bridgeControlStatus.readback)
+                {
+                    addImage(f->bridgeControlStatus,"owned_raw_status.bin",-7,0);
+                    auto metadata = ImageMetadata(f->bridgeControlStatus,"bridge_owned_raw_validation_status");
+                    metadata.update(packet->row["native_control_header"]["owned_status"]);
+                    metadata["readback_allocation_shared_with"] = "private_encoding_flag_reserved_readback";
+                    packet->row["native_control_header"]["owned_status"] = std::move(metadata);
+                }
                 packet->row["provider_controls"] = {{"wireformat","ffxDispatchDescDenoiser_native_ABI_suffix_264_184"},
                     {"native_dispatch_bytes",448},{"controls_offset",264},{"controls_bytes",184}};
                 packet->payloads.push_back({"provider_controls.bin",f->constants,-5,0});
@@ -1241,6 +1251,15 @@ struct FSRDGameTraceSession::Impl
                 for (size_t i=0;i<mapping.size();++i)
                 { uint32_t value = 0; memcpy(&value,found->bytes.data()+4*i,4); mapping[i]["captured_uint32"] = value; }
                 packet->row["native_control_header"]["decode_scope"] = "post_fence_protected_immutable_CPU_snapshot; raw_words_no_automatic_mode_policy";
+                if (f->bridgeControlStatus.readback)
+                {
+                    const auto statusPayload = std::find_if(packet->payloads.begin(),packet->payloads.end(),[](const auto& value) { return value.kind == -7; });
+                    uint32_t status = 0; memcpy(&status,statusPayload->bytes.data(),4);
+                    packet->row["native_control_header"]["owned_status"]["captured_uint32"] = status;
+                    // WithCompletedSnapshot has ended; no Global/registry/ticket mutex is held here.
+                    // This is asynchronous observation, never denial of the already-submitted batch.
+                    if (status && f->bridgeControlStatusObserver) f->bridgeControlStatusObserver(f->bridgeIdentity,status);
+                }
             }
             packet->row["cpu_snapshot_immutable"] = true;
             packet->row["submission_gate_protected"] = true;
@@ -1335,7 +1354,8 @@ struct FSRDGameTraceSession::Impl
         {
             RRTraceAdditiveIO::WriteFile(partial/payload.filename,payload.bytes);
             Json* metadata = nullptr;
-            if (payload.kind == -6) metadata = &packet.row["native_control_header"];
+            if (payload.kind == -7) metadata = &packet.row["native_control_header"]["owned_status"];
+            else if (payload.kind == -6) metadata = &packet.row["native_control_header"];
             else if (payload.kind == -5) metadata = &packet.row["provider_controls"];
             else if (payload.kind == 0) metadata = &packet.row["images"][payload.slot];
             else if (payload.kind == 1) metadata = &packet.row["diagnostics"][payload.slot];
@@ -2026,7 +2046,7 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             if (!attestation.is_object()) throw std::runtime_error("NRD_BRIDGE trace provider witness must be an object");
         }
         Json roles = Json::object();
-        uint64_t readback = 0, payload = f->constants.size()+28; // Optional packed control words reserve before all copies.
+        uint64_t readback = 0, payload = f->constants.size()+36; // Optional native words32B + separate owned status4B reserve before copies.
         for (size_t role=0;role<14;++role)
         {
             size_t alias = role;
@@ -2118,10 +2138,10 @@ bool FSRDGameTraceSession::RecordBridgeControlHeader(const BridgeFrameToken& tok
             (header.image.state != D3D12_RESOURCE_STATE_COMMON && header.image.state != D3D12_RESOURCE_STATE_COPY_SOURCE))
             throw std::runtime_error("NRD_BRIDGE control header lacks exact owned recording/frame/source identity");
         const bool recon = header.profile == BridgeControlHeader::Profile::ReconA;
-        if ((!recon && header.profile != BridgeControlHeader::Profile::PrePassB) || header.wordCount != (recon ? 4u : 7u))
+        if ((!recon && header.profile != BridgeControlHeader::Profile::PrePassB) || header.wordCount != (recon ? 4u : 8u) || header.hasStatus != !recon || (header.hasStatus && header.statusByteOffset != 0))
             throw std::runtime_error("NRD_BRIDGE control header profile/word count not attested");
-        const std::array<uint32_t,7> expected = recon ? std::array<uint32_t,7>{448,452,456,460} :
-            std::array<uint32_t,7>{456,460,472,476,516,576,580};
+        const std::array<uint32_t,8> expected = recon ? std::array<uint32_t,8>{448,452,456,460} :
+            std::array<uint32_t,8>{456,460,472,476,516,520,576,580};
         const auto desc = header.image.resource->GetDesc(); // Strong owned raw snapshot only, never native b6.
         if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
             throw std::runtime_error("NRD_BRIDGE control header source is not an owned buffer");
@@ -2130,7 +2150,7 @@ bool FSRDGameTraceSession::RecordBridgeControlHeader(const BridgeFrameToken& tok
         {
             const auto& word = header.words[i];
             if (word.nativeByteOffset != expected[i] || (word.sourceBufferByteOffset & 3u) ||
-                uint64_t(word.sourceBufferByteOffset)+4u > desc.Width)
+                uint64_t(word.sourceBufferByteOffset)+4u > desc.Width || (header.hasStatus && word.sourceBufferByteOffset == header.statusByteOffset))
                 throw std::runtime_error("NRD_BRIDGE control header mapping is not actual bounded profile words");
             for (size_t j=0;j<i;++j)
                 if (header.words[j].sourceBufferByteOffset == word.sourceBufferByteOffset)
@@ -2145,22 +2165,36 @@ bool FSRDGameTraceSession::RecordBridgeControlHeader(const BridgeFrameToken& tok
         image.sourceWidth = uint32_t(std::min<uint64_t>(desc.Width,UINT_MAX)); image.sourceHeight = 1;
         image.sourceDesc = desc; image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(header.image.resource));
         image.sourceState = uint32_t(header.image.state); image.footprint = flag.footprint; image.footprintBytes = flag.footprintBytes;
-        if (!image.readback || image.footprintBytes < 32)
+        if (!image.readback || image.footprintBytes < 40)
             throw std::runtime_error("NRD_BRIDGE control header reserved readback missing");
         f->ticket->Retain(header.image.resource); // Owned source, no borrowed title CBV retained.
         f->bridgeControlOwner = header.owner; f->bridgeControlHeader = std::move(image);
-        f->bridgeMetadata["native_control_header"] = {{"available",true},{"profile",recon ? "A_Recon_direct" : "B_PrePass"},
+        f->bridgeControlStatusObserver = header.statusObserver;
+        if (header.hasStatus)
+        {
+            f->bridgeControlStatus = f->bridgeControlHeader;
+            f->bridgeControlStatus.width = 4; f->bridgeControlStatus.readbackCropX = 36;
+            f->bridgeControlStatus.sourceByteOffset = header.statusByteOffset;
+        }
+        f->bridgeMetadata["native_control_header"] = {{"available",true},{"contract_version",2},{"profile",recon ? "A_Recon_direct" : "B_PrePass"},
             {"recording_id",header.recordingId},{"streamline_frame",header.streamlineFrame},{"bridge_frame",header.bridgeFrame},
             {"words",std::move(words)},{"shared_committed_buffer_bytes",flag.allocationBytes},
             {"source_ownership","same_recording_owned_raw_snapshot"},
             {"source_state_provenance","caller_declared_owned_snapshot_state"},
-            {"uncaptured_words","UNKNOWN; zero_initialized_bytes_are_not_evidence"}};
+            {"uncaptured_words","UNKNOWN; zero_initialized_bytes_are_not_evidence"},
+            {"owned_status",header.hasStatus ? Json{{"available",true},{"origin","bridge_generated_raw_capture_validation; NOT_a_native_operand"},
+                {"source_buffer_byte_offset",header.statusByteOffset},{"readback_buffer_byte_offset",36},
+                {"observer_installed",header.statusObserver != nullptr},
+                {"scope","asynchronous_post_fence; cannot_deny_already_submitted_batch"}} :
+                Json{{"available",false},{"reason","A_Recon_has_no_owned_status_capture"}}}};
         D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition = {header.image.resource,0,header.image.state,D3D12_RESOURCE_STATE_COPY_SOURCE};
         f->started = true;
         if (header.image.state != D3D12_RESOURCE_STATE_COPY_SOURCE) cmd->ResourceBarrier(1,&barrier);
         for (size_t i=0;i<header.wordCount;++i)
             cmd->CopyBufferRegion(f->bridgeControlHeader.readback.Get(),4+4*i,header.image.resource,header.words[i].sourceBufferByteOffset,4);
+        if (header.hasStatus)
+            cmd->CopyBufferRegion(f->bridgeControlStatus.readback.Get(),36,header.image.resource,header.statusByteOffset,4);
         if (header.image.state != D3D12_RESOURCE_STATE_COPY_SOURCE)
         { std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter); cmd->ResourceBarrier(1,&barrier); }
         return true;

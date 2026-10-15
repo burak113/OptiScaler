@@ -18,6 +18,9 @@ def exercise(source, output):
     assert count == 2
     for frame in original["frames"][:count]:
         extras = [frame["native_control_header"]] if frame.get("native_control_header", {}).get("available") else []
+        status = frame.get("native_control_header", {}).get("owned_status", {})
+        if status.get("available"):
+            extras.append(status)
         for row in frame["images"] + [frame["provider_controls"]] + extras:
             dst = output / row["file"]
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -67,6 +70,11 @@ def exercise(source, output):
     rejected("native_control_wrong_private_alignment", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(source_buffer_byte_offset=1))
     rejected("native_control_decoded_value_not_payload", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(captured_uint32=0))
     rejected("native_control_wrong_size", lambda m: m["frames"][0]["native_control_header"].update(bytes=28))
+    if original["frames"][1]["native_control_header"].get("contract_version") == 2:
+        rejected("owned_status_cannot_be_native_operand", lambda m: m["frames"][1]["native_control_header"]["owned_status"].update(origin="native_b6"))
+        rejected("owned_status_missing_B_v2", lambda m: m["frames"][1]["native_control_header"]["owned_status"].update(available=False))
+        rejected("owned_status_wrong_private_offset", lambda m: m["frames"][1]["native_control_header"]["owned_status"].update(source_buffer_byte_offset=520))
+        rejected("owned_status_decoded_value_not_payload", lambda m: m["frames"][1]["native_control_header"]["owned_status"].update(captured_uint32=1))
     rejected("native_control_double_allocation_charge", lambda m: m["frames"][0]["native_control_header"]["copy_footprint"].update(committed_buffer_bytes=65536))
     for field, value in (("width", 256), ("mip_levels", 2), ("flags", 8)):
         incomplete_layout = copy.deepcopy(original)
