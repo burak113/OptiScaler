@@ -22,7 +22,7 @@ namespace
 {
 using Microsoft::WRL::ComPtr;
 constexpr uint64_t kRawByteLimit = uint64_t(2) * 1024 * 1024 * 1024;
-constexpr auto kRead = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+constexpr auto kRawRead = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 struct RawFamily
 {
     NrdBridgeCaptureBudget::Family slots;
@@ -46,23 +46,23 @@ struct RawBytes
         return false;
     }
 };
-void Check(HRESULT value,const char* message)
+void RawCheck(HRESULT value,const char* message)
 {
     if (FAILED(value)) throw std::runtime_error(std::string(message)+" (HRESULT "+std::to_string(value)+")");
 }
-void Transition(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,
+void RawTransition(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,
                 D3D12_RESOURCE_STATES before,D3D12_RESOURCE_STATES after) noexcept
 {
     D3D12_RESOURCE_BARRIER barrier {};barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition={resource,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,before,after};
     list->ResourceBarrier(1,&barrier);
 }
-void Pipeline(ID3D12Device* device,const void* code,size_t bytes,ComPtr<ID3D12RootSignature>& root,
+void RawPipeline(ID3D12Device* device,const void* code,size_t bytes,ComPtr<ID3D12RootSignature>& root,
               ComPtr<ID3D12PipelineState>& pso)
 {
-    Check(device->CreateRootSignature(0,code,bytes,IID_PPV_ARGS(&root)),"Raw noisy capture root creation failed");
+    RawCheck(device->CreateRootSignature(0,code,bytes,IID_PPV_ARGS(&root)),"Raw noisy capture root creation failed");
     D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};desc.pRootSignature=root.Get();desc.CS={code,bytes};
-    Check(device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&pso)),"Raw noisy capture pipeline creation failed");
+    RawCheck(device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&pso)),"Raw noisy capture pipeline creation failed");
 }
 struct RawSlot
 {
@@ -110,13 +110,13 @@ struct RawContext
             throw std::runtime_error("Raw noisy capture family exceeds2GiB of retained owned buffers");
         auto slot=MakeOwnedShared<RawSlot>(std::move(bytes),std::move(permit));
         D3D12_HEAP_PROPERTIES heap {};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
-        Check(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&raw,D3D12_RESOURCE_STATE_COMMON,nullptr,
+        RawCheck(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&raw,D3D12_RESOURCE_STATE_COMMON,nullptr,
             IID_PPV_ARGS(&slot->resource)),"Raw noisy snapshot allocation failed");
         std::string error;if(!slot->flag.Initialize(device.Get(),error))throw std::runtime_error(error);
         slot->rawAddress=slot->resource->GetGPUVirtualAddress();slot->flagAddress=slot->flag.resource->GetGPUVirtualAddress();
         D3D12_DESCRIPTOR_HEAP_DESC views {};views.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         views.NumDescriptors=2;views.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        Check(device->CreateDescriptorHeap(&views,IID_PPV_ARGS(&slot->decodeViews)),"Raw decode view allocation failed");
+        RawCheck(device->CreateDescriptorHeap(&views,IID_PPV_ARGS(&slot->decodeViews)),"Raw decode view allocation failed");
         {
             std::lock_guard lock(mutex);
             if(retired.load(std::memory_order_acquire))throw std::runtime_error("Raw noisy capture generation was retired during preparation");
@@ -125,7 +125,7 @@ struct RawContext
         return slot;
     }
 };
-bool HeapMatches(ID3D12Device* device,ID3D12DescriptorHeap* heap,
+bool RawHeapMatches(ID3D12Device* device,ID3D12DescriptorHeap* heap,
                  const std::array<D3D12_GPU_DESCRIPTOR_HANDLE,2>& views,std::string& error)
 {
     if(!device||!heap){error="Raw noisy source requires its native shader-visible heap";return false;}
@@ -143,7 +143,7 @@ bool HeapMatches(ID3D12Device* device,ID3D12DescriptorHeap* heap,
         {error="Raw noisy native SRV handle is outside its heap";return false;}
     return true;
 }
-bool OutputMatches(ID3D12Resource* resource,RawContext& context)
+bool RawOutputMatches(ID3D12Resource* resource,RawContext& context)
 {
     if(!resource)return false;const auto desc=resource->GetDesc();
     if(desc.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||desc.Width!=context.width||desc.Height!=context.height||
@@ -192,9 +192,9 @@ bool RawSignalSnapshotPass::Initialize(ID3D12Device* device,uint32_t width,uint3
         }
         auto next=MakeOwnedShared<RawContext>();next->device=device;next->width=width;next->height=height;next->family=family;
         next->stride=device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        Pipeline(device,FSRDNrdRawCapture_cso,sizeof(FSRDNrdRawCapture_cso),next->tableRoot,next->tablePso);
-        Pipeline(device,FSRDNrdRawCaptureRoot_cso,sizeof(FSRDNrdRawCaptureRoot_cso),next->directRoot,next->directPso);
-        Pipeline(device,FSRDNrdRawDecode_cso,sizeof(FSRDNrdRawDecode_cso),next->decodeRoot,next->decodePso);
+        RawPipeline(device,FSRDNrdRawCapture_cso,sizeof(FSRDNrdRawCapture_cso),next->tableRoot,next->tablePso);
+        RawPipeline(device,FSRDNrdRawCaptureRoot_cso,sizeof(FSRDNrdRawCaptureRoot_cso),next->directRoot,next->directPso);
+        RawPipeline(device,FSRDNrdRawDecode_cso,sizeof(FSRDNrdRawDecode_cso),next->decodeRoot,next->decodePso);
         if(!next->captureFlag.Initialize(device,error,303)||!next->captureFlag.Initialize(device,error,36))return false;
         next->slots.reserve(NrdBridgeCaptureBudget::Family::Capacity);
         std::shared_ptr<RawContext> previous;std::vector<std::shared_ptr<RawSlot>> retiredSlots;
@@ -218,8 +218,9 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         if(!context||source.width!=context->width||source.height!=context->height||frameSL==UINT32_MAX||
            source.profile!=NativeRawProfile::ReconDirect)
         {error="Raw noisy shader addressing profile/extent is unsupported";return false;}
-        if(!HeapMatches(context->device.Get(),source.nativeHeap,{source.specSrv,source.diffSrv},error)||
-           !HasNativeTitleSignalConstants(source.nativeConstants)||
+        if(!HasNativeTitleSignalConstants(source.nativeConstants))
+        {error="Raw noisy native geometry CB6 binding is unavailable";return false;}
+        if(!RawHeapMatches(context->device.Get(),source.nativeHeap,{source.specSrv,source.diffSrv},error)||
            !ValidateTitleSignalConstants(source.nativeConstants,context->device.Get(),error))return false;
         if(source.nativeConstants.nativeHeap&&source.nativeConstants.nativeHeap!=source.nativeHeap)
         {error="Raw noisy source SRVs and CBV table require the same native heap";return false;}
@@ -231,7 +232,7 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         const auto native=RecordedComputeLease::Capture(list);
         if(!native||!native->id){error="Raw noisy snapshot native recording identity unavailable";return false;}
         record->nativeRecording=native;record->recordingId=native->id;
-        Transition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         const bool table=source.nativeConstants.nativeHeap!=nullptr;
         list->SetPipelineState(table?context->tablePso.Get():context->directPso.Get());
         list->SetComputeRootSignature(table?context->tableRoot.Get():context->directRoot.Get());
@@ -242,7 +243,7 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         else list->SetComputeRootConstantBufferView(3,source.nativeConstants.address);
         list->SetComputeRootUnorderedAccessView(4,record->slot->rawAddress);
         list->Dispatch((context->width+7)/8,(context->height+7)/8,1);
-        Transition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COMMON);
+        RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COMMON);
         out=std::move(record);error.clear();return true;
     }
     catch(const std::exception& exception){error=exception.what();return false;}
@@ -257,11 +258,13 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         std::lock_guard lock(impl_->mutex);
         if(impl_->context!=context){error="Raw decode generation is no longer current";return false;}
     }
+    if(!HasNativeTitleSignalConstants(constants))
+    {error="Raw decode requires the current native Consumer signal flag binding";return false;}
     const auto native=record->nativeRecording.lock(),current=RecordedComputeLease::Capture(list);
     if(record->recording!=list||!native||!current||native!=current||native->id!=record->recordingId||
        output.width!=context->width||output.height!=context->height||output.spec==output.diff||
-       !OutputMatches(output.spec,*context)||!OutputMatches(output.diff,*context)||
-       !HasNativeTitleSignalConstants(constants)||!ValidateTitleSignalConstants(constants,context->device.Get(),error))
+       !RawOutputMatches(output.spec,*context)||!RawOutputMatches(output.diff,*context)||
+       !ValidateTitleSignalConstants(constants,context->device.Get(),error))
     {if(error.empty())error="Raw decode requires its same live native recording and owned output pair";return false;}
     uint32_t expected=0;if(!record->phase.compare_exchange_strong(expected,1,std::memory_order_acq_rel))
     {error="Raw noisy snapshot can be decoded only once";return false;}
@@ -278,9 +281,9 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         // No allocation/provider work follows this point. The early same-recording
         // lease owns the slot, both flag profiles and all descriptor resources.
         context->captureFlag.Record(list,constants,record->slot->flag);
-        Transition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,kRead);
-        Transition(list,output.spec,kRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        Transition(list,output.diff,kRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,kRawRead);
+        RawTransition(list,output.spec,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        RawTransition(list,output.diff,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         list->SetPipelineState(context->decodePso.Get());list->SetComputeRootSignature(context->decodeRoot.Get());
         ID3D12DescriptorHeap* heaps[]={record->slot->decodeViews.Get()};list->SetDescriptorHeaps(1,heaps);
         const uint32_t extent[]={context->width,context->height};list->SetComputeRoot32BitConstants(0,2,extent,0);
@@ -288,10 +291,10 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         list->SetComputeRootDescriptorTable(2,record->slot->decodeViews->GetGPUDescriptorHandleForHeapStart());
         list->SetComputeRootConstantBufferView(3,record->slot->flagAddress);
         list->Dispatch((context->width+7)/8,(context->height+7)/8,1);
-        Transition(list,output.spec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRead);
-        Transition(list,output.diff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRead);
-        Transition(list,record->slot->resource.Get(),kRead,D3D12_RESOURCE_STATE_COMMON);
-        record->slot->flag.Transition(list,false);record->phase.store(2,std::memory_order_release);
+        RawTransition(list,output.spec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
+        RawTransition(list,output.diff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
+        RawTransition(list,record->slot->resource.Get(),kRawRead,D3D12_RESOURCE_STATE_COMMON);
+        record->slot->flag.RawTransition(list,false);record->phase.store(2,std::memory_order_release);
         error.clear();return true;
     }
     catch(const std::exception& exception){record->phase.store(0,std::memory_order_release);error=exception.what();return false;}

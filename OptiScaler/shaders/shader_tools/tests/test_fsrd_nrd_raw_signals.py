@@ -66,7 +66,7 @@ def sources():
     need('captureFlag.Initialize(device,error,303)' in helper and 'captureFlag.Initialize(device,error,36)' in helper,'both native flag profiles prewarmed')
     need('slot->flag.Initialize' in helper and 'slot->decodeViews' in helper,'slot flags/views created before early capture')
     need('record->phase.compare_exchange_strong' in helper,'single-use decode admission')
-    need('Transition(list,output.spec,kRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)' in helper,'only owned lighting UAV transition')
+    need('RawTransition(list,output.spec,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)' in helper,'only owned lighting UAV transition')
     need('Transition(list,source.' not in helper and 'ComPtr<ID3D12DescriptorHeap> nativeHeap' not in helper,'no native source transitions/retention')
     need('retiredSlots.swap(previous->slots)' in helper,'retired caches release idle slots while leases retain needed slots')
     getter=helper[helper.index('RawSignalSnapshot RawSignalSnapshotPass::GetSnapshot'):helper.index('uint64_t RawSignalSnapshotPass::OwnedBytes')]
