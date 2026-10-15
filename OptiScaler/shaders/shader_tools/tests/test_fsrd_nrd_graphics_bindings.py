@@ -109,7 +109,14 @@ int main(int argc,char** argv)try{
  need(publish(tableLayout),"pixel CBV table layout published");auto table=bindings;table.views.clear();table.tables.push_back({0,{ph.gpu+20*ph.increment}});
  need(FrameSurvey::ResolveGraphicsConstantBinding(table,6,0,cbv)&&!cbv.address&&cbv.descriptorHeap==h&&cbv.descriptor.ptr==ph.gpu+20*ph.increment,"unrecorded volatile table b6 needs exact native heap/handle only");
  wrong=table;wrong.tables.back().second.ptr+=1;need(!FrameSurvey::ResolveGraphicsConstantBinding(wrong,6,0,cbv),"unaligned native CBV table fails");
- need(publish(pixel),"pixel root restored");FrameSurvey::View(b,{ph.cpu+3*ph.increment},&srv);
+ need(publish(pixel),"pixel root restored");
+ std::array<FrameSurvey::ComputeTableRequest,9> many{};
+ for(UINT i=0;i<9;++i){FrameSurvey::View(i&1?b:a,{ph.cpu+(32+i)*ph.increment},&srv);many[i]={D3D12_DESCRIPTOR_RANGE_TYPE_SRV,32+i,40+i,0};}
+ need(FrameSurvey::ResolveGraphicsBindings(bindings,1,{many.data(),8},out)&&out.size()==8&&out.front().resource==a&&out.back().resource==b,"exact maximum eight explicit pixel requests preserve order");
+ need(!FrameSurvey::ResolveGraphicsBindings(bindings,1,many,out)&&out.empty()&&!FrameSurvey::ResolveComputeBindings(bindings,2,{},out),"ninth and empty explicit requests fail without partial output");
+ {NrdBridgeBirth::ScopedRelease pending(rb);need(!FrameSurvey::ResolveGraphicsBindings(bindings,1,reads,out)&&!FrameSurvey::ResolveGraphicsConstantBinding(bindings,6,0,cbv),"physical root release in flight rejects pixel metadata and CBV");}
+ {NrdBridgeBirth::ScopedRelease pending(hb);need(!FrameSurvey::ResolveComputeBindings(bindings,2,writes,out)&&!FrameSurvey::ResolveGraphicsBindings(bindings,1,reads,out),"physical heap release in flight rejects both explicit table families");}
+ FrameSurvey::View(b,{ph.cpu+3*ph.increment},&srv);
  need(FrameSurvey::ResolveGraphicsBindings(bindings,1,reads,out)&&out[0].resource==b,"current volatile SRV overwrite is observed, never stale output identity");
  FrameSurvey::View(b,{ph.cpu+8*ph.increment},&uav);need(FrameSurvey::ResolveComputeBindings(bindings,2,writes,out)&&out[0].resource==b,"post-wait compute UAV overwrite is re-resolved");
  FrameSurvey::RetirementEffects dead;retire(bb,dead);need(!FrameSurvey::ResolveGraphicsBindings(bindings,1,reads,out)&&out.empty()&&!FrameSurvey::ResolveComputeBindings(bindings,2,writes,out),"retired texture cannot survive either explicit resource resolver");FrameSurvey::NotifyRelease(dead);
