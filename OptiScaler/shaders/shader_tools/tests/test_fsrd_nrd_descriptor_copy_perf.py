@@ -284,7 +284,8 @@ static J timing(unsigned threads,bool old){
   for(unsigned i=0;i<repetitions;++i){resetCounters();auto begin=std::chrono::steady_clock::now();
    (old?ResTrack_Dx12::baselineCopyDescriptorsSimple:ResTrack_Dx12::hkCopyDescriptorsSimple)(device,count,{dst->cpuStart},{src->cpuStart},D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
    auto end=std::chrono::steady_clock::now();values.push_back(std::chrono::duration<double,std::micro>(end-begin).count());calls+=lookupCalls;locks+=registryReads;scans+=poolScans;fanout+=participantScans;
-  }std::sort(values.begin(),values.end());results[t]={{"p50_us",values[repetitions/2]},{"p95_us",values[size_t(repetitions*.95)]},{"lookups",calls},{"registry_shared_acquisitions",locks},{"full_heap_scans",scans},{"full_resource_fanout_scans",fanout}};
+  }std::sort(values.begin(),values.end());double sum=0;for(const auto value:values)sum+=value;
+  results[t]={{"mean_us",sum/repetitions},{"p50_us",values[repetitions/2]},{"p95_us",values[size_t(repetitions*.95)]},{"p99_us",values[size_t(repetitions*.99)]},{"max_us",values.back()},{"lookups",calls},{"registry_shared_acquisitions",locks},{"full_heap_scans",scans},{"full_resource_fanout_scans",fanout}};
  });while(ready.load()!=threads)std::this_thread::yield();start.store(true,std::memory_order_release);for(auto& worker:workers)worker.join();
  for(const auto& row:results)need(row["lookups"]==uint64_t(repetitions)*(old?2*count:2)&&row["registry_shared_acquisitions"]==uint64_t(repetitions)*(old?2*count:2)&&row["full_heap_scans"]==0&&row["full_resource_fanout_scans"]==0,"every warm concurrent burst keeps its exact complexity bound without scans");
  for(auto& [src,dst]:pairs){need(DeactivateTrackedHeap(src)&&DeactivateTrackedHeap(dst),"retire independent timing metadata heaps");}
@@ -313,7 +314,8 @@ static J fanoutTiming(const std::shared_ptr<HeapInfo>& src,const std::shared_ptr
    if(hashedParticipants)need(participantScans==0&&participantVisits==0,"new actual participant hash never walks the shared resource fanout");
    else need(participantVisits>=uint64_t(count)*count,"old actual vector helper has quadratic visits on the same cold burst");
    visits+=participantVisits;scans+=participantScans;
-  }std::sort(samples.begin(),samples.end());rows.push_back({{"descriptors",count},{"repetitions",5},{"p50_us",samples[2]},{"max_us",samples.back()},{"fanout_element_visits",visits},{"fanout_range_begins",scans}});
+  }std::sort(samples.begin(),samples.end());double sum=0;for(const auto sample:samples)sum+=sample;
+  rows.push_back({{"descriptors",count},{"repetitions",5},{"mean_us",sum/samples.size()},{"p50_us",samples[2]},{"max_us",samples.back()},{"fanout_element_visits",visits},{"fanout_range_begins",scans}});
  }fixtureIncrement=32;return rows;
 }
 int main(int argc,char** argv)try{
@@ -415,7 +417,8 @@ def main():
     result.check_returncode();values=json.loads(result.stdout);values['source']=metadata
     (OUT/'result.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
     report=Path('E:/FSRD/sol_batch/15a-motion/descriptor-copy');report.mkdir(parents=True,exist_ok=True)
-    (report/('result_vector.json' if args.old_participants else 'result_hash.json')).write_text(json.dumps(values,indent=2),encoding='utf-8')
+    suffix='vector' if args.old_participants else 'hash'
+    (report/f'{OUT.name}_result_{suffix}.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
     print('PASS:',values['checks'],'actual descriptor-copy CPU correctness/complexity checks; registry=',values['registry_heap_setup'])
     for row in values['correctness_and_complexity'][:4]:
         print('heap_type=',row['heap_type'],'count=',row['current']['count'],'old_lookups=',row['old']['lookups'],
