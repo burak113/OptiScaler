@@ -404,7 +404,7 @@ def run():
     text=text.replace('__STATE__',state).replace('__GETTER__',getter).replace('__CBVHOOK__',cbvhook)
     source=output/'fixture.cpp'; source.write_text(text,encoding='utf-8'); exe=output/'fixture.exe'
     compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),
-        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/streamline', ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/spdlog/include',ROOT/'external/streamline', ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe),str(output)],check=True,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result=json.loads((output/'host-result.json').read_text()); report=Path(os.environ.get('FSRD_TASK_REPORT_DIR','E:/FSRD/sol_batch/12a-discovery')); report.mkdir(parents=True,exist_ok=True)
     (report/'constant-buffers-result.json').write_text(json.dumps(result,indent=2)+'\n')
