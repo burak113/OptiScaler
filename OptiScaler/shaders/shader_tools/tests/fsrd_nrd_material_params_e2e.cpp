@@ -91,7 +91,7 @@ struct Writer
   if(FAILED(compiled)&&error)std::cerr<<static_cast<const char*>(error->GetBufferPointer())<<std::endl;hr(compiled);
   D3D12_COMPUTE_PIPELINE_STATE_DESC desc{};desc.pRootSignature=native.root.Get();desc.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
   previousPso=native.pso;hr(native.h.device->CreateComputePipelineState(&desc,IID_PPV_ARGS(&native.pso)));
-  FrameSurvey::PipelineCreated(native.pso.Get(),desc);NrdBridge::RegisterPipelineRoleForTesting(native.pso.Get(),Role::MaterialGuide);
+  FrameSurvey::PipelineCreated(native.pso.Get(),desc);NrdBridge::RegisterPipelineRoleForTesting(native.pso.Get(),Role::MaterialGuide,true);
  }
  void states(const States& next)
  {

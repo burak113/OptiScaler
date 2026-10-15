@@ -385,7 +385,7 @@ struct Title {
    if(FAILED(result) && error) std::cerr<<static_cast<const char*>(error->GetBufferPointer())<<'\n'; hr(result);
    D3D12_COMPUTE_PIPELINE_STATE_DESC pd{}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
    hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso[role])));
-   if(registered) { FrameSurvey::PipelineCreated(pso[role].Get(),pd); NrdBridge::RegisterPipelineRoleForTesting(pso[role].Get(),Role(role)); }
+   if(registered) { FrameSurvey::PipelineCreated(pso[role].Get(),pd); NrdBridge::RegisterPipelineRoleForTesting(pso[role].Get(),Role(role),true); }
   }
   cb=h.upload(0,1536); void* constants=nullptr; hr(cb->Map(0,nullptr,&constants));
   static_cast<UINT*>(constants)[0]=55; cb->Unmap(0,nullptr);

@@ -188,7 +188,7 @@ struct ChainHost {
   for(UINT i=0;i<pipelines.size();++i) {
    D3D12_COMPUTE_PIPELINE_STATE_DESC pd {}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
    hr(h.dev->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pipelines[i]))); FrameSurvey::PipelineCreated(pipelines[i].Get(),pd);
-   NrdBridge::RegisterPipelineRoleForTesting(pipelines[i].Get(),Role(i));
+   NrdBridge::RegisterPipelineRoleForTesting(pipelines[i].Get(),Role(i),true);
   }
   for(UINT i=0;i<textures.size();++i) {
    auto desc=CD3DX12_RESOURCE_DESC::Tex2D(i==2 ? DXGI_FORMAT_R10G10B10A2_UNORM : i==3 ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -555,10 +555,10 @@ J discoveryTests(Host& h) {
  // Reuse notifications also erase stale roles when the object's Release vtable was not observed.
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_GRAPHICS_PIPELINE_STATE_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"graphics creation erases an old role at reused PSO address");
- NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,true);
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
- NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon,true);
  // The provider can succeed after the coordinator epoch changed on another path.
  // Admission must preserve the newer state and avoid an Active/counter publication.
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
