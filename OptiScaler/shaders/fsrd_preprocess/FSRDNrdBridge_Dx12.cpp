@@ -37,6 +37,9 @@ struct NativeDebugImageOrder;
 struct RecordingToken
 {
     std::atomic<bool> submitted {false}, outputCommitted {false}, abandoned {false};
+    // Once a title history pass is omitted, this exact recording must commit RR.
+    // These latches outlive Service, runtime toggles and later Recon transactions.
+    std::atomic<bool> commitRequired {false}, skipInvalidated {false}, submissionRetained {false};
     std::atomic<SubmissionPhase> phase {SubmissionPhase::Recorded};
     std::mutex publicationMutex;
     RecordedComputeLease::FencePointPtr completion;
@@ -89,7 +92,7 @@ struct ResourceIdentityHash
     size_t operator()(const ResourceIdentity& identity) const noexcept
     { return std::hash<void*>{}(identity.address) ^ (std::hash<const void*>{}(identity.birth.get()) << 1); }
 };
-struct PipelineIdentity { Role role = Role::None; NrdBridgeBirth::Token birth; };
+struct PipelineIdentity { Role role = Role::None; NrdBridgeBirth::Token birth; bool nativeContract = false; };
 struct MaterialSnapshot
 {
     NativeMaterialCapture::SnapshotLease snapshot;
@@ -100,6 +103,8 @@ struct MaterialSnapshot
 struct ListState
 {
     Role role = Role::None;
+    bool nativeContract = false, rrOnlyTransaction = false, ownedReady = false;
+    bool currentDispatchSuppressed = false, earlyTemporalObserved = false, chainB = false;
     NrdBridgeBirth::Token birth, pipelineBirth;
     ChainDiscovery chain;
     std::array<ID3D12Resource*,11> indexedReferences {};
@@ -374,6 +379,26 @@ bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;
 }
+bool RequiredOutputComplete(const RecordingToken& recording) noexcept
+{
+    return !recording.commitRequired.load(std::memory_order_acquire) ||
+        (recording.outputCommitted.load(std::memory_order_acquire) &&
+         !recording.skipInvalidated.load(std::memory_order_acquire) && !recording.abandoned.load(std::memory_order_acquire));
+}
+bool AdmitRecordingSubmission(const RecordingToken& recording) noexcept
+{
+    if (RequiredOutputComplete(recording)) return true;
+    // False alone only rejects private preparation. Deny the actual Execute,
+    // including RecordedComputeLease's allocation-free snapshot fallback.
+    RecordedComputeLease::DenySubmission(E_FAIL); return false;
+}
+void InvalidateSkippedRecording(ListState& list) noexcept
+{
+    if (!list.recording || !list.recording->commitRequired.load(std::memory_order_acquire) ||
+        list.recording->outputCommitted.load(std::memory_order_acquire)) return;
+    list.recording->skipInvalidated.store(true,std::memory_order_release);
+    if (list.history) { list.history->uncertain.store(true,std::memory_order_release); list.history->discardPending.store(true,std::memory_order_release); }
+}
 using RetiredDebugSources = std::array<std::shared_ptr<NativeDebugSource>,4>;
 // A hook may cancel twice, but cannot publish a new source while it owns gMutex.
 // Preserve each detached owner until that hook has left the state lock.
@@ -410,7 +435,7 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
     owner.pendingList = nullptr; owner.status.active = false; owner.status.nativeMaterialGuidesActive = false; ClearNativeDebugSources(owner,retired);
-    for (auto& [cmd,list] : owner.lists) list.converted = list.motionReady = false;
+    for (auto& [cmd,list] : owner.lists) { InvalidateSkippedRecording(list); list.converted = list.motionReady = false; }
     ++owner.resetSerial; ++owner.cancellationSerial;
 }
 void NativeDebugDiagnostic(const std::shared_ptr<Service>& owner, const std::string& reason)
@@ -694,6 +719,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     auto ownership = MakeOwnedShared<RecordingOwnership>(); ownership->history = history; ownership->token = recording;
     RecordedComputeLease::SubmissionCallbacks submission;
     submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
+        if (!AdmitRecordingSubmission(*ownership->token)) return false;
         auto& domain = *ownership->history;
         RecordedComputeLease::FencePointPtr retiredPoint;
         std::shared_ptr<NativeDebugImageOrder> imageOrder;
@@ -790,6 +816,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
         if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission));
+        if (succeeded) recording->submissionRetained.store(true,std::memory_order_release);
         if (!succeeded && error.empty()) error = "Could not retain NRD recording submission token";
         prepare.Stop();
         if (succeeded)
@@ -1127,7 +1154,7 @@ void OnPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
         const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode());
         const auto role = hash ? IdentifyRole(hash) : Role::None; std::scoped_lock lock(gMutex);
         if (!gService || !BirthLive(birth)) return;
-        if (role == Role::None) gService->roles.erase(pipeline); else gService->roles[pipeline] = {role,birth};
+        if (role == Role::None) gService->roles.erase(pipeline); else gService->roles[pipeline] = {role,birth,true};
     } catch (...) {}
 }
 void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline) noexcept
@@ -1146,9 +1173,11 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             if (role != Role::None)
             {
                 auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
+                list.nativeContract = owner.roles.at(pipeline).nativeContract;
                 if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
             }
-            else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) { found->second.role = Role::None; found->second.pipelineBirth = pipelineBirth; }
+            else if (const auto found = owner.lists.find(cmd); found != owner.lists.end())
+            { InvalidateSkippedRecording(found->second); found->second.role = Role::None; found->second.nativeContract = false; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                 (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
@@ -1200,6 +1229,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                 RemoveChainUsers(owner,cmd,found->second); StopFollowing(owner,cmd,found->second);
                 retiredList.emplace(std::move(found->second)); found->second = {};
                 found->second.materialStates = std::move(rememberedMaterialStates); found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
+                found->second.nativeContract = found->second.role != Role::None && owner.roles.at(initial).nativeContract;
                 found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
                 found->second.materialIdentityRevision = rememberedMaterialRevision;
                 if (owner.rrSettings.nativeMaterialGuides)
@@ -1211,6 +1241,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None)
             {
                 auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
+                list.nativeContract = owner.roles.at(initial).nativeContract;
                 if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
@@ -1240,6 +1271,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 else if (role == Role::Recon)
                 {
                     auto& list = found->second; RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
+                    const bool nativeContract = list.nativeContract; InvalidateSkippedRecording(list);
                     auto material = std::move(list.pendingMaterial);
                     auto materialStates = std::move(list.materialStates);
                     auto recording = std::move(list.recording);
@@ -1247,7 +1279,8 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory); list.birth = birth; list.pipelineBirth = pipelineBirth;
                     list.material = std::move(material); list.materialStates = std::move(materialStates);
                     // Prior unsubmitted RR work survives a second incomplete Recon.
-                    list.role = role; list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
+                    list.role = role; list.nativeContract = nativeContract; list.rrOnlyTransaction = nativeContract;
+                    list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
                     if (window) owner->windowSawRecon = true;
                 }
@@ -1296,6 +1329,33 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (role == Role::Recon) Convert(owner,cmd,frame);
         else if (firstTemporal) FinalizeMotion(owner,cmd,frame,currentMotion);
     } catch (...) { CoordinatorException("Exception while preparing current NRD input bindings"); }
+}
+void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason) noexcept
+{
+    if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !cmd) return;
+    try
+    {
+        std::scoped_lock lock(gMutex); if (!gService) return;
+        const auto found = gService->lists.find(cmd); if (found == gService->lists.end()) return;
+        auto& list = found->second; InvalidateSkippedRecording(list);
+        list.nativeContract = false; list.role = Role::None; list.pipelineBirth.reset();
+        list.converted = list.motionReady = list.ownedReady = false;
+        StopFollowing(*gService,cmd,list);
+        if (gService->pendingList == cmd) gService->pendingList = nullptr;
+        if (list.recording && !RequiredOutputComplete(*list.recording))
+        {
+            gService->status.active = false; gService->status.phase = "Inactive";
+            gService->status.reason = reason ? reason : "RR-only recording proof was invalidated; submission requires restart";
+        }
+    } catch (...) {}
+}
+DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList* cmd, DispatchKind kind) noexcept
+{
+    if (kind != DispatchKind::Direct)
+        InvalidateRecordingProof(cmd,kind == DispatchKind::Bundle ? "ExecuteBundle invalidated an incomplete RR-only recording" : "ExecuteIndirect invalidated an incomplete RR-only recording");
+    // Early-owned-RR admission arms exact direct suppressions in the next stage.
+    // A recognized pipeline alone never authorizes omitting native work.
+    return DispatchDisposition::Forward;
 }
 void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 {
@@ -1730,6 +1790,16 @@ void SetRuntimeEnabled(bool enabled) noexcept
     {
         std::scoped_lock injection(gInjectionMutex);
         if (enabled) { std::scoped_lock lock(gMutex); if (gService) RequireRestoreFlags(); }
+        {
+            std::scoped_lock lock(gMutex);
+            if (!enabled && gService && gService->status.nativeHistoryDirty)
+            {
+                gService->status.runtimeDisablePending = true;
+                gService->status.reason = "Restart required to return to native NRD; RR-only histories have replaced native temporal work";
+                return; // Keep RR enabled: native history cannot silently resume.
+            }
+            if (enabled && gService) gService->status.runtimeDisablePending = false;
+        }
         const bool previous = gRuntime.exchange(enabled,std::memory_order_acq_rel); if (previous == enabled) return;
         bool window = false; RetiredDebugSources retired;
         {
@@ -1979,10 +2049,10 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
 bool NativeDebugEnabled() noexcept
 { return gInstalled.load(std::memory_order_relaxed) && gRuntime.load(std::memory_order_relaxed) && gNativeDebug.load(std::memory_order_relaxed); }
 #ifdef FSRD_NRD_BRIDGE_TEST
-void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role) noexcept
+void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role, bool nativeContract) noexcept
 {
     try { const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode()); std::scoped_lock lock(gMutex);
-        if (gService && pipeline && BirthLive(birth)) gService->roles[pipeline] = {role,birth}; } catch (...) {}
+        if (gService && pipeline && BirthLive(birth)) gService->roles[pipeline] = {role,birth,nativeContract}; } catch (...) {}
 }
 #endif
 }
