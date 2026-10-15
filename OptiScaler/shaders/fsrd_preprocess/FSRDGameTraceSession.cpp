@@ -2051,6 +2051,8 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             {"recovery",{{"graph_recorded",output.recoveryActive},{"fallback_to_raw_rr",output.recoveryFallback}}},
             {"provider",{{"version_id",output.providerVersionId},{"api_version",output.providerApiVersion},
                 {"signal_flags",output.providerSignalFlags},{"context_flags",output.providerContextFlags},
+                {"checkerboard_signal_flags",output.providerCheckerboardSignalFlags},
+                {"diffuse_checkerboard_origin",output.diffuseCheckerboardOrigin},{"specular_checkerboard_origin",output.specularCheckerboardOrigin},
                 {"name",std::string(output.providerName.begin(),std::find(output.providerName.begin(),output.providerName.end(),'\0'))},
                 {"route_attestation",attestation},{"binary_identity_available",attestation.value("attested",false)}}},
             {"encoding",{{"native_flag_captured",false},{"fallback_encoding",uint32_t(parameters.outputEncoding)},

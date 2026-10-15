@@ -187,6 +187,16 @@ def inspect_capture(folder, *, verify_payload=True):
             require(struct.unpack_from("<4I", tail, 168) == (render[0], render[1], sdk_frame, flags),
                     "actual provider tail differs from frame/extent/flags")
         provider = frame.get("provider", {})
+        required_controls = ("checkerboard_signal_flags", "diffuse_checkerboard_origin", "specular_checkerboard_origin")
+        if not all(key in provider for key in required_controls):
+            if "actual_checkerboard_create_and_signal_controls_unavailable" not in reasons:
+                reasons.append("actual_checkerboard_create_and_signal_controls_unavailable")
+        else:
+            signal_flags = uint(provider.get("signal_flags"), "actual provider signal flags", 0xffffffff)
+            cb_flags = uint(provider["checkerboard_signal_flags"], "actual provider checkerboard flags", 0xffffffff)
+            require(cb_flags & ~signal_flags == 0, "checkerboard flags are not a subset of actual signals")
+            for key in required_controls[1:]:
+                uint(provider[key], "actual " + key, 1)
         witness = provider.get("route_attestation", {})
         binary = witness.get("creation", {}).get("implementation_identity", {})
         binary_hash = binary.get("disk_sha256") if isinstance(binary, dict) else None
@@ -195,7 +205,8 @@ def inspect_capture(folder, *, verify_payload=True):
         if not attested and "actual_provider_binary_attestation_unavailable" not in reasons:
             reasons.append("actual_provider_binary_attestation_unavailable")
         current = (identity["domain"], frame.get("context_generation"), frame.get("settings_sha256"),
-                   provider.get("version_id"), provider.get("api_version"), binary_hash)
+                   provider.get("version_id"), provider.get("api_version"), binary_hash,
+                   provider.get("signal_flags"), provider.get("context_flags"), provider.get("checkerboard_signal_flags"))
         if stable is None:
             stable = current
             if not flags & 1:
@@ -218,7 +229,10 @@ def inspect_capture(folder, *, verify_payload=True):
             if name != "consumer_word303":
                 require(row.get("crop_origin") == origin, "image ROI/source frame differs")
             size = expected_extent[0] * expected_extent[1] * bpp
-            physical[name] = verify_file(root, row, ordinal, size, verify_payload)
+            physical[name] = dict(verify_file(root, row, ordinal, size, verify_payload),
+                                  dxgi_format=fmt, bytes_per_pixel=bpp,
+                                  source_native_resource_desc=row.get("source_native_resource_desc", {}),
+                                  source_state=row.get("source_state"))
             footprint = row.get("copy_footprint", {})
             allocation = uint(footprint.get("committed_buffer_bytes"), "readback allocation")
             require(allocation >= size and allocation % (64 << 10) == 0, "invalid committed readback charge")
@@ -250,6 +264,18 @@ def inspect_capture(folder, *, verify_payload=True):
                 continue
             require(cursor in physical and FORMATS[cursor] == FORMATS[name], "missing/incompatible aliased stage")
             resolved[name] = physical[cursor]
+        for name in INPUTS:
+            actual = resolved[name].get("source_native_resource_desc", {})
+            layout_complete = (isinstance(actual, dict) and actual.get("dimension") == 3
+                and actual.get("width") == render[0] and actual.get("height") == render[1]
+                and actual.get("depth_or_array_size") == actual.get("mip_levels") == actual.get("sample_count") == 1
+                and actual.get("sample_quality") == actual.get("layout") == 0
+                and actual.get("dxgi_format") == FORMATS[name][0]
+                and type(actual.get("flags")) is int and actual["flags"] in (0, 4)
+                and type(resolved[name].get("source_state")) is int and resolved[name]["source_state"] == 64)
+            reason = "actual_RR_input_resource_layout_incomplete_or_has_uncaptured_extent"
+            if not layout_complete and reason not in reasons:
+                reasons.append(reason)
         encoding = frame.get("encoding", {})
         if encoding.get("native_flag_captured"):
             require(encoding.get("native_source_word") in (36, 303) and encoding.get("private_payload_word") == 303
