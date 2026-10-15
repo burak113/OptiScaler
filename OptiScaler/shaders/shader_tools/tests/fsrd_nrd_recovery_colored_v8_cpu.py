@@ -26,6 +26,11 @@ RUN_ROOT = Path('F:/FSRD/sol_batch/15c-rr/albedo-v7-v8-rr-run1')
 OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/15b-inputs/tests/recovery-colored-v8-cpu-r1'))
 VARIANTS = {'spec1-diff0': (1., 0.), 'spec0-diff1': (0., 1.), 'spec1-diff1': (1., 1.), 'zero': (0., 0.)}
 CHECKS = 0
+ALGORITHM_CANONICAL_SHA = {
+    'fsrd_nrd_lobe_reference_prototype.py': 'bbe9ae7b8f8cbef7725334e411d72533ec2d37f0e5a6dac983df15ad779f804a',
+    'fsrd_nrd_recovery_prototype.py': 'b9b6347c0b274127ceb6e9d91ca8c70bc88dfbf69ca54fb745ddef099369b309',
+    'fsrd_nrd_recovery_local_bounds.py': '196ebc9b8a87f5a1d410bed37473a96b5ca0644ad89b01911ddbdc0ad85fae8e',
+}
 
 
 def need(condition, message):
@@ -37,6 +42,11 @@ def need(condition, message):
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def source_sha(path):
+    # Git working trees may expose LF versus CRLF. Pin every other source byte.
+    return hashlib.sha256(Path(path).read_bytes().replace(b'\r\n', b'\n')).hexdigest()
 
 
 def write_json(path, value):
@@ -110,7 +120,8 @@ def main():
     algorithm_names = ('fsrd_nrd_lobe_reference_prototype.py', 'fsrd_nrd_recovery_prototype.py',
                        'fsrd_nrd_recovery_local_bounds.py')
     for filename in algorithm_names:
-        need(sha(HERE/filename) == sha(MAIN/filename), 'unchanged tested FP32 algorithm: '+filename)
+        need(source_sha(HERE/filename) == source_sha(MAIN/filename) == ALGORITHM_CANONICAL_SHA[filename],
+             'unchanged tested canonicalLF FP32 algorithm: '+filename)
     runs = {candidate: sealed_run(candidate, manifest_sha) for candidate in ('both', 'white')}
     need(runs['both'][1]['effective_words'] == runs['white'][1]['effective_words'], 'same eight actual SDK settings')
     rows = (Path(manifest['views']['both'])/'native-replay.txt').read_text().splitlines()[1:]
@@ -206,6 +217,8 @@ def main():
         gradients={v: {d: corrected.detail.summarize(rows) for d, rows in domains.items()} for v, domains in gradients.items()},
         settings={v: {s: asdict(model.settings) for s, model in models.items()} for v, models in histories.items()},
         algorithm_source_sha256={str(MAIN/n): sha(MAIN/n) for n in algorithm_names},
+        algorithm_canonical_lf_sha256=ALGORITHM_CANONICAL_SHA,
+        source_line_endings='mainCRLF/ownerLF; exact pinned canonicalLF source bytes, raw identities retained',
         comparator_source_sha256=sha(Path(corrected.__file__)), script_sha256=sha(Path(__file__)),
         baseline_run_sha256={candidate: sha(directory/'runs.json') for candidate, (directory, run) in runs.items()},
         peak_resident_bytes=peak, cpu_seconds=time.perf_counter()-started,
