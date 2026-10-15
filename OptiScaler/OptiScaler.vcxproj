@@ -1041,6 +1041,15 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCaptureRoot.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCaptureRoot_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCapture_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCapture.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCapture_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCaptureRoot_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCaptureRoot.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassCaptureRoot_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassDecode_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassDecode.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawPrePassDecode_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometry_Shader.h" />
@@ -1066,6 +1075,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit_Shader.cso" />
     <ClInclude Include="misc\NrdBridgeLifetime_Dx12.h" />
     <ClInclude Include="misc\NrdBridgePerf_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeDescriptorAdmission_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeStagePerf_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeBirth_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeNativeBirth_Dx12.h" />
