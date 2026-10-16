@@ -712,16 +712,17 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
-    // RR inputs, so a flip must reset provider history like the other visual
-    // path selectors; silent mid-stream acceptance would mix decode profiles
-    // inside one accumulated history.
+    // RR inputs, and the D01 legacy selector changes the motion Z provenance;
+    // either flip must reset provider history like the other visual path
+    // selectors instead of silently mixing profiles inside one history.
     if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs ||
         impl_->settings.nativeTemporalMotion != requested.nativeTemporalMotion ||
         impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides ||
         impl_->settings.lobeRecovery != requested.lobeRecovery ||
         impl_->settings.recoverySpecular != requested.recoverySpecular ||
         impl_->settings.recoveryDiffuse != requested.recoveryDiffuse ||
-        impl_->settings.surfaceValidFill != requested.surfaceValidFill)
+        impl_->settings.surfaceValidFill != requested.surfaceValidFill ||
+        impl_->settings.legacyMotionDepth != requested.legacyMotionDepth)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};

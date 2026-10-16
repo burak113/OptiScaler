@@ -552,7 +552,8 @@ class Config
     // -1 is integration OFF; AMD modes are 0 Overview and 1 Fullscreen viewport.
     CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugView {-1};
     CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugViewport {0};
-    // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
+    // Legacy selector kept for the Recon ticket flow; camera-only prediction is
+    // the default with or without this flag, so it no longer selects previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
     // Experimental A/B rollback: previous-visible-depth motion Z (pre-fix path).
     CustomOptional<bool> FfxDenoiserNrdBridgeLegacyMotionDepth {false};

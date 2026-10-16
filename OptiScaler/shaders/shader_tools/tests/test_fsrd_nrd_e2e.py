@@ -150,6 +150,9 @@ struct FfxApiProxy : ProviderExports {
 struct Setting { bool value=false; bool value_or_default() const { return value; } void set_volatile_value(bool next) { value=next; } };
 struct Config {
  Setting FfxDenoiserNrdBridge{false}, FfxDenoiserNrdBridgeEnabled{true}, FfxDenoiserFrameSurvey{false};
+ // D01/D02 selector inputs; ReadStartupSettings consults them exactly like the
+ // production Config fields. Defaults stay false outside the config-wiring case.
+ Setting FfxDenoiserNrdBridgeSurfaceValidFill{false}, FfxDenoiserNrdBridgeLegacyMotionDepth{false};
  Setting RestoreComputeSignature{true}, RestoreGraphicSignature{false}, ExtendedStateRestore{true};
  static Config* Instance() { static Config value; return &value; }
 };
@@ -243,6 +246,12 @@ struct D3D12Hooks {
     wiring = '\n'.join(res_function(res, name) for name in (
         'hkSurveySetPipelineState', 'hkSurveyDispatch', 'hkSurveyReset',
         'hkSurveySetComputeRootDescriptorTable', 'hkSurveyResourceBarrier'))
+    pso_at = wiring.index('void hkSurveySetPipelineState(')
+    brace = wiring.index('{', pso_at)
+    # Top-of-body placement runs before the survey's internal guard, so bridge
+    # internal decode pipelines are observed exactly like title bindings.
+    wiring = wiring[:brace + 1] + '\n noteGpuPipelineState(This,pPipelineState);\n' + wiring[brace + 1:]
+    assert wiring.count('noteGpuPipelineState(This,pPipelineState);') == 1
     dispatch_at = wiring.index('void hkSurveyDispatch(')
     brace = wiring.index('{', dispatch_at)
     wiring = wiring[:brace + 1] + '\n recordDispatch(This,FrameSurvey::Internal());\n' + wiring[brace + 1:]
@@ -479,6 +488,41 @@ def rr_only_policy_replay(exe, out):
     return result
 
 
+def validate_config_wiring(value):
+    wiring = value['config_wiring']
+    checks = 0
+
+    def require(condition):
+        nonlocal checks
+        assert condition
+        checks += 1
+
+    require(wiring['startup_selectors_stored'])
+    require(wiring['context_generation_stable'])
+    motion = wiring['motion_legacy_diff']
+    require(motion['depth_delta_words'] > 0)
+    require(motion['xyw_words'] == 0)
+    require(motion['pixels'] == 128*128)
+    require(value['debug_errors'] == value['debug_warnings'] == 0)
+    return checks
+
+
+def config_wiring_replay(exe, out):
+    directory = out / 'config_wiring'
+    directory.mkdir(parents=True, exist_ok=True)
+    text, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--config-wiring'], directory / 'native_run')
+    value = json.loads((directory / 'config-wiring-result.json').read_text())
+    checks = validate_config_wiring(value)
+    value.update(python_checks=checks, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                 dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest())
+    (directory / 'config-wiring-result.json').write_text(json.dumps(value, indent=2) + '\n')
+    (out / 'config-wiring-comparison.json').write_text(json.dumps(value, indent=2) + '\n')
+    report = Path(os.environ.get('FSRD_NRD_E2E_REPORT', f'E:/FSRD/sol_batch/{out.parents[1].name}'))
+    report.mkdir(parents=True, exist_ok=True)
+    (report / 'config-wiring-comparison.json').write_text(json.dumps(value, indent=2) + '\n')
+    print(json.dumps(dict(result=str(out / 'config-wiring-comparison.json'), python_checks=checks), indent=2))
+
+
 def run():
     out = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12e-e2e/tests/e2e'))
     out.mkdir(parents=True, exist_ok=True)
@@ -488,6 +532,9 @@ def run():
         return
     if '--rr-only-policy-only' in sys.argv:
         print(json.dumps(rr_only_policy_replay(exe, out), indent=2))
+        return
+    if '--config-wiring-only' in sys.argv:
+        config_wiring_replay(exe, out)
         return
     if '--native-material-guides-only' in sys.argv:
         native_material_guides(exe, out)

@@ -423,6 +423,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
     }
     if constexpr (requires { config.FfxDenoiserNrdBridgeSurfaceValidFill; })
         settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
+    if constexpr (requires { config.FfxDenoiserNrdBridgeLegacyMotionDepth; })
+        settings.legacyMotionDepth = config.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default();
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -1671,6 +1673,10 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
             prepared = history->rr.Configure(stage->settings,error) &&
                 history->rr.PrepareFrame(stage->streamline,reset,stage->parameters,error);
             stage->parameters.nativeTemporalMotion = stage->settings.nativeTemporalMotion;
+            // D01 A/B rollback must reach the native RR-only frame exactly like the
+            // conversion path; without this transfer the advertised INI/menu
+            // rollback stays false in every native frame parameter set.
+            stage->parameters.legacyMotionDepth = stage->settings.legacyMotionDepth;
             stage->parameters.nativeMaterialGuides = stage->settings.nativeMaterialGuides;
             stage->parameters.preserveNativeMaterialIDs = stage->settings.preserveNativeMaterialIDs;
             stage->parameters.cameraProjectedDepthDelta = stage->cameraProjectedDepthDelta;
