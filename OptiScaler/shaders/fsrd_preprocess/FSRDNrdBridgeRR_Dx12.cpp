@@ -650,6 +650,11 @@ struct RRRecordedOutput
     uint32_t frameIndex = 0, frameSL = UINT32_MAX;
     uint64_t contextGeneration = 0, recordingId = 0;
     bool recoveryFallback = false, nativeCommitPrepared = false;
+    // F04: these are frozen at the recording frame, exactly like the recovery
+    // resources above; getters must never read the wrapper's later state here.
+    uint32_t recoveryTier = uint32_t(LobeRecoveryTier::None);
+    uint32_t recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
+    std::string recoveryErrorText; // The real optional error text of THIS recording.
     mutable bool nativeEncodingCaptured = false;
     std::array<uint8_t, 184> providerControl {};
     uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
@@ -1159,6 +1164,13 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
     impl_->recoveryActive = bool(lease->recovery.owner); impl_->recoveryFallback = recoveryFallback;
     impl_->recoveryTier = lease->recovery.owner ? uint32_t(LobeRecoveryTier::FullPrecision) : uint32_t(LobeRecoveryTier::None);
+    // F04: freeze this recording's effective diagnostics into the immutable
+    // recorded output at publication. They describe the recorded frame (after
+    // the provider recording, before any title Commit), never the wrapper's
+    // later mutable latest-state.
+    recorded->recoveryTier = impl_->recoveryTier;
+    recorded->recoveryFallbackReason = impl_->recoveryFallbackReason;
+    recorded->recoveryErrorText = impl_->recoveryErrorText;
     impl_->previous = frame; impl_->previous.reset = reset;
     impl_->previous.outputConstants = {}; impl_->previous.nativeSpecularBlend = 0.0f;
     impl_->historyValid = true; impl_->resetPending = false; ++impl_->nextFrame;
@@ -1191,9 +1203,11 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
-    result.recoveryTier = impl_->recoveryTier;
-    result.recoveryFallbackReason = impl_->recoveryFallbackReason;
-    result.recoveryErrorText = impl_->recoveryErrorText;
+    // F04: tier/reason/error are read from the immutable recorded output, so an
+    // older held snapshot can never inherit a later recording's state.
+    result.recoveryTier = output->recoveryTier;
+    result.recoveryFallbackReason = output->recoveryFallbackReason;
+    result.recoveryErrorText = output->recoveryErrorText;
     result.providerControl = output->providerControl;
     result.providerVersionId = lease->context->overrideVersion.versionId;
     result.providerApiVersion = lease->context->create.version;
