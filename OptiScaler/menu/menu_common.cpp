@@ -3336,6 +3336,10 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     settings.legacyMotionDepth = config.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default();
     settings.nativeMaterialGuides = config.FfxDenoiserNrdBridgeNativeMaterialGuides.value_or_default();
+    // INI-only D02/WP08 selector; the menu exposes no checkbox, but a menu
+    // settings re-apply must still forward the stored INI value instead of
+    // rebuilding the snapshot without it.
+    settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
     settings.recoveryDiffuse = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());

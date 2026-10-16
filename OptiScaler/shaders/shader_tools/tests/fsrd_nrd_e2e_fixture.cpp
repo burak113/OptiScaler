@@ -49,6 +49,10 @@ void auditBarriers(ID3D12GraphicsCommandList*,UINT count,const D3D12_RESOURCE_BA
  }
 }
 void recordDispatch(ID3D12GraphicsCommandList* list,bool internal) { ++detourDispatches[uint64_t(list)][internal?1:0]; }
+// Config-wiring witness: every SetPipelineState through the real detour chain,
+// including bridge-internal decode work. The caller scopes the map per window.
+std::unordered_map<const void*,unsigned> gPipelineStateUses;
+void noteGpuPipelineState(ID3D12GraphicsCommandList*,ID3D12PipelineState* pso) { if(pso) ++gPipelineStateUses[pso]; }
 bool gSurveyDeviceWrappers=false,gNrdBridgeDeviceWrappers=false;
 __STATE__
 __TRACKERS__
@@ -478,6 +482,23 @@ struct Title {
   auto up=h.buffer(bytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ); void* mapped=nullptr; hr(up->Map(0,nullptr,&mapped));
   std::memset(mapped,0,size_t(bytes));
   for(UINT y=0;y<height;++y) std::fill_n(reinterpret_cast<float*>(static_cast<uint8_t*>(mapped)+size_t(y)*fp.Footprint.RowPitch),width,value);
+  up->Unmap(0,nullptr); D3D12_TEXTURE_COPY_LOCATION src{},dst{}; src.pResource=up.Get(); src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;src.PlacedFootprint=fp;
+  dst.pResource=tex[3].Get();dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+  h.barrier(tex[3].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_DEST);
+  h.list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
+  h.barrier(tex[3].Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);h.uploads.push_back(up);
+ }
+ // Left-half/step-right depth pattern for the config-wiring case: reproduces
+ // the D04 far-step class so decode tap gates and legacy/camera B provably separate.
+ void writeDepthStep(float nearValue,float farValue) {
+  const auto desc=tex[3]->GetDesc(); D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{}; UINT64 bytes=0;
+  h.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&bytes);
+  auto up=h.buffer(bytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ); void* mapped=nullptr; hr(up->Map(0,nullptr,&mapped));
+  std::memset(mapped,0,size_t(bytes));
+  for(UINT y=0;y<height;++y) {
+   auto* row=reinterpret_cast<float*>(static_cast<uint8_t*>(mapped)+size_t(y)*fp.Footprint.RowPitch);
+   std::fill_n(row,width/2,nearValue); std::fill_n(row+width/2,width-width/2,farValue);
+  }
   up->Unmap(0,nullptr); D3D12_TEXTURE_COPY_LOCATION src{},dst{}; src.pResource=up.Get(); src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;src.PlacedFootprint=fp;
   dst.pResource=tex[3].Get();dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
   h.barrier(tex[3].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_DEST);
@@ -1055,6 +1076,142 @@ void rrOnlyPolicyCase(Host& h,Title& title,J& result,const std::filesystem::path
   {"scope","production bridge + signed RR on sealed camera inputs; native OUT is adversarial synthetic data used only for opaque alpha; no native NRD quality truth or claim its dispatches are suppressed"}};
  RROnlyCapture::native={};RROnlyCapture::words={};RROnlyCapture::title=nullptr;
 }
+// SOL F01/F02 repair witness: actual Config setter inputs -> production
+// ReadStartupSettings -> per-frame RR Configure storage -> native Decode
+// profile selection and native frame parameters, observed through real GPU
+// pipelines and provider input bytes in the ordinary native RR-only flow.
+struct WiringInputs { Readback spec,diff,motion; };
+WiringInputs wiringInputs(Title& title) {
+ const auto& record=FfxApiProxy::records.back();
+ return {title.readback(static_cast<ID3D12Resource*>(record.spec),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+  title.readback(static_cast<ID3D12Resource*>(record.diff),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+  title.readback(static_cast<ID3D12Resource*>(record.motion),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)};
+}
+J wiringSignalDiff(const Readback& gated,const Readback& plain) {
+ const auto a=gated.signal(),b=plain.signal();
+ need(a.size()==b.size()&&(a.size()%4)==0,"comparable decode output word counts");
+ uint64_t differing=0,gatedZeroPlainNonzero=0,plainZeroGatedNonzero=0;
+ for(size_t i=0;i<a.size();++i) if(a[i]!=b[i]) {
+  ++differing;
+  if(a[i]==0&&b[i]!=0) ++gatedZeroPlainNonzero; // gated fill writes finite positive zero where plain filled
+  if(b[i]==0&&a[i]!=0) ++plainZeroGatedNonzero;
+ }
+ return {{"differing_words",differing},{"gated_zero_plain_nonzero",gatedZeroPlainNonzero},
+  {"plain_zero_gated_nonzero",plainZeroGatedNonzero},{"words",a.size()}};
+}
+J wiringMotionDiff(const Readback& legacy,const Readback& camera) {
+ const auto a=legacy.signal(),b=camera.signal();
+ need(a.size()==b.size()&&(a.size()%4)==0,"comparable motion guide word counts");
+ uint64_t zDiffering=0,otherDiffering=0;
+ for(size_t i=0;i<a.size();i+=4) for(UINT c=0;c<4;++c)
+  if(a[i+c]!=b[i+c]) (c==2?zDiffering:otherDiffering)++;
+ return {{"depth_delta_words",zDiffering},{"xyw_words",otherDiffering},{"pixels",a.size()/4}};
+}
+std::vector<const void*> wiringPsoOnlyIn(const std::unordered_map<const void*,unsigned>& inner,
+ const std::unordered_map<const void*,unsigned>& outer) {
+ std::vector<const void*> only;
+ for(const auto& [pso,uses]:inner) if(!outer.contains(pso)) only.push_back(pso);
+ return only;
+}
+J wiringState() {
+ need(NrdBridge::gService&&NrdBridge::gService->history,"native RR history exists for the wrapper state witness");
+ const auto state=NrdBridge::gService->history->rr.GetSettingsState().requested;
+ return {{"surface_valid_fill",state.surfaceValidFill},{"legacy_motion_depth",state.legacyMotionDepth}};
+}
+void configWiringCase(Host& h,Title& title,J& result) {
+ auto* config=Config::Instance();
+ need(config->FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default()&&config->FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default(),
+  "case bootstrap requested both selectors through the Config setter path");
+ need(NrdBridge::gService&&NrdBridge::gService->rrSettings.surfaceValidFill&&NrdBridge::gService->rrSettings.legacyMotionDepth,
+  "production ReadStartupSettings stored both requested selectors in the installed service");
+ need(NrdBridge::GetRRSettingsState().requested.surfaceValidFill&&NrdBridge::GetRRSettingsState().requested.legacyMotionDepth,
+  "coordinator settings state publishes both startup requests");
+ title.frame(1);need(title.sentinel(title.finish()),"cold discovery executes untouched original output before any signed RR work");
+ // Warm frames use flat depth 5; capture frames use a 5/55 step. With the
+ // static fixture camera the legacy rollback samples the warm frame's flat
+ // previous-visible depth while the camera-only default predicts the current
+ // step surface, so the motion depth delta separates the two provably.
+ // Every frame owns one submitted recording, like the other scenarios.
+ auto warm=[&](UINT id) {
+  title.writeDepth(5.f);title.frame(id);
+  const auto flags=FfxApiProxy::records.back().flags;
+  const auto captured=title.capture();h.submit();
+  title.rrChecks(title.validate(captured));h.reset();
+  return flags;
+ };
+ auto stepCapture=[&](UINT id) {
+  title.writeDepthStep(5.f,55.f);title.frame(id);
+  const auto flags=FfxApiProxy::records.back().flags;
+  const auto inputs=wiringInputs(title);
+  const auto pso=gPipelineStateUses;
+  const auto captured=title.capture();h.submit();
+  title.rrChecks(title.validate(captured));h.reset();
+  return std::make_tuple(flags,inputs,pso);
+ };
+ // Epoch ON: both selectors requested since startup.
+ const auto warmOnFlags=warm(2);
+ need((warmOnFlags&FFX_DENOISER_DISPATCH_RESET)!=0,"first configured frame starts with an actual provider reset");
+ need(wiringState()["surface_valid_fill"].get<bool>()&&wiringState()["legacy_motion_depth"].get<bool>(),
+  "per-frame RR Configure stored both selectors for this native Decode");
+ const auto generation=NrdBridge::gService->history->rr.ContextGeneration();
+ gPipelineStateUses.clear();
+ const auto [onFlags,onA,psoOnA]=stepCapture(3);
+ need(!(onFlags&FFX_DENOISER_DISPATCH_RESET),"capture frame continues the epoch without a new reset");
+ // Epoch OFF: flip both selectors through the production request path.
+ std::string error;
+ auto settings=NrdBridge::GetRRSettingsState().requested;
+ settings.surfaceValidFill=false;settings.legacyMotionDepth=false;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"both-off request applies through the production request path");
+ need(!NrdBridge::GetRRSettingsState().requested.surfaceValidFill&&!NrdBridge::GetRRSettingsState().requested.legacyMotionDepth,
+  "coordinator state reflects the both-off request");
+ const auto warmOffFlags=warm(4);
+ need((warmOffFlags&FFX_DENOISER_DISPATCH_RESET)!=0,"selector flips reset the provider history before the next capture");
+ gPipelineStateUses.clear();
+ const auto [offFlags,offB,psoOffB]=stepCapture(5);
+ need(!(offFlags&FFX_DENOISER_DISPATCH_RESET),"off capture frame continues without another reset");
+ need(NrdBridge::gService->history->rr.ContextGeneration()==generation,"selector flips reset history without discarding the physical context");
+ // Default-path pin: plain decode pipeline population, camera-only B and
+ // byte-stable repeats while both selectors stay false.
+ const auto repeatFlags=warm(6);
+ need(!(repeatFlags&FFX_DENOISER_DISPATCH_RESET),"unchanged off settings request no further reset");
+ gPipelineStateUses.clear();
+ const auto [offRepeatFlags,offC,psoOffC]=stepCapture(7);
+ need(!(offRepeatFlags&FFX_DENOISER_DISPATCH_RESET),"off repeat capture continues without another reset");
+ need(wiringSignalDiff(offC.spec,offB.spec)["differing_words"]==0&&wiringSignalDiff(offC.diff,offB.diff)["differing_words"]==0&&
+      wiringMotionDiff(offC.motion,offB.motion)["depth_delta_words"]==0&&wiringMotionDiff(offC.motion,offB.motion)["xyw_words"]==0,
+  "unchanged default settings reproduce byte-identical RR inputs");
+ const auto psoOnlyInOffRepeat=wiringPsoOnlyIn(psoOffC,psoOffB);
+ need(psoOnlyInOffRepeat.empty(),"default repeats bind no additional pipeline state");
+ // Epoch ON again: the same gated pipeline and the same legacy bytes return.
+ settings.surfaceValidFill=true;settings.legacyMotionDepth=true;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"both-on request re-applies through the production request path");
+ const auto warmOn2Flags=warm(8);
+ need((warmOn2Flags&FFX_DENOISER_DISPATCH_RESET)!=0,"re-enabling selectors resets the provider history again");
+ gPipelineStateUses.clear();
+ const auto [onAgainFlags,onC,psoOnC]=stepCapture(9);
+ need(!(onAgainFlags&FFX_DENOISER_DISPATCH_RESET),"re-enabled capture frame continues without a new reset");
+ need(NrdBridge::gService->history->rr.ContextGeneration()==generation,"re-enabled selectors still reuse the same physical context");
+ // F01/F02 storage continuity on this flow: selector flips reset history,
+ // return byte-identical outputs, and never leak into the default path. The
+ // conversion-paradigm flow has no raw decode, so the gated-fill profile
+ // witness lives in the native-transactions config-wiring case.
+ need(wiringSignalDiff(onC.spec,onA.spec)["differing_words"]==0&&wiringSignalDiff(onC.diff,onA.diff)["differing_words"]==0,
+  "re-enabled selectors reproduce byte-identical converted RR inputs");
+ // F02: the frame parameters carried the legacy Z selector end to end.
+ const auto motionDiff=wiringMotionDiff(onA.motion,offB.motion);
+ const std::string motionCounts="legacy z words="+std::to_string(motionDiff["depth_delta_words"].get<uint64_t>())+
+  " xyw words="+std::to_string(motionDiff["xyw_words"].get<uint64_t>());
+ need(motionDiff["depth_delta_words"]>0,motionCounts.c_str());
+ need(motionDiff["xyw_words"]==0,"the legacy selector changes only the motion depth delta component");
+ need(wiringMotionDiff(onC.motion,onA.motion)["depth_delta_words"]==0&&wiringMotionDiff(onC.motion,onA.motion)["xyw_words"]==0,
+  "re-enabled legacy selector reproduces byte-identical motion guides");
+ need(wiringState()["surface_valid_fill"].get<bool>()&&wiringState()["legacy_motion_depth"].get<bool>(),
+  "wrapper storage ends with both selectors requested again");
+ result["config_wiring"]={{"startup_selectors_stored",true},{"epochs",{"on","off","off-repeat","on-again"}},
+  {"motion_legacy_diff",motionDiff},{"context_generation_stable",true},
+  {"provider_input_source","actual signed AMD dispatch records (signal input resources)"},
+  {"scope","conversion-paradigm flow: production startup/request/Configure wiring and legacy motion Z GPU bytes; the gated raw-decode profile witness lives in the native-transactions config-wiring case"}};
+}
 void failureCase(Host& h,Title& title,J& result) {
  title.frame(1);need(title.sentinel(title.finish()),"fault scenario starts with a fully validated native discovery frame");
  title.frame(2);title.rrChecks(title.finish());title.frame(3);title.rrChecks(title.finish()); // Warm both native depth/SDK ping-pong histories.
@@ -1176,12 +1333,13 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--rr-only-policy" || std::string(argv[3])=="--rr-only-policy-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table" || std::string(argv[3])=="--native-material-guides" || std::string(argv[3])=="--native-material-guides-off")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on" || std::string(argv[3])=="--rr-only-policy" || std::string(argv[3])=="--rr-only-policy-table" || std::string(argv[3])=="--native-motion-quality" || std::string(argv[3])=="--native-motion-quality-baseline" || std::string(argv[3])=="--native-motion-quality-table" || std::string(argv[3])=="--native-material-guides" || std::string(argv[3])=="--native-material-guides-off" || std::string(argv[3])=="--config-wiring")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
  const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
  const bool rrOnlyPolicy=argc==4 && (std::string(argv[3])=="--rr-only-policy" || std::string(argv[3])=="--rr-only-policy-table"),rrOnlyPolicyTable=argc==4 && std::string(argv[3])=="--rr-only-policy-table";
  const bool nativeMotionQuality=argc==4&&(std::string(argv[3])=="--native-motion-quality"||std::string(argv[3])=="--native-motion-quality-baseline"||std::string(argv[3])=="--native-motion-quality-table");
  const bool nativeMotionTable=argc==4&&std::string(argv[3])=="--native-motion-quality-table";
  const bool nativeMaterial=argc==4&&(std::string(argv[3])=="--native-material-guides"||std::string(argv[3])=="--native-material-guides-off");
+ const bool configWiring=argc==4&&std::string(argv[3])=="--config-wiring";
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"standalone signed-provider fixture uses legacy metadata tracking without native retirement coverage");
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
@@ -1195,6 +1353,12 @@ int main(int argc,char** argv) try {
   result["startup_off"]={{"provider_creates",0},{"provider_dispatches",0},{"restore_calls",0},{"nrdsentinel_untouched",true}};
  }
  Wiring::Detach(); DetachRoots(); Config::Instance()->FfxDenoiserNrdBridge.value=true;
+ if(configWiring) {
+  // Config setter path: the production Initialize below must consume these
+  // exactly like INI startup values through ReadStartupSettings.
+  Config::Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value=true;
+  Config::Instance()->FfxDenoiserNrdBridgeLegacyMotionDepth.value=true;
+ }
  NrdBridge::ConfigureStartup(true);
  need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled()&&NrdBridgeNativeBirth::fixtureNativeCoverageRequests.load(std::memory_order_relaxed)==0,"minimal ResTrack adapter neither configures native retirement nor supplies coverage success");
  if(startupOff) {
@@ -1225,6 +1389,12 @@ int main(int argc,char** argv) try {
   need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"pure-RR shutdown retires every actual signed context after all GPU fences");
   Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
   std::ofstream(std::filesystem::path(argv[1])/"rr-only-policy-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS rr_only_policy checks="<<checks<<'\n';return 0;
+ }
+ if(configWiring) {
+  configWiringCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();
+  need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"config-wiring shutdown retires every actual signed context after GPU fences");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"config-wiring-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS config_wiring checks="<<checks<<'\n';return 0;
  }
  if(qualityReplay) {
   std::vector<ComPtr<ID3D12Resource>> keepGuides;qualityReplayCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])=="--quality-on",keepGuides);

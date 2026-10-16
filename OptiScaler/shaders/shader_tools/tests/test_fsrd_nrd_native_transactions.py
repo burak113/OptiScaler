@@ -111,6 +111,27 @@ def prepare(out):
     return exe, (path, exe, *args[2:]), kwargs
 
 
+def validate_config_wiring(value):
+    wiring = value['config_wiring']
+    checks = 0
+
+    def require(condition):
+        nonlocal checks
+        assert condition
+        checks += 1
+
+    require(wiring['startup_selectors_stored'])
+    require(wiring['gated_request_reaches_production_decode'])
+    require(wiring['direct_chain_fail_closed'])
+    require(wiring['restart_required_latch'])
+    motion = wiring['motion_legacy_diff']
+    require(motion['depth_delta_words'] > 0)
+    require(motion['xyw_words'] == 0)
+    require(value['debug_errors'] == value['debug_warnings'] == 0)
+    require(value['contexts'] == 2 and value['provider_destroys'] == 0)
+    return checks
+
+
 def run():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prepare-only', action='store_true')
@@ -163,13 +184,22 @@ def run():
         value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
         (directory/'native-transactions-result.json').write_text(json.dumps(value, indent=2)+'\n')
         cases[name] = value
+    directory = out/'config_wiring'
+    directory.mkdir(parents=True, exist_ok=True)
+    _, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--config-wiring'], directory/'native_run')
+    value = json.loads((directory/'config-wiring-result.json').read_text())
+    wiring_checks = validate_config_wiring(value)
+    value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+    (directory/'config-wiring-result.json').write_text(json.dumps(value, indent=2)+'\n')
+    cases['config_wiring'] = value
+    python_checks += wiring_checks
     result = dict(schema='native-transactions-result-v2', cases=cases, python_checks=python_checks,
                   native_checks=sum(v['native_checks'] for v in cases.values()),
                   provider_dispatches=sum(v['provider_dispatches'] for v in cases.values()),
                   source_sha256=sha(command[0]), exe_sha256=sha(exe), provider_sha256=sha(DLL),
                   native_birth_ready=True, production_elision_readiness=False,
                   actual_release_detours_proved=False,
-                  scope='explicit synthetic shipping-role/readiness/register-use adapters; actual hardware/GUID/Birth/metadata/indirect/admission/raw/conversion/signedRR and retained proofs')
+                  scope='explicit synthetic shipping-role/readiness/register-use adapters; actual hardware/GUID/Birth/metadata/indirect/admission/raw/conversion/signedRR and retained proofs; config_wiring case drives the Config->startup->wrapper->Decode profile and legacy-Z witnesses')
     (out/'native-transactions-result.json').write_text(json.dumps(result, indent=2)+'\n')
     print(json.dumps(result, indent=2))
 

@@ -185,19 +185,143 @@ J DeliberateDeny(Host& h,NativeTitle& title,OpaqueWork* opaque){
  need(RecordedComputeLease::Capture(h.list.Get())==old&&RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL,"successful native Reset cannot clear deliberate failed-recording quarantine or sticky failure");
  return {{"negative",opaque?"opaque_descriptor_mutation":"missing_A_Consumer"},{"quarantined_recordings",1},{"quarantined_submissions",1},{"intentionally_retained_contexts",opaque?2:1}};
 }
+J ConfigWiring(Host& h,NativeTitle& title){
+ // SOL F01/F02 native witness: Config setter inputs -> production startup
+ // storage -> per-chain RR Configure -> the actual CommitNativeTransaction
+ // Decode profile and native frame parameters, on real signed provider bytes.
+ need(Config::Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default()&&
+      Config::Instance()->FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default(),
+  "case bootstrap requested both selectors through the Config setter path");
+ need(NrdBridge::gService->rrSettings.surfaceValidFill&&NrdBridge::gService->rrSettings.legacyMotionDepth,
+  "production ReadStartupSettings stored both requested selectors in the installed service");
+ need(NrdBridge::GetRRSettingsState().requested.surfaceValidFill&&NrdBridge::GetRRSettingsState().requested.legacyMotionDepth,
+  "coordinator settings state publishes both startup requests");
+ std::string error;
+ auto apply=[&](bool fill,bool legacy){auto settings=NrdBridge::GetRRSettingsState().requested;
+  settings.surfaceValidFill=fill;settings.legacyMotionDepth=legacy;
+  need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"selector request applies through the production request path");};
+ // Depth content: flat 5 in warm frames, 5/55 step in capture frames. With the
+ // static fixture camera the legacy rollback must sample the warm frame's flat
+ // previous-visible depth while the camera-only default predicts the current
+ // step surface, so the motion depth delta separates the two provably.
+ auto uploadDepth=[&](float nearValue,float farValue){
+  const auto desc=title.tex[3]->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 size=0;
+  h.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&size);
+  std::vector<uint16_t> words(size_t(size)/2,0);auto* floats=reinterpret_cast<float*>(words.data());
+  for(UINT y=0;y<desc.Height;++y){auto* row=floats+size_t(y)*(fp.Footprint.RowPitch/4);
+   for(UINT x=0;x<desc.Width;++x)row[x]=x<desc.Width/2?nearValue:farValue;}
+  const auto state=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+  auto buffer=h.buffer(size,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);void* mapped=nullptr;hr(buffer->Map(0,nullptr,&mapped));
+  std::memcpy(mapped,words.data(),size_t(size));buffer->Unmap(0,nullptr);
+  h.barrier(title.tex[3].Get(),state,D3D12_RESOURCE_STATE_COPY_DEST);
+  D3D12_TEXTURE_COPY_LOCATION a{},b{};a.pResource=buffer.Get();a.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;a.PlacedFootprint=fp;
+  b.pResource=title.tex[3].Get();b.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;h.list->CopyTextureRegion(&b,0,0,0,&a,nullptr);
+  h.barrier(title.tex[3].Get(),D3D12_RESOURCE_STATE_COPY_DEST,state);h.uploads.push_back(buffer);
+ };
+ // Checkerboard modes 0/1 so the raw decode reconstructs half of each lobe
+ // from left/right neighbour taps (SetWords defaults both lobes to traced 2).
+ auto remapModes=[&]{void* p=nullptr;hr(title.cb->Map(0,nullptr,&p));auto* w=static_cast<UINT*>(p);w[144]=1;w[145]=1;title.cb->Unmap(0,nullptr);};
+ // Legacy epochs: fill stays OFF, both chains decode plain, B motion carries
+ // the epoch's legacy selector.
+ auto legacyFrame=[&](UINT frame,bool legacy,bool warm){
+  apply(false,legacy);
+  uploadDepth(5.f,warm?5.f:55.f);
+  const UINT before=FfxApiProxy::dispatches;
+  title.Begin(frame);remapModes();title.A();title.B();
+  need(FfxApiProxy::dispatches==before,"raw/geometry/motion capture runs before either late Consumer without provider work");
+  title.ConsumerA();title.ConsumerB();
+  const auto& state=NrdBridge::gService->lists.at(h.list.Get());
+  auto a=state.native[0],b=state.native[1];
+  need(a&&b&&a->committed&&b->committed,"independent A/B transactions each commit their own exact retained token");
+  const auto requested=b->history->rr.GetSettingsState().requested;
+  need(!requested.surfaceValidFill&&requested.legacyMotionDepth==legacy,"per-chain RR Configure stored the requested legacy selector without fill");
+  auto bRecord=FfxApiProxy::records[before+1];
+  Readback spec=title.readback(static_cast<ID3D12Resource*>(bRecord.spec),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  Readback motion=title.readback(static_cast<ID3D12Resource*>(bRecord.motion),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  const bool reset=bool(bRecord.flags&FFX_DENOISER_DISPATCH_RESET);
+  need(Execute(h),"complete A/B required transactions are allowed by actual descriptor/ledger submission");h.reset();
+  return std::make_tuple(reset,std::move(spec),std::move(motion));
+ };
+ const auto [reset1,spec1,motion1]=legacyFrame(1,false,true);
+ need(reset1,"first configured frame starts each chain with an actual provider reset");
+ const auto [reset2,spec2,motion2]=legacyFrame(2,false,false);
+ need(!reset2,"capture frame continues the epoch without a new reset");
+ const auto [reset3,spec3,motion3]=legacyFrame(3,true,true);
+ need(reset3,"the legacy request resets the provider history before the next capture");
+ const auto [reset4,spec4,motion4]=legacyFrame(4,true,false);
+ need(!reset4,"legacy capture frame continues without another reset");
+ const auto [reset5,spec5,motion5]=legacyFrame(5,false,true);
+ need(reset5,"clearing the legacy request resets the provider history again");
+ const auto [reset6,spec6,motion6]=legacyFrame(6,false,false);
+ need(!reset6,"return capture frame continues without another reset");
+ need(wiringSignalDiff(spec6,spec2)["differing_words"]==0,"returning to the default legacy setting reproduces byte-identical decoded inputs");
+ need(wiringMotionDiff(motion6,motion2)["depth_delta_words"]==0&&wiringMotionDiff(motion6,motion2)["xyw_words"]==0,
+  "returning to the default legacy setting reproduces byte-identical motion guides");
+ const auto legacyMotion=wiringMotionDiff(motion4,motion2);
+ const std::string motionCounts="legacy z words="+std::to_string(legacyMotion["depth_delta_words"].get<uint64_t>())+
+  " xyw words="+std::to_string(legacyMotion["xyw_words"].get<uint64_t>());
+ need(legacyMotion["depth_delta_words"]>0,motionCounts.c_str());
+ need(legacyMotion["xyw_words"]==0,"the legacy selector changes only the motion depth delta component");
+ need(wiringSignalDiff(spec4,spec2)["differing_words"]==0,"the legacy selector alone changes no decoded RR input byte");
+ // Fill dance frames: A (ReconDirect chain) always decodes plain; the PrePass
+ // chain decodes GATED only while the Config-originated request is stored.
+ // Decode output depends on raw+geometry only, so the gated/plain comparison
+ // is exact across the two frames.
+ // Fill witness: the PrePass-chain decode would accept the gated profile, but
+ // the Direct (ReconDirect) chain must refuse it fail-closed. Before the F01
+ // repair the selector never reached this production Decode, so the frame
+ // silently decoded plain; now the stored request changes real behaviour and
+ // the recorded failure names the gated profile requirement.
+ apply(true,false);
+ uploadDepth(5.f,55.f);
+ const UINT before=FfxApiProxy::dispatches;
+ title.Begin(7);remapModes();title.A();title.B();
+ need(FfxApiProxy::dispatches==before,"capture runs before either late Consumer without provider work");
+ title.ConsumerA();
+ const auto& state=NrdBridge::gService->lists.at(h.list.Get());
+ auto a=state.native[0];
+ need(a&&!a->committed,(std::string("witness aNull=")+(a?"0":"1")+" reason="+NrdBridge::GetStatus().reason).c_str());
+ need(NrdBridge::GetStatus().reason.find("Surface-valid fill")!=std::string::npos,
+  "the Direct-chain refusal names the gated surface-valid fill requirement from the stored selector");
+ need(a->history->rr.GetSettingsState().requested.surfaceValidFill,
+  "the failing chain's own RR wrapper reports the Config-originated fill request stored");
+ need(FfxApiProxy::dispatches==before,"the refused Direct chain records no signed provider dispatch");
+ title.ConsumerB();
+ need(Execute(h)==false,"the frame with a failed mandatory chain transaction stays denied by the submission gate");
+ h.reset();
+ need(FfxApiProxy::dispatches==before,"no signed provider work survives the refused frame");
+ need(!NrdBridge::GetStatus().active&&NrdBridge::GetStatus().reason.find("restart")!=std::string::npos,
+  "the lost mandatory transaction pins the documented restart-required latch instead of silently recovering");
+ apply(false,false);
+ const auto finalState=NrdBridge::GetRRSettingsState().requested;
+ need(!finalState.surfaceValidFill&&!finalState.legacyMotionDepth,"the controlled case ends with both selectors off");
+ return {{"startup_selectors_stored",true},{"motion_legacy_diff",legacyMotion},
+  {"gated_request_reaches_production_decode",true},{"direct_chain_fail_closed",true},
+  {"restart_required_latch",true},
+  {"decode_source","actual production CommitNativeTransaction raw decode"},
+  {"scope","native RR-only flow: production startup/request/Configure wiring, gated decode fail-closed selection and legacy motion Z on real signed provider inputs; gated vs plain decode bytes are the W2 helper fixture's proven scope; no game quality claim"}};
 }
+} // namespace NativeFixture
 int main(int argc,char** argv)try{
- need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation;need(mode.empty()||missing||useOpaque,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
- g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"actual native metadata registry installed");need(NrdBridge::Initialize(h.device.Get()),"actual production coordinator initialized");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
+ need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation,configWiring=mode=="--config-wiring";need(mode.empty()||missing||useOpaque||configWiring,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
+ g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;
+ if(configWiring) {
+  // Config setter path: the production Initialize below must consume these
+  // exactly like INI startup values through ReadStartupSettings.
+  Config::Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value=true;
+  Config::Instance()->FfxDenoiserNrdBridgeLegacyMotionDepth.value=true;
+ }
+ NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"actual native metadata registry installed");need(NrdBridge::Initialize(h.device.Get()),"actual production coordinator initialized");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
  struct HookLifetime{bool active=true;void Stop()noexcept{if(!active)return;active=false;try{NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();}catch(...){std::cerr<<"native hook cleanup failed after original assertion"<<std::endl;}}~HookLifetime(){Stop();}} hookLifetime;
  struct EmitLifetime{~EmitLifetime(){emitDebug={};}} emitLifetime;
  J result;{NativeFixture::NativeTitle title(h,false);
   std::optional<NativeFixture::OpaqueWork> opaque;if(useOpaque)opaque.emplace(h,title);
   struct Cleanup{Host& host;~Cleanup(){try{host.waitComplete();NrdBridge::Shutdown();const auto recording=RecordedComputeLease::Capture(host.list.Get());RecordedComputeLease::Detach(recording);RecordedComputeLease::Poll();}catch(...){std::cerr<<"native cleanup failed after original assertion"<<std::endl;}}}cleanup{h};
-  try{if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
+  try{if(configWiring)result["config_wiring"]=NativeFixture::ConfigWiring(h,title);else if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
  }
- if(missing||mutation)need(FfxApiProxy::creates==(mutation?2u:1u)&&FfxApiProxy::destroys==0,"only exact deliberately quarantined provider contexts remain retained until process recovery");
+ if(configWiring)need(FfxApiProxy::creates==FfxApiProxy::destroys+2&&FfxApiProxy::creates==2,"the refused mandatory chain keeps its physical context intentionally retained at process end");
+ else if(missing||mutation)need(FfxApiProxy::creates==(mutation?2u:1u)&&FfxApiProxy::destroys==0,"only exact deliberately quarantined provider contexts remain retained until process recovery");
  else need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==4,"all four actual native A/B provider contexts retire after fenced recording detach");hookLifetime.Stop();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["provider_destroys"]=FfxApiProxy::destroys;result["missing_A_Consumer_denials"]=missing?1:0;result["repeated_denials"]=h.denied;result["discard_recovery"]=!missing&&!mutation;result["opaque_case"]=useOpaque;result["mode"]=mode;
  result["scope"]="actual hardware/coordinator/raw/geometry/motion/signedRR/303compute+36pixel/requiredledger; synthetic shipping role/readiness and caller-strong native Release-coverage adapters, not full title startup/physical Release detour proof";
- std::ofstream(std::filesystem::path(argv[1])/"native-transactions-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
+ std::ofstream(std::filesystem::path(argv[1])/(configWiring?"config-wiring-result.json":"native-transactions-result.json"))<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;return 1;}

@@ -732,15 +732,21 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     const float nativeSpecularBlend = NormalizeNativeSpecularBlend(requested.nativeSpecularBlend);
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
-        !requested.nativeMaterialGuides && !requested.lobeRecovery &&
+        !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.surfaceValidFill &&
         nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
+    // The D02/WP08 fill selector changes which raw-decode pipeline produces the
+    // RR inputs, and the D01 legacy selector changes the motion Z provenance;
+    // either flip must reset provider history like the other visual path
+    // selectors instead of silently mixing profiles inside one history.
     if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs ||
         impl_->settings.nativeTemporalMotion != requested.nativeTemporalMotion ||
         impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides ||
         impl_->settings.lobeRecovery != requested.lobeRecovery ||
         impl_->settings.recoverySpecular != requested.recoverySpecular ||
-        impl_->settings.recoveryDiffuse != requested.recoveryDiffuse)
+        impl_->settings.recoveryDiffuse != requested.recoveryDiffuse ||
+        impl_->settings.surfaceValidFill != requested.surfaceValidFill ||
+        impl_->settings.legacyMotionDepth != requested.legacyMotionDepth)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
@@ -755,6 +761,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.lobeRecovery = requested.lobeRecovery;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
+    impl_->settings.surfaceValidFill = requested.surfaceValidFill;
     impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))

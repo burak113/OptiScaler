@@ -23,6 +23,7 @@ KEYS = {
     'FfxDenoiserNrdBridgeNativeTemporalMotion': ('NrdBridgeNativeTemporalMotion', 'Bool'),
     'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
+    'FfxDenoiserNrdBridgeSurfaceValidFill': ('NrdBridgeSurfaceValidFill', 'Bool'),
     'FfxDenoiserNrdBridgeLobeRecovery': ('NrdBridgeLobeRecovery', 'Bool'),
     'FfxDenoiserNrdBridgeRecoverySpecular': ('NrdBridgeRecoverySpecular', 'Float'),
     'FfxDenoiserNrdBridgeRecoveryDiffuse': ('NrdBridgeRecoveryDiffuse', 'Float'),
@@ -467,6 +468,24 @@ int main(){try{
  need(ImGui::hasText("Native albedo: Disabled; white guides requested.")&&
  !ImGui::hasText("A matching native guide snapshot was admitted for the latest reported Recon"),
  "Accepted runtime disable takes precedence over stale Config ON or prior material-admission observation");
+ {Config malformed;malformed.load("[FSR-RR]\nNrdBridgeSurfaceValidFill=invalid\n");
+  need(!ReadNrdBridgeRRSettings(malformed).surfaceValidFill,"Malformed INI-only fill selector stays OFF");}
+ cfg.load("[FSR-RR]\nNrdBridgeSurfaceValidFill=true\n");
+ need(cfg.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default()&&ReadNrdBridgeRRSettings(cfg).surfaceValidFill,
+ "INI-only D02 fill selector parses through the actual key statements into the rebuilt snapshot");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Native NRD surface reprojection (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.surfaceValidFill,
+ "An unrelated menu change re-applies the snapshot without dropping the INI-only fill selector");
+ saved=cfg.save();reload.load(saved);
+ need(reload.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default()&&ReadNrdBridgeRRSettings(reload).surfaceValidFill,
+ "Fill selector survives the production serializer and reload");
+ ImGui::frame();ImGui::bools["Native NRD surface reprojection (experimental)"]=false;drawBridge(&cfg);
+ need(NrdBridge::last.surfaceValidFill,"Disabling the unrelated control still forwards the stored fill request");
+ ImGui::hovered=false;before=NrdBridge::applyCalls;cfg.ResetFfxDenoiserSettings();
+ need(!cfg.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default()&&!NrdBridge::last.surfaceValidFill,
+ "Full reset returns the INI-only fill selector to the documented OFF default");
+ saved=cfg.save();reload.load(saved);
+ need(!reload.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default(),"Fill OFF default persists after reset/save/reload");
  NrdBridge::statusCounters.stagingRetainedBytes=524288;NrdBridge::statusCounters.stagingRetainedSlots=4;
  NrdBridge::statusCounters.stagingRetainedPeakBytes=524288;NrdBridge::statusCounters.stagingRetiredTotalBytes=1048576;
  NrdBridge::statusCounters.stagingRejections=1;NrdBridge::statusCounters.recoveryGraphBytes=2097152;
@@ -522,6 +541,9 @@ def run():
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
     assert not re.search(r'^NrdBridgeNativeSpecularBlend=',template,re.M)
+    # The D02/WP08 fill selector is deliberately INI-usable but not listed in the
+    # shipped template; pin that documented INI-only status.
+    assert not re.search(r'^NrdBridgeSurfaceValidFill=',template,re.M)
     for key in ('NrdBridgeRecoverySpecular','NrdBridgeRecoveryDiffuse'):
         assert len(re.findall(r'^'+key+r'=1\.0\s*$',template,re.M))==1,key
     ffx=(ROOT/'OptiScaler/include/fsr-rr/ffx_denoiser.h').read_text()
@@ -553,7 +575,7 @@ def run():
     if result.returncode:raise RuntimeError(result.stderr)
     print(result.stdout,end='')
     checks=int(re.search(r'PASS: (\d+)',result.stdout).group(1))
-    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=10,api_contract=contract_origin,
+    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=11,api_contract=contract_origin,
         scope='actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim'),indent=2)+'\n')
 
 
