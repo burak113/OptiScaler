@@ -13,7 +13,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[4]
 CASES = ["off", "capacity", "move", "bytes", "unwind", "field-order", "parallel", "retained",
-         "staging-admit", "staging-budget", "staging-retire", "staging-parallel"]
+         "staging-admit", "staging-budget", "staging-retire", "staging-guard", "staging-parallel"]
 CPP = r'''
 #include "__HEADER__"
 #include <windows.h>
@@ -112,6 +112,25 @@ void run(const std::string& mode){
    "the second retirement removes the last admitted slot");
   need(ledger->TryAdmit(2)&&ledger->RetainedBytes()==2&&ledger->RetainedSlots()==1,"retirement restores admission availability");
   ledger->Retire(2);need(ledger->RetiredTotalBytes()==4,"every retirement total accumulates exactly");meter=false;
+ }
+ else if(mode=="staging-guard"){
+  auto ledger=std::make_shared<StagingLedger>();meter=true;
+  const auto admitted=ledger->TryAdmit(2);ledger->Retire(2);
+  need(admitted&&ledger->RetainedBytes()==0&&ledger->RetainedSlots()==0,
+   "matched admission and retirement empty the retained counters exactly");
+  need(ledger->RetiredTotalBytes()==2&&ledger->RetirementGuards()==0,"a matched lifecycle accumulates its total without any guard");
+  ledger->Retire(1);
+  need(ledger->RetainedBytes()==0&&ledger->RetainedSlots()==0&&ledger->RetirementGuards()==1,
+   "retiring an uncharged byte saturates at the empty retained sum instead of wrapping");
+  need(ledger->RetiredTotalBytes()==2,"a guarded retirement adds no phantom bytes to the monotone total");
+  ledger->Retire(UINT64_MAX);
+  need(ledger->RetainedBytes()==0&&ledger->RetirementGuards()==2&&ledger->RetiredTotalBytes()==2,
+   "even a max-byte uncharged retirement cannot wrap any unsigned counter");
+ need(ledger->TryAdmit(4)&&ledger->RetainedBytes()==4&&ledger->RetainedSlots()==1&&ledger->RetirementGuards()==2,
+  "the guarded ledger keeps admitting normally after bogus retirement requests");
+ ledger->Retire(4);
+ need(ledger->RetainedBytes()==0&&ledger->RetiredTotalBytes()==6&&ledger->RetirementGuards()==2,
+  "matched retirement after guards returns its exact charge again");meter=false;
  }
  else if(mode=="staging-parallel"){
   auto ledger=std::make_shared<StagingLedger>();std::atomic<unsigned> admitted=0,rejected=0;

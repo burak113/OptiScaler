@@ -26,7 +26,7 @@ struct Family
 class StagingLedger
 {
     std::atomic<uint64_t> retainedBytes_ {0}, retainedPeakBytes_ {0}, retiredTotal_ {0};
-    std::atomic<uint32_t> retainedSlots_ {0}, rejections_ {0};
+    std::atomic<uint32_t> retainedSlots_ {0}, rejections_ {0}, retirementGuards_ {0};
   public:
     static constexpr uint64_t NoLimit = 0;
     uint64_t limit = NoLimit; // Mutated once before hot use; never during.
@@ -36,6 +36,9 @@ class StagingLedger
     uint64_t RetiredTotalBytes() const noexcept { return retiredTotal_.load(std::memory_order_acquire); }
     uint32_t RetainedSlots() const noexcept { return retainedSlots_.load(std::memory_order_acquire); }
     uint32_t Rejections() const noexcept { return rejections_.load(std::memory_order_acquire); }
+    // Metadata-only monotone visibility counter for guarded retirements; a
+    // matched charge/retire lifecycle keeps this at exactly zero.
+    uint32_t RetirementGuards() const noexcept { return retirementGuards_.load(std::memory_order_acquire); }
     bool TryAdmit(uint64_t bytes) noexcept
     {
         auto current = retainedBytes_.load(std::memory_order_acquire);
@@ -57,12 +60,24 @@ class StagingLedger
     }
     void Retire(uint64_t bytes) noexcept
     {
-        // One call returns exactly one admitted slot's bytes (retired total is
-        // therefore monotone across every retained generation).
+        // One call returns exactly one admitted slot's bytes (the retired total
+        // is therefore monotone across every retained generation). The release
+        // is saturated at the currently retained sum, so a charged/retired
+        // asymmetry can never wrap the unsigned retained counters; guarded
+        // retirements stay visible and only actually released bytes join the
+        // monotone retired total.
         if (!bytes) return;
-        retiredTotal_.fetch_add(bytes,std::memory_order_acq_rel);
-        retainedBytes_.fetch_sub(bytes,std::memory_order_acq_rel);
-        retainedSlots_.fetch_sub(1,std::memory_order_acq_rel);
+        auto current = retainedBytes_.load(std::memory_order_acquire);
+        uint64_t release = 0;
+        for (;;)
+        {
+            release = bytes < current ? bytes : current;
+            if (retainedBytes_.compare_exchange_weak(current,current-release,std::memory_order_acq_rel)) break;
+        }
+        if (release != bytes) retirementGuards_.fetch_add(1,std::memory_order_relaxed);
+        if (release) retiredTotal_.fetch_add(release,std::memory_order_acq_rel);
+        auto slots = retainedSlots_.load(std::memory_order_acquire);
+        while (slots && !retainedSlots_.compare_exchange_weak(slots,slots-1,std::memory_order_acq_rel)) {}
     }
 };
 

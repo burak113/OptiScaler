@@ -149,10 +149,12 @@ class RRWrapper
     uint64_t OwnedAuxiliaryBytes() const noexcept;
     // D07/WP10 proposed staging ledger snapshot (metadata only; names are
     // control-model vocabulary). limitBytes 0 marks admission disabled.
+    // retirementGuards counts saturated retirements that could not return
+    // their full charge; a matched charge/retire lifecycle keeps it zero.
     struct StagingLedgerSnapshot
     {
         uint64_t limitBytes = 0, retainedBytes = 0, retainedPeakBytes = 0, retiredTotalBytes = 0;
-        uint32_t retainedSlots = 0, rejections = 0;
+        uint32_t retainedSlots = 0, rejections = 0, retirementGuards = 0;
         bool byteAdmissionActive = false;
     };
     StagingLedgerSnapshot SnapshotStagingLedger() const noexcept;
