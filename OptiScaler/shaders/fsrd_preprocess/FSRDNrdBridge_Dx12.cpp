@@ -3351,7 +3351,30 @@ void ReportUnavailable(const char* reason) noexcept
 Status GetStatus()
 {
     std::scoped_lock lock(gMutex);
-    if (gService) return gService->status;
+    if (gService)
+    {
+        auto status = gService->status;
+        // P05 live memory counters are read fresh under the same lock; they are
+        // metadata atomics, never an allocation or GPU query. Every retained
+        // history domain reports through its wrapper-owned staging ledger, so
+        // the totals stay correct while old generations are still alive.
+        for (const auto& weak : gService->historyDomains)
+            if (const auto domain = weak.lock())
+            {
+                const auto ledger = domain->rr.SnapshotStagingLedger();
+                status.stagingRetainedBytes += ledger.retainedBytes;
+                status.stagingRetainedPeakBytes = std::max(status.stagingRetainedPeakBytes,ledger.retainedPeakBytes);
+                status.stagingRetiredTotalBytes += ledger.retiredTotalBytes;
+                status.stagingRetainedSlots += ledger.retainedSlots;
+                status.stagingRejections += ledger.rejections;
+            }
+        const auto recovery = SnapshotRecoveryFamilyMemory(gService->recoveryFamily);
+        status.recoveryGraphBytes = recovery.graphBytes;
+        status.recoveryFamilyRetainedPeakBytes = recovery.familyRetainedPeakBytes;
+        status.recoverySlotBytes = recovery.slotBytes;
+        status.recoverySlots = recovery.slots;
+        return status;
+    }
     Status status;
     if (const auto reason = gStartupFailure.load(std::memory_order_acquire))
     { status.phase = "Inactive"; status.reason = reason; }

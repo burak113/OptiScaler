@@ -21,6 +21,13 @@ struct Status
     // domain (see MotionProvenanceTotals). Not a per-pixel population.
     uint64_t motionProvenanceDispatches = 0, motionProvenanceNative = 0, motionProvenanceCameraOnly = 0;
     uint64_t motionProvenanceUnknown = 0, motionProvenanceLegacy = 0;
+    // P05 live owned-memory counters, refreshed by GetStatus from the surviving
+    // wrapper ledgers and the shared recovery family. Allocation extents this
+    // service counts itself: provider-internal cost stays unknown and resident
+    // VRAM is never measured or inferred from these fields.
+    uint64_t stagingRetainedBytes = 0, stagingRetainedPeakBytes = 0, stagingRetiredTotalBytes = 0;
+    uint64_t recoveryGraphBytes = 0, recoveryFamilyRetainedPeakBytes = 0, recoverySlotBytes = 0;
+    uint32_t stagingRetainedSlots = 0, stagingRejections = 0, recoverySlots = 0;
     uint32_t width = 0, height = 0;
 };
 bool SupportedExecutable() noexcept;

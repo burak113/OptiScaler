@@ -3595,6 +3595,19 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         ImGui::EndDisabled();
         DrawNrdBridgeRRTuning(config);
         DrawNrdBridgeInputMap();
+        // P05 service-level owned-memory line: consumed straight from the live
+        // Status snapshot above. It only renders while the bridge reports any
+        // retained/recovery bytes, so an idle or disabled bridge adds nothing.
+        if (bridge.stagingRetainedBytes || bridge.stagingRetainedSlots ||
+            bridge.recoveryGraphBytes || bridge.recoverySlots)
+            ImGui::Text("Owned RR memory: staging retained %llu bytes in %llu slot pair(s) (peak %llu, retired total %llu, rejected %llu); lobe recovery graph %llu bytes (family peak %llu bytes). Provider-internal and resident VRAM are unknown, not measured.",
+                static_cast<unsigned long long>(bridge.stagingRetainedBytes),
+                static_cast<unsigned long long>(bridge.stagingRetainedSlots),
+                static_cast<unsigned long long>(bridge.stagingRetainedPeakBytes),
+                static_cast<unsigned long long>(bridge.stagingRetiredTotalBytes),
+                static_cast<unsigned long long>(bridge.stagingRejections),
+                static_cast<unsigned long long>(bridge.recoveryGraphBytes),
+                static_cast<unsigned long long>(bridge.recoveryFamilyRetainedPeakBytes));
     }
     // Independent of the selected denoiser: NRD mode still exposes this capture.
     if (ImGui::CollapsingHeader("GAME_TRACE / Frame survey"))

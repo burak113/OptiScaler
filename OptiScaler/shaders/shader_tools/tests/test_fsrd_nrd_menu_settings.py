@@ -467,6 +467,19 @@ int main(){try{
  need(ImGui::hasText("Native albedo: Disabled; white guides requested.")&&
  !ImGui::hasText("A matching native guide snapshot was admitted for the latest reported Recon"),
  "Accepted runtime disable takes precedence over stale Config ON or prior material-admission observation");
+ NrdBridge::statusCounters.stagingRetainedBytes=524288;NrdBridge::statusCounters.stagingRetainedSlots=4;
+ NrdBridge::statusCounters.stagingRetainedPeakBytes=524288;NrdBridge::statusCounters.stagingRetiredTotalBytes=1048576;
+ NrdBridge::statusCounters.stagingRejections=1;NrdBridge::statusCounters.recoveryGraphBytes=2097152;
+ NrdBridge::statusCounters.recoveryFamilyRetainedPeakBytes=4194304;NrdBridge::statusCounters.recoverySlots=2;
+ ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Owned RR memory: staging retained 524288 bytes in 4 slot pair(s) (peak 524288, retired total 1048576, rejected 1)")&&
+ ImGui::hasText("lobe recovery graph 2097152 bytes (family peak 4194304 bytes)")&&
+ ImGui::hasText("Provider-internal and resident VRAM are unknown, not measured"),
+ "P05 live owned-memory counters are consumed from the actual service status snapshot");
+ NrdBridge::statusCounters.stagingRetainedBytes=0;NrdBridge::statusCounters.stagingRetainedSlots=0;
+ NrdBridge::statusCounters.recoveryGraphBytes=0;NrdBridge::statusCounters.recoverySlots=0;
+ ImGui::frame();drawBridge(&cfg);
+ need(!ImGui::hasText("Owned RR memory:"),"an idle or disabled bridge publishes no owned-memory line");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''

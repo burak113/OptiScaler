@@ -56,6 +56,18 @@ const char* LobeRecoveryFallbackReasonName(uint32_t reason) noexcept
     default: return "none";
     }
 }
+// P05: cheap metadata reads so a service-level consumer can publish the
+// family retained peak without reaching into the recovery helper internals.
+RRRecoveryFamilyMemory SnapshotRecoveryFamilyMemory(const std::shared_ptr<RRRecoveryFamily>& family) noexcept
+{
+    RRRecoveryFamilyMemory result;
+    if (!family) return result;
+    result.graphBytes = family->budget.graphBytes.load(std::memory_order_acquire);
+    result.familyRetainedPeakBytes = family->budget.retainedPeakBytes.load(std::memory_order_acquire);
+    result.slotBytes = family->budget.slots.allocatedBytes.load(std::memory_order_acquire);
+    result.slots = family->budget.slots.allocatedSlots.load(std::memory_order_acquire);
+    return result;
+}
 namespace
 {
 using Microsoft::WRL::ComPtr;
