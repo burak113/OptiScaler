@@ -3434,7 +3434,8 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
             {
                 const bool changed = !SameDebugSettings(owner->rrSettings,settings) ||
                     owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta ||
-                    owner->rrSettings.legacyMotionDepth != settings.legacyMotionDepth;
+                    owner->rrSettings.legacyMotionDepth != settings.legacyMotionDepth ||
+                    owner->rrSettings.surfaceValidFill != settings.surfaceValidFill;
                 if (changed) ++owner->requestedResetRevision;
                 if (!SameDebugSettings(owner->rrSettings,settings)) ClearNativeDebugSources(*owner,retired);
                 owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
@@ -3468,6 +3469,10 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
             const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs ||
                 owner->rrSettings.nativeMaterialGuides != settings.nativeMaterialGuides;
+            // D02/WP08 fill flips select another decode profile for later frames;
+            // like the material selector they reset bridge histories instead of
+            // silently mixing profiles inside one history.
+            const bool fillChanged = owner->rrSettings.surfaceValidFill != settings.surfaceValidFill;
             const bool recoveryChanged = owner->rrSettings.lobeRecovery != settings.lobeRecovery ||
                 owner->rrSettings.recoverySpecular != settings.recoverySpecular ||
                 owner->rrSettings.recoveryDiffuse != settings.recoveryDiffuse;
@@ -3477,7 +3482,7 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
             owner->rrSettingsState = after; owner->rrSettingsState.requested = settings;
             gNativeDebug.store(settings.nativeDebugView >= 0,std::memory_order_release);
             gNativeMaterials.store(settings.nativeMaterialGuides,std::memory_order_release);
-            if (scalarChanged || motionChanged || materialChanged || recoveryChanged || debugChanged || rawDebugCleared || !configured)
+            if (scalarChanged || motionChanged || materialChanged || fillChanged || recoveryChanged || debugChanged || rawDebugCleared || !configured)
             {
                 ++owner->requestedResetRevision;
                 DropPending(*owner,retired);
