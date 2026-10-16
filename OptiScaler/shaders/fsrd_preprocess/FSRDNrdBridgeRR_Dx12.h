@@ -22,6 +22,15 @@ enum class LobeRecoveryFallbackReason : uint32_t
 };
 // Optional graph budgets survive replacement temporal domains in one Service.
 std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept;
+// P05 service-level owned-memory counters of one recovery family. These are
+// metadata atomics of the allocation extents this service counts itself;
+// provider-internal cost stays unknown and resident VRAM is never measured.
+struct RRRecoveryFamilyMemory
+{
+    uint64_t graphBytes = 0, familyRetainedPeakBytes = 0, slotBytes = 0;
+    uint32_t slots = 0;
+};
+RRRecoveryFamilyMemory SnapshotRecoveryFamilyMemory(const std::shared_ptr<RRRecoveryFamily>& family) noexcept;
 // Config/UI inputs use a safe default; direct API validation remains strict.
 static inline float NormalizeLobeRecoveryStrength(float value) noexcept
 {
@@ -149,10 +158,12 @@ class RRWrapper
     uint64_t OwnedAuxiliaryBytes() const noexcept;
     // D07/WP10 proposed staging ledger snapshot (metadata only; names are
     // control-model vocabulary). limitBytes 0 marks admission disabled.
+    // retirementGuards counts saturated retirements that could not return
+    // their full charge; a matched charge/retire lifecycle keeps it zero.
     struct StagingLedgerSnapshot
     {
         uint64_t limitBytes = 0, retainedBytes = 0, retainedPeakBytes = 0, retiredTotalBytes = 0;
-        uint32_t retainedSlots = 0, rejections = 0;
+        uint32_t retainedSlots = 0, rejections = 0, retirementGuards = 0;
         bool byteAdmissionActive = false;
     };
     StagingLedgerSnapshot SnapshotStagingLedger() const noexcept;

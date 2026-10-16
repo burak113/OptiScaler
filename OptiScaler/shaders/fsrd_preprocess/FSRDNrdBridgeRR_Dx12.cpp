@@ -56,6 +56,18 @@ const char* LobeRecoveryFallbackReasonName(uint32_t reason) noexcept
     default: return "none";
     }
 }
+// P05: cheap metadata reads so a service-level consumer can publish the
+// family retained peak without reaching into the recovery helper internals.
+RRRecoveryFamilyMemory SnapshotRecoveryFamilyMemory(const std::shared_ptr<RRRecoveryFamily>& family) noexcept
+{
+    RRRecoveryFamilyMemory result;
+    if (!family) return result;
+    result.graphBytes = family->budget.graphBytes.load(std::memory_order_acquire);
+    result.familyRetainedPeakBytes = family->budget.retainedPeakBytes.load(std::memory_order_acquire);
+    result.slotBytes = family->budget.slots.allocatedBytes.load(std::memory_order_acquire);
+    result.slots = family->budget.slots.allocatedSlots.load(std::memory_order_acquire);
+    return result;
+}
 namespace
 {
 using Microsoft::WRL::ComPtr;
@@ -473,7 +485,8 @@ struct Context
     {
         // Metadata retirement happens before any early-return guard so a partial
         // teardown never leaves the shared staging ledger with phantom bytes;
-        // every allocated slot was admitted once and retires exactly once here.
+        // the ledger attached before the first warm slot saw every successful
+        // allocation, so each allocated slot retires exactly its own charge.
         if (ledger)
         {
             uint64_t retired = 0;
@@ -503,7 +516,8 @@ struct PresentLease
 };
 
 bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
-                   std::shared_ptr<Context>& output, std::string& error, bool debugEnabled = false)
+                   std::shared_ptr<Context>& output, std::string& error, bool debugEnabled = false,
+                   const std::shared_ptr<NrdBridgeCaptureBudget::StagingLedger>& ledger = {})
 {
     // The signed 1.2 provider terminates inside create at 64x48. Separate native
     // probes verified 64x64 and larger, including odd heights. Use the conservative
@@ -574,6 +588,11 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     fresh->width = width;
     fresh->height = height;
     fresh->debugEnabled = debugEnabled;
+    // F03: the shared ledger attaches BEFORE any warm slot exists, so every
+    // successful allocation (including a partial InitializeCommit) is charged
+    // and later retired from exactly the same set. Attaching after creation
+    // let the four hot pairs escape admission and retire uncharged bytes.
+    fresh->ledger = ledger;
     std::snprintf(fresh->providerName.data(),fresh->providerName.size(),"%s",providerName);
     if (!fresh->InitializeCommit(error)) return false;
     fresh->overrideVersion.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
@@ -643,6 +662,11 @@ struct RRRecordedOutput
     uint32_t frameIndex = 0, frameSL = UINT32_MAX;
     uint64_t contextGeneration = 0, recordingId = 0;
     bool recoveryFallback = false, nativeCommitPrepared = false;
+    // F04: these are frozen at the recording frame, exactly like the recovery
+    // resources above; getters must never read the wrapper's later state here.
+    uint32_t recoveryTier = uint32_t(LobeRecoveryTier::None);
+    uint32_t recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
+    std::string recoveryErrorText; // The real optional error text of THIS recording.
     mutable bool nativeEncodingCaptured = false;
     std::array<uint8_t, 184> providerControl {};
     uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
@@ -987,7 +1011,8 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     if (recreate)
     {
         std::shared_ptr<Context> fresh;
-        if (!CreateContext(device.Get(),input.width,input.height,fresh,error,impl_->settings.nativeDebugView != -1))
+        if (!CreateContext(device.Get(),input.width,input.height,fresh,error,impl_->settings.nativeDebugView != -1,
+            impl_->EnsureStagingLedger()))
         { impl_->resetPending = true; return false; }
         bool lightingChanged = false;
         try
@@ -997,7 +1022,6 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         }
         catch (...) { DiscardRecordingHistory(); throw; }
         fresh->generation = ++impl_->generation;
-        fresh->ledger = impl_->EnsureStagingLedger();
         impl_->context = std::move(fresh); // Old GPU leases retain their exact physical generation.
         impl_->resetPending = true;
     }
@@ -1152,6 +1176,13 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
     impl_->recoveryActive = bool(lease->recovery.owner); impl_->recoveryFallback = recoveryFallback;
     impl_->recoveryTier = lease->recovery.owner ? uint32_t(LobeRecoveryTier::FullPrecision) : uint32_t(LobeRecoveryTier::None);
+    // F04: freeze this recording's effective diagnostics into the immutable
+    // recorded output at publication. They describe the recorded frame (after
+    // the provider recording, before any title Commit), never the wrapper's
+    // later mutable latest-state.
+    recorded->recoveryTier = impl_->recoveryTier;
+    recorded->recoveryFallbackReason = impl_->recoveryFallbackReason;
+    recorded->recoveryErrorText = impl_->recoveryErrorText;
     impl_->previous = frame; impl_->previous.reset = reset;
     impl_->previous.outputConstants = {}; impl_->previous.nativeSpecularBlend = 0.0f;
     impl_->historyValid = true; impl_->resetPending = false; ++impl_->nextFrame;
@@ -1184,9 +1215,11 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
-    result.recoveryTier = impl_->recoveryTier;
-    result.recoveryFallbackReason = impl_->recoveryFallbackReason;
-    result.recoveryErrorText = impl_->recoveryErrorText;
+    // F04: tier/reason/error are read from the immutable recorded output, so an
+    // older held snapshot can never inherit a later recording's state.
+    result.recoveryTier = output->recoveryTier;
+    result.recoveryFallbackReason = output->recoveryFallbackReason;
+    result.recoveryErrorText = output->recoveryErrorText;
     result.providerControl = output->providerControl;
     result.providerVersionId = lease->context->overrideVersion.versionId;
     result.providerApiVersion = lease->context->create.version;
@@ -1328,8 +1361,12 @@ uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
 RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexcept
 {
     StagingLedgerSnapshot result;
-    if (!impl_ || !impl_->context || !impl_->context->ledger) return result;
-    const auto& ledger = *impl_->context->ledger;
+    // F03: read the wrapper-owned ledger, which survives context destruction
+    // and lives across every retained generation. The current context, when
+    // present, shares this exact object; when it is absent (after discard),
+    // the retained totals stay observable instead of collapsing to zero.
+    if (!impl_ || !impl_->stagingLedger) return result;
+    const auto& ledger = *impl_->stagingLedger;
     result.limitBytes = ledger.limit;
     result.byteAdmissionActive = ledger.byteAdmissionActive();
     result.retainedBytes = ledger.RetainedBytes();
@@ -1337,6 +1374,7 @@ RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexce
     result.retiredTotalBytes = ledger.RetiredTotalBytes();
     result.retainedSlots = ledger.RetainedSlots();
     result.rejections = ledger.Rejections();
+    result.retirementGuards = ledger.RetirementGuards();
     return result;
 }
 const std::string& RRWrapper::CameraConventionDescription() const noexcept
