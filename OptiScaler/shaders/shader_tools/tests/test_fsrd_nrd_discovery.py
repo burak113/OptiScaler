@@ -209,6 +209,10 @@ RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexce
 std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept { return {}; }
 const char* LobeRecoveryTierName(uint32_t) noexcept { return "fixture"; }
 const char* LobeRecoveryFallbackReasonName(uint32_t) noexcept { return "fixture"; }
+// P05 family memory metadata is consumed by the service status (menu surface);
+// discovery only needs a linkable structural stub. The real counters are proven
+// by test_fsrd_nrd_rr_ledger_diagnostics.py and the menu consumer test.
+RRRecoveryFamilyMemory SnapshotRecoveryFamilyMemory(const std::shared_ptr<RRRecoveryFamily>&) noexcept { return {}; }
 __CAMERA_STUB__
 }
 using NrdBridge::fixtureConfigureCalls;
