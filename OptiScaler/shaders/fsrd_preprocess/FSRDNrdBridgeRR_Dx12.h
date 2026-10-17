@@ -37,6 +37,34 @@ static inline float NormalizeLobeRecoveryStrength(float value) noexcept
     return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : 1.0f;
 }
 
+struct FlatAlbedoSettings
+{
+    bool enabled = false, temporal = true;
+    uint32_t roughness = 2, historyLength = 6;
+    float strength = 1, anchor = 4, mix = 0, temporalDenoise = 1;
+    bool operator==(const FlatAlbedoSettings&) const = default;
+};
+// Shared by startup and live menu snapshots. This is the existing Flat Albedo
+// Recovery configuration, independent of the optional non-flat lobe graph.
+template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(const Configuration& config)
+{
+    FlatAlbedoSettings out;
+    if constexpr (requires { config.FfxDenoiserRecoveryFlatAlbedo; config.FfxDenoiserRecoveryFlatAlbedoStrength;
+        config.FfxDenoiserRecoveryFlatRoughness; config.FfxDenoiserRecoveryFlatAnchor; config.FfxDenoiserRecoveryFlatMix;
+        config.FfxDenoiserRecoveryFlatTemporal; config.FfxDenoiserRecoveryFlatHistoryLength; config.FfxDenoiserRecoveryFlatTemporalDenoise; })
+    {
+        const auto finite = [](float x,float fallback,float lo,float hi) { return std::isfinite(x) ? std::clamp(x,lo,hi) : fallback; };
+        out.enabled = config.FfxDenoiserRecoveryFlatAlbedo.value_or_default();
+        out.temporal = config.FfxDenoiserRecoveryFlatTemporal.value_or_default();
+        out.roughness = uint32_t(std::clamp(config.FfxDenoiserRecoveryFlatRoughness.value_or_default(),0,1023));
+        out.historyLength = uint32_t(std::clamp(config.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(),1,6));
+        out.strength = finite(config.FfxDenoiserRecoveryFlatAlbedoStrength.value_or_default(),1,0,1);
+        out.anchor = finite(config.FfxDenoiserRecoveryFlatAnchor.value_or_default(),4,0,8);
+        out.mix = finite(config.FfxDenoiserRecoveryFlatMix.value_or_default(),0,0,1);
+        out.temporalDenoise = finite(config.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(),1,0,2);
+    }
+    return out;
+}
 struct RRSettings
 {
     // Bits0..5 select AMD scalar keys1..6 in values0..5; bit6 selects
@@ -53,6 +81,7 @@ struct RRSettings
     // camera-only estimate. Conversion-side only; the provider never sees this flag.
     bool legacyMotionDepth = false;
     bool lobeRecovery = false;
+    FlatAlbedoSettings flatAlbedo {};
     // D02/WP08 experiment selector; recorded so traces can distinguish the gated fill.
     bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
@@ -62,6 +91,8 @@ struct RRSettingsState
 {
     bool ready = false;
     bool lobeRecoveryActive = false, lobeRecoveryFallback = false;
+    bool flatAlbedoActive = false, flatAlbedoFallback = false;
+    std::string flatAlbedoLastError;
     RRSettings requested {};
     std::array<float, 8> defaults {}, effective {};
     // D06/D07 proposed diagnostic vocabulary, NOT INI/API keys: requested and
@@ -95,6 +126,12 @@ struct RRRecordedOutputSnapshot
     uint32_t frameSL = UINT32_MAX, width = 0, height = 0, frameIndex = 0;
     uint64_t contextGeneration = 0, recordingId = 0;
     bool outputCommitted = false, recoveryActive = false, recoveryFallback = false;
+    // Exact provider geometry and separate original-roughness recovery policy.
+    ID3D12Resource* providerNormals = nullptr;
+    bool flatAlbedoActive = false, flatAlbedoFallback = false;
+    uint32_t flatAlbedoRoughness = 0;
+    std::string flatAlbedoError;
+    float providerRadianceScale = 256.0f;
     // D06/D07 per-frame recovery diagnostics (control-model vocabulary; names
     // are proposed, not keys). Text travels outside the hashed settings lineage.
     uint32_t recoveryTier = 0, recoveryFallbackReason = 0;

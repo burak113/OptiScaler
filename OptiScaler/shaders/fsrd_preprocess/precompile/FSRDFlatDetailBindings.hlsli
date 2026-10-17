@@ -29,7 +29,7 @@ cbuffer CB_FlatDetail : register(b0)
     uint Radius;
     uint Pass;
     uint Debug;
-    uint Flags; // bit 0/1: raw specular/diffuse are half lobes
+    uint Flags; // bit 0/1: raw specular/diffuse are half lobes; bit 2: reference and RR are the same lighting (Base keeps the reference level); bit 3: a mature reference is the output
     float TemporalDenoise; // Base: 0 off; >0 reference alpha is the temporal residual (noise floor and Wiener strength)
 }
 bool FlatPixel(int2 p)

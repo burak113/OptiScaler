@@ -150,12 +150,27 @@ inline bool WithCompletedSnapshot(const std::shared_ptr<Ticket>& ticket, Copier&
     copier(proof);
     return true;
 }
-inline void ReapLocked(Registry& r)
+// No COM Release may run while Registry::mutex is held. Title Release hooks
+// take the NRD bridge lifetime gate, and a bridge commit holding that gate can
+// wait for this mutex (GAME_TRACE Frame teardown -> Forget): an ABBA deadlock
+// that froze the title at the start of a capture. Reaped tickets, and every
+// temporary interface, are therefore declared BEFORE the lock that guards them
+// so they are destroyed only after it has been released.
+using Graveyard = std::vector<std::shared_ptr<Ticket>>;
+inline void ReapLocked(Registry& r, Graveyard& dead)
 {
-    std::erase_if(r.tickets, [](const auto& t) {
-        std::scoped_lock lock(t->mutex);
-        return t->state.abandoned && t->state.CanRelease(t->fence->GetCompletedValue());
-    });
+    dead.reserve(dead.size() + r.tickets.size()); // Only allocation; nothing moved yet.
+    for (auto it = r.tickets.begin(); it != r.tickets.end();)
+    {
+        bool reap = false;
+        {
+            std::scoped_lock lock((*it)->mutex);
+            reap = (*it)->state.abandoned && (*it)->state.CanRelease((*it)->fence->GetCompletedValue());
+        }
+        if (!reap) { ++it; continue; }
+        dead.push_back(std::move(*it));
+        it = r.tickets.erase(it);
+    }
 }
 inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list, size_t maximumTickets = 4)
 {
@@ -168,8 +183,9 @@ inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list
         FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&t->fence))))
         throw std::runtime_error("RRTrace fence/command identity allocation failed");
     auto& r = GetRegistry();
+    Graveyard dead;
     std::scoped_lock lock(r.mutex);
-    ReapLocked(r);
+    ReapLocked(r,dead);
     if (r.tickets.size() >= maximumTickets)
         throw std::runtime_error("RRTrace has unresolved captures; refusing unsafe resource reuse");
     t->generation = ++r.nextGeneration;
@@ -198,19 +214,28 @@ inline void RecordSubmissionIntents(ID3D12CommandQueue* queue, UINT count,
     {
         if (!queue || !lists) return;
         auto& r = GetRegistry();
+        {
+            std::scoped_lock lock(r.mutex);
+            if (r.tickets.empty()) return;
+        }
+        // Identities are taken (and later released) outside the registry lock.
+        // A ticket armed after the check above cannot belong to these lists:
+        // Arm needs an open list, and a list being submitted is closed.
+        std::vector<ComPtr<IUnknown>> identities(count);
+        for (UINT i = 0; i < count; ++i)
+            if (lists[i] && (FAILED(lists[i]->QueryInterface(IID_PPV_ARGS(&identities[i]))) || !identities[i]))
+                throw std::runtime_error("RRTrace submission identity unavailable");
+        Graveyard dead;
         std::scoped_lock lock(r.mutex);
-        ReapLocked(r);
+        ReapLocked(r,dead);
         if (r.tickets.empty()) return;
         for (UINT i = 0; i < count; ++i)
         {
-            if (!lists[i]) continue;
-            ComPtr<IUnknown> identity;
-            if (FAILED(lists[i]->QueryInterface(IID_PPV_ARGS(&identity))) || !identity)
-                throw std::runtime_error("RRTrace submission identity unavailable");
+            if (!identities[i]) continue;
             for (auto& t : r.tickets)
             {
                 std::scoped_lock ticketLock(t->mutex);
-                if (t->identity.Get() != identity.Get() || !t->state.Submit()) continue;
+                if (t->identity.Get() != identities[i].Get() || !t->state.Submit()) continue;
                 t->queue = queue;
                 append(Submission {t,t->state.expected});
             }
@@ -272,10 +297,15 @@ inline void ResetSucceeded(ID3D12GraphicsCommandList* list) noexcept
     {
         if (!list) return;
         auto& r = GetRegistry();
-        std::scoped_lock lock(r.mutex);
-        if (r.tickets.empty()) return;
+        {
+            std::scoped_lock lock(r.mutex);
+            if (r.tickets.empty()) return;
+        }
+        // Released after the lock below (declaration order). A ticket armed in
+        // between was armed on an already-reset, open list: nothing to reset.
         ComPtr<IUnknown> identity;
         if (FAILED(list->QueryInterface(IID_PPV_ARGS(&identity)))) return;
+        std::scoped_lock lock(r.mutex);
         for (auto& t : r.tickets)
         {
             std::scoped_lock ticketLock(t->mutex);

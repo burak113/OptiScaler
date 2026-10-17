@@ -72,6 +72,10 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"legacy_motion_depth",p.legacyMotionDepth},
         {"native_material_guides",p.nativeMaterialGuides},{"lobe_recovery",p.lobeRecovery},
         {"surface_valid_fill",p.surfaceValidFill},
+        {"flat_albedo",{{"enabled",p.flatAlbedo.enabled},{"roughness_floor",p.flatAlbedo.roughness},
+            {"strength",Bits(p.flatAlbedo.strength)},{"anchor",Bits(p.flatAlbedo.anchor)},{"mix",Bits(p.flatAlbedo.mix)},
+            {"temporal",p.flatAlbedo.temporal},{"history_length",p.flatAlbedo.historyLength},
+            {"temporal_denoise",Bits(p.flatAlbedo.temporalDenoise)}}},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
         {"native_nrd_output_used",false}};
 }

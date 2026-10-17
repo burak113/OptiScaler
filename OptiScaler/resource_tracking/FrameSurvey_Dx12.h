@@ -170,6 +170,9 @@ using BirthReleaseObserver = void (*)(const NrdBridgeBirth::Token&) noexcept;
 void SetBirthReleaseObserver(BirthReleaseObserver) noexcept;
 void SetBindingWindow(bool) noexcept;
 bool BindingWindow() noexcept;
+bool SurveyBindingsArmed() noexcept;
+// True while root bindings are mirrored (armed survey or bridge discovery window).
+bool BindingMirrorActive() noexcept;
 bool MetadataHealthy() noexcept;
 // Native observer failure latch; safe inside injection/recorder scopes, no lifecycle locks.
 void MetadataHookFailed(const char* reason) noexcept;

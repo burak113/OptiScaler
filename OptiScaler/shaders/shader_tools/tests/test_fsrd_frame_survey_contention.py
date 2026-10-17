@@ -327,7 +327,7 @@ void metadataRegressions(Host& h){
  hkSurveyCreateConstantBufferView(h.device.Get(),&h.cbv,h.handle(1));
  need(FrameSurvey::gViews.at(src.ptr).object==h.buffer.Get()&&FrameSurvey::gViews.at(dst.ptr).object==old.Get(),"overwrite detaches only old source ownership, copied slot still belongs to old buffer");
  auto* retired=old.Detach();need(hkRelease(retired)==0,"actual native final resource Release");
- need(!FrameSurvey::gViews.contains(dst.ptr)&&FrameSurvey::gViews.at(src.ptr).object==h.buffer.Get(),"old final release removes copied slot and preserves overwritten current slot");
+ need((!FrameSurvey::gViews.contains(dst.ptr)||!FrameSurvey::NativeViewFresh(FrameSurvey::gViews.at(dst.ptr)))&&FrameSurvey::gViews.at(src.ptr).object==h.buffer.Get(),"old final release removes or invalidates the copied slot (copies are not reverse-indexed) and preserves overwritten current slot");
  need(!FrameSurvey::ValidateBorrowedConstantBuffer(token),"released staged CBV generation fails pure metadata validation without COM");
  hkSurveyCreateConstantBufferView(h.device.Get(),nullptr,src);
  need(!FrameSurvey::gViews.contains(src.ptr),"native null CBV tombstones previous live slot");
@@ -583,13 +583,79 @@ void releaseNativeHost(Host& h){
  auto* root=h.root.Detach();need(NrdBridgeRelease::Title(root,[](auto* p){return p->Release();})==0,"actual native host root retires its exact birth");
  need(hkHeapRelease(h.heap.Detach())==0&&hkRelease(h.buffer.Detach())==0&&hkRelease(h.texture.Detach())==0,"remaining actual native host heaps/resources retire before process teardown");
 }
+// Title-like descriptor traffic (FSRD_GAME_RING): CP77 refills a large shader-visible
+// ring every frame from CPU staging descriptors of many distinct resources, ~60k
+// copied descriptors per frame in calls of about four. Measures the actual
+// FrameSurvey copy callback under the actual descriptor admission guard.
+J gameRingPhase(Host& h,size_t threadCount,UINT resourceCount){
+ constexpr UINT ringSize=262144,stagingSize=16384,descriptorsPerFrame=60000;
+ const UINT frames=std::getenv("FSRD_GAME_RING_FRAMES")?UINT(std::atoi(std::getenv("FSRD_GAME_RING_FRAMES"))):12u;const bool wrappers=true;
+ const bool nativeOnly=std::getenv("FSRD_GAME_RING_NATIVE_ONLY")!=nullptr;
+ D3D12_DESCRIPTOR_HEAP_DESC desc{};desc.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;desc.NumDescriptors=ringSize;desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+ ComPtr<ID3D12DescriptorHeap> ring,staging;hr(h.device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&ring)));FrameSurvey::HeapCreated(h.device.Get(),ring.Get());
+ desc.NumDescriptors=stagingSize;desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_NONE;hr(h.device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&staging)));FrameSurvey::HeapCreated(h.device.Get(),staging.Get());
+ const auto ringStart=ring->GetCPUDescriptorHandleForHeapStart(),stagingStart=staging->GetCPUDescriptorHandleForHeapStart();
+ const auto at=[&](D3D12_CPU_DESCRIPTOR_HANDLE base,UINT slot){base.ptr+=uint64_t(slot)*h.stride;return base;};
+ std::vector<ID3D12Resource*> textures;textures.reserve(resourceCount);
+ for(UINT r=0;r<resourceCount;++r){D3D12_RESOURCE_DESC d{};d.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;d.Width=64;d.Height=32;d.DepthOrArraySize=d.MipLevels=1;
+  d.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;d.SampleDesc.Count=1;d.Layout=D3D12_TEXTURE_LAYOUT_UNKNOWN;D3D12_HEAP_PROPERTIES hp{};hp.Type=D3D12_HEAP_TYPE_DEFAULT;
+  ID3D12Resource* texture=nullptr;hr(h.device->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&texture)));
+  FrameSurvey::ResourceCreated(texture,D3D12_RESOURCE_STATE_COMMON);textures.push_back(texture);}
+ for(UINT slot=0;slot<stagingSize;++slot)hkSurveyCreateShaderResourceView(h.device.Get(),textures[slot%resourceCount],&h.srvDesc,at(stagingStart,slot));
+ const UINT callsPerThread=UINT(descriptorsPerFrame/4/threadCount),region=UINT(ringSize/threadCount);
+ std::barrier frameStart(threadCount+1),frameEnd(threadCount+1);std::vector<uint64_t> threadTicks(threadCount,0),threadDescriptors(threadCount,0),cbvTicks(threadCount,0);
+ const UINT cbvPerFrame=std::getenv("FSRD_GAME_RING_CBV")?UINT(std::atoi(std::getenv("FSRD_GAME_RING_CBV"))):0u,cbvPerThread=UINT(cbvPerFrame/threadCount),cbvRegion=UINT(16384/threadCount);
+ ComPtr<ID3D12DescriptorHeap> cbvHeap;{D3D12_DESCRIPTOR_HEAP_DESC cd{};cd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;cd.NumDescriptors=16384;hr(h.device->CreateDescriptorHeap(&cd,IID_PPV_ARGS(&cbvHeap)));FrameSurvey::HeapCreated(h.device.Get(),cbvHeap.Get());}
+ const auto cbvStart=cbvHeap->GetCPUDescriptorHandleForHeapStart();std::vector<std::jthread> workers;
+ for(size_t t=0;t<threadCount;++t)workers.emplace_back([&,t]{
+  uint64_t state=0x9e3779b97f4a7c15ull*(t+1);UINT cursor=0,cbvCursor=0;
+  const auto next=[&]{state^=state<<13;state^=state>>7;state^=state<<17;return state;};
+  for(UINT frame=0;frame<frames;++frame){frameStart.arrive_and_wait();const auto begin=qpc();
+   for(UINT call=0;call<callsPerThread;++call){UINT count=UINT(1+next()%7);const UINT source=UINT(next()%(stagingSize-8));
+    if(cursor+count>region)cursor=0;auto to=at(ringStart,UINT(t)*region+cursor),from=at(stagingStart,source);cursor+=count;
+    {
+__NATIVE_DESCRIPTOR_COPY_ADMISSION__
+     h.device->CopyDescriptorsSimple(count,to,from,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+     if(!nativeOnly)FrameSurvey::CopyDescriptors(h.device.Get(),1,&to,&count,1,&from,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
+    threadDescriptors[t]+=count;}
+   threadTicks[t]+=qpc()-begin;
+   // Title-like constant buffer views into a separate CPU staging ring.
+   const auto cbvBegin=qpc();
+   for(UINT c=0;c<cbvPerThread;++c){D3D12_CONSTANT_BUFFER_VIEW_DESC cbv{h.buffer->GetGPUVirtualAddress()+uint64_t(next()%31)*256,256};
+    hkSurveyCreateConstantBufferView(h.device.Get(),&cbv,at(cbvStart,UINT(t)*cbvRegion+(cbvCursor++%cbvRegion)));}
+   cbvTicks[t]+=qpc()-cbvBegin;frameEnd.arrive_and_wait();}
+ });
+ uint64_t wall=0;
+ for(UINT frame=0;frame<frames;++frame){frameStart.arrive_and_wait();const auto begin=qpc();frameEnd.arrive_and_wait();wall+=qpc()-begin;}
+ workers.clear();need(FrameSurvey::MetadataHealthy(),"title-like ring copies keep metadata healthy");
+ // Every ring slot written last must name the staging slot's resource.
+ uint64_t verified=0;for(UINT slot=0;slot<ringSize;slot+=97){const auto found=FrameSurvey::gViews.find(at(ringStart,slot).ptr);
+  if(found==FrameSurvey::gViews.end())continue;need(std::find(textures.begin(),textures.end(),found->second.object)!=textures.end(),"ring slot names a staged texture");++verified;}
+ need(nativeOnly||verified>0,"ring copies published destination views");
+ uint64_t ticks=0,descriptors=0;for(size_t t=0;t<threadCount;++t){ticks+=threadTicks[t];descriptors+=threadDescriptors[t];}
+ const double f=double(frequency());
+ J row{{"mode","game_ring"},{"threads",threadCount},{"resources",resourceCount},{"frames",frames},{"descriptors_per_frame",double(descriptors)/frames},
+  {"wall_ms_per_frame",double(wall)*1000.0/f/frames},{"cbv_per_frame",cbvPerThread*threadCount},
+  {"cbv_thread_ms_per_frame",[&]{uint64_t sum=0;for(auto v:cbvTicks)sum+=v;return double(sum)*1000.0/f/frames;}()},{"thread_ms_per_frame",double(ticks)*1000.0/f/frames},{"us_per_descriptor",double(ticks)*1e6/f/double(descriptors)}};
+ for(auto* texture:textures){if(bornMode)hkRelease(texture);else{FrameSurvey::Released(texture);texture->Release();}}
+ if(bornMode){hkHeapRelease(ring.Detach());hkHeapRelease(staging.Detach());hkHeapRelease(cbvHeap.Detach());}else{FrameSurvey::Released(ring.Get());FrameSurvey::Released(staging.Get());FrameSurvey::Released(cbvHeap.Get());}
+ return row;
+}
 int main(int argc,char** argv)try{
  need(argc==4,"output/profile/adapter arguments");SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);
  const bool profile=std::string(argv[2])=="on";gUseHardware=std::string(argv[3])=="hardware";
  if(profile){NrdBridgePerf::Configure([](const NrdBridgePerf::Report&)noexcept{});NrdBridgePerf::ConsumerFrame(1);}
+ // Optional: session-long periodic thread-local profiler (production default) to measure its own overhead.
+ if(std::getenv("FSRD_PERIODIC_PERF"))NrdBridgePerf::Periodic::Configure(+[](const NrdBridgePerf::Periodic::Interval&)noexcept{},0.25);
  if(bornMode){need(NrdBridgeNativeBirth::ConfigureRetirement(PrepareNativeRetirement,DetachNativeRetirement,NotifyNativeRetirement),"actual native retirement dispatcher configured");need(NrdBridgeLifetime::EnableConcurrentReleases(),"actual concurrent physical release gate enabled");}
  (void)RecordedComputeLease::GetRegistry();
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;FrameSurvey::SetReleaseObserver(&onRelease);if(bornMode)FrameSurvey::SetBirthReleaseObserver(&onBirthRelease);
+  if(std::getenv("FSRD_GAME_RING")){J ring=J::array();std::vector<size_t> threadCounts{1,8,14};if(const char* only=std::getenv("FSRD_GAME_RING_THREADS"))threadCounts={size_t(std::atoi(only))};
+   for(UINT resources:{256u,4096u})for(size_t threads:threadCounts)ring.push_back(gameRingPhase(h,threads,resources));
+   std::cout<<J{{"game_ring",ring}}.dump()<<'\n';
+   std::ofstream(std::filesystem::path(argv[1])/(std::string("result-")+argv[2]+".json"))<<J{{"variant","__VARIANT__-game-ring"},{"checks",checks},{"rows",J::array()},{"peak_working_set_bytes",peakRss()},{"game_ring",ring}}.dump(2)<<'\n';
+   std::fflush(stdout);ExitProcess(0);}
   startupAndIndirectRegressions(h,profile);metadataRegressions(h);nativeMetadataPendingReleaseRegressions(h);samplerNativeRegressions(h);const auto allocations=commonNativeReleaseAllocations(h.buffer.Get(),bornMode);J rows=J::array();const auto cacheBegin=qpc();
  {
   Cache cache(h);const double insertionMs=(qpc()-cacheBegin)*1000.0/double(frequency());
@@ -669,9 +735,11 @@ def run():
     parser.add_argument('--snapshot-readers', action='store_true', help='separate8/16thread1024copy workload with actual periodic CBV metadata reader')
     parser.add_argument('--alias-diagnostic', action='store_true', help='pure pre-timing native alias inventory and unchanged physical-object callback assertion')
     parser.add_argument('--adapter', choices=('warp', 'hardware'), default='warp')
-    parser.add_argument('--descriptor-shards', type=int, choices=(32, 128, 256), default=32, help='scratch-only candidate layout; repository production default is never changed')
+    parser.add_argument('--descriptor-shards', type=int, choices=(32, 128, 256, 1024), default=None, help='scratch-only candidate layout; repository production default (256) is never changed')
     parser.add_argument('--profile', choices=('on', 'off', 'both'), default='both')
     args = parser.parse_args()
+    if args.descriptor_shards is None:
+        args.descriptor_shards = 32 if args.baseline else 256
     if args.baseline and args.descriptor_shards != 32:
         parser.error('frozen baseline keeps its original32-shard fixture adapter layout')
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
@@ -681,12 +749,12 @@ def run():
     original = source
     metadata_original = (ROOT/'OptiScaler/resource_tracking/FrameSurveyConcurrentMetadata.h').read_text()
     metadata_compiled = metadata_original
-    assert metadata_original.count('inline constexpr size_t DescriptorShards = 32;') == 1
-    assert metadata_original.count('return size_t(slot >> 59);') == 1
-    if args.descriptor_shards != 32:
+    assert metadata_original.count('inline constexpr size_t DescriptorShards = 256;') == 1
+    assert metadata_original.count('return size_t(slot >> 56);') == 1
+    if args.descriptor_shards != 256:
         assert args.descriptor_shards & (args.descriptor_shards-1) == 0
-        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 32;', f'inline constexpr size_t DescriptorShards = {args.descriptor_shards};')
-        metadata_compiled = metadata_compiled.replace('return size_t(slot >> 59);', f'return size_t(slot >> {64-(args.descriptor_shards.bit_length()-1)});')
+        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 256;', f'inline constexpr size_t DescriptorShards = {args.descriptor_shards};')
+        metadata_compiled = metadata_compiled.replace('return size_t(slot >> 56);', f'return size_t(slot >> {64-(args.descriptor_shards.bit_length()-1)});')
     metadata_path = out/'FrameSurveyConcurrentMetadata.h'
     metadata_path.write_text(metadata_compiled, encoding='utf-8')
     helper = (ROOT/"OptiScaler/misc/NrdBridgeRelease_Dx12.h").read_text()
@@ -785,7 +853,7 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
         variant += '-copy-noop'
     if 'HeapDescriptorShards(' in source:
         variant += '-heap-mask'
-    if args.descriptor_shards != 32:
+    if args.descriptor_shards != 256:
         variant += f'-scratch{args.descriptor_shards}'
     driver = DRIVER
     if args.snapshot_readers:
@@ -826,6 +894,8 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
     (stubs/'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util {inline std::filesystem::path DllPath(){return g_dllPath;}}\n')
     (stubs/'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs/'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy {inline auto D3D12CreateVersionedRootSignatureDeserializer_(){return &D3D12CreateVersionedRootSignatureDeserializer;}inline auto D3D12SerializeVersionedRootSignature_(){return &D3D12SerializeVersionedRootSignature;}}\n')
+    # GAME_TRACE bridge metadata names Recovery tiers; the RR wrapper TU is not linked here.
+    cpp += '\nnamespace NrdBridge { const char* LobeRecoveryTierName(uint32_t) noexcept { return "fixture"; } const char* LobeRecoveryFallbackReasonName(uint32_t) noexcept { return "fixture"; } }\n'
     fixture, exe = out/'contention.cpp', out/'contention.exe'
     fixture.write_text(cpp, encoding='utf-8')
     compile_cpp(fixture, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT/'OptiScaler/library/detours/detours.lib')),
@@ -840,7 +910,7 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
         report['hook_body_sha256'] = {name: hashlib.sha256(body.encode()).hexdigest() for name, body in dict(bodies, hkRelease=release, hkHeapRelease=heap_release).items()}
         report['baseline_instrumentation'] = 'scratch catalog mutex WaitScope, same-call native AddRef/QPC and before-Scope-destructor TLS snapshot; production control flow and assertions unchanged' if args.baseline else None
         report['descriptor_layout_scope'] = 'fixture adapter header only; frozen production catalog has no slot mutex array and uses its original reverse sets' if args.baseline else 'actual candidate compiled metadata owner/slot-mutex layout'
-        report['descriptor_shard_scope'] = 'repository production default32, unchanged scratch header' if args.descriptor_shards == 32 else f'scratch-only{args.descriptor_shards}: map, reverse buckets, slot mutexes use the same derived shard index; identity map stays32; no production default edit'
+        report['descriptor_shard_scope'] = 'repository production default256, unchanged scratch header' if args.descriptor_shards == 256 else f'scratch-only{args.descriptor_shards}: map, reverse buckets, slot mutexes use the same derived shard index; identity map stays32; no production default edit'
         report['metadata_header_source_sha256'] = hashlib.sha256(metadata_original.encode()).hexdigest()
         report['metadata_header_compiled_sha256'] = hashlib.sha256(metadata_compiled.encode()).hexdigest()
         report['periodic_snapshot_reader_variant'] = args.snapshot_readers
@@ -861,6 +931,8 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
                     'paired_native_mean_us': {sample['event']: sample.get('mean_us') for sample in row['paired_original_forwarding']}}
                    for row in report['rows'] if row.get('mode') == 'actual_production_hook_bodies']
         print(json.dumps({'variant': report['variant'], 'profile': profile, 'checks': report['checks'], 'peak_working_set_bytes': report['peak_working_set_bytes'], 'summary': summary}))
+        if report.get('game_ring'):
+            print(json.dumps({'game_ring': report['game_ring']}))
 
 
 if __name__ == '__main__':

@@ -3341,6 +3341,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     // rebuilding the snapshot without it.
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
+    settings.flatAlbedo = NrdBridge::ReadFlatAlbedoSettings(config);
     settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
     settings.recoveryDiffuse = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
@@ -3437,6 +3438,33 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("A/B hypothesis: the four normalized native categories can prevent filtering across material boundaries. "
                           "The current title alpha population and enable flags have not been measured. "
                           "Off supplies material ID 0. No extra resources or dispatches; changing it resets history. Default off.");
+    if (ImGui::TreeNode("Near Zero-Rough Recovery (mirror reflections)"))
+    {
+        auto flat = NrdBridge::ReadFlatAlbedoSettings(*config);
+        if (ImGui::Checkbox("Near Zero-Rough Recovery##Nrd", &flat.enabled))
+        { config->FfxDenoiserRecoveryFlatAlbedo = flat.enabled; changed = true; }
+        if (ImGui::SliderFloat("Strength##NrdFlat", &flat.strength,0.0f,1.0f))
+        { config->FfxDenoiserRecoveryFlatAlbedoStrength = flat.strength; changed = true; }
+        int roughness = int(flat.roughness);
+        if (ImGui::SliderInt("RR roughness floor (10-bit)##NrdFlat", &roughness,0,16))
+        { config->FfxDenoiserRecoveryFlatRoughness = roughness; changed = true; }
+        if (ImGui::SliderFloat("Anchor##NrdFlat", &flat.anchor,0.0f,8.0f))
+        { config->FfxDenoiserRecoveryFlatAnchor = flat.anchor; changed = true; }
+        if (ImGui::SliderFloat("Mix##NrdFlat", &flat.mix,0.0f,1.0f))
+        { config->FfxDenoiserRecoveryFlatMix = flat.mix; changed = true; }
+        if (ImGui::Checkbox("Temporal reference##NrdFlat", &flat.temporal))
+        { config->FfxDenoiserRecoveryFlatTemporal = flat.temporal; changed = true; }
+        if (ImGui::SliderFloat("Temporal denoise##NrdFlat", &flat.temporalDenoise,0.0f,2.0f))
+        { config->FfxDenoiserRecoveryFlatTemporalDenoise = flat.temporalDenoise; changed = true; }
+        ImGui::TextWrapped("RR skips all spatial filtering below roughness 1/1023 (mirror bypass), so mirror-like water stays as "
+            "sparse noise. Recovery gives RR a minimum roughness (default 2/1023) and keeps a reprojected running mean of the "
+            "raw lobe (up to 32 frames, NRD-style; restarted when RR shows a lighting change). Once that mean has 8 frames it "
+            "is the output; before that, and while the camera moves position (reflection parallax caps the history), RR's "
+            "clean but blurred result gets the mean's detail and brightness back. Native NRD filtering and history are never used. "
+            "Shared with the FSR-RR Near Zero-Rough settings; the bridge ignores the 1-6 frame history length. "
+            "Strength 0 or floor 0 disables both the floor and recovery.");
+        ImGui::TreePop();
+    }
     changed |= DrawNrdBridgeLobeRecovery(config);
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
@@ -3444,6 +3472,10 @@ static void DrawNrdBridgeRRTuning(Config* config)
         NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
     if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
     const auto state = NrdBridge::GetRRSettingsState();
+    if (state.flatAlbedoFallback)
+        ImGui::TextWrapped("Near Zero-Rough Recovery unavailable; original roughness retained: %s",state.flatAlbedoLastError.c_str());
+    else ImGui::Text("Near Zero-Rough Recovery: %s; effective RR floor %u/1023",
+        state.flatAlbedoActive ? "Active" : "Inactive",state.flatAlbedoActive ? state.requested.flatAlbedo.roughness : 0u);
     ImGui::Text("Requested lobe recovery: %s (specular %.3f, diffuse %.3f)",
                 state.requested.lobeRecovery ? "On" : "Off", state.requested.recoverySpecular, state.requested.recoveryDiffuse);
     ImGui::TextWrapped("Requested settings alone do not confirm recovery ran on a Consumer frame. Both zero strengths leave RR unchanged and skip recovery work.");
@@ -3506,6 +3538,7 @@ static void DrawNrdBridgeInputMap()
         row("Normal + roughness", NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs
             ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
             : "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
+        row("Smooth-surface detail", "With Near Zero-Rough Recovery active, RR sees the configured roughness floor (default 2/1023). Original roughness selects separate specular/diffuse recovery masks. The original geometry is preserved; no NRD-denoised output or NRD history is used.");
         row("Linear VIEWZ", "Bridge-owned depth is built from the title's unfiltered view-space depth and copied native source origin, signed for the RR camera convention and clamped to the camera depth bounds.");
         row("Motion + jitter", NrdBridge::GetRRSettingsState().requested.nativeTemporalMotion
             ? "Current title motion XY uses Streamline scale/jitter. Optional native surface reprojection uses copied b6 operands and bridge-owned positive ViewZ; invalid pixels use camera-only depth. Native NRD history is not read."
@@ -4132,9 +4165,9 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                                           "Default 0.");
                     ImGui::EndDisabled();
                 }
-                recovery("RecoveryFlatAlbedo", "Flat albedo", config->FfxDenoiserRecoveryFlatAlbedo,
+                recovery("RecoveryFlatAlbedo", "Near zero-rough", config->FfxDenoiserRecoveryFlatAlbedo,
                          config->FfxDenoiserRecoveryFlatAlbedoStrength,
-                         "Flat Detail restores texture on zero-roughness screens, signs and posters using validated original frames. "
+                         "Near Zero-Rough Recovery restores texture on zero-roughness screens, signs and posters using validated original frames. "
                          "RR supplies clean lighting; strength controls how much texture returns.");
                 {
                     ScopedIndent flatIndent;
@@ -4170,7 +4203,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                                       "light colour of the same surface around it (9x9, energy-weighted). Texture colour, "
                                       "emission and mirror-like reflections are left alone. Off by default.");
                 static const char* debugViews[] = { "Off", "Signed correction", "Correction size / reference maturity",
-                                                    "History reset / filter mask", "Flat Detail: class / weight / clamp", "Flat Detail reference" };
+                                                    "History reset / filter mask", "Near Zero-Rough: class / weight / clamp", "Near Zero-Rough reference" };
                 int debug = std::clamp(config->FfxDenoiserRecoveryDebug.value_or_default(), 0, 5);
                 if (ImGui::Combo("Recovery debug", &debug, debugViews, IM_ARRAYSIZE(debugViews)))
                     config->FfxDenoiserRecoveryDebug = debug;

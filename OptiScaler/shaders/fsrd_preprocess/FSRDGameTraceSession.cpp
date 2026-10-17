@@ -326,13 +326,23 @@ struct Control
     uint64_t cpuBytes = 0;
 };
 Control& Global() { static auto* value = new Control; return *value; }
-void ReapReadbacks(Control& control)
+// Reaped frames die only after control.mutex is released: their teardown
+// releases readback/ticket COM objects (title Release hooks take the NRD bridge
+// lifetime gate) and RRTraceFence::Forget. A bridge commit holds that gate and
+// then waits for control.mutex in RecordBridgeOwned, so dying under the mutex
+// can deadlock. Callers declare the graveyard BEFORE taking control.mutex.
+using FrameGraveyard = std::vector<std::shared_ptr<Frame>>;
+void ReapReadbacks(Control& control, FrameGraveyard& dead)
 {
-    std::erase_if(control.retained, [&](const auto& f) {
-        if (f.use_count() != 1 || (!f->frozen && !f->discarded) || !f->ticket->Releasable()) return false;
+    dead.reserve(dead.size() + control.retained.size()); // Only allocation; nothing moved yet.
+    for (auto it = control.retained.begin(); it != control.retained.end();)
+    {
+        const auto& f = *it;
+        if (f.use_count() != 1 || (!f->frozen && !f->discarded) || !f->ticket->Releasable()) { ++it; continue; }
         control.gpuBytes -= f->gpuBytes;
-        return true;
-    });
+        dead.push_back(std::move(*it));
+        it = control.retained.erase(it);
+    }
 }
 D3D12_RESOURCE_DESC ReadbackDesc(uint64_t bytes)
 {
@@ -1376,8 +1386,9 @@ void FSRDGameTraceSession::Impl::SnapshotLoop() noexcept
         try
         {
             {
+                FrameGraveyard dead;
                 std::unique_lock lock(control.mutex);
-                ReapReadbacks(control);
+                ReapReadbacks(control,dead);
                 if (shutdown) return;
                 if (session && session->stop && !pending.empty()) Failure(session->reason);
                 InspectLineage();
@@ -1651,7 +1662,7 @@ bool FSRDGameTraceSession::RequestStart(uint32_t x, uint32_t y, uint32_t delaySe
 { Request request; request.x = x; request.y = y; request.delaySeconds = delaySeconds; return RequestStart(request); }
 bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
 {
-    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    auto& control = Global(); FrameGraveyard dead; std::scoped_lock lock(control.mutex);
     std::shared_ptr<Session> attempted;
     const auto failedStart = [&](const char* reason) noexcept {
         g_captureActive.store(false,std::memory_order_release);
@@ -1666,7 +1677,7 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
     try
     {
         if (g_surveyActive.load() || (control.current && control.current->status.active)) return false;
-        ReapReadbacks(control);
+        ReapReadbacks(control,dead);
         auto s = std::make_shared<Session>(); attempted = s;
         if (request.size != TileSize && request.size != 512) throw std::runtime_error("GAME_TRACE region must be 128 or 512 pixels");
         if (request.frameCount != FrameCount && request.frameCount != 256 && request.frameCount != 512 &&
@@ -1838,10 +1849,10 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
     std::span<const uint8_t> flatDetailConstants, bool submissionHooksAvailable) noexcept
 {
     if (!IsActive() || IsNrdBridgeCaptureActive()) return false;
-    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    auto& control = Global(); FrameGraveyard dead; std::scoped_lock lock(control.mutex);
     try
     {
-        auto& impl = *m_impl; ReapReadbacks(control); impl.InspectLineage();
+        auto& impl = *m_impl; ReapReadbacks(control,dead); impl.InspectLineage();
         if (impl.session && !impl.session->status.active)
         { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.session.reset(); }
         if (!impl.session)
@@ -1988,10 +1999,10 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
     const BridgeProviderBinaryIdentity& binary, bool submissionHooksAvailable) noexcept
 {
     if (!IsNrdBridgeCaptureActive()) return {};
-    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    auto& control = Global(); FrameGraveyard dead; std::scoped_lock lock(control.mutex);
     try
     {
-        auto& impl = *m_impl; ReapReadbacks(control); impl.InspectLineage();
+        auto& impl = *m_impl; ReapReadbacks(control,dead); impl.InspectLineage();
         if (impl.session && !impl.session->status.active)
         { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.session.reset(); }
         if (!impl.session)
@@ -2034,7 +2045,7 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             output.frameIndex != s.lastFrameIndex+1u || identity.streamlineFrame != s.lastBridgeSL+1u ||
             identity.recordingId <= s.lastBridgeRecording))
             throw std::runtime_error("NRD_BRIDGE trace context/settings/consecutive SL or SDK frame lineage changed");
-        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,input.motion,input.normals,
+        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,input.motion,output.providerNormals ? output.providerNormals : input.normals,
             input.specAlbedo,input.diffAlbedo,output.rawSpec,output.rawDiff,output.selectedSpec,output.selectedDiff};
         for (auto* source : sources) if (!source) throw std::runtime_error("NRD_BRIDGE trace missing owned stage");
         auto f = std::make_shared<Frame>(); f->bridge = true; f->bridgeIdentity = identity;
@@ -2070,6 +2081,15 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(BridgeNames[role]);
             f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
         }
+        size_t originalNormalSlot = SIZE_MAX;
+        if (output.flatAlbedoActive)
+        {
+            originalNormalSlot = f->surveyImages.size();
+            auto image = PlanBridgeImage(device,s,4,input.normals);
+            readback += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back("recovery_original_normal_roughness");
+            f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
+        }
         // Includes both future encoded outputs and the optional exact GPU flag.
         // No readback allocation or command has occurred at this point.
         PreflightReadback(s,readback,readback); PreflightPayload(s,payload);
@@ -2081,6 +2101,11 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             {"native_control_header",{{"available",false},{"reason","No same-recording owned native constant words supplied; uncaptured words remain UNKNOWN"}}},
             {"recovery",{{"graph_recorded",output.recoveryActive},{"fallback_to_raw_rr",output.recoveryFallback},
                 {"effective",FSRDGameTraceBridgeMetadata::RecordedRecovery(output)}}},
+            {"flat_albedo",{{"graph_recorded",output.flatAlbedoActive},{"fallback",output.flatAlbedoFallback},
+                {"roughness_floor",output.flatAlbedoRoughness},{"error",output.flatAlbedoError},
+                {"reference","independent_current_noisy_lobes; original_roughness; no_native_NRD_history"},
+                {"original_geometry_role",output.flatAlbedoActive ? "recovery_original_normal_roughness" : "input_normal_roughness"}}},
+            {"provider_radiance_scale",output.providerRadianceScale},
             {"provider",{{"version_id",output.providerVersionId},{"api_version",output.providerApiVersion},
                 {"signal_flags",output.providerSignalFlags},{"context_flags",output.providerContextFlags},
                 {"checkerboard_signal_flags",output.providerCheckerboardSignalFlags},
@@ -2103,6 +2128,12 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             const auto slot = f->bridgeRoles[role]; if (f->bridgeCopied[slot]) continue;
             RecordBridgeCopy(cmd,*f,f->surveyImages[slot],{sources[role],role < 7 ?
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : output.state}); f->bridgeCopied[slot] = true;
+        }
+        if (originalNormalSlot != SIZE_MAX)
+        {
+            f->ticket->Retain(input.normals);
+            RecordBridgeCopy(cmd,*f,f->surveyImages[originalNormalSlot],{input.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
+            f->bridgeCopied[originalNormalSlot] = true;
         }
         s.bridgeDomain = identity.domain; s.manifest["captured_domain"] = identity.domain;
         s.status.phase = "capturing"; impl.UpdateProgress(); control.wake.notify_all(); return f;
@@ -2302,10 +2333,10 @@ void FSRDGameTraceSession::CancelBridgeFrame(const BridgeFrameToken& token, std:
 
 bool FSRDGameTraceSession::StartSurvey(uint32_t width, uint32_t height) noexcept
 {
-    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    auto& control = Global(); FrameGraveyard dead; std::scoped_lock lock(control.mutex);
     try
     {
-        ReapReadbacks(control);
+        ReapReadbacks(control,dead);
         if (!width || !height || g_surveyActive.load() || g_captureActive.load() ||
             (m_impl->session && m_impl->session->status.active) || control.gpuBytes)
             return false;
@@ -2502,10 +2533,10 @@ void FSRDGameTraceSession::FinishSurvey(std::string_view metadataJson) noexcept
 }
 void FSRDGameTraceSession::Poll() noexcept
 {
-    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    auto& control = Global(); FrameGraveyard dead; std::scoped_lock lock(control.mutex);
     try
     {
-        ReapReadbacks(control); m_impl->InspectLineage();
+        ReapReadbacks(control,dead); m_impl->InspectLineage();
         if (m_impl->session && m_impl->session->stop && !m_impl->pending.empty()) m_impl->Failure(m_impl->session->reason);
         m_impl->UpdateProgress(); control.wake.notify_all();
     }

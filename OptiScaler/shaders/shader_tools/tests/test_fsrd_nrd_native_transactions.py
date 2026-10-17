@@ -123,12 +123,28 @@ def validate_config_wiring(value):
     require(wiring['startup_selectors_stored'])
     require(wiring['gated_request_reaches_production_decode'])
     require(wiring['direct_chain_fail_closed'])
-    require(wiring['restart_required_latch'])
+    require(not wiring['restart_required_latch'] and wiring['forwarded_refused_frame'])
     motion = wiring['motion_legacy_diff']
     require(motion['depth_delta_words'] > 0)
     require(motion['xyw_words'] == 0)
     require(value['debug_errors'] == value['debug_warnings'] == 0)
-    require(value['contexts'] == 2 and value['provider_destroys'] == 0)
+    require(value['contexts'] >= 1 and value['provider_destroys'] == value['contexts'])
+    return checks
+
+
+def validate_native_debug(value):
+    debug = value['native_debug']
+    checks = 0
+
+    def require(condition):
+        nonlocal checks
+        assert condition
+        checks += 1
+
+    require(debug['presented'] == 3)
+    require(all(row['presented'] and row['written_pixels'] > 0 for row in debug['frames']))
+    require(value['debug_errors'] == value['debug_warnings'] == 0)
+    require(value['contexts'] == 2 and value['provider_destroys'] == value['contexts'])
     return checks
 
 
@@ -153,27 +169,41 @@ def run():
         else:
             os.environ['CL'] = prior_cl
     cases, python_checks = {}, 0
+    directory = out/'native_debug'
+    directory.mkdir(parents=True, exist_ok=True)
+    _, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--native-debug'], directory/'native_run')
+    value = json.loads((directory/'native-debug-result.json').read_text())
+    python_checks += validate_native_debug(value)
+    value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+    (directory/'native-debug-result.json').write_text(json.dumps(value, indent=2)+'\n')
+    cases['native_debug'] = value
+    if os.environ.get('FSRD_NATIVE_DEBUG_ONLY'):
+        print(json.dumps(dict(native_debug=value['native_debug'], python_checks=python_checks), indent=2))
+        return
     for name, option, dispatches, contexts, retained in (
             ('positive', None, 15, 4, 0),
-            ('missing_consumer', '--missing-consumer', 1, 1, 1),
+            ('missing_consumer', '--missing-consumer', 3, None, -1),
             ('positive_opaque', '--opaque', 15, 4, 0),
-            ('opaque_mutation', '--opaque-mutation', 2, 2, 2)):
+            ('opaque_mutation', '--opaque-mutation', 4, None, -1)):
         directory = out/name
         directory.mkdir(parents=True, exist_ok=True)
         command_line = [str(exe), str(directory), str(DLL)] + ([option] if option else [])
         _, peak, elapsed, log = bounded_run(command_line, directory/'native_run')
         value = json.loads((directory/'native-transactions-result.json').read_text())
         assert value['debug_errors'] == value['debug_warnings'] == 0
-        assert value['provider_dispatches'] == dispatches and value['contexts'] == contexts
-        assert value['provider_destroys'] == contexts-retained
-        python_checks += 3
-        if retained:
-            assert value['quarantined_recordings'] == value['quarantined_submissions'] == 1
-            assert value['intentionally_retained_contexts'] == retained
-            assert value['repeated_denials'] == 2 and not value['discard_recovery']
-            assert value['missing_A_Consumer_denials'] == (name == 'missing_consumer')
-            python_checks += 4
+        assert value['provider_dispatches'] == dispatches
+        if retained < 0:
+            # Forwarded negatives: no denial, no sticky latch, every context retired.
+            assert value['forwarded_submissions'] == 1 and value['repeated_denials'] == 0
+            assert value['quarantined_recordings'] == value['quarantined_submissions'] == 0
+            assert value['required_latch'] == 0 and value['provider_destroys'] == value['contexts']
+            python_checks += 5
         else:
+            assert value['contexts'] == contexts and value['provider_destroys'] == contexts-retained
+            python_checks += 3
+        if retained < 0:
+            pass
+        elif not retained:
             assert len(value['frames']) == 6
             assert [row['SL_frame'] for row in value['frames']] == list(range(1, 7))
             assert all(row['signed_dispatches'] == 2 and row['native_filter_gpu_executions'] == 0 for row in value['frames'])

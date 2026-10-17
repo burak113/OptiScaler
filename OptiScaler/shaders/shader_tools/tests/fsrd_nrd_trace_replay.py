@@ -28,6 +28,7 @@ FORMATS = {
     "consumer_word303": (0, 1),
 }
 INPUTS = tuple(FORMATS)[:7]
+AUXILIARY_FORMATS = {"recovery_original_normal_roughness": (24, 4)}
 MAX_FRAME = 256 << 20
 # G03/WP07 inspection names for the attested per-profile native control words.
 # Offsets are the already-captured native_byte_offset values; names only make
@@ -297,12 +298,12 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
                 break
         prior = identity["streamline_frame"], sdk_frame, identity["recording_id"]
         images = frame.get("images")
-        require(isinstance(images, list) and 1 <= len(images) <= 14, "unexpected bridge image count")
+        require(isinstance(images, list) and 1 <= len(images) <= 15, "unexpected bridge image count")
         physical, charges, charged, payload_bytes = {}, {}, 0, 184
         for row in images:
             name = row.get("name")
-            require(name in FORMATS and name not in physical, "unknown/duplicate image stage")
-            fmt, bpp = FORMATS[name]
+            require(name in (FORMATS | AUXILIARY_FORMATS) and name not in physical, "unknown/duplicate image stage")
+            fmt, bpp = (FORMATS | AUXILIARY_FORMATS)[name]
             expected_extent = [4, 1] if name == "consumer_word303" else extent
             require(row.get("dxgi_format") == fmt and row.get("bytes_per_pixel") == bpp
                     and row.get("extent") == expected_extent, "image typed layout mismatch")
@@ -376,12 +377,21 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
                     "skipped original cannot claim native output")
             require(uint(event.get("sequence"), "skip sequence") > sequence, "skip order not increasing")
             sequence = event["sequence"]
+        flat = frame.get("flat_albedo", {})
+        require(isinstance(flat, dict), "invalid flat recovery metadata")
+        if flat.get("graph_recorded", False):
+            require("recovery_original_normal_roughness" in physical, "flat recovery lacks original geometry payload")
+            require(uint(flat.get("roughness_floor"), "flat roughness floor", 1023) > 0, "flat recovery floor is zero")
+        scale = frame.get("provider_radiance_scale", 1)
+        require(type(scale) in (int, float) and scale in (1, 256), "unsupported provider radiance scale")
         result.append({"ordinal": ordinal, "identity": identity, "context_generation": current[1],
                        "sdk_frame_index": sdk_frame, "actual_dispatch_flags": flags,
                        "provider_controls": controls, "provider": provider, "frame_parameters": params,
                        "settings": settings, "inputs": {name: resolved[name] for name in INPUTS},
                        "observations": {name: row for name, row in resolved.items() if name not in INPUTS},
                        "encoding": encoding, "native_control_header": native_controls, "payload_bytes": payload_bytes,
+                       "provider_radiance_scale": scale, "flat_albedo": flat,
+                       "auxiliary_inputs": {name: physical[name] for name in AUXILIARY_FORMATS if name in physical},
                        "skipped_original_dispatches": events})
     if published < MINIMUM_REPLAY_PREFIX_FRAMES:
         reasons.append("replay_prefix_below_64_full_render_frames")

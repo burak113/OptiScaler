@@ -152,6 +152,8 @@ struct Option{bool value=true;bool value_or_default()const{return value;}};
 struct Config{Option FGAlwaysTrackHeaps;static Config* Instance(){static Config value;return &value;}};
 static bool hudActive=false;
 static bool IsHudFixActive(){return hudActive;}
+// Inspector on keeps the established scalar-gate assertions; the off case is checked separately.
+static std::atomic<bool> gRRResourceInspectorEnabled{true};
 static UINT fixtureIncrement=32;
 static UINT FixtureIncrement(ID3D12Device*,D3D12_DESCRIPTOR_HEAP_TYPE){++incrementCalls;return fixtureIncrement;}
 struct ForwardArguments{ID3D12Device* device=nullptr;UINT count=0;SIZE_T dst=0,src=0;D3D12_DESCRIPTOR_HEAP_TYPE type{};};
@@ -259,6 +261,7 @@ static J correctness(const std::shared_ptr<HeapInfo>& src,const std::shared_ptr<
  fill(dst,b);auto clear=invoke(&ResTrack_Dx12::hkCopyDescriptorsSimple,64,dst->cpuStart,0,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  need(clear["lookups"]==1&&clear["descriptor_clears"]==64,"NULL source uses one destination pin and the scalar-destination clear gate");
  for(UINT i=0;i<64;++i){ResourceInfo found;need(!dst->GetByCpuHandle(dst->cpuStart+SIZE_T(i)*32,found)&&!edge(b,dst,i),"null source clears metadata and its reverse edge");}
+ {fill(src,a);fill(dst,b);const auto before=image(dst);gRRResourceInspectorEnabled.store(false);auto idle=invoke(&ResTrack_Dx12::hkCopyDescriptorsSimple,64,dst->cpuStart,src->cpuStart,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);gRRResourceInspectorEnabled.store(true);need(idle["lookups"]==0&&idle["descriptor_sets"]==0&&idle["descriptor_clears"]==0&&image(dst)==before,"HUD fix, always-track and RR inspector all off: the copy is forwarded with no slot scan or mutation");}
  fill(dst,nonScalarB);const auto nullUntouched=image(dst);invoke(&ResTrack_Dx12::hkCopyDescriptorsSimple,64,dst->cpuStart,0,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  need(image(dst)==nullUntouched,"NULL source without scalar destination still preserves gate");
  Config::Instance()->FGAlwaysTrackHeaps.value=true;

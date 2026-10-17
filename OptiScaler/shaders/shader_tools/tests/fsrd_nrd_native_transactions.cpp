@@ -150,7 +150,7 @@ J Positive(Host& h,NativeTitle& title,OpaqueWork* opaque=nullptr){J rows=J::arra
   const std::array<Readback,2> rrA{title.readback(as.selectedSpec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS),title.readback(as.selectedDiff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)},rrB{title.readback(bs.selectedSpec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS),title.readback(bs.selectedDiff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)};
   std::optional<Readback> opaqueRead;if(opaque)opaqueRead.emplace(title.readback(title.tex[9].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
   auto root=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);h.list->CopyBufferRegion(root.Get(),0,title.checksum.Get(),0,1024);h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-  need(Execute(h),"complete A/B required transactions are allowed by actual descriptor/ledger submission");RootChecks(h,title,root);if(opaque)opaque->Check(*opaqueRead);
+  need(Execute(h),"complete A/B required transactions are allowed by actual descriptor/ledger submission");RootChecks(h,title,root);need(!FrameSurvey::BindingWindow(),"steady RR-only native frames keep the global binding mirror window closed");if(opaque)opaque->Check(*opaqueRead);
   UINT64 exact=0;for(UINT chain=0;chain<2;++chain)for(UINT lobe=0;lobe<2;++lobe){const auto out=(chain?outB:outA)[lobe].signal(),rr=(chain?rrB:rrA)[lobe].signal();for(size_t p=0;p<out.size();p+=4){for(UINT c=0;c<3;++c){need(std::isfinite(PackedVector::XMConvertHalfToFloat(rr[p+c])),"actual signed RR stage RGB finite");need(out[p+c]==rr[p+c],"title RGB exclusively equals this chain's actual staged RR");++exact;}need(out[p+3]==PackedVector::XMConvertFloatToHalf(lobe?11.f:9.f),"every original opaque title alpha bit survives pure RR commit");}}
   for(UINT c=0;c<2;++c){const auto stage=c?b:a;const auto provider=FfxApiProxy::records[before+c];if(frame==1){histories[c]=stage->history;contexts[c]=provider.context;}need(histories[c]==stage->history&&contexts[c]==provider.context,"continuous A/B histories and physical providers are independent and stable");need(bool(provider.flags&FFX_DENOISER_DISPATCH_RESET)==(frame==1),"only first frame resets each native A/B provider history");}
   rows.push_back({{"SL_frame",frame},{"signed_dispatches",2},{"exact_rr_rgb_words",exact},{"native_filter_gpu_executions",0},{"opaque_original_gpu_executions",opaque?1:0},{"A_context",uint64_t(uintptr_t(contexts[0]))},{"B_context",uint64_t(uintptr_t(contexts[1]))}});h.reset();
@@ -171,19 +171,31 @@ J Positive(Host& h,NativeTitle& title,OpaqueWork* opaque=nullptr){J rows=J::arra
  return rows;
 }
 J DeliberateDeny(Host& h,NativeTitle& title,OpaqueWork* opaque){
+ // Policy (claude/16-nrd-perf): an incomplete RR commit or a stale commit proof never
+ // denies the title's own Execute. The batch is forwarded, no sticky latch is set and
+ // the affected chain's RR history restarts with a physically fresh RESET context.
  title.Begin(1);title.A();title.B();if(opaque){title.ConsumerA();opaque->Record();}title.ConsumerB();
  const auto stages=NrdBridge::gService->lists.at(h.list.Get()).native;
  need(stages[0]&&stages[1]&&stages[1]->committed&&bool(stages[0]->committed)==bool(opaque),"independent A/B transaction completeness matches the exact isolated negative");
  if(opaque)opaque->MutateToB();
- const auto old=RecordedComputeLease::Capture(h.list.Get());need(old&&old->id,"negative owns a real native recording before actual submission admission");
- need(!Execute(h)&&h.denied==1&&FAILED(h.lastOrderingFailure),opaque?"pre-submit descriptor mutation explicitly denies actual native Execute":"actual beforeSubmit explicitly denies original native Execute for missing A Consumer");
- {auto& registry=RecordedComputeLease::GetRegistry();std::scoped_lock lock(registry.mutex);need(registry.completionFailed&&registry.recordings.size()==1&&registry.submissions.size()==1,"uncertain denied batch retains exactly one recording and submission quarantine");need(registry.recordings.begin()->second==old&&!old->leases.empty(),"exact denied recording keeps its private leases, never a replacement identity");}
- need(RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL,"failed retained B status observation escalates exact E_FAIL into the process-sticky required submission latch");
- need(!Execute(h,false)&&h.denied==2,"a denied mandatory recording remains denied on repeated submission without native fallback");
- need(FfxApiProxy::dispatches==(opaque?2u:1u),"isolated denial records exactly the expected signed providers before any native Execute");
- need(h.tick==0,"a rejected batch never executes or publishes a native title fence");h.reset();
- need(RecordedComputeLease::Capture(h.list.Get())==old&&RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL,"successful native Reset cannot clear deliberate failed-recording quarantine or sticky failure");
- return {{"negative",opaque?"opaque_descriptor_mutation":"missing_A_Consumer"},{"quarantined_recordings",1},{"quarantined_submissions",1},{"intentionally_retained_contexts",opaque?2:1}};
+ const auto firstDispatches=FfxApiProxy::dispatches;
+ need(firstDispatches==(opaque?2u:1u),"the isolated negative records exactly the expected signed providers before submission");
+ const auto tickBefore=h.tick;
+ need(Execute(h)&&h.denied==0,opaque?"pre-submit descriptor mutation forwards the title's own Execute; the stale proof only resets history":"a missing A Consumer forwards the title's own Execute without an A commit");
+ need(h.tick==tickBefore+1,"the forwarded batch executes and publishes exactly one title fence");
+ {auto& registry=RecordedComputeLease::GetRegistry();std::scoped_lock lock(registry.mutex);need(!registry.completionFailed,"a forwarded incomplete recording never latches uncertain completion");}
+ need(SUCCEEDED(RecordedComputeLease::RequiredSubmissionFailure()),"forwarding never sets the process-sticky required-submission latch");
+ h.reset();
+ title.Begin(2);title.A();title.B();title.ConsumerA();title.ConsumerB();
+ const auto recoveryBefore=FfxApiProxy::dispatches;
+ need(Execute(h)&&h.denied==0,"the next complete A/B frame submits normally after a forwarded incomplete frame");
+ need(FfxApiProxy::dispatches==recoveryBefore,"submission itself records no provider work");
+ need(FfxApiProxy::dispatches==firstDispatches+2,"recovery records exactly one actual signed call for each chain");
+ const UINT affected=opaque?1u:0u;
+ const auto& record=FfxApiProxy::records[firstDispatches+affected];
+ need((record.flags&FFX_DENOISER_DISPATCH_RESET)!=0,"the chain without a trustworthy commit restarts its RR history with RESET");
+ h.reset();
+ return {{"negative",opaque?"opaque_descriptor_mutation":"missing_A_Consumer"},{"forwarded_submissions",1},{"quarantined_recordings",0},{"quarantined_submissions",0},{"intentionally_retained_contexts",0},{"recovery_reset_chain",affected}};
 }
 J ConfigWiring(Host& h,NativeTitle& title){
  // SOL F01/F02 native witness: Config setter inputs -> production startup
@@ -287,23 +299,63 @@ J ConfigWiring(Host& h,NativeTitle& title){
   "the failing chain's own RR wrapper reports the Config-originated fill request stored");
  need(FfxApiProxy::dispatches==before,"the refused Direct chain records no signed provider dispatch");
  title.ConsumerB();
- need(Execute(h)==false,"the frame with a failed mandatory chain transaction stays denied by the submission gate");
+ need(Execute(h)&&h.denied==0,"the frame with a failed mandatory chain transaction forwards the title's own Execute");
  h.reset();
- need(FfxApiProxy::dispatches==before,"no signed provider work survives the refused frame");
- need(!NrdBridge::GetStatus().active&&NrdBridge::GetStatus().reason.find("restart")!=std::string::npos,
-  "the lost mandatory transaction pins the documented restart-required latch instead of silently recovering");
+ need(FfxApiProxy::dispatches==before,"no signed provider work is recorded for the refused chain");
+ need(SUCCEEDED(RecordedComputeLease::RequiredSubmissionFailure()),"the refused chain never sets the process-sticky submission latch");
+ need(!NrdBridge::GetStatus().active,"the refused mandatory transaction reports the bridge inactive with its reason");
  apply(false,false);
  const auto finalState=NrdBridge::GetRRSettingsState().requested;
  need(!finalState.surfaceValidFill&&!finalState.legacyMotionDepth,"the controlled case ends with both selectors off");
  return {{"startup_selectors_stored",true},{"motion_legacy_diff",legacyMotion},
   {"gated_request_reaches_production_decode",true},{"direct_chain_fail_closed",true},
-  {"restart_required_latch",true},
+  {"restart_required_latch",false},{"forwarded_refused_frame",true},
   {"decode_source","actual production CommitNativeTransaction raw decode"},
   {"scope","native RR-only flow: production startup/request/Configure wiring, gated decode fail-closed selection and legacy motion Z on real signed provider inputs; gated vs plain decode bytes are the W2 helper fixture's proven scope; no game quality claim"}};
 }
+J NativeDebugPresentation(Host& h,NativeTitle& title){
+ // Regression: RR-only native transactions never retained their AMD debug image, so the
+ // provider-native DebugView silently stayed off in game. The request goes through the
+ // production path; an upscaler-style presentation must then find and record chain A's image.
+ std::string error;auto settings=NrdBridge::GetRRSettingsState().requested;
+ settings.nativeDebugView=FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW;settings.nativeDebugViewport=0;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"the native debug request applies through the production request path");
+ need(NrdBridge::NativeDebugEnabled(),"the request opens the upscaler-side presentation gate");
+ auto desc=title.tex[0]->GetDesc();desc.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+ D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;ComPtr<ID3D12Resource> target;
+ hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&target)));
+ NativeFixtureResourceCreated(target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+ J frames=J::array();UINT presented=0;
+ for(UINT frame=1;frame<=3;++frame){
+  Upload(h,target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,std::vector<uint16_t>(size_t(desc.Width)*desc.Height*4,0));
+  title.Begin(frame);title.A();title.B();title.ConsumerA();title.ConsumerB();
+  const auto& state=NrdBridge::gService->lists.at(h.list.Get());
+  const auto a=state.native[0];
+  need(a&&a->committed&&state.native[1]&&state.native[1]->committed,"both RR-only chains commit with the debug-capable contexts");
+  need(a->history->rr.GetSettingsState().requested.nativeDebugView==FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW,"chain A's own RR wrapper stores the debug request");
+  bool retained=false;for(const auto& source:NrdBridge::gService->nativeDebugSources)retained|=source&&source->history==a->history;
+  need(retained,"the committed RR-only chain A transaction retains its AMD debug image");
+  std::string presentError;
+  const bool shown=NrdBridge::PresentNativeDebug(h.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,presentError);
+  need(presentError.empty(),("presentation reported an error: "+presentError).c_str());
+  presented+=shown?1:0;
+  const char* quiet=NrdBridge::gNativeDebugQuiet.load();
+  need(shown,("frame "+std::to_string(frame)+" presentation skipped: "+(quiet?quiet:"(no reason recorded)")).c_str());
+  Readback read=title.readback(target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  need(Execute(h),"the frame with the debug presentation is allowed by actual descriptor/ledger submission");h.reset();
+  size_t written=0;const auto values=read.signal();for(size_t p=0;p<values.size();p+=4)written+=(values[p]|values[p+1]|values[p+2])!=0;
+  need(!shown||written>0,"a recorded presentation writes AMD's debug image into the target");
+  frames.push_back({{"frame",frame},{"presented",shown},{"written_pixels",written}});
+ }
+ need(presented==3,"every frame presents chain A's AMD debug image");
+ settings.nativeDebugView=-1;need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"the debug request clears");
+ need(!NrdBridge::NativeDebugEnabled(),"clearing the request closes the presentation gate");
+ return {{"frames",frames},{"presented",presented},
+  {"scope","native RR-only flow: production debug request -> per-chain debug context -> CommitNativeTransaction retains chain A's image -> PresentNativeDebug records it on real signed provider output; no game proof"}};
+}
 } // namespace NativeFixture
 int main(int argc,char** argv)try{
- need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation,configWiring=mode=="--config-wiring";need(mode.empty()||missing||useOpaque||configWiring,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
+ need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation,configWiring=mode=="--config-wiring",nativeDebug=mode=="--native-debug";need(mode.empty()||missing||useOpaque||configWiring||nativeDebug,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;
  if(configWiring) {
   // Config setter path: the production Initialize below must consume these
@@ -317,11 +369,12 @@ int main(int argc,char** argv)try{
  J result;{NativeFixture::NativeTitle title(h,false);
   std::optional<NativeFixture::OpaqueWork> opaque;if(useOpaque)opaque.emplace(h,title);
   struct Cleanup{Host& host;~Cleanup(){try{host.waitComplete();NrdBridge::Shutdown();const auto recording=RecordedComputeLease::Capture(host.list.Get());RecordedComputeLease::Detach(recording);RecordedComputeLease::Poll();}catch(...){std::cerr<<"native cleanup failed after original assertion"<<std::endl;}}}cleanup{h};
-  try{if(configWiring)result["config_wiring"]=NativeFixture::ConfigWiring(h,title);else if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
+  try{if(configWiring)result["config_wiring"]=NativeFixture::ConfigWiring(h,title);else if(nativeDebug)result["native_debug"]=NativeFixture::NativeDebugPresentation(h,title);else if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
  }
- if(configWiring)need(FfxApiProxy::creates==FfxApiProxy::destroys+2&&FfxApiProxy::creates==2,"the refused mandatory chain keeps its physical context intentionally retained at process end");
- else if(missing||mutation)need(FfxApiProxy::creates==(mutation?2u:1u)&&FfxApiProxy::destroys==0,"only exact deliberately quarantined provider contexts remain retained until process recovery");
- else need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==4,"all four actual native A/B provider contexts retire after fenced recording detach");hookLifetime.Stop();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["provider_destroys"]=FfxApiProxy::destroys;result["missing_A_Consumer_denials"]=missing?1:0;result["repeated_denials"]=h.denied;result["discard_recovery"]=!missing&&!mutation;result["opaque_case"]=useOpaque;result["mode"]=mode;
+ if(configWiring)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates>=1,"a forwarded refused frame retires every physical provider context after fenced recording detach");
+ else if(nativeDebug)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==2,"the debug-capable A/B provider contexts retire after fenced recording detach");
+ else if(missing||mutation)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates>=2,"forwarded negatives retire every provider context after fenced recording detach");
+ else need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==4,"all four actual native A/B provider contexts retire after fenced recording detach");hookLifetime.Stop();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["provider_destroys"]=FfxApiProxy::destroys;result["missing_A_Consumer_denials"]=0;result["repeated_denials"]=h.denied;result["discard_recovery"]=!missing&&!mutation;result["required_latch"]=FAILED(RecordedComputeLease::RequiredSubmissionFailure())?1:0;result["opaque_case"]=useOpaque;result["mode"]=mode;
  result["scope"]="actual hardware/coordinator/raw/geometry/motion/signedRR/303compute+36pixel/requiredledger; synthetic shipping role/readiness and caller-strong native Release-coverage adapters, not full title startup/physical Release detour proof";
- std::ofstream(std::filesystem::path(argv[1])/(configWiring?"config-wiring-result.json":"native-transactions-result.json"))<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
+ std::ofstream(std::filesystem::path(argv[1])/(configWiring?"config-wiring-result.json":nativeDebug?"native-debug-result.json":"native-transactions-result.json"))<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;return 1;}

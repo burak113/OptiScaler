@@ -54,7 +54,7 @@ inline bool DrawProfile(Config& cfg)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Recovery v2 profiles. All lighting goes through RR in every profile.\n"
                           "Fast: no recovery.\n"
-                          "Balanced (default): Specular, Diffuse and Flat albedo recovery, Light history reset.\n"
+                          "Balanced (default): Specular, Diffuse and Near Zero-Rough recovery, Light history reset.\n"
                           "Quality: the same with the Medium history reset.\n"
                           "Manual edits are saved as Custom. Signal routing and the RR input fixes are separate.");
     return changed;
@@ -173,7 +173,7 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
         "3. Convert guides and split scene color into the selected RR signals.",
         "4. AMD Ray Regeneration denoises the bound diffuse/specular signals.",
         "5. Albedo Bleed Fix builds surface trust from the alternate RR copies.",
-        "6. Compose RR lighting, recover ordinary surfaces, then restore Flat Detail.",
+        "6. Compose RR lighting, recover ordinary surfaces, then restore Near Zero-Rough detail.",
         "7. FSR Super Resolution upscales the composed image.",
         "8. Finish sharpening/output scaling and return the final output to the game."
     };
@@ -387,7 +387,7 @@ inline bool DrawDenoiseLobes(Config& cfg)
 // can be judged by eye without a menu toggle and a moving camera between the two images.
 inline void DrawCompareView(Config& cfg)
 {
-    const char* modes[] = { "Off", "RR only vs final", "Recovery v2 off vs on", "Flat Detail off vs on",
+    const char* modes[] = { "Off", "RR only vs final", "Recovery v2 off vs on", "Near Zero-Rough off vs on",
                             "Skin re-blur off vs on" };
     int mode = std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4);
     if (ImGui::Combo("Compare (split) view", &mode, modes, IM_ARRAYSIZE(modes)))

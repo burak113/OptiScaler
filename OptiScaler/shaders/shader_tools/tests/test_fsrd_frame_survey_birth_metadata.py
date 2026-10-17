@@ -141,19 +141,19 @@ int main(int argc,char** argv)try{
 '''
 
 
-def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude="", *, descriptor_shards=32):
+def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude="", *, descriptor_shards=256):
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
     cpp = prelude + native.CPP[:native.CPP.index('// The exact production hook bodies')]
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix())
-    assert descriptor_shards in (32,128)
+    assert descriptor_shards in (32,128,256)
     survey_path = ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp'
     metadata_original = (ROOT/'OptiScaler/resource_tracking/FrameSurveyConcurrentMetadata.h').read_text()
     metadata_compiled = metadata_original
-    if descriptor_shards != 32:
-        assert metadata_compiled.count('inline constexpr size_t DescriptorShards = 32;') == 1
-        assert metadata_compiled.count('return size_t(slot >> 59);') == 1
-        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 32;', 'inline constexpr size_t DescriptorShards = 128;').replace('return size_t(slot >> 59);', 'return size_t(slot >> 57);')
+    if descriptor_shards != 256:
+        assert metadata_compiled.count('inline constexpr size_t DescriptorShards = 256;') == 1
+        assert metadata_compiled.count('return size_t(slot >> 56);') == 1
+        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 256;', f'inline constexpr size_t DescriptorShards = {descriptor_shards};').replace('return size_t(slot >> 56);', f'return size_t(slot >> {64-(descriptor_shards.bit_length()-1)});')
         metadata_path = out/'FrameSurveyConcurrentMetadata.h'
         metadata_path.write_text(metadata_compiled, encoding='utf-8')
         survey_text = survey_path.read_text()

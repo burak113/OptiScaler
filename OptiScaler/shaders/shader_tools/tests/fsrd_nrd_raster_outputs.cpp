@@ -90,11 +90,16 @@ int main(int argc,char** argv)try
             const auto b=NrdBridge::gService->lists.at(h.list.Get()).native[1];
             if(negative)
             {
-                need(b->invalidated&&b->recording->skipInvalidated,"overlapping or unknown raster outputs invalidate the required transaction");
-                need(std::string(b->recording->invalidationGate.load())==(missing?"raster_outputs_unknown":"raster_output_overlap"),
-                     "the exact retained submission diagnostic distinguishes missing output metadata from an actual B overlap");
+                // No-hang policy: unknown raster outputs are tolerated (RR commit kept); a
+                // proven B overlap still invalidates the RR commit. Neither denies the batch.
+                if(missing)need(!b->invalidated&&!b->recording->skipInvalidated,"unknown raster outputs are tolerated rather than invalidating the transaction");
+                else
+                {
+                    need(b->invalidated&&b->recording->skipInvalidated,"an actual B raster overlap invalidates the required transaction");
+                    need(std::string(b->recording->invalidationGate.load())=="raster_output_overlap","the retained submission diagnostic names the actual B overlap");
+                }
                 if(conflict)h.barrier(title.tex[11].Get(),D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                need(!NativeFixture::Execute(h)&&h.denied==1,"overlapping graphics output denies the original GPU batch");
+                need(NativeFixture::Execute(h)&&h.denied==0,"the original GPU batch is forwarded without the incomplete RR commit (history reset), never denied");
                 failure=NrdBridge::GetStatus().reason;break;
             }
             need(!b->invalidated&&!b->recording->skipInvalidated,"RTV capability alone cannot invalidate B when the actual draw output is disjoint");

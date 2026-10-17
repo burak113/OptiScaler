@@ -40,6 +40,9 @@ std::atomic<bool> gEnabled {false}, gRecording {false};
 // Creation metadata (root layouts, shader hashes, heaps, views) is tracked from device creation when
 // FrameSurvey=true or the NRD bridge is enabled. Install() runs later, after title pipeline creation.
 std::atomic<bool> gTracking {false}, gSurveyBindings {false}, gBindingWindow {false}, gHooksInstalled {false};
+// The survey's early-binding mirror costs a global lock on every root binding of
+// every title thread. It runs only from arming (Request) until the window ends.
+std::atomic<bool> gSurveyArmed {false}, gMirrorStale {false};
 // A partial registry/mirror update is never eligible for bridge reads until a clean device restart.
 std::atomic<bool> gMetadataHealthy {true};
 struct MetadataMutation
@@ -64,7 +67,8 @@ bool BirthAvailable(const NrdBridgeBirth::Token& birth, const void* object) noex
 }
 bool BindingTracking() noexcept
 {
-    return gSurveyBindings.load(std::memory_order_relaxed) || gBindingWindow.load(std::memory_order_relaxed);
+    return (gSurveyBindings.load(std::memory_order_relaxed) && gSurveyArmed.load(std::memory_order_relaxed)) ||
+        gBindingWindow.load(std::memory_order_relaxed);
 }
 bool Tracking() noexcept { return gTracking.load(std::memory_order_relaxed) || gEnabled.load(std::memory_order_relaxed); }
 // FrameSurveyPassHashes: lowercase shader SHA-256 prefixes whose outputs are saved right after the dispatch.
@@ -99,8 +103,10 @@ struct InternalScope { bool previous = gInternal; InternalScope() { gInternal = 
 // POD readers take snapshot EX before catalog/mirror. This is not lock-free.
 FrameSurveyMetadata::RecursiveSharedMutex gLifetimeMutex;
 std::recursive_mutex gRecordMutex;
-using DescriptorMutex = FrameSurveyMetadata::MetadataMutex<std::mutex,FrameSurveyMetadata::MetadataLock::Descriptor>;
-std::array<DescriptorMutex,FrameSurveyMetadata::DescriptorShards> gViewMutexes;
+using DescriptorMutex = FrameSurveyMetadata::MetadataMutex<FrameSurveyMetadata::ShortSpinMutex,FrameSurveyMetadata::MetadataLock::Descriptor>;
+// One cache line per shard: adjacent shard mutexes must not bounce one line between threads.
+struct alignas(64) PaddedDescriptorMutex : DescriptorMutex {};
+std::array<PaddedDescriptorMutex,FrameSurveyMetadata::DescriptorShards> gViewMutexes;
 std::mutex gSubmissionMutex;
 uint64_t gNextResource = 0, gNextList = 0, gNextPass = 0;
 uint32_t gRenderWidth = 0, gRenderHeight = 0;
@@ -130,6 +136,13 @@ struct ViewInfo
     std::shared_ptr<NativeResourceNode> resourceOwner;
     std::shared_ptr<NativeHeapNode> heapOwner;
     bool texture2D = false; // Exact view dimension; snapshotSupported also admits a single array slice.
+    // Slot state, not view content: this slot is listed in resourceOwner->handles.
+    // Created views are listed so a final Release erases them. Copied views are not:
+    // descriptor copies are the title's hottest path, and every native reader checks
+    // NativeViewFresh/NativeViewMetadataFresh (owner birth still live), so a copy of a
+    // retired resource is rejected until the title overwrites the slot.
+    bool resourceIndexed = false;
+    // A new content field must also be copied by AssignViewContent.
 };
 struct Heap
 {
@@ -141,7 +154,22 @@ struct Heap
 };
 // Native nodes are immutable except for reverse buckets protected by the exact
 // descriptor shard. Their owners pin raw metadata, never title COM objects.
-struct NativeResourceNode
+// Every descriptor copy rebinds a slot's owner: an atomic RMW on the owner's
+// use count. Nodes and their control blocks therefore live on separate cache
+// lines (MakeNativeNode); with make_shared each count change also evicted the
+// node fields that every other thread's copy validates.
+template<class T> struct CacheLineAllocator
+{
+    using value_type = T;
+    CacheLineAllocator() = default;
+    template<class U> CacheLineAllocator(const CacheLineAllocator<U>&) noexcept {}
+    T* allocate(size_t n) { return static_cast<T*>(::operator new((n*sizeof(T)+63)/64*64,std::align_val_t {64})); }
+    void deallocate(T* p,size_t) noexcept { ::operator delete(p,std::align_val_t {64}); }
+    template<class U> bool operator==(const CacheLineAllocator<U>&) const noexcept { return true; }
+};
+template<class Node,class... Args> std::shared_ptr<Node> MakeNativeNode(Args&&... args)
+{ return std::shared_ptr<Node>(new Node(std::forward<Args>(args)...),std::default_delete<Node>(),CacheLineAllocator<Node>{}); }
+struct alignas(64) NativeResourceNode
 {
     ID3D12Resource* object = nullptr;
     uint64_t id = 0, epoch = 0, address = 0;
@@ -156,7 +184,7 @@ FrameSurveyMetadata::DescriptorShardMask HeapDescriptorShards(uint64_t cpu,uint3
         return FrameSurveyMetadata::DescriptorShardMask::All();
     return FrameSurveyMetadata::DescriptorShardMask::ForRange(cpu,count,increment);
 }
-struct NativeHeapNode
+struct alignas(64) NativeHeapNode
 {
     ID3D12DescriptorHeap* object = nullptr;
     uint64_t id = 0, epoch = 0, cpu = 0, gpu = 0;
@@ -186,6 +214,7 @@ struct NativeSnapshotShared
 };
 struct NativeSnapshotExclusive
 {
+    NrdBridgePerf::Periodic::SubScope hold {NrdBridgePerf::Periodic::Sub::SnapshotHold};
     std::optional<std::unique_lock<FrameSurveyMetadata::RecursiveSharedMutex>> lock;
     NativeSnapshotExclusive() { if (NativeTracking()) lock.emplace(gNativeSnapshotMutex); }
 };
@@ -319,9 +348,14 @@ std::shared_ptr<NativeResourceNode> NativeMetadataResource(ID3D12Resource* objec
     auto node=gNativeResources.Find(object); if (!NativeNodeMetadataCurrent(node)) return {};
     cache[next++%cache.size()]={object,node}; return node;
 }
-std::shared_ptr<NativeHeapNode> NativeMetadataHeapAtCpu(uint64_t handle,uint32_t type)
+// Returns a reference into this thread's lookup cache, valid until this thread's next
+// cache insertion (consecutive insertions use different entries). Hot copy paths use
+// it to avoid a shared_ptr copy: every title thread copies into the same
+// shader-visible heap, so its control block would bounce between cores per call.
+const std::shared_ptr<NativeHeapNode>& NativeMetadataHeapRef(uint64_t handle,uint32_t type)
 {
-    if (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return {};
+    static const std::shared_ptr<NativeHeapNode> none;
+    if (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return none;
     const auto index=type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV ? 1u : 0u; auto& ranges=gNativeHeapRanges[index];
     struct Cache { uint64_t version=0; std::shared_ptr<NativeHeapNode> node; };
     static thread_local std::array<std::array<Cache,4>,2> cache; static thread_local std::array<unsigned,2> next {};
@@ -331,11 +365,12 @@ std::shared_ptr<NativeHeapNode> NativeMetadataHeapAtCpu(uint64_t handle,uint32_t
             handle-node->cpu < uint64_t(node->count)*node->increment && (handle-node->cpu)%node->increment == 0;
     };
     for (const auto& hit : cache[index]) if (hit.version == version && contains(hit.node)) return hit.node;
-    const auto interval=ranges.Find(handle); if (interval.matches != 1) return {};
+    const auto interval=ranges.Find(handle); if (interval.matches != 1) return none;
     auto node=gNativeHeaps.Find(static_cast<ID3D12DescriptorHeap*>(interval.object));
-    if (!node || node->id != interval.generation || !contains(node) || version != ranges.Version()) return {};
-    cache[index][next[index]++%cache[index].size()]={version,node}; return node;
+    if (!node || node->id != interval.generation || !contains(node) || version != ranges.Version()) return none;
+    auto& slot=cache[index][next[index]++%cache[index].size()]; slot={version,std::move(node)}; return slot.node;
 }
+std::shared_ptr<NativeHeapNode> NativeMetadataHeapAtCpu(uint64_t handle,uint32_t type) { return NativeMetadataHeapRef(handle,type); }
 std::shared_ptr<NativeResourceNode> NativeMetadataBufferAtAddress(uint64_t address)
 {
     const auto version = gNativeBuffers.Version();
@@ -346,6 +381,20 @@ std::shared_ptr<NativeResourceNode> NativeMetadataBufferAtAddress(uint64_t addre
         !node->address || address < node->address || address-node->address >= node->description.Width ||
         version != gNativeBuffers.Version()) return {};
     return node;
+}
+// Same contract as NativeMetadataHeapRef: a reference into this thread's cache. CBVs of
+// a frame mostly point into a few large upload buffers shared by every title thread.
+const std::shared_ptr<NativeResourceNode>& NativeMetadataBufferRef(uint64_t address)
+{
+    static const std::shared_ptr<NativeResourceNode> none;
+    struct Cache { uint64_t version=0; std::shared_ptr<NativeResourceNode> node; };
+    static thread_local std::array<Cache,4> cache; static thread_local unsigned next=0;
+    const auto version=gNativeBuffers.Version();
+    for (const auto& hit : cache)
+        if (hit.version == version && hit.node && NativeNodeMetadataCurrent(hit.node) && address >= hit.node->address &&
+            address-hit.node->address < hit.node->description.Width) return hit.node;
+    auto node=NativeMetadataBufferAtAddress(address); if (!node) return none;
+    auto& slot=cache[next++%cache.size()]; slot={version,std::move(node)}; return slot.node;
 }
 // The descriptor creator has a strong native resource argument. A cold proof is
 // completed before the callback snapshot/slot locks; cached hits require full
@@ -385,27 +434,84 @@ void NativeEraseView(uint64_t handle)
 {
     const auto found = gViews.find(handle); if (found == gViews.end()) return;
     const auto& old = found->second;
-    if (old.resourceOwner && old.resourceOwner->handles) old.resourceOwner->handles->erase(handle);
+    if (old.resourceIndexed && old.resourceOwner && old.resourceOwner->handles) old.resourceOwner->handles->erase(handle);
     if (old.heapOwner && old.heapOwner->views) old.heapOwner->views->erase(handle);
     gViews.erase(found);
 }
 #ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
 thread_local FrameSurveyMetadata::DescriptorLockTestHook gNativeViewPublishTestHook {};
 #endif
-void NativeReplaceView(const ViewInfo& view)
+// Every field except the two owners. Owners change only through NativeMoveOwners:
+// copying a shared_ptr is an atomic RMW on a control block that every thread's
+// descriptor copies into the same shader-visible heap would otherwise share.
+void AssignViewContent(ViewInfo& target, const ViewInfo& source) noexcept
+{
+    target.object=source.object; target.resource=source.resource; target.kind=source.kind; target.format=source.format;
+    target.subresource=source.subresource; target.snapshotSupported=source.snapshotSupported;
+    target.descriptorCpu=source.descriptorCpu; target.descriptorGpu=source.descriptorGpu; target.descriptorHeap=source.descriptorHeap;
+    target.rootVa=source.rootVa; target.descriptorIndex=source.descriptorIndex; target.rootIndex=source.rootIndex;
+    target.heapKnown=source.heapKnown; target.constantBytes=source.constantBytes; target.texture2D=source.texture2D;
+}
+// Rebinds slot `handle` in the reverse buckets; an unchanged owner is left alone.
+void NativeMoveOwners(ViewInfo& target, uint64_t handle, const std::shared_ptr<NativeResourceNode>& resource,
+    const std::shared_ptr<NativeHeapNode>& heap, bool indexResource)
+{
+    const bool index = indexResource && resource && resource->handles;
+    if (target.resourceOwner != resource || target.resourceIndexed != index)
+    {
+        if (target.resourceIndexed && target.resourceOwner && target.resourceOwner->handles) target.resourceOwner->handles->erase(handle);
+        target.resourceIndexed = false;
+        if (index) { resource->handles->insert(handle); target.resourceIndexed = true; }
+        if (target.resourceOwner != resource) target.resourceOwner = resource;
+    }
+    if (target.heapOwner != heap)
+    {
+        if (target.heapOwner && target.heapOwner->views) target.heapOwner->views->erase(handle);
+        if (heap && heap->views) heap->views->insert(handle);
+        target.heapOwner = heap;
+    }
+}
+// Overwrites an existing slot in place: no map node is freed and re-allocated.
+// Caller holds the slot shard. Copies keep the source content and take the
+// destination slot/heap identity.
+void NativeOverwriteView(FrameSurveyMetadata::DescriptorMap<ViewInfo>::iterator found, const ViewInfo& view, uint64_t handle,
+    const std::shared_ptr<NativeResourceNode>& resource, const std::shared_ptr<NativeHeapNode>& heap, bool copied)
 {
 #ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
     if (gNativeViewPublishTestHook.attempt) gNativeViewPublishTestHook.attempt(gNativeViewPublishTestHook.state,&view);
 #endif
+    auto& target = found->second;
+    NativeMoveOwners(target,handle,resource,heap,!copied);
+#ifdef FSRD_NRD_BRIDGE_TEST
+    if (gViewFailureAfterReverseForTesting.exchange(false)) { gViews.erase(found); throw std::bad_alloc(); }
+#endif
+    AssignViewContent(target,view);
+    if (copied)
+    {
+        target.descriptorCpu=handle; target.heapKnown=true;
+        target.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(heap->object));
+    }
+}
+void NativeReplaceView(const ViewInfo& view, bool indexResource = true)
+{
     const auto found = gViews.find(view.descriptorCpu);
-    if (found != gViews.end() && SameView(found->second,view)) return;
-    NativeEraseView(view.descriptorCpu);
-    if (view.resourceOwner && view.resourceOwner->handles) view.resourceOwner->handles->insert(view.descriptorCpu);
+    if (found != gViews.end())
+    {
+        const bool indexed = indexResource && view.resourceOwner && view.resourceOwner->handles;
+        if (!SameView(found->second,view) || found->second.resourceIndexed != indexed)
+            NativeOverwriteView(found,view,view.descriptorCpu,view.resourceOwner,view.heapOwner,!indexResource);
+        return;
+    }
+#ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
+    if (gNativeViewPublishTestHook.attempt) gNativeViewPublishTestHook.attempt(gNativeViewPublishTestHook.state,&view);
+#endif
+    const bool indexed = indexResource && view.resourceOwner && view.resourceOwner->handles;
+    if (indexed) view.resourceOwner->handles->insert(view.descriptorCpu);
     if (view.heapOwner && view.heapOwner->views) view.heapOwner->views->insert(view.descriptorCpu);
 #ifdef FSRD_NRD_BRIDGE_TEST
     if (gViewFailureAfterReverseForTesting.exchange(false)) throw std::bad_alloc();
 #endif
-    gViews.emplace(view.descriptorCpu,view);
+    gViews.emplace(view.descriptorCpu,view).first->second.resourceIndexed = indexed;
 }
 bool FreshView(const ViewInfo& view, const Heap* heap)
 {
@@ -477,6 +583,9 @@ struct Service
     // Targeted mode keeps the window open (up to 8 Presents) until a listed pass is saved: with frame
     // generation a Present-to-Present interval can hold only the interpolated frame's work.
     uint32_t targetedCopies = 0, presents = 0;
+    // One full frame of armed binding mirror precedes the window, so lists reset
+    // before the window's first Present still carry their bindings.
+    bool armPresentSeen = false;
     Json manifest;
     std::map<uint64_t,Json> resources;
     std::unordered_map<ID3D12GraphicsCommandList*,List> lists;
@@ -491,7 +600,7 @@ void Fail(const char* reason) noexcept
     try
     {
         std::scoped_lock lock(gRecordMutex);
-        gRecording.store(false,std::memory_order_release);
+        gRecording.store(false,std::memory_order_release); gSurveyArmed.store(false,std::memory_order_release);
         gStatus.phase = "error"; gStatus.message = reason; gStatus.active = false;
         if (gService)
         {
@@ -553,7 +662,7 @@ void PublishNativeResource(Resource& resource)
             throw std::logic_error("Native resource publication would replace another identity");
         return;
     }
-    auto node = std::make_shared<NativeResourceNode>();
+    auto node = MakeNativeNode<NativeResourceNode>();
     node->object = resource.object; node->id = resource.id; node->epoch = epoch;
     node->address = resource.va; node->description = resource.desc; node->birth = resource.birth;
     node->handles = resource.handles.Share();
@@ -571,7 +680,7 @@ void PublishNativeHeap(Heap& heap)
             throw std::logic_error("Native heap publication would replace another identity");
         return;
     }
-    auto node = std::make_shared<NativeHeapNode>(HeapDescriptorShards(heap.cpu,heap.count,heap.increment,heap.type));
+    auto node = MakeNativeNode<NativeHeapNode>(HeapDescriptorShards(heap.cpu,heap.count,heap.increment,heap.type));
     node->object = heap.object; node->id = ++gNextNativeHeap; node->epoch = epoch;
     node->cpu = heap.cpu; node->gpu = heap.gpu; node->count = heap.count; node->increment = heap.increment;
     node->type = heap.type; node->birth = heap.birth; node->views = heap.views.Share();
@@ -906,7 +1015,10 @@ template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& up
         NrdBridgeBirth::CurrentGuard current(receiver);
         if (receiver ? (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) : NativeTracking()) return;
         NativeSnapshotShared snapshot; if (!BindingTracking()) return;
-        std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation; auto& mirror = gMirror[cmd];
+        std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
+        // Entries left from before the survey was armed are not current; start clean.
+        if (gMirrorStale.exchange(false,std::memory_order_acq_rel)) { gMirror.clear(); gMirrorOwners.clear(); }
+        auto& mirror = gMirror[cmd];
         const MirrorReferences before(mirror);
         const bool changedReceiver = mirror.receiverBirth != receiver;
         if (changedReceiver) mirror = {};
@@ -1053,24 +1165,33 @@ void NativeStoreConstantView(uint64_t handle, const D3D12_CONSTANT_BUFFER_VIEW_D
     const auto bufferVersion=gNativeBuffers.Version();
     const bool declared=desc && desc->BufferLocation && !(desc->BufferLocation%256) && desc->SizeInBytes &&
         !(desc->SizeInBytes%256) && desc->SizeInBytes <= 65536;
-    auto resource=declared ? NativeMetadataBufferAtAddress(desc->BufferLocation) : std::shared_ptr<NativeResourceNode>{};
+    // References into this thread's lookup caches (see NativeMetadataBufferRef/HeapRef):
+    // the buffer and heap nodes are shared by every title thread's CBV writes.
+    static const std::shared_ptr<NativeResourceNode> noResource;
+    const auto& found=declared ? NativeMetadataBufferRef(desc->BufferLocation) : noResource;
     NativeSnapshotShared snapshot; if (!Tracking()) return;
     for (unsigned attempt=0;attempt<8;++attempt)
     {
-        const auto heapVersion=gNativeHeapRanges[0].Version(); auto heap=NativeMetadataHeapAtCpu(handle,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        const auto heapVersion=gNativeHeapRanges[0].Version(); const auto& heap=NativeMetadataHeapRef(handle,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); MetadataMutation mutation;
         if (heapVersion != gNativeHeapRanges[0].Version()) continue;
         if (!declared || !NativeNodeMetadataCurrent(heap)) { NativeEraseView(handle); return; }
         // A VA/size declaration remains useful when diagnostic ownership is
         // unknown/ambiguous. Native b6 admission never requires that ownership.
-        if (!NativeNodeMetadataCurrent(resource) || bufferVersion != gNativeBuffers.Version() ||
-            desc->BufferLocation < resource->address || desc->BufferLocation-resource->address >= resource->description.Width ||
-            desc->SizeInBytes > resource->description.Width-(desc->BufferLocation-resource->address)) resource.reset();
+        const bool owned=NativeNodeMetadataCurrent(found) && bufferVersion == gNativeBuffers.Version() &&
+            desc->BufferLocation >= found->address && desc->BufferLocation-found->address < found->description.Width &&
+            desc->SizeInBytes <= found->description.Width-(desc->BufferLocation-found->address);
+        const auto& resource=owned ? found : noResource;
         ViewInfo view {resource ? resource->object : nullptr,resource ? resource->id : 0,
             D3D12_DESCRIPTOR_RANGE_TYPE_CBV,uint32_t(DXGI_FORMAT_UNKNOWN),0,false};
         view.descriptorCpu=handle; view.rootVa=desc->BufferLocation; view.constantBytes=desc->SizeInBytes;
         view.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown=true;
-        view.resourceOwner=std::move(resource); view.heapOwner=std::move(heap); NativeReplaceView(view); return;
+        if (const auto existing=gViews.find(handle); existing != gViews.end())
+        {
+            // Overwrite in place; owners change (and are copied) only when they differ.
+            NativeOverwriteView(existing,view,handle,resource,heap,false); return;
+        }
+        view.resourceOwner=resource; view.heapOwner=heap; NativeReplaceView(view); return;
     }
     std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); NativeEraseView(handle);
 }
@@ -1092,63 +1213,89 @@ void NativeCopyDescriptors(UINT stride, UINT nd, const D3D12_CPU_DESCRIPTOR_HAND
             throw std::logic_error("Descriptor copy handle overflow");
         const uint64_t dh0=dst[di].ptr+destinationDelta, sh0=src[si].ptr+sourceDelta;
         auto version=ranges.Version();
-        auto destinationHeap=NativeMetadataHeapAtCpu(dh0,type), sourceHeap=NativeMetadataHeapAtCpu(sh0,type);
+        const std::shared_ptr<NativeHeapNode>* destinationHeapRef=&NativeMetadataHeapRef(dh0,type);
+        const std::shared_ptr<NativeHeapNode>* sourceHeapRef=&NativeMetadataHeapRef(sh0,type);
         UINT count=std::min(dc-d,sc-s);
-        if (destinationHeap && destinationHeap->increment == stride)
+        if (const auto& destinationHeap=*destinationHeapRef; destinationHeap && destinationHeap->increment == stride)
             count=std::min(count,destinationHeap->count-UINT((dh0-destinationHeap->cpu)/stride));
         else count=1;
-        if (sourceHeap && sourceHeap->increment == stride)
+        if (const auto& sourceHeap=*sourceHeapRef; sourceHeap && sourceHeap->increment == stride)
             count=std::min(count,sourceHeap->count-UINT((sh0-sourceHeap->cpu)/stride));
         else count=1;
-        for (UINT i=0;i<count;++i)
+        for (UINT i=0;i<count && i<16;++i) { gViews.Prefetch(sh0+uint64_t(i)*stride); gViews.Prefetch(dh0+uint64_t(i)*stride); }
+        if (uint64_t(count-1)*stride>UINT64_MAX-dh0 || uint64_t(count-1)*stride>UINT64_MAX-sh0)
+            throw std::logic_error("Descriptor copy slot overflow");
+        for (UINT i=0;i<count;)
         {
-#ifdef FSRD_NRD_BRIDGE_TEST
-            if (gCopyFailureAfterForTesting == 0) { gCopyFailureAfterForTesting=-1; throw std::bad_alloc(); }
-            if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
-#endif
-            const uint64_t delta=uint64_t(i)*stride;
-            if (delta>UINT64_MAX-dh0 || delta>UINT64_MAX-sh0) throw std::logic_error("Descriptor copy slot overflow");
-            const uint64_t dh=dh0+delta,sh=sh0+delta;
-            const auto sourceShard=FrameSurveyMetadata::DescriptorShard(sh), destinationShard=FrameSurveyMetadata::DescriptorShard(dh);
+            // Adjacent slots whose source and destination shards both stay the
+            // same are copied under one lock pair (shards follow handle blocks).
+            const uint64_t runDh=dh0+uint64_t(i)*stride, runSh=sh0+uint64_t(i)*stride;
+            const auto sourceShard=FrameSurveyMetadata::DescriptorShard(runSh), destinationShard=FrameSurveyMetadata::DescriptorShard(runDh);
+            UINT run=1;
+            while (i+run<count && FrameSurveyMetadata::DescriptorShard(runSh+uint64_t(run)*stride) == sourceShard &&
+                FrameSurveyMetadata::DescriptorShard(runDh+uint64_t(run)*stride) == destinationShard) ++run;
             bool copied=false;
-            for (unsigned attempt=0;attempt<8;++attempt)
+            for (unsigned attempt=0;attempt<8 && !copied;++attempt)
             {
                 if (attempt)
                 {
-                    version=ranges.Version(); destinationHeap=NativeMetadataHeapAtCpu(dh,type); sourceHeap=NativeMetadataHeapAtCpu(sh,type);
+                    version=ranges.Version(); destinationHeapRef=&NativeMetadataHeapRef(runDh,type); sourceHeapRef=&NativeMetadataHeapRef(runSh,type);
                 }
-                std::unique_lock<DescriptorMutex> first(gViewMutexes[std::min(sourceShard,destinationShard)]);
-                std::unique_lock<DescriptorMutex> second;
-                if (sourceShard != destinationShard) second=std::unique_lock<DescriptorMutex>(gViewMutexes[std::max(sourceShard,destinationShard)]);
+                const auto& destinationHeap=*destinationHeapRef; const auto& sourceHeap=*sourceHeapRef;
+                // Source slots are only read: concurrent copies from one staging
+                // block share its shard. Shards are still taken in index order.
+                std::unique_lock<DescriptorMutex> destinationLock; std::shared_lock<DescriptorMutex> sourceLock;
+                if (sourceShard < destinationShard) sourceLock=std::shared_lock<DescriptorMutex>(gViewMutexes[sourceShard]);
+                destinationLock=std::unique_lock<DescriptorMutex>(gViewMutexes[destinationShard]);
+                if (sourceShard > destinationShard) sourceLock=std::shared_lock<DescriptorMutex>(gViewMutexes[sourceShard]);
                 if (version != ranges.Version()) continue;
-                const auto source=gViews.find(sh);
-                const bool known=source != gViews.end() && NativeNodeMetadataCurrent(sourceHeap) && NativeNodeMetadataCurrent(destinationHeap) &&
-                    sourceHeap->increment == stride && destinationHeap->increment == stride &&
-                    sh >= sourceHeap->cpu && sh-sourceHeap->cpu < uint64_t(sourceHeap->count)*stride &&
-                    dh >= destinationHeap->cpu && dh-destinationHeap->cpu < uint64_t(destinationHeap->count)*stride &&
-                    source->second.heapOwner == sourceHeap && NativeViewMetadataFresh(source->second);
-                // Snapshot before mutation, including same-slot and shared-owner copies.
-                if (known)
+                for (UINT k=i;k<i+run;++k)
                 {
-                    // Compare references before pinning a temporary. Exact no-op copies
-                    // preserve the existing ordered-slot/source-snapshot semantics.
-                    const auto destination=gViews.find(dh);
-                    if (destination == gViews.end() || !SameCopiedView(destination->second,source->second,dh,destinationHeap))
-                    {
+                    if (k+16<count) { gViews.Prefetch(sh0+uint64_t(k+16)*stride); gViews.Prefetch(dh0+uint64_t(k+16)*stride); }
 #ifdef FSRD_NRD_BRIDGE_TEST
-                        ++gCopyViewSnapshotsForTesting;
+                    if (gCopyFailureAfterForTesting == 0) { gCopyFailureAfterForTesting=-1; throw std::bad_alloc(); }
+                    if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
 #endif
-                        auto copy=source->second; copy.descriptorCpu=dh;
-                        copy.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
-                        copy.heapKnown=true;
-                        if (copy.heapOwner != destinationHeap) copy.heapOwner=destinationHeap;
-                        NativeReplaceView(copy);
+                    const uint64_t dh=dh0+uint64_t(k)*stride,sh=sh0+uint64_t(k)*stride;
+                    const auto source=gViews.find(sh);
+                    const bool known=source != gViews.end() && NativeNodeMetadataCurrent(sourceHeap) && NativeNodeMetadataCurrent(destinationHeap) &&
+                        sourceHeap->increment == stride && destinationHeap->increment == stride &&
+                        sh >= sourceHeap->cpu && sh-sourceHeap->cpu < uint64_t(sourceHeap->count)*stride &&
+                        dh >= destinationHeap->cpu && dh-destinationHeap->cpu < uint64_t(destinationHeap->count)*stride &&
+                        source->second.heapOwner == sourceHeap && NativeViewMetadataFresh(source->second);
+                    // Snapshot before mutation, including same-slot and shared-owner copies.
+                    if (known)
+                    {
+                        // Compare references before pinning a temporary. Exact no-op copies
+                        // preserve the existing ordered-slot/source-snapshot semantics.
+                        const auto destination=gViews.find(dh);
+                        if (destination == gViews.end() || !SameCopiedView(destination->second,source->second,dh,destinationHeap))
+                        {
+#ifdef FSRD_NRD_BRIDGE_TEST
+                            ++gCopyViewSnapshotsForTesting;
+#endif
+                            if (destination != gViews.end())
+                                NativeOverwriteView(destination,source->second,dh,source->second.resourceOwner,destinationHeap,true);
+                            else
+                            {
+                                auto copy=source->second; copy.descriptorCpu=dh;
+                                copy.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
+                                copy.heapKnown=true;
+                                if (copy.heapOwner != destinationHeap) copy.heapOwner=destinationHeap;
+                                NativeReplaceView(copy,false);
+                            }
+                        }
                     }
+                    else NativeEraseView(dh);
                 }
-                else NativeEraseView(dh);
-                copied=true; break;
+                copied=true;
             }
-            if (!copied) { std::scoped_lock slot(gViewMutexes[destinationShard]); NativeEraseView(dh); }
+            if (!copied)
+            {
+                std::scoped_lock slot(gViewMutexes[destinationShard]);
+                for (UINT k=i;k<i+run;++k) NativeEraseView(dh0+uint64_t(k)*stride);
+            }
+            i+=run;
         }
         d+=count; s+=count;
     }
@@ -1441,13 +1588,16 @@ void FlushMetadataFailure() noexcept
 void SetBindingWindow(bool enabled) noexcept
 {
     if (gBindingWindow.exchange(enabled,std::memory_order_acq_rel) == enabled) return;
-    if (gSurveyBindings.load(std::memory_order_relaxed)) return; // Preserve the survey's early-binding mirror.
+    // Preserve the armed survey's early-binding mirror.
+    if (gSurveyBindings.load(std::memory_order_relaxed) && gSurveyArmed.load(std::memory_order_relaxed)) return;
     try
     {
         std::scoped_lock lock(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear();
     } catch (...) { MetadataFailed("Binding window invalidation failed"); }
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool SurveyBindingsArmed() noexcept { return gSurveyBindings.load(std::memory_order_relaxed) && gSurveyArmed.load(std::memory_order_relaxed); }
+bool BindingMirrorActive() noexcept { return BindingTracking(); }
 bool MetadataHealthy() noexcept { return gMetadataHealthy.load(std::memory_order_acquire); }
 void MetadataHookFailed(const char* reason) noexcept
 {
@@ -2796,7 +2946,13 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
-        const auto stride = device->GetDescriptorHandleIncrementSize(type);
+        // The increment is a per-device constant; drivers may take a lock to report it.
+        struct StrideCache { ID3D12Device* device=nullptr; std::array<UINT,D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES> strides {}; };
+        static thread_local StrideCache cache;
+        if (cache.device != device) cache={device,{}};
+        auto& cached=cache.strides[type];
+        if (!cached) cached=device->GetDescriptorHandleIncrementSize(type);
+        const auto stride = cached;
         if (NativeTracking()) { NativeCopyDescriptors(stride,nd,dst,dn,ns,src,sn,type); return; }
         std::shared_lock catalog(gLifetimeMutex); MetadataMutation mutation;
         UINT di = 0, si = 0, d = 0, s = 0;
@@ -2989,16 +3145,15 @@ bool ResolveRecordedRenderTargets(ID3D12GraphicsCommandList* cmd, RecordedRender
 void ResetRenderTargets(ID3D12GraphicsCommandList* cmd) noexcept
 {
     if (!cmd || gInternal || !NativeTracking()) return;
-    ForgetRenderTargets(cmd);
     try
     {
         const auto receiver=ReceiverBirth(cmd);NrdBridgeBirth::CurrentGuard current(receiver);
-        if (!receiver || !current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return;
-        RecordedRenderTargets empty;empty.receiverBirth=receiver;empty.known=true;
+        RecordedRenderTargets empty;
+        if (receiver && current.MatchesCurrent() && NrdBridgeBirth::Healthy()) { empty.receiverBirth=receiver;empty.known=true; }
         NativeSnapshotShared snapshot;std::scoped_lock lock(gMirrorMutex);
         gRecordedRenderTargets[cmd]=std::move(empty);
     }
-    catch (...) { MetadataFailed("Native render target reset metadata failed"); }
+    catch (...) { ForgetRenderTargets(cmd); MetadataFailed("Native render target reset metadata failed"); }
 }
 void ForgetRenderTargets(ID3D12GraphicsCommandList* cmd) noexcept
 {
@@ -3010,29 +3165,36 @@ void ForgetRenderTargets(ID3D12GraphicsCommandList* cmd) noexcept
     }
     catch (...) { MetadataFailed("Native render target invalidation failed"); }
 }
+// OMSetRenderTargets reads its RTV descriptors at call time, so they are resolved
+// here, eagerly. This is one of the title's most frequent calls: it takes only the
+// shared snapshot plus the exact descriptor shard (the documented reader contract
+// for gViews), never the exclusive snapshot that drained every descriptor writer
+// on every thread, and it publishes under one short mirror-lock section.
 static void RecordNativeRenderTargets(ID3D12GraphicsCommandList* cmd, UINT count,
     const D3D12_CPU_DESCRIPTOR_HANDLE* handles, BOOL contiguous) noexcept
 {
     if (!cmd || gInternal || !NativeTracking()) return;
-    ForgetRenderTargets(cmd); // A failed new bind must never reuse a previous exclusion proof.
     try
     {
+        RecordedRenderTargets recorded;
         const auto receiver=ReceiverBirth(cmd);NrdBridgeBirth::CurrentGuard current(receiver);
-        if (!receiver || !current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return;
-        RecordedRenderTargets recorded;recorded.receiverBirth=receiver;recorded.count=count;
-        recorded.known=count<=recorded.targets.size() && (!count || handles);
-        NativeSnapshotExclusive snapshot;
+        if (receiver && current.MatchesCurrent() && NrdBridgeBirth::Healthy())
         {
+            recorded.receiverBirth=receiver;recorded.count=count;
+            recorded.known=count<=recorded.targets.size() && (!count || handles);
+            NativeSnapshotShared snapshot;
             std::shared_lock catalog(gLifetimeMutex);
             recorded.known=recorded.known && gMetadataHealthy.load(std::memory_order_acquire);
-            const auto* first=count && handles && contiguous ? HeapAtCpu(handles[0].ptr) : nullptr;
-            if (count && contiguous && (!first || first->type!=D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) recorded.known=false;
+            const auto* first=recorded.known && count && contiguous ? HeapAtCpu(handles[0].ptr) : nullptr;
+            if (recorded.known && count && contiguous && (!first || first->type!=D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) recorded.known=false;
             for (UINT index=0;recorded.known && index<count;++index)
             {
                 const uint64_t offset=contiguous ? uint64_t(index)*first->increment : 0;
                 if (contiguous && offset>UINT64_MAX-handles[0].ptr) { recorded.known=false;break; }
                 const auto handle=contiguous ? handles[0].ptr+offset : handles[index].ptr;
-                const auto* heap=HeapAtCpu(handle);const auto view=gViews.find(handle);
+                const auto* heap=HeapAtCpu(handle);
+                std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]);
+                const auto view=gViews.find(handle);
                 if (!heap || heap->type!=D3D12_DESCRIPTOR_HEAP_TYPE_RTV || !BirthAvailable(heap->birth,heap->object) ||
                     view==gViews.end() || view->second.kind!=4 || !FreshView(view->second,heap))
                 { recorded.known=false;break; }
@@ -3043,9 +3205,10 @@ static void RecordNativeRenderTargets(ID3D12GraphicsCommandList* cmd, UINT count
                 recorded.targets[index]={view->second.object,resource->second.birth,resource->second.id};
             }
         }
+        if (!recorded.known) recorded.count=0;
         std::scoped_lock lock(gMirrorMutex);gRecordedRenderTargets[cmd]=std::move(recorded);
     }
-    catch (...) { MetadataFailed("Native render target binding metadata failed"); }
+    catch (...) { ForgetRenderTargets(cmd); MetadataFailed("Native render target binding metadata failed"); }
 }
 void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE* handles, BOOL contiguous) noexcept
 {
@@ -3064,7 +3227,8 @@ void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_D
         for (UINT i=0;handles && i<count;++i)
         {
             const auto handle = contiguous ? handles[0].ptr+uint64_t(i)*stride : handles[i].ptr;
-            const auto found = gViews.find(handle); if (found != gViews.end()) list.targets.push_back(found->second);
+            const auto found = gViews.find(handle);
+            if (found != gViews.end() && (!NativeTracking() || NativeViewFresh(found->second))) list.targets.push_back(found->second);
             else Count("RTV_descriptor_unavailable");
         }
     } catch (...) { Fail("Render target binding metadata failed"); }
@@ -3285,7 +3449,9 @@ bool Request(uint32_t width, uint32_t height) noexcept
         if (gService->trace.SurveyStatus().active || gService->recording || gService->requested) return false;
         if (!gService->trace.StartSurvey(width,height))
         { gStatus.message = "Render size unavailable, GAME_TRACE busy, or earlier GPU resources await Reset."; return false; }
-        gRenderWidth = width; gRenderHeight = height; gService->requested = true;
+        gRenderWidth = width; gRenderHeight = height; gService->requested = true; gService->armPresentSeen = false;
+        if (!gBindingWindow.load(std::memory_order_acquire)) gMirrorStale.store(true,std::memory_order_release);
+        gSurveyArmed.store(true,std::memory_order_release);
         gService->startTick = GetTickCount64(); gStatus.active = true;
         gStatus.phase = "armed"; gStatus.message = "Waiting for a real Present boundary; close the overlay.";
         LOG_INFO("[FRAME_SURVEY] armed {}x{}",width,height); return true;
@@ -3307,6 +3473,7 @@ void Present(IDXGISwapChain* swapchain, UINT flags) noexcept
             { Count("targeted_mode_window_extended_presents"); return; }
             gService->manifest["presents_in_window"] = gService->presents;
             gService->recording = false; gRecording.store(false,std::memory_order_release);
+            gSurveyArmed.store(false,std::memory_order_release);
             gService->manifest["resources"] = Json::array();
             for (const auto& [id,resource] : gService->resources) gService->manifest["resources"].push_back(resource);
             gService->manifest["end_tick_ms"] = GetTickCount64();
@@ -3315,7 +3482,8 @@ void Present(IDXGISwapChain* swapchain, UINT flags) noexcept
             gStatus.phase = "draining"; gStatus.message = "Waiting for verified GPU snapshots and background disk writes.";
             LOG_INFO("[FRAME_SURVEY] frame recorded; draining asynchronously");
         }
-        else if (gService->requested && gService->trace.SurveyStatus().phase == "requested")
+        else if (gService->requested && gService->trace.SurveyStatus().phase == "requested" &&
+            (!gSurveyBindings.load(std::memory_order_relaxed) || std::exchange(gService->armPresentSeen,true)))
         {
             ComPtr<ID3D12Device> device;
             if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device)))) device = gCreationDevice;
@@ -3841,6 +4009,7 @@ void Shutdown() noexcept
     gMetadataHealthy.store(false,std::memory_order_release);
     gTracking.store(false,std::memory_order_release);
     gSurveyBindings.store(false,std::memory_order_release); gBindingWindow.store(false,std::memory_order_release);
+    gSurveyArmed.store(false,std::memory_order_release);
     gPipelineObserver.store(nullptr,std::memory_order_release); gGraphicsPipelineObserver.store(nullptr,std::memory_order_release);
     gReleaseObserver.store(nullptr,std::memory_order_release);
     const bool installed = gHooksInstalled.exchange(false,std::memory_order_acq_rel);

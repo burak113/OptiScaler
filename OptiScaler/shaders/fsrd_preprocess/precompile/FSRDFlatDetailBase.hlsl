@@ -177,7 +177,9 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
     const float structure=smoothstep(1.2f,1.8f,snr)*
         max(smoothstep(0.22f,0.28f,amplitude/max(noise+GetLuminance(mean),1e-5f)),smoothstep(4.0f,8.0f,snr));
     const float agreement=1.0f-smoothstep(0.8f,1.2f,rmsDifference/max(noise,1e-5f));
-    float weight=structure*(1.0f-agreement);
+    // Same-lighting reference: its noise is measured (temporal residual), so only the Wiener
+    // factor below decides; the screen-texture gates switch whole patches on and off.
+    float weight=(Flags&4u)!=0u && residual>0.0f ? 1.0f : structure*(1.0f-agreement);
     if (residual>0.0f)
     {
         const float detail=GetLuminance(target-rr);
@@ -207,6 +209,37 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
     float3 result=rr+weight*(anchored-rr);
     result=clamp(result,min(rr,targetMin),max(rr,targetMax));
     result=max(result,0.0f);
+    // Same-lighting reference (NRD bridge): no texture separates the two, so the light ratio is
+    // RR's level bias, not lighting. Express the result at the reference level, as far as the
+    // reference history is mature enough to carry it.
+    if ((Flags&4u)!=0u)
+    {
+        const float confidence=centre.a>=0.0f ? 1.0f : saturate(-centre.a-1.0f);
+        // A thin history (parallax while walking) still has the accumulator's level history
+        // (InStatistics x, y = depth or 0): its sparse 17x17 ratio to RR keeps the brightness.
+        float thinLevel=1.0f;
+        if ((Flags&8u)!=0u && confidence<1.0f)
+        {
+            float levelSum=0.0f, rrSum=0.0f;
+            for (int gy=-2;gy<=2;++gy) for (int gx=-2;gx<=2;++gx)
+            {
+                const int2 o=int2(gx,gy)*4;
+                if (Ref(w+o).a<0.0f) continue;
+                const float2 history=InStatistics[p+o];
+                if (history.y==0.0f) continue;
+                levelSum+=history.x; rrSum+=GetLuminance(Rr(w+o));
+            }
+            if (rrSum>1e-12f && levelSum>0.0f) thinLevel=clamp(levelSum/rrSum,0.125f,8.0f);
+        }
+        result*=lerp(thinLevel,rcp(clamp(light,0.125f,8.0f)),confidence);
+    }
+    // Reference trust (NRD bridge): a mature unbiased running mean is the output; the RR-based
+    // recovery above only carries thin histories. Alpha >= 0 is mature, -1 - c ramps in at c 0.5..1.
+    if ((Flags&8u)!=0u)
+    {
+        const float trust=centre.a>=0.0f ? 1.0f : saturate(2.0f*saturate(-centre.a-1.0f)-1.0f);
+        result=lerp(result,max(reference,0.0f),trust*saturate(Strength));
+    }
     if (!all(isfinite(result))) { result=rr; weight=0; }
     OutColor[p]=float4(SanitizeRadiance(result),weight);
     OutStatistics[p]=float4(structure,1.0f-agreement,min(noise,65504.0f),0);

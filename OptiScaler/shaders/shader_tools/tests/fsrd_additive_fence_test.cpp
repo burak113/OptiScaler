@@ -11,11 +11,64 @@
 #include <stdexcept>
 #include <future>
 #include <chrono>
+#include <atomic>
+#include <cstdlib>
 #include "../../fsrd_preprocess/RRTraceFence.h"
 #include "../../fsrd_preprocess/RRTraceAdditiveIO.h"
 using Microsoft::WRL::ComPtr;
 static void need(bool ok,const char* what) { if (!ok) throw std::runtime_error(what); }
 static void hr(HRESULT result,const char* what) { need(SUCCEEDED(result),what); }
+// Detours IUnknown::Release of command-list vtables like the title hooks do and
+// records any Release that runs while the RRTraceFence registry mutex is held.
+namespace ReleaseProbe
+{
+using ReleaseFn = ULONG (STDMETHODCALLTYPE*)(IUnknown*);
+struct Patch { void** vtable = nullptr; ReleaseFn original = nullptr; };
+std::array<Patch,2> patches;
+std::atomic<bool> armed {false};
+std::atomic<unsigned> calls {0}, violations {0};
+bool RegistryHeld()
+{
+    return std::async(std::launch::async,[] {
+        auto& mutex = RRTraceFence::GetRegistry().mutex;
+        if (!mutex.try_lock()) return true;
+        mutex.unlock(); return false;
+    }).get();
+}
+ULONG STDMETHODCALLTYPE Release(IUnknown* self)
+{
+    void** vtable = *reinterpret_cast<void***>(self);
+    for (auto& patch:patches)
+        if (patch.vtable == vtable)
+        {
+            if (armed.load()) { ++calls; if (RegistryHeld()) ++violations; }
+            return patch.original(self);
+        }
+    std::abort();
+}
+void Swap(void** slot,void* value)
+{
+    DWORD old = 0; VirtualProtect(slot,sizeof(void*),PAGE_EXECUTE_READWRITE,&old);
+    *slot = value; VirtualProtect(slot,sizeof(void*),old,&old);
+}
+void Install(IUnknown* object)
+{
+    void** vtable = *reinterpret_cast<void***>(object);
+    for (auto& patch:patches) if (patch.vtable == vtable) return;
+    for (auto& patch:patches)
+        if (!patch.vtable)
+        {
+            patch = {vtable,reinterpret_cast<ReleaseFn>(vtable[2])};
+            Swap(&vtable[2],reinterpret_cast<void*>(&Release)); return;
+        }
+    throw std::runtime_error("release probe slots exhausted");
+}
+void Uninstall()
+{
+    for (auto& patch:patches)
+        if (patch.vtable) { Swap(&patch.vtable[2],reinterpret_cast<void*>(patch.original)); patch = {}; }
+}
+}
 int main() try
 {
     ComPtr<ID3D12Debug> debug;
@@ -34,6 +87,46 @@ int main() try
     hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&allocator)),"allocator");
     ComPtr<ID3D12GraphicsCommandList> list;
     hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,allocator.Get(),nullptr,IID_PPV_ARGS(&list)),"command list");
+    // Regression for the CP77 freeze at GAME_TRACE start: no interface may be
+    // released under the registry mutex. Title Release hooks take the NRD
+    // bridge lifetime gate, and a bridge commit holding that gate waits for
+    // this mutex in Forget (ABBA). Covers Reset, submission and ticket reaping.
+    {
+        ComPtr<ID3D12CommandAllocator> probeAllocator;
+        hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&probeAllocator)),"probe allocator");
+        ComPtr<ID3D12GraphicsCommandList> probeList;
+        hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,probeAllocator.Get(),nullptr,IID_PPV_ARGS(&probeList)),"probe list");
+        {
+            ComPtr<IUnknown> identity; hr(probeList.As(&identity),"probe identity");
+            ReleaseProbe::Install(probeList.Get()); ReleaseProbe::Install(identity.Get());
+        }
+        ReleaseProbe::armed = true;
+        auto first = RRTraceFence::Arm(device.Get(),probeList.Get()); first->Recorded();
+        hr(probeList->Close(),"close probe");
+        ID3D12CommandList* probeSubmitted[] = {probeList.Get()};
+        auto probeSignals = RRTraceFence::BeforeSubmission(queue.Get(),1,probeSubmitted);
+        queue->ExecuteCommandLists(1,probeSubmitted);
+        RRTraceFence::AfterSubmission(queue.Get(),probeSignals); probeSignals.clear();
+        HANDLE done = CreateEvent(nullptr,FALSE,FALSE,nullptr); need(done != nullptr,"probe event");
+        hr(first->fence->SetEventOnCompletion(first->state.expected,done),"probe fence event");
+        const auto waited = WaitForSingleObject(done,10000); CloseHandle(done); need(waited == WAIT_OBJECT_0,"probe GPU timeout");
+        hr(probeList->Reset(probeAllocator.Get(),nullptr),"reset probe");
+        RRTraceFence::ResetSucceeded(probeList.Get());
+        need(first->Releasable(),"probe ticket releasable after fence and Reset");
+        first->Abandon(); first.reset(); // The registry now owns the last reference.
+        auto second = RRTraceFence::Arm(device.Get(),probeList.Get()); // Reaps `first`.
+        second->Recorded(); hr(probeList->Close(),"close second probe");
+        hr(probeList->Reset(probeAllocator.Get(),nullptr),"reset second probe");
+        RRTraceFence::ResetSucceeded(probeList.Get());
+        need(second->Releasable(),"discarded probe releasable"); RRTraceFence::Forget(second); second.reset();
+        ReleaseProbe::armed = false;
+        const unsigned probeCalls = ReleaseProbe::calls.load(), probeViolations = ReleaseProbe::violations.load();
+        hr(probeList->Close(),"close probe for teardown");
+        ReleaseProbe::Uninstall();
+        std::cout << "release probe: " << probeCalls << " command-list releases, " << probeViolations << " under the registry mutex\n";
+        need(probeCalls >= 4,"probe observed Reset, submission and reaping releases");
+        need(probeViolations == 0,"no command-list Release while the RRTraceFence registry mutex is held");
+    }
     auto buffer=[&](D3D12_HEAP_TYPE type,D3D12_RESOURCE_STATES state,UINT64 size=64) {
         D3D12_HEAP_PROPERTIES heap {};heap.Type=type;
         D3D12_RESOURCE_DESC desc {};desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;

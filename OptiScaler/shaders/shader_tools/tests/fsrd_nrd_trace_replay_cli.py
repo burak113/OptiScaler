@@ -113,6 +113,7 @@ def make_job(replay, provider, output):
         def payload(row):
             return dict(row, file=str(safe_file(root, row["file"])))
         frames.append({"ordinal": frame["ordinal"], "sdk_frame_index": frame["sdk_frame_index"],
+                       "provider_radiance_scale": frame.get("provider_radiance_scale", 1),
                        "actual_dispatch_flags": frame["actual_dispatch_flags"],
                        "provider": frame["provider"], "settings": frame["settings"],
                        "controls": payload(frame["provider_controls"]),

@@ -171,7 +171,7 @@ struct Device
         if(t.state==next)return;D3D12_RESOURCE_BARRIER barrier{};barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition={t.resource.Get(),0,t.state,next};list->ResourceBarrier(1,&barrier);t.state=next;
     }
-    void Upload(Texture& t,const Json& row,uint32_t width,uint32_t height)
+    void Upload(Texture& t,const Json& row,uint32_t width,uint32_t height,float radianceScale=1)
     {
         FrozenFile input(Path(row.at("file").get<std::string>()));const uint64_t tight=uint64_t(width)*height*t.bpp;
         Require(input.size==tight&&row.at("bytes").get<uint64_t>()==tight,"input typed length changed");
@@ -180,7 +180,14 @@ struct Device
         try
         {
             for(uint32_t y=0;y<height;++y){auto* dst=mapped+t.footprint.Offset+uint64_t(y)*t.footprint.Footprint.RowPitch;
-                input.Read(dst,size_t(width)*t.bpp);hash.Add(dst,size_t(width)*t.bpp);}
+                input.Read(dst,size_t(width)*t.bpp);hash.Add(dst,size_t(width)*t.bpp);
+                if(radianceScale!=1) for(uint32_t x=0;x<width;++x) for(uint32_t c=0;c<3;++c)
+                {
+                    uint16_t word;memcpy(&word,dst+x*8+c*2,2);
+                    const float value=DirectX::PackedVector::XMConvertHalfToFloat(word)*radianceScale;
+                    word=DirectX::PackedVector::XMConvertFloatToHalf(value>65504.f?65504.f:value);
+                    memcpy(dst+x*8+c*2,&word,2);
+                }}
         }
         catch(...){t.transfer->Unmap(0,nullptr);throw;}
         t.transfer->Unmap(0,nullptr);Require(hash.Finish()==row.at("sha256").get<std::string>(),"input SHA changed before dispatch");
@@ -216,7 +223,7 @@ struct ErrorMetrics
 {
     long double square=0,chromaSquare=0,temporalSquare=0,referenceSquare=0,replayedSquare=0;
     uint64_t pixels=0,temporalPixels=0,nonfinite=0;double maximum=0;
-    Json Read(Texture& t,const Json& row,uint32_t width,uint32_t height,std::vector<float>& previous)
+    Json Read(Texture& t,const Json& row,uint32_t width,uint32_t height,std::vector<float>& previous,float radianceScale=1)
     {
         FrozenFile file(Path(row.at("file").get<std::string>()));auto captured=file.Payload(row,uint64_t(width)*height*8);
         const bool hasPrevious=!previous.empty();if(!hasPrevious)previous.resize(size_t(width)*height*3);
@@ -227,7 +234,9 @@ struct ErrorMetrics
             const uint8_t* replay=mapped+t.footprint.Offset+uint64_t(y)*t.footprint.Footprint.RowPitch+8*x;
             const uint8_t* reference=captured.data()+(uint64_t(y)*width+x)*8;float delta[3]{},av[3]{},bv[3]{};bool finite=true;
             for(unsigned c=0;c<3;++c){uint16_t a=0,b=0;memcpy(&a,replay+2*c,2);memcpy(&b,reference+2*c,2);
-                av[c]=DirectX::PackedVector::XMConvertHalfToFloat(a);bv[c]=DirectX::PackedVector::XMConvertHalfToFloat(b);
+                av[c]=DirectX::PackedVector::XMConvertHalfToFloat(DirectX::PackedVector::XMConvertFloatToHalf(
+                    DirectX::PackedVector::XMConvertHalfToFloat(a)/radianceScale));
+                bv[c]=DirectX::PackedVector::XMConvertHalfToFloat(b);
                 finite=finite&&std::isfinite(av[c])&&std::isfinite(bv[c]);delta[c]=av[c]-bv[c];}
             if(!finite){++nonfinite;continue;}++pixels;
             const double yDelta=.2126*delta[0]+.7152*delta[1]+.0722*delta[2];
@@ -311,10 +320,12 @@ int main(int argc,char** argv)try
     for(size_t index=0;index<frames.size();++index)
     {
         const auto& frame=frames.at(index);Require(frame.at("ordinal").get<size_t>()==index,"frame order changed");
+        const float radianceScale=frame.value("provider_radiance_scale",1.0f);
+        Require(radianceScale==1.f||radianceScale==256.f,"unsupported captured radiance scale");
         Hr(device.allocator->Reset(),"allocator reset");Hr(device.list->Reset(device.allocator.Get(),nullptr),"list reset");
         Require(frame.at("inputs").size()==7,"exactly seven actual inputs required");
         for(size_t i=0;i<7;++i){Require(frame.at("inputs").at(i).at("source_native_resource_desc").at("flags").get<uint32_t>()==inputFlags[i],"actual input GPU flags changed");
-            device.Upload(textures[i],frame.at("inputs").at(i),width,height);}
+            device.Upload(textures[i],frame.at("inputs").at(i),width,height,i>=5?radianceScale:1.f);}
         FrozenFile controlsFile(Path(frame.at("controls").at("file").get<std::string>()));auto controls=controlsFile.Payload(frame.at("controls"),184);
         ffxDispatchDescDenoiser dispatch{};dispatch.header.type=FFX_API_DISPATCH_DESC_TYPE_DENOISER;dispatch.commandList=device.list.Get();
         memcpy(reinterpret_cast<uint8_t*>(&dispatch)+264,controls.data(),184);
@@ -338,8 +349,8 @@ int main(int argc,char** argv)try
         Ff(provider.api.Dispatch(&provider.context,&dispatch.header),"replay captured provider dispatch");
         device.Readback(textures[7]);device.Readback(textures[8]);device.Submit();
         ErrorMetrics diffuseMetrics,specularMetrics;
-        auto d=diffuseMetrics.Read(textures[7],frame.at("reference_diffuse"),width,height,previous[0]);
-        auto s=specularMetrics.Read(textures[8],frame.at("reference_specular"),width,height,previous[1]);
+        auto d=diffuseMetrics.Read(textures[7],frame.at("reference_diffuse"),width,height,previous[0],radianceScale);
+        auto s=specularMetrics.Read(textures[8],frame.at("reference_specular"),width,height,previous[1],radianceScale);
         totalNonfinite+=diffuseMetrics.nonfinite+specularMetrics.nonfinite;
         metrics<<Json{{"ordinal",index},{"sdk_frame_index",dispatch.frameIndex},{"diffuse",d},{"specular",s}}.dump()<<'\n';
         Require(bool(metrics),"metrics write");

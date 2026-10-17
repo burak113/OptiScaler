@@ -12,9 +12,11 @@
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
+#include "FSRDNrdFlatAlbedoRecovery_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
 #include "precompile/FSRDNrdBridgePureCommit_Shader.h"
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
+#include "precompile/FSRDNrdBridgeSignalScale_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
@@ -163,6 +165,7 @@ struct Context
     {
         ComPtr<ID3D12Resource> spec, diff;
         ComPtr<ID3D12DescriptorHeap> descriptors;
+        ComPtr<ID3D12DescriptorHeap> scaleDescriptors; // UAVs: input spec, input diff, staged spec, staged diff.
         ComPtr<ID3D12Resource> nativeDebug;
         ComPtr<ID3D12DescriptorHeap> nativeDebugGpuUav, nativeDebugCpuUav;
         SignalFlagSnapshot flag;
@@ -174,10 +177,14 @@ struct Context
     };
     ComPtr<ID3D12RootSignature> commitRoot;
     ComPtr<ID3D12PipelineState> commitPso;
+    ComPtr<ID3D12RootSignature> scaleRoot;
+    ComPtr<ID3D12PipelineState> scalePso;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint8_t flagReadyMask = 0;
     std::optional<LobeRecovery> recovery;
+    std::optional<FlatAlbedoRecovery> flatAlbedo;
+    bool flatWasActive = false;
     ComPtr<ID3D12RootSignature> nativeDebugRoot;
     ComPtr<ID3D12PipelineState> nativeDebugPso;
     uint64_t zeroBytes = 0;
@@ -273,6 +280,8 @@ struct Context
         descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot->descriptors)), "RR commit heap creation failed", error))
             return nullptr;
+        if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot->scaleDescriptors)), "RR signal scale heap creation failed", error))
+            return nullptr;
         if (flagCapture.pso && !slot->flag.Initialize(device.Get(), error)) return nullptr;
         // D07/WP10 byte admission (retained generations, pair bytes only).
         // Disabled at the ledger default limit 0; the rejection keeps the
@@ -321,6 +330,10 @@ struct Context
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
         desc.pRootSignature = commitRoot.Get(); desc.CS = {FSRDNrdBridgePureCommit_cso, sizeof(FSRDNrdBridgePureCommit_cso)};
         if (!Check(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&commitPso)), "RR commit PSO creation failed", error)) return false;
+        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeSignalScale_cso, sizeof(FSRDNrdBridgeSignalScale_cso),
+            IID_PPV_ARGS(&scaleRoot)), "RR signal scale root creation failed", error)) return false;
+        desc.pRootSignature = scaleRoot.Get(); desc.CS = {FSRDNrdBridgeSignalScale_cso, sizeof(FSRDNrdBridgeSignalScale_cso)};
+        if (!Check(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&scalePso)), "RR signal scale PSO creation failed", error)) return false;
         descriptorStride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         slots.reserve(32);
         for (uint32_t i = 0; i < 4; ++i) if (!NewSlot(error)) return false;
@@ -346,6 +359,46 @@ struct Context
         uint64_t bytes = zeroBytes;
         for (const auto& slot : slots) bytes += slot->flag.bytes + slot->nativeDebugBytes;
         return bytes;
+    }
+    // CP77 NRD-domain radiance is ~1e-4, where the AMD provider clamps its output
+    // to an absolute floor of ~1e-5 that greys dark specular (water). Lighting
+    // enters RR scaled by 2^8 and leaves divided by it; power-of-two scaling is
+    // exact in fp16, so every other reader still sees the original words.
+    static constexpr float SignalScale = 256.0f;
+    void BindScaleSignals(const Slot& slot, ID3D12Resource* inputSpec, ID3D12Resource* inputDiff) const noexcept
+    {
+        auto cpu = slot.scaleDescriptors->GetCPUDescriptorHandleForHeapStart();
+        for (auto* signal : {inputSpec, inputDiff, slot.spec.Get(), slot.diff.Get()})
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC view {}; view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            view.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            device->CreateUnorderedAccessView(signal, nullptr, &view, cpu); cpu.ptr += descriptorStride;
+        }
+    }
+    // Inputs are in the provider's COMPUTE_READ state; staged RR outputs stay UAV.
+    // Up scales the two inputs; restore divides inputs and the RR outputs.
+    void ScaleSignals(ID3D12GraphicsCommandList* list, const Slot& slot, ID3D12Resource* inputSpec,
+                      ID3D12Resource* inputDiff, bool restore) const noexcept
+    {
+        std::array<D3D12_RESOURCE_BARRIER, 4> barriers {};
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barriers[i].Transition = {i ? inputDiff : inputSpec, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+            barriers[i+2].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barriers[i+2].UAV.pResource = i ? slot.diff.Get() : slot.spec.Get();
+        }
+        const UINT count = restore ? 4u : 2u;
+        list->ResourceBarrier(count, barriers.data());
+        list->SetPipelineState(scalePso.Get()); list->SetComputeRootSignature(scaleRoot.Get());
+        ID3D12DescriptorHeap* heaps[] = {slot.scaleDescriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
+        const uint32_t constants[] = {width, height, std::bit_cast<uint32_t>(restore ? 1.0f/SignalScale : SignalScale), count};
+        list->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        list->SetComputeRootDescriptorTable(1, slot.scaleDescriptors->GetGPUDescriptorHandleForHeapStart());
+        list->Dispatch((width+7)/8, (height+7)/8, 1);
+        for (uint32_t i = 0; i < 2; ++i) std::swap(barriers[i].Transition.StateBefore, barriers[i].Transition.StateAfter);
+        list->ResourceBarrier(count, barriers.data());
     }
     void ClearNativeDebug(ID3D12GraphicsCommandList* list, const Slot& slot) const noexcept
     {
@@ -505,6 +558,7 @@ struct DispatchLease
     std::shared_ptr<Context> context;
     std::shared_ptr<Context::Slot> slot;
     LobeRecovery::Prepared recovery; // Retained before the provider; owns every graph binding.
+    FlatAlbedoRecovery::Prepared flatAlbedo;
     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
     std::array<ComPtr<ID3D12Resource>, 7> inputs;
 };
@@ -662,6 +716,9 @@ struct RRRecordedOutput
     uint32_t frameIndex = 0, frameSL = UINT32_MAX;
     uint64_t contextGeneration = 0, recordingId = 0;
     bool recoveryFallback = false, nativeCommitPrepared = false;
+    bool flatAlbedoFallback = false;
+    uint32_t flatAlbedoRoughness = 0;
+    std::string flatAlbedoError;
     // F04: these are frozen at the recording frame, exactly like the recovery
     // resources above; getters must never read the wrapper's later state here.
     uint32_t recoveryTier = uint32_t(LobeRecoveryTier::None);
@@ -691,6 +748,8 @@ struct RRWrapper::Impl
     uint32_t recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
     std::string recoveryErrorText; // Last real optional error; cleared on success.
     std::string loggedRecoveryFailure; // Rate-limit key of the last warned fallback.
+    bool flatAlbedoActive = false, flatAlbedoFallback = false;
+    std::string flatAlbedoError, loggedFlatFailure;
     RRWrapperNativeDebugOutputSnapshot nativeDebug {};
     std::string conventions;
 };
@@ -701,6 +760,13 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
         settings.recoverySpecular < 0.0f || settings.recoverySpecular > 1.0f ||
         settings.recoveryDiffuse < 0.0f || settings.recoveryDiffuse > 1.0f)
     { error = "RR detail recovery strengths must be finite values in [0,1]"; return false; }
+    const auto& f = settings.flatAlbedo;
+    if (f.roughness > 1023 || f.historyLength < 1 || f.historyLength > 6 ||
+        !std::isfinite(f.strength) || f.strength < 0 || f.strength > 1 ||
+        !std::isfinite(f.anchor) || f.anchor < 0 || f.anchor > 8 ||
+        !std::isfinite(f.mix) || f.mix < 0 || f.mix > 1 ||
+        !std::isfinite(f.temporalDenoise) || f.temporalDenoise < 0 || f.temporalDenoise > 2)
+    { error = "RR Flat Albedo Recovery settings are invalid"; return false; }
     if (settings.overrideMask & ~0x7fu)
     { error = "RR settings contain an unsupported AMD key"; return false; }
     if (settings.nativeDebugView < -1 || settings.nativeDebugView >
@@ -732,7 +798,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     const float nativeSpecularBlend = NormalizeNativeSpecularBlend(requested.nativeSpecularBlend);
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
-        !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.surfaceValidFill &&
+        !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
         nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
@@ -743,6 +809,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         impl_->settings.nativeTemporalMotion != requested.nativeTemporalMotion ||
         impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides ||
         impl_->settings.lobeRecovery != requested.lobeRecovery ||
+        impl_->settings.flatAlbedo != requested.flatAlbedo ||
         impl_->settings.recoverySpecular != requested.recoverySpecular ||
         impl_->settings.recoveryDiffuse != requested.recoveryDiffuse ||
         impl_->settings.surfaceValidFill != requested.surfaceValidFill ||
@@ -750,6 +817,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
+    if (impl_->context && impl_->settings.flatAlbedo != requested.flatAlbedo) impl_->context->flatAlbedo.reset();
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
@@ -759,6 +827,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.nativeMaterialGuides = requested.nativeMaterialGuides;
     impl_->settings.legacyMotionDepth = requested.legacyMotionDepth;
     impl_->settings.lobeRecovery = requested.lobeRecovery;
+    impl_->settings.flatAlbedo = requested.flatAlbedo;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.surfaceValidFill = requested.surfaceValidFill;
@@ -794,6 +863,9 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
     RRSettingsState state;
     if (!impl_) return state;
     state.requested = impl_->settings;
+    state.flatAlbedoActive = impl_->flatAlbedoActive;
+    state.flatAlbedoFallback = impl_->flatAlbedoFallback;
+    state.flatAlbedoLastError = impl_->flatAlbedoError;
     state.lobeRecoveryActive = impl_->recoveryActive;
     state.lobeRecoveryFallback = impl_->recoveryFallback;
     state.lobeRecoveryRequestedTier = impl_->recoveryRequestedTier;
@@ -1053,7 +1125,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     if (prepareNativeCommit && (!lease->context->PrepareTableFlags(error,303) ||
         !lease->context->PrepareTableFlags(error,36))) { impl_->resetPending = true; return false; }
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
-    const bool reset = frame.reset || impl_->resetPending || recreate;
+    bool reset = frame.reset || impl_->resetPending || recreate;
     auto* committedSpec = lease->slot->spec.Get(); auto* committedDiff = lease->slot->diff.Get();
     bool recoveryFallback = false;
     const bool requestRecovery = recoverySkipReason == uint32_t(LobeRecoveryFallbackReason::None);
@@ -1111,6 +1183,56 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         }
     }
     else lease->context->recovery.reset();
+    // Compatibility floor and existing Flat Albedo Recovery are one prepared
+    // unit: never floor RR's geometry if the detail graph cannot be retained.
+    const auto& flat = impl_->settings.flatAlbedo;
+    const bool requestFlat = flat.enabled && flat.strength > 0 && flat.roughness > 0 && !lease->context->debugEnabled;
+    bool flatPrepared = false;
+    impl_->flatAlbedoError.clear();
+    if (requestFlat)
+    {
+        try
+        {
+            if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily) impl_->recoveryFamily = CreateRRRecoveryFamily();
+            if (impl_->recoveryFamily)
+            {
+                if (!lease->context->flatAlbedo) lease->context->flatAlbedo.emplace();
+                const LobeRecoveryInputs flatInputs {input.spec,input.diff,input.linearDepth,input.motion,input.normals,
+                    committedSpec,committedDiff,input.width,input.height};
+                LobeRecoveryFrame flatFrame; flatFrame.frameIndex = frame.frameIndex; flatFrame.reset = reset;
+                if (!reset)
+                {
+                    const float dx = frame.cameraPosition.x - frame.previousCameraPosition.x;
+                    const float dy = frame.cameraPosition.y - frame.previousCameraPosition.y;
+                    const float dz = frame.cameraPosition.z - frame.previousCameraPosition.z;
+                    const float focal = std::abs(DirectX::XMVectorGetX(frame.camera.projection.r[0]))*0.5f*float(input.width);
+                    const float parallax = std::sqrt(dx*dx+dy*dy+dz*dz)*focal;
+                    flatFrame.parallaxPixels = std::isfinite(parallax) ? parallax : 0.0f;
+                }
+                const std::shared_ptr<LobeRecovery::Family> family(impl_->recoveryFamily,&impl_->recoveryFamily->budget);
+                flatPrepared = lease->context->flatAlbedo->Prepare(device.Get(),list,flatInputs,flatFrame,flat,
+                    family,lease->flatAlbedo,impl_->flatAlbedoError);
+            }
+            else impl_->flatAlbedoError = "Flat recovery shared family is unavailable";
+        }
+        catch (...) { impl_->flatAlbedoError = "Flat recovery preparation allocation failed"; }
+        if (!flatPrepared)
+        {
+            lease->flatAlbedo = {}; lease->context->flatAlbedo.reset();
+            if (impl_->loggedFlatFailure != impl_->flatAlbedoError)
+            {
+                impl_->loggedFlatFailure = impl_->flatAlbedoError;
+                LOG_WARN("[NRD_BRIDGE] Flat Albedo Recovery unavailable; original roughness retained: {}",impl_->flatAlbedoError);
+            }
+        }
+    }
+    else lease->context->flatAlbedo.reset();
+    if (lease->context->flatWasActive != flatPrepared) reset = true;
+    if (flatPrepared)
+    {
+        committedSpec = lease->flatAlbedo.specular; committedDiff = lease->flatAlbedo.diffuse;
+        lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
+    }
     // Allocate the public opaque owner before any provider commands can be recorded.
     auto recorded = MakeOwnedShared<RRRecordedOutput>();
     recorded->wrapper = impl_; recorded->lease = lease; recorded->source = list;
@@ -1118,6 +1240,9 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     recorded->frameIndex = frame.frameIndex; recorded->frameSL = frame.streamlineFrame;
     recorded->contextGeneration = lease->context->generation; recorded->recoveryFallback = recoveryFallback;
     recorded->nativeCommitPrepared = prepareNativeCommit;
+    recorded->flatAlbedoFallback = requestFlat && !flatPrepared;
+    recorded->flatAlbedoRoughness = flatPrepared ? flat.roughness : 0;
+    recorded->flatAlbedoError = impl_->flatAlbedoError;
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(),list,lease))
         return reject("RR recorded-dispatch lifetime tracking is unavailable");
     const auto nativeRecording = RecordedComputeLease::Capture(list);
@@ -1149,7 +1274,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     dispatch.commandList = list;
     dispatch.linearDepth = ffxApiGetResourceDX12(input.linearDepth, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     dispatch.motionVectors = ffxApiGetResourceDX12(input.motion, FFX_API_RESOURCE_STATE_COMPUTE_READ);
-    dispatch.normals = ffxApiGetResourceDX12(input.normals, FFX_API_RESOURCE_STATE_COMPUTE_READ);
+    dispatch.normals = ffxApiGetResourceDX12(flatPrepared ? lease->flatAlbedo.normals : input.normals, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     dispatch.specularAlbedo = ffxApiGetResourceDX12(input.specAlbedo, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     dispatch.diffuseAlbedo = ffxApiGetResourceDX12(input.diffAlbedo, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     dispatch.motionVectorScale = { 1.0f, 1.0f, 1.0f };
@@ -1170,16 +1295,32 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     std::memcpy(recorded->providerControl.data(),reinterpret_cast<const uint8_t*>(&dispatch) +
         offsetof(ffxDispatchDescDenoiser,motionVectorScale),recorded->providerControl.size());
     ScopedSkipHeapCapture skipHeapCapture;
+    if (flatPrepared) lease->context->flatAlbedo->RecordInputs(list,lease->flatAlbedo);
     ffxReturnCode_t result;
-    try
     {
-        NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);
-        result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle,&dispatch.header);
+        // Lighting is restored on every path before any other reader (recovery,
+        // capture, commit) is recorded.
+        struct RestoreSignals
+        {
+            const Context& context; ID3D12GraphicsCommandList* list; const Context::Slot& slot; ID3D12Resource* spec; ID3D12Resource* diff;
+            ~RestoreSignals() { context.ScaleSignals(list,slot,spec,diff,true); }
+        };
+        lease->context->BindScaleSignals(*lease->slot,input.spec,input.diff);
+        lease->context->ScaleSignals(list,*lease->slot,input.spec,input.diff,false);
+        const RestoreSignals restore {*lease->context,list,*lease->slot,input.spec,input.diff};
+        try
+        {
+            NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);
+            result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle,&dispatch.header);
+        }
+        catch (...) { AbandonOwned(recorded); throw; }
     }
-    catch (...) { AbandonOwned(recorded); throw; }
     if (result != FFX_API_RETURN_OK)
     { AbandonOwned(recorded); return Fail(error,"RR dispatch",result); }
     if (lease->recovery.owner) lease->context->recovery->Record(list,lease->recovery);
+    if (flatPrepared) lease->context->flatAlbedo->RecordOutput(list,lease->flatAlbedo);
+    lease->context->flatWasActive = flatPrepared;
+    impl_->flatAlbedoActive = flatPrepared; impl_->flatAlbedoFallback = requestFlat && !flatPrepared;
     // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
     impl_->recoveryActive = bool(lease->recovery.owner); impl_->recoveryFallback = recoveryFallback;
     impl_->recoveryTier = lease->recovery.owner ? uint32_t(LobeRecoveryTier::FullPrecision) : uint32_t(LobeRecoveryTier::None);
@@ -1222,6 +1363,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
+    result.providerNormals = lease->flatAlbedo.owner ? lease->flatAlbedo.normals : lease->inputs[4].Get();
+    result.flatAlbedoActive = bool(lease->flatAlbedo.owner); result.flatAlbedoFallback = output->flatAlbedoFallback;
+    result.flatAlbedoRoughness = output->flatAlbedoRoughness; result.flatAlbedoError = output->flatAlbedoError;
     // F04: tier/reason/error are read from the immutable recorded output, so an
     // older held snapshot can never inherit a later recording's state.
     result.recoveryTier = output->recoveryTier;
@@ -1348,6 +1492,7 @@ void RRWrapper::DiscardRecordingHistory() noexcept
     impl_->recoveryTier = uint32_t(LobeRecoveryTier::None);
     impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
     impl_->context.reset();
+    impl_->flatAlbedoActive = impl_->flatAlbedoFallback = false; impl_->flatAlbedoError.clear();
     impl_->historyValid = false;
     impl_->resetPending = true;
     impl_->previous = {};

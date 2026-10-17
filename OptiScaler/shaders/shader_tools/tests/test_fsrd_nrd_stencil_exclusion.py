@@ -80,7 +80,7 @@ def run():
         if prior is None: os.environ.pop('CL', None)
         else: os.environ['CL'] = prior
     cases = {}
-    for name, mode, dispatches in (('stencil-positive','--opaque',15),('stencil-mutation','--opaque-mutation',2)):
+    for name, mode, dispatches in (('stencil-positive','--opaque',15),('stencil-mutation','--opaque-mutation',4)):
         directory=out/name;directory.mkdir(parents=True,exist_ok=True)
         _,peak,elapsed,log=bounded_run([str(exe),str(directory),str(DLL),mode],directory/'native_run')
         value=json.loads((directory/'native-transactions-result.json').read_text())
@@ -89,7 +89,7 @@ def run():
         if name=='stencil-positive':
             assert len(value['frames'])==6 and all(v['native_filter_gpu_executions']==0 and v['opaque_original_gpu_executions']==1 for v in value['frames'])
         else:
-            assert value['quarantined_recordings']==value['quarantined_submissions']==1 and value['repeated_denials']==2
+            assert value['forwarded_submissions']==1 and value['repeated_denials']==0 and value['required_latch']==0 and value['quarantined_recordings']==0
         value.update(elapsed_seconds=elapsed,peak_resident_bytes=peak,native_log=str(log));cases[name]=value
     result=dict(cases=cases,native_checks=sum(v['native_checks'] for v in cases.values()),python_checks=6,
                 source_sha256=native.sha(source),exe_sha256=native.sha(exe),driver_sha256=native.sha(__file__),

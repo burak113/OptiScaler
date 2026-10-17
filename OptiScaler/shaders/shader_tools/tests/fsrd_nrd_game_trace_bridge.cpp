@@ -50,7 +50,7 @@ struct OwnedBridgeFixture
     }
     NrdBridge::ConvertedResources Converted(Host& h)
     {
-        return {inputs[0].Get(),inputs[1].Get(),inputs[2].Get(),inputs[3].Get(),inputs[4].Get(),inputs[5].Get(),inputs[6].Get(),
+        return {inputs[0].Get(),inputs[1].Get(),inputs[2].Get(),inputs[3].Get(),inputs[4].Get(),inputs[5].Get(),inputs[6].Get(),nullptr,
             h.renderWidth,h.renderHeight};
     }
     NrdBridge::RRRecordedOutputSnapshot Snapshot(Host& h,unsigned frame,bool separate=false)
@@ -324,3 +324,5 @@ int main(int argc,char** argv) try
     std::cout<<"NRD_BRIDGE_TRACE PASS "<<bridgeChecks<<"\n";return 0;
 }
 catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
+// GAME_TRACE bridge metadata names Recovery tiers; the RR wrapper TU is not linked here.
+namespace NrdBridge { const char* LobeRecoveryTierName(uint32_t) noexcept { return "fixture"; } const char* LobeRecoveryFallbackReasonName(uint32_t) noexcept { return "fixture"; } }

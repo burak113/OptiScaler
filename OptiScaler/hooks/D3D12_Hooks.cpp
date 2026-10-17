@@ -211,6 +211,7 @@ static void MergeBridgeConstants(RootState& state, UINT offset, UINT count, cons
 
 template <typename Lock> static void LockRootTracker(Lock& lock)
 {
+    if (lock.try_lock()) return; // Uncontended: not a wait.
     NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Tracking);
     lock.lock();
 }

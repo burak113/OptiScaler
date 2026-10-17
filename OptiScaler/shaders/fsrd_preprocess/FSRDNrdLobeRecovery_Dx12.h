@@ -40,6 +40,10 @@ struct LobeRecoveryFrame
     // Exactly the delta already added to RR's normalized primary motion.
     // Reference removes it once; the band-noise reprojection keeps RR motion.
     std::array<float,2> jitterDeltaUv {};
+    // Camera translation this frame times the focal length in pixels (0 = static or unknown).
+    // Divided by a pixel's depth it bounds how far a mirror reflection can drift off the
+    // surface motion vectors (parallax); Near Zero-Rough history is capped by it.
+    float parallaxPixels = 0;
 };
 
 // One helper belongs to one continuous physical RR Context. The caller serializes

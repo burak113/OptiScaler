@@ -17,6 +17,14 @@ from fsrd_toolchain import compile_cpp
 from test_fsrd_nrd_root_restore import function
 
 KEYS = {
+    'FfxDenoiserRecoveryFlatAlbedo': ('RecoveryFlatAlbedo', 'Bool'),
+    'FfxDenoiserRecoveryFlatAlbedoStrength': ('RecoveryFlatAlbedoStrength', 'Float'),
+    'FfxDenoiserRecoveryFlatRoughness': ('RecoveryFlatRoughness', 'Int'),
+    'FfxDenoiserRecoveryFlatAnchor': ('RecoveryFlatAnchor', 'Float'),
+    'FfxDenoiserRecoveryFlatMix': ('RecoveryFlatMix', 'Float'),
+    'FfxDenoiserRecoveryFlatTemporal': ('RecoveryFlatTemporal', 'Bool'),
+    'FfxDenoiserRecoveryFlatHistoryLength': ('RecoveryFlatHistoryLength', 'Int'),
+    'FfxDenoiserRecoveryFlatTemporalDenoise': ('RecoveryFlatTemporalDenoise', 'Float'),
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
     'FfxDenoiserNrdBridgeLegacyMotionDepth': ('NrdBridgeLegacyMotionDepth', 'Bool'),
@@ -111,6 +119,10 @@ std::vector<bool> disabled;std::vector<std::string> labels,text;unsigned rrTable
 bool hovered=false;
 bool isDisabled(){return !disabled.empty()&&disabled.back();}
 bool CollapsingHeader(const char* name){labels.push_back(name);auto it=headers.find(name);return it==headers.end()||it->second;}
+bool TreeNode(const char* name){return CollapsingHeader(name);} void TreePop(){}
+bool SliderInt(const char* name,int* value,int minimum,int maximum){labels.push_back(name);auto it=combos.find(name);
+ if(isDisabled()||it==combos.end())return false;need(it->second>=minimum&&it->second<=maximum,"integer UI range");
+ *value=it->second;combos.erase(it);return true;}
 bool Checkbox(const char* name,bool* value){labels.push_back(name);auto it=bools.find(name);
  if(isDisabled()||it==bools.end())return false;bool next=it->second;bools.erase(it);bool changed=*value!=next;*value=next;return changed;}
 bool SliderFloat(const char* name,float* value,float minimum,float maximum){labels.push_back(name);auto it=floats.find(name);
@@ -511,7 +523,8 @@ def run():
     rr=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     bridge=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h').read_text()
     assert 'struct RRSettings\n' in rr
-    contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('RRSettings','RRSettingsState'))
+    contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('FlatAlbedoSettings','RRSettings','RRSettingsState'))
+    contract+='\n'+function(rr,'template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(')
     contract_origin='actual public RR header; actual public Status header'
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
     # D06/D07 recovery tiers/reasons plus the exact production name definitions:

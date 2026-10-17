@@ -92,7 +92,11 @@ def run():
         assert value
     check(replay["published_frames"] == 2)
     check(replay["full_temporal_replay_eligible"] is False)
-    check(replay["ineligibility_reasons"] == ["actual_provider_binary_attestation_unavailable"])
+    check(replay["ineligibility_reasons"] == [
+        "actual_provider_binary_attestation_unavailable", "replay_prefix_below_64_full_render_frames",
+        "replay_manifest_missing_bridge_commit", "replay_manifest_missing_provider_binary_sha256",
+        "replay_manifest_missing_guide_motion_policy", "replay_manifest_missing_capture_time_utc",
+        "reset_frame_missing_reset_reason"])
     check(all(frame["encoding"]["captured_encoding_word"] == 1 for frame in replay["frames"]))
     check([frame["encoding"]["native_source_word"] for frame in replay["frames"]] == [36, 303])
     check([frame["native_control_header"]["profile"] for frame in replay["frames"]] == ["A_Recon_direct", "B_PrePass"])

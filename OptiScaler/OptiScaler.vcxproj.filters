@@ -1889,6 +1889,18 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeTemporalConstants_Dx12.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporal.hlsli" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.h" />
@@ -1910,6 +1922,7 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdLobeRecovery_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdFlatAlbedoRecovery_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLobeRecoveryReference_Shader.cso" />

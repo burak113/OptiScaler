@@ -47,7 +47,7 @@ def run():
         value = json.loads((directory/'raster-outputs-result.json').read_text())
         assert value['debug_errors'] == value['debug_warnings'] == 0
         if mode in ('conflict', 'rebind', 'missing'):
-            assert value['provider_dispatches'] == 1 and value['native_submissions'] == 0
+            assert value['provider_dispatches'] == 1 and value['native_submissions'] == 1  # forwarded, never denied
         else:
             assert value['provider_dispatches'] == 4 and value['native_submissions'] == 2
         value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))

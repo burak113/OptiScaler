@@ -267,6 +267,6 @@ replace_once('"source","actual_FrameSurvey_methods_with_actual_Birth_registry_me
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--descriptor-shards', type=int, choices=(32,128), default=32)
+    parser.add_argument('--descriptor-shards', type=int, choices=(32,128,256), default=256)
     args = parser.parse_args()
     legacy.run(DRIVER, f'native-metadata-heap-mask{args.descriptor_shards}-cpu.json', '#include <future>\n#define FSRD_NRD_BRIDGE_TEST\n#define FSRD_NRD_BRIDGE_TEST_HEAP_MASK\n', descriptor_shards=args.descriptor_shards)
