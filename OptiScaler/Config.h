@@ -570,6 +570,14 @@ class Config
     // production decode; enabling it additionally requires this frame's owned
     // depth-validity channel and fails closed without live selector/phase evidence.
     CustomOptional<bool> FfxDenoiserNrdBridgeSurfaceValidFill {false};
+    // Post-turn colour filter of RR's inputs: frames to fade out (0 = always) and the per-frame turn threshold.
+    CustomOptional<bool> FfxDenoiserNrdBridgeTurnColour {false};
+    CustomOptional<float> FfxDenoiserNrdBridgeTurnColourFrames {30.0f};
+    CustomOptional<float> FfxDenoiserNrdBridgeTurnColourDegrees {3.0f};
+    // Post-turn brightness correction of RR's inputs: peak excess removed and frames until it is gone.
+    CustomOptional<bool> FfxDenoiserNrdBridgeTurnBrightness {false};
+    CustomOptional<float> FfxDenoiserNrdBridgeTurnBrightnessAmount {0.15f};
+    CustomOptional<float> FfxDenoiserNrdBridgeTurnBrightnessFrames {12.0f};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};

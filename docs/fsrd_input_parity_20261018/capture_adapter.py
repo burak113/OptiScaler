@@ -19,6 +19,9 @@ class Cap(NativeCap):
             raise ValueError('An explicit published prefix is required')
         self.combined='U' in {x['name'] for x in self.frames[0]['images']}
         if not self.combined:
+            if any(frame.get('settings', {}).get('turn_colour', {}).get(key, False)
+                   for frame in self.frames[:self.n] for key in ('enabled', 'brightness')):
+                raise ValueError('Post-turn private RR input copies are absent from this capture')
             return
         self.original_frames=self.frames[:self.n]
         self.frames=[]

@@ -479,6 +479,10 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeLegacyMotionDepth; })
         settings.legacyMotionDepth = config.FfxDenoiserNrdBridgeLegacyMotionDepth.value_or_default();
+    if constexpr (requires { config.FfxDenoiserNrdBridgeTurnColour; config.FfxDenoiserNrdBridgeTurnColourFrames;
+        config.FfxDenoiserNrdBridgeTurnColourDegrees; config.FfxDenoiserNrdBridgeTurnBrightness;
+        config.FfxDenoiserNrdBridgeTurnBrightnessAmount; config.FfxDenoiserNrdBridgeTurnBrightnessFrames; })
+        ReadTurnColourSettings(config, settings);
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)

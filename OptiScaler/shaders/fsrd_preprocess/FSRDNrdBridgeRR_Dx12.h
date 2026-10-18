@@ -114,7 +114,32 @@ struct RRSettings
     bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
     float nativeSpecularBlend = 0.0f; // Deprecated source ABI; ignored. Native NRD output never corrects RR.
+    // Post-turn colour filter: after a camera turn faster than turnColourDegrees per frame (or an RR reset) the
+    // RR lighting inputs take their 11x11 neighbourhood colour (own luminance kept), fading out over
+    // turnColourFrames frames (0 = always on). Only RR's copy is filtered; off allocates and dispatches nothing.
+    bool turnColourFilter = false;
+    float turnColourFrames = 30.0f, turnColourDegrees = 3.0f;
+    // Post-turn brightness correction: the title's lighting is ~15 % too bright for ~12 frames after a fast turn and
+    // RR's restarted history keeps that excess for seconds. RR's copy is divided by
+    // 1 + amount * min(1, peak turn / 20 deg) * max(0, 1 - age / frames). Same turn detector; RR resets alone never
+    // trigger it. Never resets RR history.
+    bool turnBrightness = false;
+    float turnBrightnessAmount = 0.15f, turnBrightnessFrames = 12.0f;
 };
+// Shared by startup and live menu snapshots; out-of-range values are clamped, non-finite ones use the defaults.
+template<class Configuration> inline void ReadTurnColourSettings(const Configuration& config, RRSettings& out)
+{
+    out.turnColourFilter = config.FfxDenoiserNrdBridgeTurnColour.value_or_default();
+    const float frames = config.FfxDenoiserNrdBridgeTurnColourFrames.value_or_default();
+    const float degrees = config.FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
+    out.turnColourFrames = std::isfinite(frames) ? std::clamp(frames, 0.0f, 600.0f) : 30.0f;
+    out.turnColourDegrees = std::isfinite(degrees) ? std::clamp(degrees, 0.1f, 180.0f) : 3.0f;
+    out.turnBrightness = config.FfxDenoiserNrdBridgeTurnBrightness.value_or_default();
+    const float amount = config.FfxDenoiserNrdBridgeTurnBrightnessAmount.value_or_default();
+    const float brightnessFrames = config.FfxDenoiserNrdBridgeTurnBrightnessFrames.value_or_default();
+    out.turnBrightnessAmount = std::isfinite(amount) ? std::clamp(amount, 0.0f, 0.5f) : 0.15f;
+    out.turnBrightnessFrames = std::isfinite(brightnessFrames) ? std::clamp(brightnessFrames, 1.0f, 120.0f) : 12.0f;
+}
 struct RRSettingsState
 {
     bool ready = false;

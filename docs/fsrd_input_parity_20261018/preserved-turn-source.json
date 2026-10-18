@@ -1,0 +1,21 @@
+{
+  "base": "93f53b814",
+  "source": "F:\\OptiRevelations\\OSA-20-turn-colour",
+  "sha256": {
+    "OptiScaler.ini": "37b3212888f4f93d4677c41e5d82cea099693cd0c040b6cbce6737ef75782de8",
+    "OptiScaler/Config.cpp": "1e852e83d1cd03049ed4f7e01a927ef466918816273a725b5043db98d1b575d4",
+    "OptiScaler/Config.h": "ccc2db68145423a8fe8e77ab6f4dd676cd85ece2bb85b22b5ebd070576a838eb",
+    "OptiScaler/OptiScaler.vcxproj": "7a282297feaf2e93812fddfba94b30b6598b6af2d13cf909867caadf0734374e",
+    "OptiScaler/OptiScaler.vcxproj.filters": "c929ccb7b3ae7a69d847a030789c3b84cfb4c1f32ca85dde446ff9831ff78e68",
+    "OptiScaler/menu/menu_common.cpp": "332fec7fe6943aa6191998db4b8b1953b2d935b4a98bfe68428e0b9a80c9b876",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h": "fa81948ee844c55393d4452cdcc3a5e8ddbe5ce8a0079b664473ffae53dc3391",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "cba52f7deb37c46982c654290016d05becfcddd8e5007476f449dc8b613d6991",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "f73e02a1eadfe7c51bb31407fe135e949018af31f65912dddea7f688bc871396",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp": "2e7ff0b9bf86a9790da24ee98b2919baa31593e792f75bb51e70e5b0e96793dc",
+    "OptiScaler/shaders/shader_tools/build_fsrd_shader.py": "63675423cc97db3513265f4f4e27973c75e2998e5306a094cf40ab16c1ee49f9",
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py": "a6b90459a59a6a98f44ca6c0f8470034cd78722b200de6b6bf1c4d4e02e7a630",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeTurnColour.hlsl": "7c5764130b2d9b1a666e5f7cae2689830839896c30daae1e3b3d6ea3a3462321",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeTurnColour_Shader.h": "1f356d0d19e16633caf96a5c17f6591f03b567acc648e69b93334a6bd49cb15c",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeTurnColour_Shader.cso": "9ceb0115970d905e6050c269faa54f30cf2ad2f2f46929a9892304e8d497b2a2"
+  }
+}

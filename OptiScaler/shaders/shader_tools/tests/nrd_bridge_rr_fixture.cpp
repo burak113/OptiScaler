@@ -785,6 +785,21 @@ void runtimeSettingsChecks(Host& host)
         need(FfxApiProxy::creates==creates+1 && wrapper.GetSettingsState().effective[0]==failure.values[0],
             "fresh recovery context inherits the retained valid desired override");
     }
+    auto turnSettings=wrapper.GetSettingsState().requested;
+    turnSettings.turnColourFilter=true;turnSettings.turnColourFrames=0.f;
+    turnSettings.radianceScale={true,16,256};
+    need(wrapper.Configure(turnSettings,error),"enable preserved colour filter with shared per-lobe scaling");step(true);
+    need(FfxApiProxy::lastDiffuse.signal.input.resource!=scene.resources.diff &&
+         FfxApiProxy::lastSpecular.signal.input.resource!=scene.resources.spec,
+         "colour filter keeps provider inputs in separate RR-only copies with shared scaling");
+    turnSettings.radianceScale={};
+    need(wrapper.Configure(turnSettings,error),"return to legacy scaling with the colour filter still active");step(true);
+    need(FfxApiProxy::lastDiffuse.signal.input.resource!=scene.resources.diff,
+         "legacy colour-filter input copy survives shared scaling rollback");
+    turnSettings.turnColourFilter=false;turnSettings.turnColourFrames=30.f;
+    need(wrapper.Configure(turnSettings,error),"restore preserved colour filter OFF");step(false);
+    need(FfxApiProxy::lastDiffuse.signal.input.resource==scene.resources.diff,
+         "colour filter OFF restores direct provider input binding");
     need(FfxApiProxy::badDefaults==0,"all context initializations still apply seven exact queried AMD defaults");
     need(FfxApiProxy::badConfigureLayouts==0,"all runtime configuration descriptors preserve exact key/count/data ABI");
     std::cout<<"runtime_settings effective_changes="<<changes<<" unchanged_calls=0 debug_bounds_count=1 material_key_calls=0\n";

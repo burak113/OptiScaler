@@ -18,6 +18,7 @@
 #include "precompile/FSRDNrdBridgePureCommit_Shader.h"
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
 #include "precompile/FSRDNrdBridgeSignalScale_Shader.h"
+#include "precompile/FSRDNrdBridgeTurnColour_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
@@ -167,6 +168,7 @@ struct Context
         ComPtr<ID3D12Resource> spec, diff;
         ComPtr<ID3D12DescriptorHeap> descriptors;
         ComPtr<ID3D12DescriptorHeap> scaleDescriptors; // UAVs: input spec, input diff, staged spec, staged diff.
+        ComPtr<ID3D12DescriptorHeap> turnDescriptors; // SRVs: input spec, diff; UAVs: RR-only filtered spec, diff.
         ComPtr<ID3D12Resource> nativeDebug;
         ComPtr<ID3D12DescriptorHeap> nativeDebugGpuUav, nativeDebugCpuUav;
         SignalFlagSnapshot flag;
@@ -180,6 +182,11 @@ struct Context
     ComPtr<ID3D12PipelineState> commitPso;
     ComPtr<ID3D12RootSignature> scaleRoot;
     ComPtr<ID3D12PipelineState> scalePso;
+    // Post-turn colour filter / brightness correction (RRSettings::turnColourFilter, turnBrightness), created on first use only.
+    ComPtr<ID3D12RootSignature> turnRoot;
+    ComPtr<ID3D12PipelineState> turnPso;
+    std::array<ComPtr<ID3D12Resource>, 2> turnSignals; // RR inputs: filtered spec, diff (UAV between frames).
+    uint64_t turnBytes = 0;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint8_t flagReadyMask = 0;
@@ -357,9 +364,75 @@ struct Context
     }
     uint64_t AuxiliaryBytes() const noexcept
     {
-        uint64_t bytes = zeroBytes;
+        uint64_t bytes = zeroBytes + turnBytes;
         for (const auto& slot : slots) bytes += slot->flag.bytes + slot->nativeDebugBytes;
         return bytes;
+    }
+    bool EnsureTurnColour(Slot& slot, std::string& error)
+    {
+        if (!slot.turnDescriptors)
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC descriptors {};
+            descriptors.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; descriptors.NumDescriptors = 4;
+            descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot.turnDescriptors)), "RR turn colour heap creation failed", error))
+                return false;
+        }
+        if (turnPso) return true;
+        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeTurnColour_cso, sizeof(FSRDNrdBridgeTurnColour_cso),
+            IID_PPV_ARGS(&turnRoot)), "RR turn colour root creation failed", error)) return false;
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline {};
+        pipeline.pRootSignature = turnRoot.Get(); pipeline.CS = {FSRDNrdBridgeTurnColour_cso, sizeof(FSRDNrdBridgeTurnColour_cso)};
+        ComPtr<ID3D12PipelineState> pso;
+        if (!Check(device->CreateComputePipelineState(&pipeline, IID_PPV_ARGS(&pso)), "RR turn colour PSO creation failed", error)) return false;
+        D3D12_RESOURCE_DESC desc {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Width = width; desc.Height = height;
+        desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1;
+        desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        for (auto& signal : turnSignals)
+            if (!Check(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                nullptr, IID_PPV_ARGS(&signal)), "RR turn colour signal creation failed", error)) return false;
+        turnSignals[0]->SetName(L"NRD RR turn colour specular"); turnSignals[1]->SetName(L"NRD RR turn colour diffuse");
+        turnBytes = 2 * device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+        turnPso = pso;
+        return true;
+    }
+    // Reads the scaled inputs (NON_PIXEL_SHADER_RESOURCE) and leaves the filtered copies readable by RR.
+    void TurnColour(ID3D12GraphicsCommandList* list, const Slot& slot, ID3D12Resource* inputSpec, ID3D12Resource* inputDiff,
+                    float weight, float gain) const noexcept
+    {
+        auto cpu = slot.turnDescriptors->GetCPUDescriptorHandleForHeapStart();
+        for (auto* signal : {inputSpec, inputDiff})
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC view {}; view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            view.Texture2D.MipLevels = 1;
+            device->CreateShaderResourceView(signal, &view, cpu); cpu.ptr += descriptorStride;
+        }
+        for (const auto& signal : turnSignals)
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC view {}; view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            view.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            device->CreateUnorderedAccessView(signal.Get(), nullptr, &view, cpu); cpu.ptr += descriptorStride;
+        }
+        list->SetPipelineState(turnPso.Get()); list->SetComputeRootSignature(turnRoot.Get());
+        ID3D12DescriptorHeap* heaps[] = {slot.turnDescriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
+        const uint32_t constants[] = {width, height, std::bit_cast<uint32_t>(weight), std::bit_cast<uint32_t>(gain)};
+        list->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        list->SetComputeRootDescriptorTable(1, slot.turnDescriptors->GetGPUDescriptorHandleForHeapStart());
+        list->Dispatch((width+15)/16, (height+15)/16, 1); // 16x16 groups
+        TurnColourBarriers(list, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    }
+    void TurnColourBarriers(ID3D12GraphicsCommandList* list, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) const noexcept
+    {
+        std::array<D3D12_RESOURCE_BARRIER, 2> barriers {};
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barriers[i].Transition = {turnSignals[i].Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, before, after};
+        }
+        list->ResourceBarrier(2, barriers.data());
     }
     // CP77 NRD-domain radiance is ~1e-4, where the AMD provider clamps its output
     // to an absolute floor of ~1e-5 that greys dark specular (water). Lighting
@@ -753,9 +826,23 @@ struct RRWrapper::Impl
     std::string loggedRecoveryFailure; // Rate-limit key of the last warned fallback.
     bool flatAlbedoActive = false, flatAlbedoFallback = false;
     std::string flatAlbedoError, loggedFlatFailure;
+    uint32_t turnAge = 0; // Recorded frames since the last fast camera turn or RR reset (turn colour filter).
+    float turnPeakDegrees = 0.0f; // Fastest per-frame rotation of the last turn (0 when only a reset restarted it).
+    std::string loggedTurnFailure;
     RRWrapperNativeDebugOutputSnapshot nativeDebug {};
     std::string conventions;
 };
+// Camera rotation between two views in degrees. trace(A B^T) of the 3x3 blocks is the element-wise product sum,
+// so the result does not depend on the row/column storage convention. Non-finite input gives NaN (a turn).
+static float CameraTurnDegrees(const DirectX::XMMATRIX& previous, const DirectX::XMMATRIX& current) noexcept
+{
+    DirectX::XMFLOAT4X4 a, b;
+    DirectX::XMStoreFloat4x4(&a, previous); DirectX::XMStoreFloat4x4(&b, current);
+    float trace = 0.0f;
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) trace += a.m[i][j] * b.m[i][j];
+    if (!std::isfinite(trace)) return std::numeric_limits<float>::quiet_NaN();
+    return std::acos(std::clamp((trace - 1.0f) * 0.5f, -1.0f, 1.0f)) * (180.0f / 3.14159265358979f);
+}
 bool ValidateRRSettings(const RRSettings& settings, std::string& error)
 {
     error.clear();
@@ -765,6 +852,12 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
     { error = "RR detail recovery strengths must be finite values in [0,1]"; return false; }
     if (!ValidFSRDRadianceScale(settings.radianceScale.diffuse) || !ValidFSRDRadianceScale(settings.radianceScale.specular))
     { error = "RR radiance scales must be powers of two in [1,4096]"; return false; }
+    if (!std::isfinite(settings.turnColourFrames) || settings.turnColourFrames < 0.0f || settings.turnColourFrames > 600.0f ||
+        !std::isfinite(settings.turnColourDegrees) || settings.turnColourDegrees <= 0.0f || settings.turnColourDegrees > 180.0f)
+    { error = "RR turn colour filter needs frames in [0,600] and degrees in (0,180]"; return false; }
+    if (!std::isfinite(settings.turnBrightnessAmount) || settings.turnBrightnessAmount < 0.0f || settings.turnBrightnessAmount > 0.5f ||
+        !std::isfinite(settings.turnBrightnessFrames) || settings.turnBrightnessFrames < 1.0f || settings.turnBrightnessFrames > 120.0f)
+    { error = "RR turn brightness correction needs amount in [0,0.5] and frames in [1,120]"; return false; }
     const auto& f = settings.flatAlbedo;
     if (f.roughness > 1023 || f.historyLength < 1 || f.historyLength > 6 ||
         !std::isfinite(f.strength) || f.strength < 0 || f.strength > 1 ||
@@ -805,7 +898,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        !requested.radianceScale.enabled && nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -840,6 +933,13 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.surfaceValidFill = requested.surfaceValidFill;
     impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
+    // Input-side only and fading: switching it never resets RR history.
+    impl_->settings.turnColourFilter = requested.turnColourFilter;
+    impl_->settings.turnColourFrames = requested.turnColourFrames;
+    impl_->settings.turnColourDegrees = requested.turnColourDegrees;
+    impl_->settings.turnBrightness = requested.turnBrightness;
+    impl_->settings.turnBrightnessAmount = requested.turnBrightnessAmount;
+    impl_->settings.turnBrightnessFrames = requested.turnBrightnessFrames;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
         {
@@ -1263,13 +1363,55 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     const auto nativeRecording = RecordedComputeLease::Capture(list);
     if (!nativeRecording || !nativeRecording->id) return reject("RR native recording identity is unavailable");
     recorded->nativeRecording = nativeRecording; recorded->recordingId = nativeRecording->id;
+    // Post-turn colour filter: full weight on a fast turn or RR reset, fading over turnColourFrames recorded frames.
+    // Post-turn brightness correction: gain 1/(1+bias), the bias scaled by the turn's peak speed (full at 20 deg/frame)
+    // and fading over turnBrightnessFrames. A reset without a fast turn restarts the colour fade only.
+    float turnWeight = 0.0f, turnGain = 1.0f;
+    if (impl_->settings.turnColourFilter || impl_->settings.turnBrightness)
+    {
+        const float degrees = CameraTurnDegrees(impl_->previous.camera.view, frame.camera.view);
+        const bool fast = !(degrees <= impl_->settings.turnColourDegrees);
+        if (reset || !impl_->historyValid || fast)
+        {
+            const float measured = fast && std::isfinite(degrees) ? degrees : 0.0f;
+            impl_->turnPeakDegrees = impl_->turnAge == 0u ? std::max(impl_->turnPeakDegrees, measured) : measured;
+            impl_->turnAge = 0u;
+        }
+        else impl_->turnAge = std::min(impl_->turnAge + 1u, 1u << 20);
+        const float age = float(impl_->turnAge);
+        if (impl_->settings.turnColourFilter)
+        {
+            const float frames = impl_->settings.turnColourFrames;
+            turnWeight = frames <= 0.0f ? 1.0f : std::max(0.0f, 1.0f - age / frames);
+        }
+        if (impl_->settings.turnBrightness)
+        {
+            constexpr float FullStrengthDegrees = 20.0f;
+            const float bias = impl_->settings.turnBrightnessAmount * std::min(1.0f, impl_->turnPeakDegrees / FullStrengthDegrees) *
+                std::max(0.0f, 1.0f - age / impl_->settings.turnBrightnessFrames);
+            turnGain = 1.0f / (1.0f + bias);
+        }
+        std::string turnError;
+        if ((turnWeight > 0.0f || turnGain < 1.0f) && !lease->context->EnsureTurnColour(*lease->slot, turnError))
+        {
+            if (impl_->loggedTurnFailure != turnError)
+            {
+                impl_->loggedTurnFailure = turnError;
+                LOG_WARN("[NRD_BRIDGE] Turn colour/brightness pass unavailable; RR reads the unfiltered inputs: {}", turnError);
+            }
+            turnWeight = 0.0f; turnGain = 1.0f;
+        }
+    }
+    const bool turnPass = turnWeight > 0.0f || turnGain < 1.0f;
+    ID3D12Resource* rrSpec = turnPass ? lease->context->turnSignals[0].Get() : input.spec;
+    ID3D12Resource* rrDiff = turnPass ? lease->context->turnSignals[1].Get() : input.diff;
     ffxDispatchDescDenoiserDirectDiffuse diffuse {};
     diffuse.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-    diffuse.signal.input = ffxApiGetResourceDX12(input.diff, FFX_API_RESOURCE_STATE_COMPUTE_READ);
+    diffuse.signal.input = ffxApiGetResourceDX12(rrDiff, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     diffuse.signal.output = ffxApiGetResourceDX12(lease->slot->diff.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
     ffxDispatchDescDenoiserIndirectSpecular specular {};
     specular.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR;
-    specular.signal.input = ffxApiGetResourceDX12(input.spec, FFX_API_RESOURCE_STATE_COMPUTE_READ);
+    specular.signal.input = ffxApiGetResourceDX12(rrSpec, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     specular.signal.output = ffxApiGetResourceDX12(lease->slot->spec.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
     diffuse.header.pNext = &specular.header; // AMD1.2 ABI ascending order: 0x44 then 0x48.
     ffxDispatchDescDenoiserDebugView nativeDebug {};
@@ -1321,8 +1463,25 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
             bool active = true;
             ~RestoreSignals() { if (active) context.ScaleSignals(list,slot,spec,diff,true); }
         };
-        FSRDRadianceScaleDx12::Scope sharedScale;
         const bool shared = impl_->settings.radianceScale.enabled;
+        if (!shared)
+        {
+            lease->context->BindScaleSignals(*lease->slot,input.spec,input.diff);
+            lease->context->ScaleSignals(list,*lease->slot,input.spec,input.diff,false);
+        }
+        const RestoreSignals restore {*lease->context,list,*lease->slot,input.spec,input.diff,!shared};
+        // Preserve the legacy filter's scaled-domain order while OFF. With the
+        // shared experiment it writes physical-unit RR copies before scaling.
+        // Declare this guard first: shared-scale cleanup must restore the copies
+        // to their readable state before they transition back to UAV.
+        struct RestoreTurn
+        {
+            const Context& context; ID3D12GraphicsCommandList* list; bool active;
+            ~RestoreTurn() { if (active) context.TurnColourBarriers(list,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS); }
+        };
+        if (turnPass) lease->context->TurnColour(list,*lease->slot,input.spec,input.diff,turnWeight,turnGain);
+        const RestoreTurn restoreTurn {*lease->context,list,turnPass};
+        FSRDRadianceScaleDx12::Scope sharedScale;
         if (shared)
         {
             if (!impl_->radianceScale.Before(device.Get(),list,dispatch,impl_->settings.radianceScale,sharedScale.work,error))
@@ -1330,12 +1489,6 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
             recorded->diffuseRadianceScale = float(impl_->settings.radianceScale.diffuse);
             recorded->specularRadianceScale = float(impl_->settings.radianceScale.specular);
         }
-        else
-        {
-            lease->context->BindScaleSignals(*lease->slot,input.spec,input.diff);
-            lease->context->ScaleSignals(list,*lease->slot,input.spec,input.diff,false);
-        }
-        const RestoreSignals restore {*lease->context,list,*lease->slot,input.spec,input.diff,!shared};
         try
         {
             NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);

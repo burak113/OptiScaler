@@ -232,6 +232,9 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
         require(identity["domain"] == manifest.get("captured_domain"), "mixed chain/domain payload")
         require(frame.get("native_nrd_output_captured") is False, "forbidden native output stage")
         settings = frame.get("settings", {})
+        turn = settings.get("turn_colour")
+        require(turn is None or (isinstance(turn, dict) and type(turn.get("enabled")) is bool and
+                type(turn.get("brightness", False)) is bool), "invalid post-turn RR input policy")
         require(settings.get("native_nrd_output_used") is False, "forbidden native output correction")
         encoded_settings = json.dumps(settings, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
         require(hashlib.sha256(encoded_settings).hexdigest() == frame.get("settings_sha256"), "settings hash mismatch")
@@ -419,6 +422,12 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
         reasons.append("replay_manifest_missing_capture_time_utc")
     if reset_reason_missing:
         reasons.append("reset_frame_missing_reset_reason")
+    # The preserved turn pass writes private RR-only copies. This recorder's
+    # input payloads predate that pass, so inspection remains valid but an exact
+    # provider replay cannot silently use the unfiltered samples instead.
+    if any(frame['settings'].get('turn_colour', {}).get(key, False)
+           for frame in result for key in ('enabled', 'brightness')):
+        reasons.append('post_turn_RR_input_copies_not_captured')
     eligible = not reasons and verify_payload
     chain_broken = "provider_context_or_recording_chain_changed_mid_sequence" in reasons
     return {"schema": "fsrd-nrd-bridge-replay-inputs-v1", "capture_uuid": manifest.get("capture_uuid"),

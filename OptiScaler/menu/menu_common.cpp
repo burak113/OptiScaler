@@ -3275,6 +3275,74 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
     return changed;
 }
 
+static bool DrawNrdBridgeTurnColour(Config* config)
+{
+    bool changed = false;
+    bool enabled = config->FfxDenoiserNrdBridgeTurnColour.value_or_default();
+    if (ImGui::Checkbox("Turn colour filter##NrdBridge", &enabled))
+    {
+        config->FfxDenoiserNrdBridgeTurnColour = enabled;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("After a fast camera turn RR's history is young and keeps the noisy lighting's coloured samples as "
+                          "coloured marks that fade over about a second. This gives RR's lighting inputs the colour of their "
+                          "11x11 neighbourhood (each sample keeps its own brightness) right after a turn and fades out over the "
+                          "frames below. White marks are not changed. Only RR's copy is filtered. Default off.");
+    ImGui::BeginDisabled(!enabled);
+    float frames = config->FfxDenoiserNrdBridgeTurnColourFrames.value_or_default();
+    if (ImGui::SliderFloat("Turn colour fade frames##NrdBridge", &frames, 0.0f, 120.0f, "%.0f"))
+    {
+        config->FfxDenoiserNrdBridgeTurnColourFrames = frames;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Frames after a turn until the filter is fully off. 0 keeps it always on (also flattens real "
+                          "fine colour detail). Default 30.");
+    ImGui::EndDisabled();
+    bool brightness = config->FfxDenoiserNrdBridgeTurnBrightness.value_or_default();
+    if (ImGui::Checkbox("Turn brightness correction##NrdBridge", &brightness))
+    {
+        config->FfxDenoiserNrdBridgeTurnBrightness = brightness;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("After a fast camera turn the game's lighting is ~15%% too bright for ~12 frames. RR restarts its "
+                          "history and averages those frames equally, so the excess fades only slowly (a white wash that "
+                          "lasts seconds). This divides RR's lighting inputs by the known excess right after the turn "
+                          "(scaled by how fast the turn was, full at 20 deg/frame) and fades out. Default off.");
+    ImGui::BeginDisabled(!brightness);
+    float amount = config->FfxDenoiserNrdBridgeTurnBrightnessAmount.value_or_default();
+    if (ImGui::SliderFloat("Turn brightness amount##NrdBridge", &amount, 0.0f, 0.5f, "%.2f"))
+    {
+        config->FfxDenoiserNrdBridgeTurnBrightnessAmount = amount;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Excess removed on the first frame after a fast turn (0.15 = 15%%). Raise it if a white wash "
+                          "remains after turns, lower it if the image dips darker. Default 0.15.");
+    float brightnessFrames = config->FfxDenoiserNrdBridgeTurnBrightnessFrames.value_or_default();
+    if (ImGui::SliderFloat("Turn brightness frames##NrdBridge", &brightnessFrames, 1.0f, 60.0f, "%.0f"))
+    {
+        config->FfxDenoiserNrdBridgeTurnBrightnessFrames = brightnessFrames;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Frames until the game's excess is gone and the correction is fully off. Default 12.");
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!enabled && !brightness);
+    float degrees = config->FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
+    if (ImGui::SliderFloat("Turn speed threshold (deg/frame)##NrdBridge", &degrees, 0.5f, 20.0f, "%.1f"))
+    {
+        config->FfxDenoiserNrdBridgeTurnColourDegrees = degrees;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Camera rotation per frame that counts as a turn and restarts both fades. Default 3.");
+    ImGui::EndDisabled();
+    return changed;
+}
+
 static bool DrawNrdBridgeLobeRecovery(Config* config)
 {
     bool changed = false;
@@ -3370,6 +3438,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     // settings re-apply must still forward the stored INI value instead of
     // rebuilding the snapshot without it.
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
+    NrdBridge::ReadTurnColourSettings(config, settings);
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.flatAlbedo = NrdBridge::ReadFlatAlbedoSettings(config);
     settings.radianceScale = ReadFSRDRadianceScale(config);
@@ -3527,6 +3596,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
             "ignores the 1-6 frame history length. Strength 0 or floor 0 disables both the floor and recovery.");
         ImGui::TreePop();
     }
+    changed |= DrawNrdBridgeTurnColour(config);
     changed |= DrawNrdBridgeLobeRecovery(config);
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;

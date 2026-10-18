@@ -205,6 +205,12 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeRecoverySpecular.reset();
     FfxDenoiserNrdBridgeRecoveryDiffuse.reset();
     FfxDenoiserNrdBridgeSurfaceValidFill.reset();
+    FfxDenoiserNrdBridgeTurnColour.reset();
+    FfxDenoiserNrdBridgeTurnColourFrames.reset();
+    FfxDenoiserNrdBridgeTurnColourDegrees.reset();
+    FfxDenoiserNrdBridgeTurnBrightness.reset();
+    FfxDenoiserNrdBridgeTurnBrightnessAmount.reset();
+    FfxDenoiserNrdBridgeTurnBrightnessFrames.reset();
     FfxDenoiserNrdBridgeUseCustomRR.reset();
     FfxDenoiserNrdBridgeNativeDebugView.reset();
     FfxDenoiserNrdBridgeNativeDebugViewport.reset();
@@ -561,6 +567,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeRecoverySpecular.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoverySpecular")));
             FfxDenoiserNrdBridgeRecoveryDiffuse.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoveryDiffuse")));
             FfxDenoiserNrdBridgeSurfaceValidFill.set_from_config(readBool("FSR-RR", "NrdBridgeSurfaceValidFill"));
+            FfxDenoiserNrdBridgeTurnColour.set_from_config(readBool("FSR-RR", "NrdBridgeTurnColourFilter"));
+            FfxDenoiserNrdBridgeTurnColourFrames.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourFrames"));
+            FfxDenoiserNrdBridgeTurnColourDegrees.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourDegrees"));
+            FfxDenoiserNrdBridgeTurnBrightness.set_from_config(readBool("FSR-RR", "NrdBridgeTurnBrightness"));
+            FfxDenoiserNrdBridgeTurnBrightnessAmount.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnBrightnessAmount"));
+            FfxDenoiserNrdBridgeTurnBrightnessFrames.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnBrightnessFrames"));
             FfxDenoiserNrdBridgeUseCustomRR.set_from_config(readBool("FSR-RR", "NrdBridgeUseCustomRR"));
             FfxDenoiserNrdBridgeNativeDebugView.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugView"));
             FfxDenoiserNrdBridgeNativeDebugViewport.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugViewport"));
@@ -1573,6 +1585,12 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeRecoverySpecular", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoveryDiffuse", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoveryDiffuse.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeSurfaceValidFill", GetBoolValue(Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnColourFilter", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnColour.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnColourFrames", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourFrames.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnColourDegrees", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourDegrees.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnBrightness", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnBrightness.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnBrightnessAmount", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnBrightnessAmount.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnBrightnessFrames", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnBrightnessFrames.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeUseCustomRR", GetBoolValue(Instance()->FfxDenoiserNrdBridgeUseCustomRR.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeDebugView", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugView.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeNativeDebugViewport", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugViewport.value_for_config()).c_str());

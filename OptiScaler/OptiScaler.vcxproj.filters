@@ -1893,6 +1893,7 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeTurnColour_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.h" />
@@ -1906,6 +1907,7 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeTurnColour.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter.hlsl" />
@@ -1919,6 +1921,7 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeTurnColour_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.cso" />

@@ -43,7 +43,7 @@ def main():
             assert row["source_native_resource_desc"]["flags"] in (0, 4)
             assert row["source_state"] == 64
     result = exercise(args.capture, output / "adversarial-published-prefix")
-    assert result["checks"] == 72
+    assert result["checks"] == 74
     result.update(compiler_executed=False, provider_loaded=False, actual_sdk_dispatches=0,
                   source_capture=str(args.capture.resolve()),
                   scope="CPU validation of real fenced recorder fixture bytes plus strict negative mutations; no actual provider attestation")

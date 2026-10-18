@@ -40,6 +40,12 @@ KEYS = {
     'FfxDenoiserNrdBridgeNativeMaterialGuides': ('NrdBridgeNativeMaterialGuides', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeSurfaceValidFill': ('NrdBridgeSurfaceValidFill', 'Bool'),
+    'FfxDenoiserNrdBridgeTurnColour': ('NrdBridgeTurnColourFilter', 'Bool'),
+    'FfxDenoiserNrdBridgeTurnColourFrames': ('NrdBridgeTurnColourFrames', 'Float'),
+    'FfxDenoiserNrdBridgeTurnColourDegrees': ('NrdBridgeTurnColourDegrees', 'Float'),
+    'FfxDenoiserNrdBridgeTurnBrightness': ('NrdBridgeTurnBrightness', 'Bool'),
+    'FfxDenoiserNrdBridgeTurnBrightnessAmount': ('NrdBridgeTurnBrightnessAmount', 'Float'),
+    'FfxDenoiserNrdBridgeTurnBrightnessFrames': ('NrdBridgeTurnBrightnessFrames', 'Float'),
     'FfxDenoiserNrdBridgeLobeRecovery': ('NrdBridgeLobeRecovery', 'Bool'),
     'FfxDenoiserNrdBridgeRecoverySpecular': ('NrdBridgeRecoverySpecular', 'Float'),
     'FfxDenoiserNrdBridgeRecoveryDiffuse': ('NrdBridgeRecoveryDiffuse', 'Float'),
@@ -134,7 +140,7 @@ bool SliderInt(const char* name,int* value,int minimum,int maximum){labels.push_
  *value=it->second;combos.erase(it);return true;}
 bool Checkbox(const char* name,bool* value){labels.push_back(name);auto it=bools.find(name);
  if(isDisabled()||it==bools.end())return false;bool next=it->second;bools.erase(it);bool changed=*value!=next;*value=next;return changed;}
-bool SliderFloat(const char* name,float* value,float minimum,float maximum){labels.push_back(name);auto it=floats.find(name);
+bool SliderFloat(const char* name,float* value,float minimum,float maximum,const char* =nullptr){labels.push_back(name);auto it=floats.find(name);
  if(isDisabled()||it==floats.end())return false;need(it->second>=minimum&&it->second<=maximum,"UI input stays inside actual slider range");
  *value=it->second;floats.erase(it);return true;}
 bool Button(const char* name){labels.push_back(name);return !isDisabled()&&buttons.erase(name)!=0;}
@@ -579,6 +585,66 @@ int main(){try{
  cfg.ResetFfxDenoiserSettings();
  need(!ReadNrdBridgeRRSettings(cfg).radianceScale.enabled&&!NrdBridge::last.radianceScale.enabled,
  "Full reset clears shared experiment in Config and the bridge runtime");
+
+ // Turn colour filter: default OFF, menu publishes one coherent snapshot, INI round trip, clamps, reset.
+ cfg.load("[FSR-RR]\nNrdBridgeTurnColourFilter=auto\nNrdBridgeTurnColourFrames=auto\nNrdBridgeTurnColourDegrees=auto\n");
+ NrdBridge::RRSettings turn;NrdBridge::ReadTurnColourSettings(cfg,turn);
+ need(!turn.turnColourFilter&&turn.turnColourFrames==30.f&&turn.turnColourDegrees==3.f,"Turn colour auto defaults OFF, 30 frames, 3 degrees");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Turn colour fade frames##NrdBridge"]=60.f;drawBridge(&cfg);
+ need(ImGui::hasLabel("Turn colour filter##NrdBridge")&&ImGui::hasLabel("Turn colour fade frames##NrdBridge")&&
+ NrdBridge::applyCalls==before&&cfg.FfxDenoiserNrdBridgeTurnColourFrames.value_or_default()==30.f,
+ "Turn colour sliders are disabled while the filter is OFF");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Turn colour filter##NrdBridge"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&cfg.FfxDenoiserNrdBridgeTurnColour.value_or_default()&&NrdBridge::last.turnColourFilter&&
+ NrdBridge::last.turnColourFrames==30.f&&NrdBridge::last.turnColourDegrees==3.f,"Actual checkbox publishes the filter with default fade");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Turn colour fade frames##NrdBridge"]=45.f;
+ ImGui::floats["Turn speed threshold (deg/frame)##NrdBridge"]=6.f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.turnColourFilter&&NrdBridge::last.turnColourFrames==45.f&&
+ NrdBridge::last.turnColourDegrees==6.f,"Both turn sliders publish in one snapshot");
+ saved=cfg.save();reload.load(saved);NrdBridge::RRSettings turnReload;NrdBridge::ReadTurnColourSettings(reload,turnReload);
+ need(turnReload.turnColourFilter&&turnReload.turnColourFrames==45.f&&turnReload.turnColourDegrees==6.f,"Turn colour survives actual save/reload");
+ for(const auto [frames,degrees,expectedFrames,expectedDegrees]:std::array<std::array<float,4>,4>{{{-5.f,0.f,0.f,.1f},{1000.f,500.f,600.f,180.f},
+ {std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),30.f,3.f},{0.f,3.f,0.f,3.f}}}) {
+  cfg.FfxDenoiserNrdBridgeTurnColourFrames=frames;cfg.FfxDenoiserNrdBridgeTurnColourDegrees=degrees;
+  NrdBridge::RRSettings bounded;NrdBridge::ReadTurnColourSettings(cfg,bounded);
+  need(bounded.turnColourFrames==expectedFrames&&bounded.turnColourDegrees==expectedDegrees,"Turn colour snapshot clamps finite and resets nonfinite values");
+ }
+ cfg.ResetFfxDenoiserSettings();NrdBridge::RRSettings turnReset;NrdBridge::ReadTurnColourSettings(cfg,turnReset);
+ need(!cfg.FfxDenoiserNrdBridgeTurnColour.value_or_default()&&!turnReset.turnColourFilter&&turnReset.turnColourFrames==30.f&&
+ !NrdBridge::last.turnColourFilter,"Full production reset turns the filter OFF in Config and runtime payload");
+
+ // Turn brightness correction: default OFF, independent of the colour filter, shares the turn threshold.
+ cfg.load("[FSR-RR]\nNrdBridgeTurnBrightness=auto\nNrdBridgeTurnBrightnessAmount=auto\nNrdBridgeTurnBrightnessFrames=auto\n");
+ NrdBridge::RRSettings bright;NrdBridge::ReadTurnColourSettings(cfg,bright);
+ need(!bright.turnBrightness&&bright.turnBrightnessAmount==.15f&&bright.turnBrightnessFrames==12.f&&!bright.turnColourFilter,
+ "Turn brightness auto defaults OFF, 0.15, 12 frames");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Turn brightness amount##NrdBridge"]=.3f;
+ ImGui::floats["Turn speed threshold (deg/frame)##NrdBridge"]=5.f;drawBridge(&cfg);
+ need(ImGui::hasLabel("Turn brightness correction##NrdBridge")&&ImGui::hasLabel("Turn brightness frames##NrdBridge")&&
+ NrdBridge::applyCalls==before&&cfg.FfxDenoiserNrdBridgeTurnBrightnessAmount.value_or_default()==.15f&&
+ cfg.FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default()==3.f,"Brightness sliders and the shared threshold stay disabled while both are OFF");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Turn brightness correction##NrdBridge"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.turnBrightness&&!NrdBridge::last.turnColourFilter&&
+ NrdBridge::last.turnBrightnessAmount==.15f&&NrdBridge::last.turnBrightnessFrames==12.f,"Brightness checkbox publishes alone");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Turn brightness amount##NrdBridge"]=.25f;
+ ImGui::floats["Turn brightness frames##NrdBridge"]=20.f;ImGui::floats["Turn speed threshold (deg/frame)##NrdBridge"]=5.f;
+ ImGui::floats["Turn colour fade frames##NrdBridge"]=60.f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.turnBrightnessAmount==.25f&&NrdBridge::last.turnBrightnessFrames==20.f&&
+ NrdBridge::last.turnColourDegrees==5.f&&NrdBridge::last.turnColourFrames==30.f,
+ "Brightness sliders and the shared threshold publish; the colour fade stays disabled while the colour filter is OFF");
+ saved=cfg.save();reload.load(saved);NrdBridge::RRSettings brightReload;NrdBridge::ReadTurnColourSettings(reload,brightReload);
+ need(brightReload.turnBrightness&&brightReload.turnBrightnessAmount==.25f&&brightReload.turnBrightnessFrames==20.f&&
+ brightReload.turnColourDegrees==5.f,"Turn brightness survives actual save/reload");
+ for(const auto [amount,frames,expectedAmount,expectedFrames]:std::array<std::array<float,4>,4>{{{-1.f,0.f,0.f,1.f},{2.f,500.f,.5f,120.f},
+ {std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),.15f,12.f},{.2f,8.f,.2f,8.f}}}) {
+  cfg.FfxDenoiserNrdBridgeTurnBrightnessAmount=amount;cfg.FfxDenoiserNrdBridgeTurnBrightnessFrames=frames;
+  NrdBridge::RRSettings bounded;NrdBridge::ReadTurnColourSettings(cfg,bounded);
+  need(bounded.turnBrightnessAmount==expectedAmount&&bounded.turnBrightnessFrames==expectedFrames,
+  "Turn brightness snapshot clamps finite and resets nonfinite values");
+ }
+ cfg.ResetFfxDenoiserSettings();NrdBridge::RRSettings brightReset;NrdBridge::ReadTurnColourSettings(cfg,brightReset);
+ need(!cfg.FfxDenoiserNrdBridgeTurnBrightness.value_or_default()&&!brightReset.turnBrightness&&brightReset.turnBrightnessAmount==.15f&&
+ !NrdBridge::last.turnBrightness,"Full production reset turns the brightness correction OFF in Config and runtime payload");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -593,6 +659,7 @@ def run():
     assert 'struct RRSettings\n' in rr
     contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('FlatAlbedoSettings','RRSettings','RRSettingsState'))
     contract+='\n'+function(rr,'template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(')
+    contract+='\n'+function(rr,'template<class Configuration> inline void ReadTurnColourSettings(')
     contract_origin='actual public RR header; actual public Status header'
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
     # D06/D07 recovery tiers/reasons plus the exact production name definitions:
@@ -640,7 +707,7 @@ def run():
         READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawSharedRRRadianceScale(', 'static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawSharedRRRadianceScale(', 'static bool DrawNrdBridgeTurnColour(', 'static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
     replacements['SCALE_POLICY']=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDRadianceScale.h').read_text().replace('#pragma once','')
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)

@@ -5,6 +5,7 @@ Source captures are read only and only their published prefix is copied.
 """
 from pathlib import Path
 import copy
+import hashlib
 import json
 import shutil
 from fsrd_nrd_trace_replay import inspect_capture, provider_radiance_scales
@@ -74,6 +75,17 @@ def exercise(source, output):
     rejected("invalid_radiance_scale_bool", lambda m: m["frames"][0].update(provider_radiance_scale=True,provider_radiance_scales={"diffuse":True,"specular":True}))
     rejected("inconsistent_legacy_radiance_scale", lambda m: m["frames"][0].update(provider_radiance_scale=256,provider_radiance_scales={"diffuse":16,"specular":256}))
     rejected("radiance_scale_policy_conflict", lambda m: m["frames"][0].update(provider_radiance_scale=0,provider_radiance_scales={"diffuse":16,"specular":256}))
+    for active in ('enabled','brightness'):
+        transformed=copy.deepcopy(original)
+        for frame in transformed['frames'][:count]:
+            frame['settings']['turn_colour']={'enabled':False,'brightness':False,active:True}
+            encoded=json.dumps(frame['settings'],sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
+            frame['settings_sha256']=hashlib.sha256(encoded).hexdigest()
+        write(transformed)
+        inspected=inspect_capture(output)
+        assert not inspected['full_temporal_replay_eligible']
+        assert 'post_turn_RR_input_copies_not_captured' in inspected['ineligibility_reasons']
+        checks.append('post_turn_'+active+'_copies_inspect_only')
     rejected("invalid_bridge_commit", lambda m: m.update(bridge_commit="nothex"))
     rejected("invalid_provider_binary_sha256", lambda m: m.update(provider_binary_sha256="A" * 64))
     rejected("invalid_captured_at_utc", lambda m: m.update(captured_at_utc="yesterday"))

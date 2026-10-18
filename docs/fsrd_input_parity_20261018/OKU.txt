@@ -53,3 +53,6 @@ yanÄ±ltÄ±cÄ± eÅŸleÅŸme Ã¼retmemek iÃ§in yakalama gÃ¶rÃ¼nÃ¼r hata ile durur. Norm
 ve normal trace devam eder. Bu referans iÃ§in kapalÄ± veya x1/x1 kullan.
 
 REPORT.md ayrÄ±ntÄ±lÄ± kanÄ±tlarÄ±, olumsuz sonuÃ§larÄ± ve sÄ±nÄ±rlarÄ± iÃ§erir.
+
+Turn colour/brightness açık native trace özel RR giriş kopyasını içermediği için
+inspect-only sayılır; tam eşleşen sağlayıcı yeniden oynatımı olarak kabul edilmez.

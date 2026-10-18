@@ -80,6 +80,9 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
             {"rr_fallback",p.flatAlbedo.rrFallback},{"diffuse_rr",p.flatAlbedo.diffuseRR},
             {"reflection_history",p.flatAlbedo.reflectionHistory},{"reflection_detail",Bits(p.flatAlbedo.reflectionDetail)},{"reflection_polish",Bits(p.flatAlbedo.reflectionPolish)}}},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
+        {"turn_colour",{{"enabled",p.turnColourFilter},{"frames",Bits(p.turnColourFrames)},{"degrees",Bits(p.turnColourDegrees)},
+            {"brightness",p.turnBrightness},{"brightness_amount",Bits(p.turnBrightnessAmount)},
+            {"brightness_frames",Bits(p.turnBrightnessFrames)}}},
         {"native_nrd_output_used",false}};
 }
 // D06/D07 proposed diagnostic vocabulary (control-model names, not keys).
