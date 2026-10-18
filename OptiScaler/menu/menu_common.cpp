@@ -3480,6 +3480,10 @@ static void DrawNrdBridgeRRTuning(Config* config)
             ImGui::SetTooltip("Reflection history only. How much of the history's fine detail (text, edges) is kept over the "
                               "single-frame fit, which smooths it; only detail that stands out from the history's noise is kept, "
                               "and isolated dots are removed. 0 = the fit's softer look. Default 1.");
+        if (ImGui::SliderFloat("Reflection polish##NrdFlat", &flat.reflectionPolish,0.0f,1.0f))
+        { config->FfxDenoiserRecoveryFlatReflectionPolish = flat.reflectionPolish; changed = true; }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Reflection history only. Reduces residual shimmer in low-contrast reflections using a short output history. Strong edges and radiance changes keep the current frame. 0 = v4. Changing it resets history. Default 0.");
         ImGui::TextWrapped("RR skips all spatial filtering below roughness 1/1023 (mirror bypass), so mirror-like water stays as "
             "sparse noise. Recovery gives RR a minimum roughness (default 2/1023). With Temporal reference off, the output on "
             "mirror pixels is a robust single-frame reference of the raw lobe: sharp, but it can drop dim reflections; "
@@ -4259,6 +4263,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserRecoveryFlatDiffuseRR.reset();
                     config->FfxDenoiserRecoveryFlatReflectionHistory.reset();
                     config->FfxDenoiserRecoveryFlatReflectionDetail.reset();
+                    config->FfxDenoiserRecoveryFlatReflectionPolish.reset();
                     config->FfxDenoiserInputChroma.reset();
                     config->FfxDenoiserRecoveryDebug.reset();
                 }

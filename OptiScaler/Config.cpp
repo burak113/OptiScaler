@@ -238,6 +238,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserRecoveryFlatDiffuseRR.reset();
     FfxDenoiserRecoveryFlatReflectionHistory.reset();
     FfxDenoiserRecoveryFlatReflectionDetail.reset();
+    FfxDenoiserRecoveryFlatReflectionPolish.reset();
     FfxDenoiserRecoveryDebug.reset();
 
     FfxDenoiserCompareView.reset();
@@ -594,6 +595,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserRecoveryFlatDiffuseRR.set_from_config(readBool("FSR-RR", "RecoveryFlatDiffuseRR"));
             FfxDenoiserRecoveryFlatReflectionHistory.set_from_config(readBool("FSR-RR", "RecoveryFlatReflectionHistory"));
             FfxDenoiserRecoveryFlatReflectionDetail.set_from_config(readFloat("FSR-RR", "RecoveryFlatReflectionDetail"));
+            FfxDenoiserRecoveryFlatReflectionPolish.set_from_config(readFloat("FSR-RR", "RecoveryFlatReflectionPolish"));
             FfxDenoiserRecoveryDebug.set_from_config(readInt("FSR-RR", "RecoveryDebug"));
             FfxDenoiserCompareView.set_from_config(readInt("FSR-RR", "CompareView"));
             FfxDenoiserCompareSplit.set_from_config(readFloat("FSR-RR", "CompareSplit"));
@@ -1589,6 +1591,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "RecoveryFlatDiffuseRR", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatDiffuseRR.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatReflectionHistory", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatReflectionHistory.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatReflectionDetail", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatReflectionDetail.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatReflectionPolish", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatReflectionPolish.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDebug", GetIntValue(Instance()->FfxDenoiserRecoveryDebug.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CompareView", GetIntValue(Instance()->FfxDenoiserCompareView.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CompareSplit", GetFloatValue(Instance()->FfxDenoiserCompareSplit.value_for_config()).c_str());

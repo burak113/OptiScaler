@@ -614,6 +614,7 @@ class Config
     CustomOptional<bool> FfxDenoiserRecoveryFlatReflectionHistory { false };
     // Share (0-1) of the history mean's fine detail kept over the robust fit; 0 = the fit's softer result.
     CustomOptional<float> FfxDenoiserRecoveryFlatReflectionDetail { 1.0f };
+    CustomOptional<float> FfxDenoiserRecoveryFlatReflectionPolish { 0.0f };
     // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.
     CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };
 

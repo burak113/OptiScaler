@@ -765,6 +765,7 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
         !std::isfinite(f.strength) || f.strength < 0 || f.strength > 1 ||
         !std::isfinite(f.anchor) || f.anchor < 0 || f.anchor > 8 ||
         !std::isfinite(f.mix) || f.mix < 0 || f.mix > 1 ||
+        !std::isfinite(f.reflectionPolish) || f.reflectionPolish < 0 || f.reflectionPolish > 1 ||
         !std::isfinite(f.temporalDenoise) || f.temporalDenoise < 0 || f.temporalDenoise > 2)
     { error = "RR Flat Albedo Recovery settings are invalid"; return false; }
     if (settings.overrideMask & ~0x7fu)

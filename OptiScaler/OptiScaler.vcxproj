@@ -1116,6 +1116,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridPrep_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridBlur_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridApply_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate.hlsl" />
@@ -1127,6 +1128,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridPrep.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridBlur.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridApply.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.cso" />
@@ -1138,6 +1140,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridPrep_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridBlur_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridApply_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeTemporalConstants_Dx12.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporal.hlsli" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.h" />

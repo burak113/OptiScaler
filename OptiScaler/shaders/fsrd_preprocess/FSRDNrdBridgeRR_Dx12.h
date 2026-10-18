@@ -49,6 +49,8 @@ struct FlatAlbedoSettings
     bool reflectionHistory = false;
     // Share of the history mean's fine detail kept over the robust fit (0 = the fit's softer result).
     float reflectionDetail = 1;
+    // Optional reflection-history polish. Zero preserves the v4 graph and output.
+    float reflectionPolish = 0;
     bool operator==(const FlatAlbedoSettings&) const = default;
 };
 // Shared by startup and live menu snapshots. This is the existing Flat Albedo
@@ -81,6 +83,11 @@ template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(c
         out.reflectionHistory = config.FfxDenoiserRecoveryFlatReflectionHistory.value_or_default();
         const float detail = config.FfxDenoiserRecoveryFlatReflectionDetail.value_or_default();
         out.reflectionDetail = std::isfinite(detail) ? std::clamp(detail,0.0f,1.0f) : 1.0f;
+    }
+    if constexpr (requires { config.FfxDenoiserRecoveryFlatReflectionPolish; })
+    {
+        const float polish = config.FfxDenoiserRecoveryFlatReflectionPolish.value_or_default();
+        out.reflectionPolish = std::isfinite(polish) ? std::clamp(polish,0.0f,1.0f) : 0.0f;
     }
     return out;
 }
