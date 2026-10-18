@@ -96,6 +96,7 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
             {
                 float3 h = all16 ? clamp(cubic,lo,hi):bilinear/weight;
                 float sum=0.0f,squares=0.0f,n=0.0f,minimum=3e38f,maximum=0.0f;
+                float3 minimumRGB=3e38f,maximumRGB=0.0f;
                 [unroll] for (int y=-1;y<=1;++y)
                     [unroll] for (int x=-1;x<=1;++x)
                     {
@@ -103,6 +104,7 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
                         if (!(c.a>0.0f)) continue;
                         const float l = GetLuminance(c.rgb);
                         sum+=l; squares+=l*l; n+=1.0f; minimum=min(minimum,l); maximum=max(maximum,l);
+                        minimumRGB=min(minimumRGB,c.rgb); maximumRGB=max(maximumRGB,c.rgb);
                     }
                 const float mean=sum/max(n,1.0f), sd=sqrt(max(squares/max(n,1.0f)-mean*mean,0.0f));
                 const float lc=GetLuminance(current.rgb), lh=GetLuminance(h);
@@ -115,6 +117,8 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
                 const float flat=saturate(1.0f-sd/max(mean*FlatContrast,1e-4f));
                 const float a=Strength*HistoryWeight*flat*saturate((0.8f-change)/0.6f);
                 h *= lh>1e-8f ? target/lh:1.0f;
+                // Bound stale chroma too: a locally absent colour cannot survive a luma-only clamp.
+                h=clamp(h,minimumRGB,maximumRGB);
                 result=current.rgb+a*(h-current.rgb);
             }
         }
