@@ -157,6 +157,21 @@ def inspect_native_control_header(root, frame, ordinal, identity, verify_payload
                 recorded_fields=[field_names[offset] for offset in expected]), size
 
 
+def provider_radiance_scales(frame):
+    scale = frame.get("provider_radiance_scale", 1)
+    scales = frame.get("provider_radiance_scales", {"diffuse": scale, "specular": scale})
+    require(isinstance(scales, dict) and set(scales) == {"diffuse", "specular"}, "invalid provider radiance scales")
+    for value in scales.values():
+        require(type(value) in (int, float) and value in tuple(2**k for k in range(13)), "unsupported provider radiance scale")
+    require(type(scale) in (int, float) and scale == (scales["diffuse"] if scales["diffuse"] == scales["specular"] else 0), "inconsistent legacy provider radiance scale")
+    policy = frame.get("settings", {}).get("radiance_scale")
+    if policy is not None:
+        require(isinstance(policy, dict) and type(policy.get("enabled")) is bool, "invalid radiance scale policy")
+        expected = {name: policy.get(name) for name in ("diffuse", "specular")} if policy["enabled"] else {"diffuse": 256, "specular": 256}
+        require(scales == expected, "actual provider radiance scales contradict the frozen settings")
+    return scale, scales
+
+
 def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
     root = Path(folder).resolve()
     manifest_path = root / "capture.json"
@@ -382,15 +397,14 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
         if flat.get("graph_recorded", False):
             require("recovery_original_normal_roughness" in physical, "flat recovery lacks original geometry payload")
             require(uint(flat.get("roughness_floor"), "flat roughness floor", 1023) > 0, "flat recovery floor is zero")
-        scale = frame.get("provider_radiance_scale", 1)
-        require(type(scale) in (int, float) and scale in (1, 256), "unsupported provider radiance scale")
+        scale, scales = provider_radiance_scales(frame)
         result.append({"ordinal": ordinal, "identity": identity, "context_generation": current[1],
                        "sdk_frame_index": sdk_frame, "actual_dispatch_flags": flags,
                        "provider_controls": controls, "provider": provider, "frame_parameters": params,
                        "settings": settings, "inputs": {name: resolved[name] for name in INPUTS},
                        "observations": {name: row for name, row in resolved.items() if name not in INPUTS},
                        "encoding": encoding, "native_control_header": native_controls, "payload_bytes": payload_bytes,
-                       "provider_radiance_scale": scale, "flat_albedo": flat,
+                       "provider_radiance_scale": scale, "provider_radiance_scales": scales, "flat_albedo": flat,
                        "auxiliary_inputs": {name: physical[name] for name in AUXILIARY_FORMATS if name in physical},
                        "skipped_original_dispatches": events})
     if published < MINIMUM_REPLAY_PREFIX_FRAMES:

@@ -1,0 +1,52 @@
+Run in F:/OptiRevelations/OSA-21-input-parity using the bundled Python:
+C:/Users/burak/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe
+All scripts below are in docs/fsrd_input_parity_20261018/.
+Scratch is F:/FSRD/sol_batch/21-input-parity; deliverables E:/FSRD/sol_batch/21-input-parity.
+Use the existing GPU lock. Never install the output DLL into a game folder.
+
+build_shared_runner.py
+parity_replay.py f2ef375f native native2 common_1 ds_1_256 ds_16_256 ds_64_256 ds_256_16 gpu_256_256 gpu_16_256
+parity_replay.py d6d2a083 native ds_16_256
+parity_replay.py cb550300 native ds_16_256
+parity_replay.py 06fadf38 native ds_16_256 ds_1_256
+parity_replay.py dc96ece3 gpu_1_1 gpu_256_256 gpu_16_256
+
+Optional rejected-representation probe (NOT a production shader feature):
+parity_replay.py f2ef375f asinhD_0.01 asinhD_0.1
+parity_replay.py d6d2a083 asinhD_0.01 asinhD_0.1
+parity_replay.py 06fadf38 asinhD_0.01 asinhD_0.1
+
+remeasure.py f2ef375f d6d2a083 cb550300 06fadf38 dc96ece3
+motion_registration.py f2ef375f
+motion_registration.py d6d2a083
+motion_registration.py dc96ece3
+input_statistics.py
+evaluate_limits.py
+
+Set environment FSRD_VIS_TAG=final, then:
+visualize.py f2ef375f native gpu_16_256
+
+Tests (run_check.py stores unique output folders; gpu serializes shared GPU use):
+run_check.py test_fsrd_radiance_scale.py cpu
+  The shader test takes the GPU lock internally; do NOT nest it in the wrapper's gpu lock.
+run_check.py test_fsrd_nrd_menu_settings.py cpu
+run_check.py test_fsrd_nrd_bridge_rr.py gpu --mode camera
+run_check.py test_fsrd_nrd_bridge_rr.py gpu --mode mock
+run_check.py test_fsrd_nrd_native_transactions.py gpu
+run_check.py test_fsrd_nrd_game_trace_bridge.py gpu
+run_check.py test_fsrd_nrd_trace_replay_cli.py cpu
+run_check.py test_fsrd_nrd_trace_replay_eligibility.py cpu --capture <two-frame real recorder fixture printed by game_trace_bridge test>
+
+The strict native replay runner compile is separate from replay eligibility:
+OptiScaler/shaders/shader_tools/tests/fsrd_nrd_trace_replay_cli.py <capture> --prepare-only --output <output>
+The ROI captures are inspect-only under the strict full-render replay contract.
+The research runner is explicitly a cropped replay with missing off-ROI history.
+
+Full release build: build.py
+Optional MO2 overlay generation (writes only E: task deliverables): make_ultraplus_control.py
+
+Required runtime imports: numpy, Pillow; local fsrd_toolchain and installed VS/DXC.
+Existing GPU lock F:/FSRD/sol_batch/gpu_lock.py is used.
+survey_audit.py additionally imports OSA-11-frame-survey/tools/fsrd_frame_survey/survey.py.
+Do not rerun the old integrate/repair/review_cleanup scripts: they are one-time edits,
+not part of the archived reproducible research source.

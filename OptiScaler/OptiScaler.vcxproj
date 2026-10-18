@@ -352,6 +352,8 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceBridgeMetadata.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.inl" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDProbeInputs_Shader.h" />
@@ -1106,6 +1108,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgePureCommit_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.h" />
@@ -1118,6 +1121,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridApply_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter.hlsl" />
@@ -1130,6 +1134,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatHybridApply.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatReferenceFilter_Shader.cso" />

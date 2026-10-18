@@ -290,7 +290,13 @@ void ClearPair(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Reso
 }
 void RecordTestProviderWrites(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff)
 {
-    ClearPair(list,spec,diff,FfxApiProxy::mockSpec,FfxApiProxy::mockDiff);
+    auto s=FfxApiProxy::mockSpec,d=FfxApiProxy::mockDiff;
+    for(unsigned c=0;c<3;++c)
+    {
+        s[c]=std::min(s[c]*FfxApiProxy::mockSpecularScale,65504.f);
+        d[c]=std::min(d[c]*FfxApiProxy::mockDiffuseScale,65504.f);
+    }
+    ClearPair(list,spec,diff,s,d);
 }
 void ClearTexture(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,const std::array<float,4>& value,
                   const D3D12_RECT* rect=nullptr)
@@ -691,6 +697,9 @@ void runtimeSettingsChecks(Host& host)
     Scene scene(host,FfxApiProxy::real?1505u:64u,FfxApiProxy::real?847u:64u);host.submit();host.reset();
     RRWrapper wrapper;FrameParameters frame;std::string error;uint32_t token=2000;
     auto step=[&](bool expectedReset){
+        const auto scale=wrapper.GetSettingsState().requested.radianceScale;
+        FfxApiProxy::mockDiffuseScale=scale.enabled?float(scale.diffuse):256.f;
+        FfxApiProxy::mockSpecularScale=scale.enabled?float(scale.specular):256.f;
         need(wrapper.PrepareFrame(camera(token++),false,frame,error),"prepare configured frame");
         need(frame.reset==expectedReset,"RR settings reset only the intended history frame");
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
@@ -724,6 +733,26 @@ void runtimeSettingsChecks(Host& host)
         need(std::bit_cast<uint32_t>(wrapper.GetSettingsState().requested.nativeSpecularBlend)==0u,
             "live requested native coefficient is always positive zero");step(false);
     }
+    custom.radianceScale={true,16,256};
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,
+        "shared scale is stored without inventing an AMD configure key");step(true);step(false);
+    need(wrapper.GetSettingsState().requested.radianceScale==custom.radianceScale,
+        "shared scale runtime snapshot keeps both lobe factors");
+    need(wrapper.PrepareFrame(camera(token++),false,frame,error),"prepare per-lobe capture frame");
+    { // Release this deliberately retained snapshot before later context-retirement checks.
+        RRRecordedOutputLease scaledOutput;
+        need(wrapper.RecordOwned(host.list.Get(),scene.resources,frame,scaledOutput,error),error.c_str());
+        need(wrapper.CommitOwned(host.list.Get(),scaledOutput,scene.spec(),scene.diff(),frame,error),error.c_str());
+        host.submit();host.reset();
+        custom.radianceScale.diffuse=64;
+        need(wrapper.Configure(custom,error),"change diffuse scale after retaining an older output");
+        const auto frozenScale=wrapper.GetOwnedOutputSnapshot(scaledOutput);
+        need(frozenScale.providerDiffuseRadianceScale==16.f && frozenScale.providerSpecularRadianceScale==256.f &&
+             frozenScale.providerRadianceScale==0.f,"captured scales belong to the recorded frame, not later settings");step(true);
+    }
+    custom.radianceScale={};
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,
+        "shared scale OFF restores the legacy normalization without changing SDK keys");step(true);
     const auto generation=wrapper.ContextGeneration();custom.preserveNativeMaterialIDs=true;
     need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls && wrapper.ContextGeneration()==generation,
         "material ID experiment is stored without inventing an AMD configure key or recreating context");
@@ -1187,6 +1216,12 @@ void nearestHalfEdgeChecks(Host& host)
     ConsumerBuffer old(host),next(host);next.flag(1);
     NativeTableConsumer consumer(host,scene.spec(),scene.diff(),64,64);
     const auto priorSpec=FfxApiProxy::mockSpec,priorDiff=FfxApiProxy::mockDiff;
+    const auto priorSpecScale=FfxApiProxy::mockSpecularScale,priorDiffScale=FfxApiProxy::mockDiffuseScale;
+    // This is a codec endpoint test, so use unity units to retain the complete
+    // half range (including 65504), independent of radiance normalization.
+    RRSettings codecSettings;codecSettings.radianceScale={true,1,1};
+    need(wrapper.Configure(codecSettings,error),"codec endpoint test uses explicit unity provider units");
+    FfxApiProxy::mockSpecularScale=FfxApiProxy::mockDiffuseScale=1.f;
     FfxApiProxy::recordPartialWrites=true;
     for(unsigned i=0;i<cases.size();++i)
     {
@@ -1207,6 +1242,7 @@ void nearestHalfEdgeChecks(Host& host)
         decodedDiff.consumerGpuRoundtrip(diff,stagedDiff,64,64,true);
     }
     FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=priorSpec;FfxApiProxy::mockDiff=priorDiff;
+    FfxApiProxy::mockSpecularScale=priorSpecScale;FfxApiProxy::mockDiffuseScale=priorDiffScale;
 }
 void tableFailureChecks(Host& host)
 {

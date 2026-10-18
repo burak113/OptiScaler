@@ -16,6 +16,7 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "FSRDFeature_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDRadianceScale_Dx12.h"
 #include "FSRDFullContextReference_Dx12.h"
 #include "FSRDResultClassification.h"
 #include "FSRInputAlignment.h"
@@ -2639,6 +2640,9 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserMaxRadiance"]=cfg.FfxDenoiserMaxRadiance.value_or_default();
                 applied["FfxDenoiserRadianceClip"]=cfg.FfxDenoiserRadianceClip.value_or_default();
                 applied["FfxDenoiserGaussKernRelax"]=cfg.FfxDenoiserGaussKernRelax.value_or_default();
+                applied["FfxDenoiserRadianceScaleExperiment"]=_radianceScaleSettings.enabled;
+                applied["FfxDenoiserRadianceScaleDiffuse"]=_radianceScaleSettings.diffuse;
+                applied["FfxDenoiserRadianceScaleSpecular"]=_radianceScaleSettings.specular;
                 applied["FfxDenoiserInputChroma"]=cfg.FfxDenoiserInputChroma.value_or_default();
                 applied["FfxDenoiserDebugDepthMax"]=cfg.FfxDenoiserDebugDepthMax.value_or_default();
                 applied["FfxDenoiserDiagnostics"]=cfg.FfxDenoiserDiagnostics.value_or_default();
@@ -2709,6 +2713,8 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                         {"signal_flags",_gameTraceCreateContract.signalFlags},
                         {"rr_create_contract",createContract},
                         {"diffuse_type",_diffuseSignalDescType}, {"specular_type",_specularSignalDescType},
+                        {"provider_radiance_scales",{{"diffuse",_radianceScaleSettings.enabled?_radianceScaleSettings.diffuse:1u},
+                            {"specular",_radianceScaleSettings.enabled?_radianceScaleSettings.specular:1u}}},
                         {"denoise_diffuse",_denoiseDiffuse}, {"denoise_specular",_denoiseSpecular},
                         {"conversion_flags",_convDesc.Flags}, {"composition_flags",compDesc.Flags},
                         {"conversion_recovery_mask",_convDesc.RecoveryMask},
@@ -3067,6 +3073,12 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
         return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     _runtime.Complete(FSRDRuntimeSnapshot::Conversion);
 
+    const auto radianceScale = ReadFSRDRadianceScale(cfg);
+    if (radianceScale != _radianceScaleSettings)
+    {
+        _radianceScaleSettings = radianceScale;
+        InvalidateDenoiserHistory();
+    }
     // Camera matrix - translation and rotation, from viewMatrix^-1
     const XMFLOAT3 camPos = GetFloat3Column(_invViewMatrix, 3);
     const bool resetHistory = _isInReset || !_hasDenoiserHistory;
@@ -4681,6 +4693,11 @@ void FSRDFeatureDx12::PrepareFullContextReference(ID3D12GraphicsCommandList* lis
     if (!FSRDConvShader || !FSRDConvShader->HasAdmittedGameTraceFrame()) return;
     try
     {
+        // The existing RESET reference clones unscaled inputs; fail this optional
+        // capture closed rather than label a different radiance domain as equivalent.
+        if (_radianceScaleSettings.enabled &&
+            (_radianceScaleSettings.diffuse != 1 || _radianceScaleSettings.specular != 1))
+            throw std::runtime_error("Full-context RESET reference requires shared radiance scaling OFF or x1/x1");
         if (!_gameTraceCreateContract.valid || _gameTraceDispatchJson.empty())
             throw std::runtime_error("Full-context reference accepted primary boundary is unavailable");
         if (!_fullContextReference) _fullContextReference = std::make_unique<FSRDFullContextReferenceDx12>();
@@ -4955,7 +4972,21 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
         return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     SnapshotGameTraceDispatch(dispatchDesc);
     PrepareFullContextReference(InCommandList, dispatchDesc);
-    const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
+    ffxReturnCode_t result;
+    {
+        FSRDRadianceScaleDx12::Scope sharedScale;
+        if (_radianceScaleSettings.enabled)
+        {
+            if (!_radianceScale) _radianceScale = std::make_unique<FSRDRadianceScaleDx12>();
+            std::string scaleError;
+            if (!_radianceScale->Before(Device,InCommandList,dispatchDesc,_radianceScaleSettings,sharedScale.work,scaleError))
+            {
+                LOG_ERROR("[RR_INPUT] shared radiance scaling: {}",scaleError);
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR,false);
+            }
+        }
+        result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
+    }
     _lastDispatchRequestedReset = resetRequested;
 
     if (hasScopedInfoQueue)

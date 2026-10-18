@@ -30,6 +30,9 @@ KEYS = {
     'FfxDenoiserRecoveryFlatReflectionHistory': ('RecoveryFlatReflectionHistory', 'Bool'),
     'FfxDenoiserRecoveryFlatReflectionDetail': ('RecoveryFlatReflectionDetail', 'Float'),
     'FfxDenoiserRecoveryFlatReflectionPolish': ('RecoveryFlatReflectionPolish', 'Float'),
+    'FfxDenoiserRadianceScaleExperiment': ('RadianceScaleExperiment', 'Bool'),
+    'FfxDenoiserRadianceScaleDiffuse': ('RadianceScaleDiffuse', 'Int'),
+    'FfxDenoiserRadianceScaleSpecular': ('RadianceScaleSpecular', 'Int'),
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
     'FfxDenoiserNrdBridgeLegacyMotionDepth': ('NrdBridgeLegacyMotionDepth', 'Bool'),
@@ -78,6 +81,7 @@ constexpr int VK_F9=120;
 unsigned checks=0;
 void need(bool ok,const char* message){if(!ok)throw std::runtime_error(message);++checks;}
 __CUSTOM__
+__SCALE_POLICY__
 __FFX_DEBUG_CONTRACT__
 namespace FSRDSignals {constexpr int Auto=0;}
 namespace NrdBridge {
@@ -551,6 +555,30 @@ int main(){try{
  "Full production reset clears polish in Config and the coherent runtime payload");
  saved=cfg.save();reload.load(saved);need(NrdBridge::ReadFlatAlbedoSettings(reload).reflectionPolish==0.f,
  "Polish OFF reset survives actual save/reload");
+ cfg.load("[FSR-RR]\nRadianceScaleExperiment=false\nRadianceScaleDiffuse=16\nRadianceScaleSpecular=256\n");
+ ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ need(!ReadNrdBridgeRRSettings(cfg).radianceScale.enabled&&NrdBridge::applyCalls==before,
+ "Shared radiance scale stays OFF and idle UI does not reconfigure the provider");
+ ImGui::frame();ImGui::bools["Shared RR radiance scale (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.radianceScale.enabled&&
+ NrdBridge::last.radianceScale.diffuse==16&&NrdBridge::last.radianceScale.specular==256,
+ "Shared scale checkbox sends the coherent per-lobe candidate");
+ ImGui::frame();ImGui::combos["Diffuse input scale##SharedRR"]=0;drawBridge(&cfg);
+ need(NrdBridge::last.radianceScale.diffuse==1&&NrdBridge::last.radianceScale.specular==256,
+ "Diffuse scale changes only its lobe in the runtime snapshot");
+ saved=cfg.save();reload.load(saved);
+ need(ReadNrdBridgeRRSettings(reload).radianceScale==ReadNrdBridgeRRSettings(cfg).radianceScale,
+ "Shared enabled/scales survive actual INI save and reload");
+ for(const char* text:{"3","-1","0","4097","invalid","nan"}) {
+  cfg.load(std::string("[FSR-RR]\nRadianceScaleDiffuse=")+text+"\nRadianceScaleSpecular="+text+"\n");
+  const auto scales=ReadNrdBridgeRRSettings(cfg).radianceScale;
+  need(scales.diffuse==16&&scales.specular==256&&!scales.enabled,
+  "Malformed/non-power scales normalize to the disabled default candidate");
+ }
+ cfg.FfxDenoiserRadianceScaleExperiment=true;cfg.FfxDenoiserRadianceScaleDiffuse=1;
+ cfg.ResetFfxDenoiserSettings();
+ need(!ReadNrdBridgeRRSettings(cfg).radianceScale.enabled&&!NrdBridge::last.radianceScale.enabled,
+ "Full reset clears shared experiment in Config and the bridge runtime");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -612,7 +640,8 @@ def run():
         READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawSharedRRRadianceScale(', 'static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+    replacements['SCALE_POLICY']=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDRadianceScale.h').read_text().replace('#pragma once','')
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)
     assert not re.search(r'__[A-Z_]+__',cpp)

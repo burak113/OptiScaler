@@ -2106,6 +2106,7 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
                 {"reference","independent_current_noisy_lobes; original_roughness; no_native_NRD_history"},
                 {"original_geometry_role",output.flatAlbedoActive ? "recovery_original_normal_roughness" : "input_normal_roughness"}}},
             {"provider_radiance_scale",output.providerRadianceScale},
+            {"provider_radiance_scales",{{"diffuse",output.providerDiffuseRadianceScale},{"specular",output.providerSpecularRadianceScale}}},
             {"provider",{{"version_id",output.providerVersionId},{"api_version",output.providerApiVersion},
                 {"signal_flags",output.providerSignalFlags},{"context_flags",output.providerContextFlags},
                 {"checkerboard_signal_flags",output.providerCheckerboardSignalFlags},

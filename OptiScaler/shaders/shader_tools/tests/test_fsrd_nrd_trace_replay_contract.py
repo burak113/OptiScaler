@@ -7,7 +7,7 @@ from pathlib import Path
 import copy
 import json
 import shutil
-from fsrd_nrd_trace_replay import inspect_capture
+from fsrd_nrd_trace_replay import inspect_capture, provider_radiance_scales
 
 
 def exercise(source, output):
@@ -59,6 +59,21 @@ def exercise(source, output):
     checks.append("B_control_words_named_for_selector_phase_origin_rect_inspection")
     assert baseline["frames"][0]["native_control_header"]["recorded_fields"][:2] == ["native_word28_x", "native_word28_y"]
     checks.append("A_control_words_named_without_inventing_B_semantics")
+    assert provider_radiance_scales({}) == (1, {"diffuse": 1, "specular": 1})
+    assert provider_radiance_scales({"provider_radiance_scale": 256})[1] == {"diffuse": 256, "specular": 256}
+    checks.append("legacy_common_radiance_scales_preserved")
+    paired={"provider_radiance_scale": 0, "provider_radiance_scales": {"diffuse":16,"specular":256},
+            "settings":{"radiance_scale":{"enabled":True,"diffuse":16,"specular":256}}}
+    assert provider_radiance_scales(paired)[1] == {"diffuse":16,"specular":256}
+    checks.append("per_lobe_radiance_scales_preserved")
+    for scale in (1,2,4,8,16,32,64,128,256,512,1024,2048,4096):
+        assert provider_radiance_scales({"provider_radiance_scale":scale})[0] == scale
+    checks.append("all_UI_scale_values_match_replay")
+    rejected("invalid_radiance_scale_keys", lambda m: m["frames"][0].update(provider_radiance_scales={"diffuse":16}))
+    rejected("invalid_radiance_scale_power", lambda m: m["frames"][0].update(provider_radiance_scale=3,provider_radiance_scales={"diffuse":3,"specular":3}))
+    rejected("invalid_radiance_scale_bool", lambda m: m["frames"][0].update(provider_radiance_scale=True,provider_radiance_scales={"diffuse":True,"specular":True}))
+    rejected("inconsistent_legacy_radiance_scale", lambda m: m["frames"][0].update(provider_radiance_scale=256,provider_radiance_scales={"diffuse":16,"specular":256}))
+    rejected("radiance_scale_policy_conflict", lambda m: m["frames"][0].update(provider_radiance_scale=0,provider_radiance_scales={"diffuse":16,"specular":256}))
     rejected("invalid_bridge_commit", lambda m: m.update(bridge_commit="nothex"))
     rejected("invalid_provider_binary_sha256", lambda m: m.update(provider_binary_sha256="A" * 64))
     rejected("invalid_captured_at_utc", lambda m: m.update(captured_at_utc="yesterday"))

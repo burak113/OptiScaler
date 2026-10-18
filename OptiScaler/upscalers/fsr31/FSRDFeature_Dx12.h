@@ -10,6 +10,8 @@
 #include "FSRDRetryPolicy.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include <DirectXMath.h>
+#include "shaders/fsrd_preprocess/FSRDRadianceScale.h"
+class FSRDRadianceScaleDx12;
 
 class DLSSDFeatureDx12;
 class FSRDFullContextReferenceDx12;
@@ -103,6 +105,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     std::shared_ptr<FfxContextOwner> _denoiserCtxOwner;
     // Transient capture-only full-native RESET reference. Never drives primary output/history.
     std::unique_ptr<FSRDFullContextReferenceDx12> _fullContextReference;
+    std::unique_ptr<FSRDRadianceScaleDx12> _radianceScale;
+    FSRDRadianceScaleSettings _radianceScaleSettings {};
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     // Version parsed from the selected RR provider name. Kept separate from
     // FSR31Feature::_version so the SR upscaler version that Version() reports -

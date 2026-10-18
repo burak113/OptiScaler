@@ -474,6 +474,7 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.recoveryDiffuse = NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
     }
     settings.flatAlbedo = ReadFlatAlbedoSettings(config);
+    settings.radianceScale = ReadFSRDRadianceScale(config);
     if constexpr (requires { config.FfxDenoiserNrdBridgeSurfaceValidFill; })
         settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeLegacyMotionDepth; })
@@ -579,7 +580,7 @@ bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
         a.nativeDebugViewport != b.nativeDebugViewport || a.preserveNativeMaterialIDs != b.preserveNativeMaterialIDs ||
         a.nativeTemporalMotion != b.nativeTemporalMotion || a.nativeMaterialGuides != b.nativeMaterialGuides ||
         a.lobeRecovery != b.lobeRecovery || a.flatAlbedo != b.flatAlbedo || a.recoverySpecular != b.recoverySpecular ||
-        a.recoveryDiffuse != b.recoveryDiffuse) return false;
+        a.recoveryDiffuse != b.recoveryDiffuse || a.radianceScale != b.radianceScale) return false;
     for (uint32_t i=0;i<8;++i)
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;

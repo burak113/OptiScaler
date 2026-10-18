@@ -40,6 +40,9 @@ struct FfxApiProxy
     static inline bool recordPartialWrites = false;
     static inline uint64_t rejectConfigureKey = 0;
     static inline std::array<float,4> mockSpec {2.5f,3.75f,4.25f,5.5f}, mockDiff {6.5f,7.75f,8.25f,9.5f};
+    // Mock RGB is specified in physical post-inverse units. The provider seam
+    // must emit the same scaled domain as the signed provider, including OFF x256.
+    static inline float mockSpecularScale = 256.f, mockDiffuseScale = 256.f;
     static inline std::array<float,4> mockDebug {.1875f,.625f,.8125f,1.f};
     static inline uint64_t providerCount = 1;
     static inline const char* providerName = "AMD FSR Denoiser v1.2.0";

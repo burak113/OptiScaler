@@ -11,6 +11,7 @@
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "FSRDRadianceScale_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdFlatAlbedoRecovery_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
@@ -727,11 +728,13 @@ struct RRRecordedOutput
     mutable bool nativeEncodingCaptured = false;
     std::array<uint8_t, 184> providerControl {};
     uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
+    float diffuseRadianceScale = 256.0f, specularRadianceScale = 256.0f;
 };
 
 struct RRWrapper::Impl
 {
     std::shared_ptr<Context> context;
+    FSRDRadianceScaleDx12 radianceScale;
     uint64_t generation = 0;
     uint32_t nextFrame = 0;
     bool resetPending = true, historyValid = false;
@@ -760,6 +763,8 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
         settings.recoverySpecular < 0.0f || settings.recoverySpecular > 1.0f ||
         settings.recoveryDiffuse < 0.0f || settings.recoveryDiffuse > 1.0f)
     { error = "RR detail recovery strengths must be finite values in [0,1]"; return false; }
+    if (!ValidFSRDRadianceScale(settings.radianceScale.diffuse) || !ValidFSRDRadianceScale(settings.radianceScale.specular))
+    { error = "RR radiance scales must be powers of two in [1,4096]"; return false; }
     const auto& f = settings.flatAlbedo;
     if (f.roughness > 1023 || f.historyLength < 1 || f.historyLength > 6 ||
         !std::isfinite(f.strength) || f.strength < 0 || f.strength > 1 ||
@@ -800,7 +805,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -811,6 +816,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides ||
         impl_->settings.lobeRecovery != requested.lobeRecovery ||
         impl_->settings.flatAlbedo != requested.flatAlbedo ||
+        impl_->settings.radianceScale != requested.radianceScale ||
         impl_->settings.recoverySpecular != requested.recoverySpecular ||
         impl_->settings.recoveryDiffuse != requested.recoveryDiffuse ||
         impl_->settings.surfaceValidFill != requested.surfaceValidFill ||
@@ -829,6 +835,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.legacyMotionDepth = requested.legacyMotionDepth;
     impl_->settings.lobeRecovery = requested.lobeRecovery;
     impl_->settings.flatAlbedo = requested.flatAlbedo;
+    impl_->settings.radianceScale = requested.radianceScale;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.surfaceValidFill = requested.surfaceValidFill;
@@ -1311,11 +1318,24 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         struct RestoreSignals
         {
             const Context& context; ID3D12GraphicsCommandList* list; const Context::Slot& slot; ID3D12Resource* spec; ID3D12Resource* diff;
-            ~RestoreSignals() { context.ScaleSignals(list,slot,spec,diff,true); }
+            bool active = true;
+            ~RestoreSignals() { if (active) context.ScaleSignals(list,slot,spec,diff,true); }
         };
-        lease->context->BindScaleSignals(*lease->slot,input.spec,input.diff);
-        lease->context->ScaleSignals(list,*lease->slot,input.spec,input.diff,false);
-        const RestoreSignals restore {*lease->context,list,*lease->slot,input.spec,input.diff};
+        FSRDRadianceScaleDx12::Scope sharedScale;
+        const bool shared = impl_->settings.radianceScale.enabled;
+        if (shared)
+        {
+            if (!impl_->radianceScale.Before(device.Get(),list,dispatch,impl_->settings.radianceScale,sharedScale.work,error))
+            { AbandonOwned(recorded); return false; }
+            recorded->diffuseRadianceScale = float(impl_->settings.radianceScale.diffuse);
+            recorded->specularRadianceScale = float(impl_->settings.radianceScale.specular);
+        }
+        else
+        {
+            lease->context->BindScaleSignals(*lease->slot,input.spec,input.diff);
+            lease->context->ScaleSignals(list,*lease->slot,input.spec,input.diff,false);
+        }
+        const RestoreSignals restore {*lease->context,list,*lease->slot,input.spec,input.diff,!shared};
         try
         {
             NrdBridgeStagePerf::StackTimer provider(profiling,NrdBridgeStagePerf::Stage::ProviderDispatch);
@@ -1379,6 +1399,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.recoveryTier = output->recoveryTier;
     result.recoveryFallbackReason = output->recoveryFallbackReason;
     result.recoveryErrorText = output->recoveryErrorText;
+    result.providerDiffuseRadianceScale = output->diffuseRadianceScale;
+    result.providerSpecularRadianceScale = output->specularRadianceScale;
+    result.providerRadianceScale = output->diffuseRadianceScale == output->specularRadianceScale ? output->diffuseRadianceScale : 0.0f;
     result.providerControl = output->providerControl;
     result.providerVersionId = lease->context->overrideVersion.versionId;
     result.providerApiVersion = lease->context->create.version;

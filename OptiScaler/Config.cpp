@@ -168,6 +168,9 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserMaxRadiance.reset();
     FfxDenoiserRadianceClip.reset();
     FfxDenoiserGaussKernRelax.reset();
+    FfxDenoiserRadianceScaleExperiment.reset();
+    FfxDenoiserRadianceScaleDiffuse.reset();
+    FfxDenoiserRadianceScaleSpecular.reset();
     FfxDenoiserInputChroma.reset();
     FfxDenoiserDebugDepthMax.reset();
     FfxDenoiserDiagnostics.reset();
@@ -519,6 +522,9 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserMaxRadiance.set_from_config(readFloat("FSR-RR", "MaxRadiance"));
             FfxDenoiserRadianceClip.set_from_config(readFloat("FSR-RR", "RadianceClipDeviation"));
             FfxDenoiserGaussKernRelax.set_from_config(readFloat("FSR-RR", "GaussianKernelRelaxation"));
+            FfxDenoiserRadianceScaleExperiment.set_from_config(readBool("FSR-RR", "RadianceScaleExperiment"));
+            FfxDenoiserRadianceScaleDiffuse.set_from_config(readInt("FSR-RR", "RadianceScaleDiffuse"));
+            FfxDenoiserRadianceScaleSpecular.set_from_config(readInt("FSR-RR", "RadianceScaleSpecular"));
             FfxDenoiserInputChroma.set_from_config(readBool("FSR-RR", "InputColourNoiseFilter"));
             FfxDenoiserHardwareDepth.set_from_config(readBool("FSR-RR", "HardwareDepth"));
             FfxDenoiserIndex.set_from_config(readInt("FSR-RR", "ProviderIndex"));
@@ -1519,6 +1525,9 @@ bool Config::SaveIni()
                      GetFloatValue(Instance()->FfxDenoiserRadianceClip.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "GaussianKernelRelaxation",
                      GetFloatValue(Instance()->FfxDenoiserGaussKernRelax.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RadianceScaleExperiment", GetBoolValue(Instance()->FfxDenoiserRadianceScaleExperiment.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RadianceScaleDiffuse", GetIntValue(Instance()->FfxDenoiserRadianceScaleDiffuse.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RadianceScaleSpecular", GetIntValue(Instance()->FfxDenoiserRadianceScaleSpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "InputColourNoiseFilter",
                      GetBoolValue(Instance()->FfxDenoiserInputChroma.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "HardwareDepth",

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <climits>
 #include <cmath>
 #include <cstddef>
@@ -321,11 +322,13 @@ int main(int argc,char** argv)try
     {
         const auto& frame=frames.at(index);Require(frame.at("ordinal").get<size_t>()==index,"frame order changed");
         const float radianceScale=frame.value("provider_radiance_scale",1.0f);
-        Require(radianceScale==1.f||radianceScale==256.f,"unsupported captured radiance scale");
+        const auto scales=frame.value("provider_radiance_scales",Json{{"diffuse",radianceScale},{"specular",radianceScale}});
+        const std::array<float,2> radianceScales {scales.at("diffuse").get<float>(),scales.at("specular").get<float>()};
+        for (const float value:radianceScales) Require(value>=1.f&&value<=4096.f&&std::has_single_bit(uint32_t(value))&&value==float(uint32_t(value)),"unsupported captured radiance scale");
         Hr(device.allocator->Reset(),"allocator reset");Hr(device.list->Reset(device.allocator.Get(),nullptr),"list reset");
         Require(frame.at("inputs").size()==7,"exactly seven actual inputs required");
         for(size_t i=0;i<7;++i){Require(frame.at("inputs").at(i).at("source_native_resource_desc").at("flags").get<uint32_t>()==inputFlags[i],"actual input GPU flags changed");
-            device.Upload(textures[i],frame.at("inputs").at(i),width,height,i>=5?radianceScale:1.f);}
+            device.Upload(textures[i],frame.at("inputs").at(i),width,height,i>=5?radianceScales[i-5]:1.f);}
         FrozenFile controlsFile(Path(frame.at("controls").at("file").get<std::string>()));auto controls=controlsFile.Payload(frame.at("controls"),184);
         ffxDispatchDescDenoiser dispatch{};dispatch.header.type=FFX_API_DISPATCH_DESC_TYPE_DENOISER;dispatch.commandList=device.list.Get();
         memcpy(reinterpret_cast<uint8_t*>(&dispatch)+264,controls.data(),184);
@@ -349,8 +352,8 @@ int main(int argc,char** argv)try
         Ff(provider.api.Dispatch(&provider.context,&dispatch.header),"replay captured provider dispatch");
         device.Readback(textures[7]);device.Readback(textures[8]);device.Submit();
         ErrorMetrics diffuseMetrics,specularMetrics;
-        auto d=diffuseMetrics.Read(textures[7],frame.at("reference_diffuse"),width,height,previous[0],radianceScale);
-        auto s=specularMetrics.Read(textures[8],frame.at("reference_specular"),width,height,previous[1],radianceScale);
+        auto d=diffuseMetrics.Read(textures[7],frame.at("reference_diffuse"),width,height,previous[0],radianceScales[0]);
+        auto s=specularMetrics.Read(textures[8],frame.at("reference_specular"),width,height,previous[1],radianceScales[1]);
         totalNonfinite+=diffuseMetrics.nonfinite+specularMetrics.nonfinite;
         metrics<<Json{{"ordinal",index},{"sdk_frame_index",dispatch.frameIndex},{"diffuse",d},{"specular",s}}.dump()<<'\n';
         Require(bool(metrics),"metrics write");

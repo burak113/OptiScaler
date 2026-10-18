@@ -3329,6 +3329,36 @@ static void DrawNrdBridgeNativeMaterialStatus()
                       "Fallback causes do not include every rejected attempt; pixel-only read state is informational.");
 }
 
+static bool DrawSharedRRRadianceScale(Config* config)
+{
+    bool changed = false;
+    bool enabled = config->FfxDenoiserRadianceScaleExperiment.value_or_default();
+    if (ImGui::Checkbox("Shared RR radiance scale (experimental)", &enabled))
+    {
+        config->FfxDenoiserRadianceScaleExperiment = enabled;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Same input-scale pass for combined-color and native NRD inputs. "
+            "RGB is scaled before RR and restored afterwards; hit distance is preserved. "
+            "Off keeps each path's original normalization. Changes reset RR history.");
+    const int values[] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096};
+    ImGui::BeginDisabled(!enabled);
+    auto scaleControl = [&](const char* label, auto& setting, int fallback)
+    {
+        const auto found = std::find(std::begin(values),std::end(values),setting.value_or_default());
+        int index = found == std::end(values) ? fallback : int(found-std::begin(values));
+        if (ImGui::Combo(label,&index,"x1\0x2\0x4\0x8\0x16\0x32\0x64\0x128\0x256\0x512\0x1024\0x2048\0x4096\0"))
+        { setting = values[index]; changed = true; }
+    };
+    scaleControl("Diffuse input scale##SharedRR",config->FfxDenoiserRadianceScaleDiffuse,4);
+    scaleControl("Specular input scale##SharedRR",config->FfxDenoiserRadianceScaleSpecular,8);
+    ImGui::EndDisabled();
+    if (enabled) ImGui::TextWrapped("NRD candidate: diffuse x16, specular x256. "
+        "Combined-color control: x1/x1 versus x256/x256. Lower scales can soften detail.");
+    return changed;
+}
+
 static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
@@ -3342,6 +3372,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.flatAlbedo = NrdBridge::ReadFlatAlbedoSettings(config);
+    settings.radianceScale = ReadFSRDRadianceScale(config);
     settings.recoverySpecular = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoverySpecular.value_or_default());
     settings.recoveryDiffuse = NrdBridge::NormalizeLobeRecoveryStrength(config.FfxDenoiserNrdBridgeRecoveryDiffuse.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
@@ -3367,6 +3398,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
     if (!ImGui::CollapsingHeader("AMD RR tuning##NrdBridge")) return;
     ScopedIndent indent;
     bool changed = false;
+    changed |= DrawSharedRRRadianceScale(config);
     bool custom = config->FfxDenoiserNrdBridgeUseCustomRR.value_or_default();
     if (ImGui::Checkbox("Use custom RR tuning##NrdBridge", &custom))
     {
@@ -3914,6 +3946,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             if (ImGui::CollapsingHeader("AMD Tuning"))
             {
                 DrawAmdRRTuning(config);
+                DrawSharedRRRadianceScale(config);
             }
             if (ImGui::CollapsingHeader("Conversion & Modulation"))
             {

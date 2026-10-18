@@ -643,6 +643,10 @@ class Config
     CustomOptional<float> FfxDenoiserMaxRadiance { 4e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
+    // Shared, default-off radiance-domain A/B for NGX and native NRD inputs.
+    CustomOptional<bool> FfxDenoiserRadianceScaleExperiment {false};
+    CustomOptional<int> FfxDenoiserRadianceScaleDiffuse {16};
+    CustomOptional<int> FfxDenoiserRadianceScaleSpecular {256};
     // Gives each RR input sample its same-surface neighbourhood's light colour (Recovery v2 > Specular / Diffuse).
     CustomOptional<bool> FfxDenoiserInputChroma { false };
     CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };

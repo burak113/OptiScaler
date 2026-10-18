@@ -1,5 +1,6 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
+#include "FSRDRadianceScale.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -108,6 +109,7 @@ struct RRSettings
     bool legacyMotionDepth = false;
     bool lobeRecovery = false;
     FlatAlbedoSettings flatAlbedo {};
+    FSRDRadianceScaleSettings radianceScale {};
     // D02/WP08 experiment selector; recorded so traces can distinguish the gated fill.
     bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
@@ -157,7 +159,8 @@ struct RRRecordedOutputSnapshot
     bool flatAlbedoActive = false, flatAlbedoFallback = false;
     uint32_t flatAlbedoRoughness = 0;
     std::string flatAlbedoError;
-    float providerRadianceScale = 256.0f;
+    float providerRadianceScale = 256.0f; // Legacy common scale; zero if the lobes differ.
+    float providerDiffuseRadianceScale = 256.0f, providerSpecularRadianceScale = 256.0f;
     // D06/D07 per-frame recovery diagnostics (control-model vocabulary; names
     // are proposed, not keys). Text travels outside the hashed settings lineage.
     uint32_t recoveryTier = 0, recoveryFallbackReason = 0;

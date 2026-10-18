@@ -1,0 +1,55 @@
+NRD / BIRLESIK GIRDI A/B — 2026-10-18
+
+Kanıtlanan fark: native RGB RR'ye x256, birleşik yol x1 biriminde gidiyor.
+Ölçek tek başına RR sonucunu değiştiriyor. Tüm ghosting nedeni çözülmüş değil.
+
+İlk öneri: diffuse x16 / specular x256. Cephe kaydında dalgalanma göstergesi
+%29,5 düşük; detay göstergesi %6,7, parlaklık %3,1 düşük. Oyun içi karar yok.
+Dönüş sonrası parlaklık kuyruğu bu değişiklikle sürüyor.
+
+1. dxgi.dll bu çalışmanın Release x64 DLL'i. Mevcut dosyanı yedekleyerek
+   kendin kur. Tam OptiScaler.ini dosyanı bu paketle değiştirme.
+2. Native NRD menüsünde AMD RR tuning bölümünü aç.
+   "Shared RR radiance scale (experimental)" başlangıçta kapalı.
+   Kapalı = mevcut native x256/x256 davranışı.
+3. Aynı sahnede yalnız bu seçeneği aç. Diffuse input scale x16,
+   Specular input scale x256 olsun. Mevcut RR/Recovery ayarların sabit kalsın.
+   Ayar değişimi geçmişi sıfırlar; birkaç saniye oturmasını bekle.
+4. Cephe boiling'i, tabela ayrıntısı ve dönüşte renk izi bakımından karşılaştır.
+   Geri dönüş: aynı kutuyu kapat.
+
+Birleşik renk yolunda aynı seçenek FSR-RR > Advanced > AMD Tuning içinde.
+Kontrollü karşılaştırma x1/x1 ile x256/x256; aynı oyunun RR açık yolunda giriş
+ölçeğinin etkisini ayırır. Gerçek native NRD lobları bu moda eklenmiş değildir.
+
+Ölçümleri aynen üretmek için kullanılan custom RR ayarları aşağıdaki gibiydi.
+Bunları ilk A/B'de değiştirmek zorunda değilsin; farklı RR tuning farklı sonuç
+verebilir. İki yolun ham RR karşılaştırmasında ikisini de aynı yap ve sonradan
+eklenen Recovery'yi geçici kapat. Normal kullanım tercihlerine sonra geri dön.
+
+[FSR-RR]
+NrdBridgeUseCustomRR=true
+UseAmdDefaults=false
+CrossBilateralNormalStrength=0.5
+TemporalStabilityBias=0.5
+MaxRadiance=40000
+RadianceClipDeviation=40
+GaussianKernelRelaxation=0.5
+DisocclusionThreshold=0.1
+RadianceScaleExperiment=true
+RadianceScaleDiffuse=16
+RadianceScaleSpecular=256
+
+f2ef375f_final_comparison.gif: sol mevcut native, sağ önerilen aday.
+Crop/pozlama aynı. 10 fps inceleme animasyonu; oyun fps'si değil.
+
+UltraPlus_Input_Parity_Optional.zip ayrı ikinci deneydir. İlk A/B'de kullanma.
+MO2 ile Ultra Plus'tan sonra kazanan ayrı mod yap, Ultra Plus'ta RRClean seç,
+oyunu yeniden başlat. Geri dönüş için yalnız bu modu kapat. Oyun içi denenmedi;
+yalnız bilinen Ultra Plus NRD/RR preset farklarını sabitler.
+
+Non-unity ölçek açıkken full-context RESET reference yakalaması desteklenmiyor;
+yanıltıcı eşleşme üretmemek için yakalama görünür hata ile durur. Normal çizim
+ve normal trace devam eder. Bu referans için kapalı veya x1/x1 kullan.
+
+REPORT.md ayrıntılı kanıtları, olumsuz sonuçları ve sınırları içerir.
