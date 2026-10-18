@@ -3483,7 +3483,8 @@ static void DrawNrdBridgeRRTuning(Config* config)
         if (ImGui::SliderFloat("Reflection polish##NrdFlat", &flat.reflectionPolish,0.0f,1.0f))
         { config->FfxDenoiserRecoveryFlatReflectionPolish = flat.reflectionPolish; changed = true; }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Reflection history only. Reduces residual shimmer in low-contrast reflections using a short output history. Strong edges and radiance changes keep the current frame. 0 = v4. Changing it resets history. Default 0.");
+            ImGui::SetTooltip("Reflection history only. Reduces shimmer in low-contrast reflections. Strong settings can soften fine text "
+                              "or trail moving colored edges. 0 = v4. Changing it resets history. Default 0.");
         ImGui::TextWrapped("RR skips all spatial filtering below roughness 1/1023 (mirror bypass), so mirror-like water stays as "
             "sparse noise. Recovery gives RR a minimum roughness (default 2/1023). With Temporal reference off, the output on "
             "mirror pixels is a robust single-frame reference of the raw lobe: sharp, but it can drop dim reflections; "

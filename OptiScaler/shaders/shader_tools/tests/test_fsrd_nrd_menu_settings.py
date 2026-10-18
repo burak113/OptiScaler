@@ -25,6 +25,11 @@ KEYS = {
     'FfxDenoiserRecoveryFlatTemporal': ('RecoveryFlatTemporal', 'Bool'),
     'FfxDenoiserRecoveryFlatHistoryLength': ('RecoveryFlatHistoryLength', 'Int'),
     'FfxDenoiserRecoveryFlatTemporalDenoise': ('RecoveryFlatTemporalDenoise', 'Float'),
+    'FfxDenoiserRecoveryFlatRRFallback': ('RecoveryFlatRRFallback', 'Bool'),
+    'FfxDenoiserRecoveryFlatDiffuseRR': ('RecoveryFlatDiffuseRR', 'Bool'),
+    'FfxDenoiserRecoveryFlatReflectionHistory': ('RecoveryFlatReflectionHistory', 'Bool'),
+    'FfxDenoiserRecoveryFlatReflectionDetail': ('RecoveryFlatReflectionDetail', 'Float'),
+    'FfxDenoiserRecoveryFlatReflectionPolish': ('RecoveryFlatReflectionPolish', 'Float'),
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
     'FfxDenoiserNrdBridgeLegacyMotionDepth': ('NrdBridgeLegacyMotionDepth', 'Bool'),
@@ -511,6 +516,41 @@ int main(){try{
  NrdBridge::statusCounters.recoveryGraphBytes=0;NrdBridge::statusCounters.recoverySlots=0;
  ImGui::frame();drawBridge(&cfg);
  need(!ImGui::hasText("Owned RR memory:"),"an idle or disabled bridge publishes no owned-memory line");
+
+ // Reflection-polish controls must run through the actual menu and actual serializers.
+ Config::active=&cfg;NrdBridge::startup=true;NrdBridge::accept=true;
+ cfg.load("[FSR-RR]\nRecoveryFlatAlbedo=true\nRecoveryFlatTemporal=false\nRecoveryFlatReflectionHistory=true\nRecoveryFlatReflectionPolish=auto\n");
+ auto flat=NrdBridge::ReadFlatAlbedoSettings(cfg);
+ need(flat.enabled&&!flat.temporal&&flat.reflectionHistory&&flat.reflectionPolish==0.f,
+ "Polish auto defaults OFF without changing explicit Temporal false or Reflection history true");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Reflection polish##NrdFlat"]=.5f;drawBridge(&cfg);
+ need(ImGui::hasLabel("Reflection polish##NrdFlat")&&NrdBridge::applyCalls==before+1&&
+ cfg.FfxDenoiserRecoveryFlatReflectionPolish.value_or_default()==.5f&&NrdBridge::last.flatAlbedo.reflectionPolish==.5f,
+ "Actual polish slider publishes one coherent half-strength Config/runtime snapshot");
+ saved=cfg.save();reload.load(saved);
+ need(NrdBridge::ReadFlatAlbedoSettings(reload).reflectionPolish==.5f&&!NrdBridge::ReadFlatAlbedoSettings(reload).temporal,
+ "Half-strength polish and explicit Temporal false survive actual save/reload");
+ for(float value:{0.f,1.f}) {
+  ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Reflection polish##NrdFlat"]=value;drawBridge(&cfg);
+  need(NrdBridge::applyCalls==before+1&&NrdBridge::last.flatAlbedo.reflectionPolish==value,
+  "Both slider endpoints publish exactly; zero remains the v4 escape value");
+ }
+ for(const auto [value,expected]:std::array<std::array<float,2>,7>{{{-2.f,0.f},{2.f,1.f},{.5f,.5f},{0.f,0.f},
+ {std::numeric_limits<float>::quiet_NaN(),0.f},{std::numeric_limits<float>::infinity(),0.f},{-std::numeric_limits<float>::infinity(),0.f}}}) {
+  cfg.FfxDenoiserRecoveryFlatReflectionPolish=value;
+  need(NrdBridge::ReadFlatAlbedoSettings(cfg).reflectionPolish==expected,"Polish snapshot bounds finite values and fails nonfinite values to OFF");
+ }
+ for(const char* text:{"invalid","nan","inf","-inf","1e999","auto"}) {
+  cfg.load(std::string("[FSR-RR]\nRecoveryFlatReflectionPolish=")+text+"\n");
+  need(NrdBridge::ReadFlatAlbedoSettings(cfg).reflectionPolish==0.f,"Malformed/nonfinite INI polish never enables the new GPU path");
+ }
+ cfg.FfxDenoiserRecoveryFlatReflectionPolish=1.f;cfg.FfxDenoiserRecoveryFlatReflectionHistory=true;
+ cfg.ResetFfxDenoiserSettings();
+ need(cfg.FfxDenoiserRecoveryFlatReflectionPolish.value_or_default()==0.f&&
+ NrdBridge::ReadFlatAlbedoSettings(cfg).reflectionPolish==0.f&&NrdBridge::last.flatAlbedo.reflectionPolish==0.f,
+ "Full production reset clears polish in Config and the coherent runtime payload");
+ saved=cfg.save();reload.load(saved);need(NrdBridge::ReadFlatAlbedoSettings(reload).reflectionPolish==0.f,
+ "Polish OFF reset survives actual save/reload");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
