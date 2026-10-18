@@ -75,7 +75,9 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"flat_albedo",{{"enabled",p.flatAlbedo.enabled},{"roughness_floor",p.flatAlbedo.roughness},
             {"strength",Bits(p.flatAlbedo.strength)},{"anchor",Bits(p.flatAlbedo.anchor)},{"mix",Bits(p.flatAlbedo.mix)},
             {"temporal",p.flatAlbedo.temporal},{"history_length",p.flatAlbedo.historyLength},
-            {"temporal_denoise",Bits(p.flatAlbedo.temporalDenoise)}}},
+            {"temporal_denoise",Bits(p.flatAlbedo.temporalDenoise)},
+            {"rr_fallback",p.flatAlbedo.rrFallback},{"diffuse_rr",p.flatAlbedo.diffuseRR},
+            {"reflection_history",p.flatAlbedo.reflectionHistory},{"reflection_detail",Bits(p.flatAlbedo.reflectionDetail)}}},
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
         {"native_nrd_output_used",false}};
 }

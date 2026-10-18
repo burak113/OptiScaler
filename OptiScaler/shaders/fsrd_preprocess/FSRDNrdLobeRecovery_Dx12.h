@@ -44,6 +44,10 @@ struct LobeRecoveryFrame
     // Divided by a pixel's depth it bounds how far a mirror reflection can drift off the
     // surface motion vectors (parallax); Near Zero-Rough history is capped by it.
     float parallaxPixels = 0;
+    // World-to-view and view-to-clip of this frame, m[row][column] for column vectors (bridge convention).
+    // Near Zero-Rough reflection history reprojects virtual reflection points with them.
+    std::array<float,16> view {}, projection {};
+    bool camera = false;
 };
 
 // One helper belongs to one continuous physical RR Context. The caller serializes

@@ -10,6 +10,13 @@
 #include "precompile/FSRDFlatDetailApply_Shader.h"
 #include "precompile/FSRDNrdFlatAccumulate_Shader.h"
 #include "precompile/FSRDNrdFlatReferenceFilter_Shader.h"
+#include "precompile/FSRDNrdFlatSelectPrep_Shader.h"
+#include "precompile/FSRDNrdFlatSelectBlur_Shader.h"
+#include "precompile/FSRDNrdFlatSelectApply_Shader.h"
+#include "precompile/FSRDNrdFlatHistory_Shader.h"
+#include "precompile/FSRDNrdFlatHybridPrep_Shader.h"
+#include "precompile/FSRDNrdFlatHybridBlur_Shader.h"
+#include "precompile/FSRDNrdFlatHybridApply_Shader.h"
 
 namespace NrdBridge
 {
@@ -83,6 +90,8 @@ class FlatAlbedoRecovery
         uint32_t frame = 0;
         uint32_t nextParity = 0;
         bool inputsRecorded = false, recorded = false;
+        std::array<double,16> view {}, projection {}; // this frame's camera, committed when recorded
+        bool camera = false;
     };
     struct Context
     {
@@ -90,18 +99,24 @@ class FlatAlbedoRecovery
         Microsoft::WRL::ComPtr<ID3D12Device> device;
         std::shared_ptr<Family> family;
         uint32_t width = 0, height = 0, stride = 0, parity = 0, lastFrame = 0;
-        bool temporal = false, valid = false;
+        bool temporal = false, reflection = false, valid = false;
         Resource rrNormals, masks[2], black, output[2], reference[2], statistics[2], base, mean, variance;
         Resource tiles, arguments;
         // Per lobe, ping-pong: linear running mean (rgb, count) and level history, depth, RR luma mean, luma moment.
+        // Reflection history (specular only): running mean (rgb, count) and luma second moment, median hit distance.
         struct History { Resource mean[2], moment[2]; } history[2];
-        Pipeline prepare, classify, seed, refine, basePass, apply, accumulate, referenceFilter;
+        std::array<double,16> lastView {}, lastProjection {};
+        bool lastCamera = false;
+        Pipeline prepare, classify, seed, refine, basePass, apply, accumulate, referenceFilter, selectPrep, selectBlur, selectApply;
+        Pipeline historyPass, hybridPrep, hybridBlur, hybridApply;
         Microsoft::WRL::ComPtr<ID3D12CommandSignature> signature;
         std::array<std::shared_ptr<Slot>,NrdBridgeCaptureBudget::Family::Capacity> slots {};
         std::weak_ptr<Recording> pending;
     };
     std::shared_ptr<Context> context_;
     static void Check(HRESULT hr,const char* label) { if (FAILED(hr)) throw std::runtime_error(label); }
+    // Reflection history is a variant of the non-temporal path; Temporal's own reference takes precedence.
+    static bool Reflection(const FlatAlbedoSettings& s) noexcept { return s.reflectionHistory && !s.temporal; }
     static D3D12_RESOURCE_BARRIER Transition(ID3D12Resource* p,D3D12_RESOURCE_STATES a,D3D12_RESOURCE_STATES b) noexcept
     {
         D3D12_RESOURCE_BARRIER r {}; r.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -129,7 +144,7 @@ class FlatAlbedoRecovery
         const FlatAlbedoSettings& settings,const std::shared_ptr<Family>& family)
     {
         auto c = MakeOwnedShared<Context>(); c->device = device; c->family = family;
-        c->width = in.width; c->height = in.height; c->temporal = settings.temporal;
+        c->width = in.width; c->height = in.height; c->temporal = settings.temporal; c->reflection = Reflection(settings);
         c->stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         struct Plan { Resource* target; D3D12_RESOURCE_DESC desc; D3D12_RESOURCE_STATES state; };
         std::vector<Plan> plans;
@@ -149,6 +164,8 @@ class FlatAlbedoRecovery
         if (settings.temporal)
             for (auto& h:c->history) for (uint32_t i = 0;i < 2;++i)
             { tex(h.mean[i],Half); tex(h.moment[i],DXGI_FORMAT_R32G32B32A32_FLOAT); }
+        else if (c->reflection)
+            for (uint32_t i = 0;i < 2;++i) { tex(c->history[0].mean[i],Half); tex(c->history[0].moment[i],DXGI_FORMAT_R32G32_FLOAT); }
         uint64_t bytes = 0;
         for (const auto& p:plans)
         {
@@ -165,6 +182,12 @@ class FlatAlbedoRecovery
         FLAT_PIPE(seed,FSRDFlatDetailSeed); FLAT_PIPE(refine,FSRDFlatDetailRefine);
         FLAT_PIPE(basePass,FSRDFlatDetailBase); FLAT_PIPE(apply,FSRDFlatDetailApply);
         if (settings.temporal) { FLAT_PIPE(accumulate,FSRDNrdFlatAccumulate); FLAT_PIPE(referenceFilter,FSRDNrdFlatReferenceFilter); }
+        FLAT_PIPE(selectPrep,FSRDNrdFlatSelectPrep); FLAT_PIPE(selectBlur,FSRDNrdFlatSelectBlur); FLAT_PIPE(selectApply,FSRDNrdFlatSelectApply);
+        if (c->reflection)
+        {
+            FLAT_PIPE(historyPass,FSRDNrdFlatHistory); FLAT_PIPE(hybridPrep,FSRDNrdFlatHybridPrep);
+            FLAT_PIPE(hybridBlur,FSRDNrdFlatHybridBlur); FLAT_PIPE(hybridApply,FSRDNrdFlatHybridApply);
+        }
 #undef FLAT_PIPE
         D3D12_INDIRECT_ARGUMENT_DESC arg {}; arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
         D3D12_COMMAND_SIGNATURE_DESC sig {}; sig.ByteStride = 12; sig.NumArgumentDescs = 1; sig.pArgumentDescs = &arg;
@@ -280,6 +303,78 @@ class FlatAlbedoRecovery
         float matureSigma = 0.5f, reserved = 0;
     };
     static_assert(sizeof(ReferenceFilterConstants) == 32);
+    // RR fallback (FSRDNrdFlatSelect*), specular only. The robust reference keeps bright, dense reflections sharp
+    // but drops dim heavy-tailed ones almost completely (d6d2 static puddle: 2 % of the raw level vs RR's 56 %).
+    // Where its local level (sigma 4, isolated survivors clipped to Clip x RR's 3x3 max) falls below QHigh..QLow
+    // of RR's, the output blends to RR; the RR region grows two pixels into pixels darker than Dark x RR (the rim
+    // next to bright signs). Isolated holes (< HoleFraction x 3x3 median) take the 3x3 median colour.
+    // Scratch reuse after Base: reference[0] = filled OFF, statistics[0] = decision, mean = horizontal sums.
+    struct alignas(16) SelectConstants
+    {
+        std::array<float,4> size;
+        float qHigh = 0.85f, qLow = 0.55f, clip = 2.0f, dark = 0.5f, epsilon = 1e-4f, holeFraction = 0.1f;
+        uint32_t direction = 0, reserved = 0;
+    };
+    static_assert(sizeof(SelectConstants) == 48);
+    // Reflection history (FSRDNrdFlatHistory), specular only. previousClip = P(prev) V(prev) V(cur)^-1 maps a current
+    // view-space point to the previous clip space; projection = current P00, P11, P02, P12, projectionW = P32.
+    struct alignas(16) HistoryConstants
+    {
+        std::array<float,4> size;
+        std::array<float,16> previousClip {};
+        std::array<float,4> projection {1,1,0,0};
+        float projectionW = 1, maxCount = 16, hitTolerance = 0.1f, hitBias = 0.5f;
+        uint32_t historyValid = 0, reserved[3] {};
+    };
+    static_assert(sizeof(HistoryConstants) == 128);
+    // Reflection-history selector (FSRDNrdFlatHybrid*): Base where the history mean is reliable, k x RR elsewhere.
+    // Noise R = standard error / mean (sigma 2, mature pixels) ramps NoiseLow..NoiseHigh; the collapse rule of the
+    // RR fallback uses MatureLow/High, or ThinLow/High below MinCount; k = clipped history mean / RR (sigma 4).
+    // Detail: Base smooths fine detail even on the clean mean, so the mean's departure from Base is kept with a Wiener
+    // factor (after an 8-neighbour clamp, x detailClamp, against isolated outliers), scaled by detail.
+    // Scratch after Base: reference[0..1] = prep 4/2, statistics[0..1] = horizontal sums, mean = decision (w, k),
+    // variance = Base with the kept detail.
+    struct alignas(16) HybridConstants
+    {
+        std::array<float,4> size;
+        float noiseLow = 0.4f, noiseHigh = 0.8f, support = 0.2f, epsilon = 1e-4f;
+        float matureLow = 0.55f, matureHigh = 0.85f, thinLow = 0.75f, thinHigh = 1.05f;
+        float clip = 2.0f, levelCap = 4.0f, levelMin = 0.4f, levelMax = 2.5f;
+        float minCount = 4; uint32_t direction = 0;
+        float detail = 1, detailClamp = 1.5f;
+        // Detail fades in from minCount to fadeEnd frames (a young history of a sparse lobe can be all zeros);
+        // a thin-history pixel below dark x RR takes RR (the fit dropped it at the edge of a new reflection).
+        float fadeEnd = 12, dark = 0.5f, reserved[2] {};
+    };
+    static_assert(sizeof(HybridConstants) == 96);
+    using Matrix = std::array<double,16>;
+    static Matrix Multiply(const Matrix& a,const Matrix& b) noexcept
+    {
+        Matrix r {};
+        for (int i = 0;i < 4;++i) for (int j = 0;j < 4;++j) for (int k = 0;k < 4;++k) r[i*4+j] += a[i*4+k]*b[k*4+j];
+        return r;
+    }
+    static bool Invert(Matrix a,Matrix& out) noexcept
+    {
+        // Gauss-Jordan with partial pivoting, in double: world translations are kilometres.
+        Matrix r {}; for (int i = 0;i < 4;++i) r[i*5] = 1;
+        for (int c = 0;c < 4;++c)
+        {
+            int pivot = c;
+            for (int i = c+1;i < 4;++i) if (std::abs(a[i*4+c]) > std::abs(a[pivot*4+c])) pivot = i;
+            if (!(std::abs(a[pivot*4+c]) > 1e-12)) return false;
+            for (int j = 0;j < 4;++j) { std::swap(a[c*4+j],a[pivot*4+j]); std::swap(r[c*4+j],r[pivot*4+j]); }
+            const double s = 1.0/a[c*4+c];
+            for (int j = 0;j < 4;++j) { a[c*4+j] *= s; r[c*4+j] *= s; }
+            for (int i = 0;i < 4;++i) if (i != c)
+            {
+                const double f = a[i*4+c];
+                for (int j = 0;j < 4;++j) { a[i*4+j] -= f*a[c*4+j]; r[i*4+j] -= f*r[c*4+j]; }
+            }
+        }
+        for (double v:r) if (!std::isfinite(v)) return false;
+        out = r; return true;
+    }
     // Bit 2: reference and RR are the same lighting; Base keeps the reference level.
     // Bit 3: the output follows a mature reference (count FullCount/2 -> FullCount), RR-based
     // detail recovery only covers thin histories (motion, parallax, disocclusion, light change),
@@ -303,8 +398,28 @@ class FlatAlbedoRecovery
         DetailConstants detail {size,{},settings.strength,settings.anchor,settings.mix};
         detail.temporalDenoise = settings.temporal ? settings.temporalDenoise : 0;
         detail.flags = SameLighting|ReferenceTrust;
+        HistoryConstants reflection {size};
+        if (c.reflection)
+        {
+            r.camera = frame.camera;
+            for (int i = 0;i < 16;++i) { r.view[i] = frame.view[i]; r.projection[i] = frame.projection[i]; }
+            Matrix inverseView;
+            if (history && frame.camera && c.lastCamera && Invert(r.view,inverseView))
+            {
+                const Matrix previousClip = Multiply(Multiply(c.lastProjection,c.lastView),inverseView);
+                bool finite = true;
+                for (int i = 0;i < 16;++i) { reflection.previousClip[i] = float(previousClip[i]); finite = finite && std::isfinite(reflection.previousClip[i]); }
+                const auto& p = frame.projection;
+                reflection.projection = {p[0],p[5],p[2],p[6]}; reflection.projectionW = p[14];
+                reflection.historyValid = finite && std::isfinite(p[0]) && std::isfinite(p[5]) && p[0] != 0 && p[5] != 0 &&
+                    std::isfinite(p[14]) && p[14] != 0 ? 1u : 0u;
+            }
+        }
         for (uint32_t lobe = 0;lobe < 2;++lobe)
         {
+            // Diffuse from RR: demodulated diffuse on mirror pixels has no structure to recover, and RR's
+            // result is brighter, steadier and free of the robust fit's isolated holes.
+            if (lobe == 1 && settings.diffuseRR) continue;
             const View mask {c.masks[lobe].Get()}, black {c.black.Get()}, depth {in.depth}, motion {in.motion};
             const View noisy {lobe == 0 ? in.noisySpecular : in.noisyDiffuse}, output {c.output[lobe].Get()};
             Describe(c,slot,descriptor,c.classify,size,std::array<View,2>{mask,black},
@@ -327,6 +442,15 @@ class FlatAlbedoRecovery
             }
             else
             {
+                if (lobe == 0 && c.reflection)
+                {
+                    // The robust fit runs on the reflection history's running mean instead of the single frame.
+                    auto& h = c.history[0];
+                    Describe(c,slot,descriptor,c.historyPass,reflection,
+                        std::array<View,5>{{noisy,mask,depth,{h.mean[c.parity].Get()},{h.moment[c.parity].Get()}}},
+                        std::array<View,2>{{{h.mean[c.parity^1u].Get()},{h.moment[c.parity^1u].Get()}}},false);
+                    reads[0] = {h.mean[c.parity^1u].Get()};
+                }
                 Describe(c,slot,descriptor,c.seed,detail,reads,
                     std::array<View,3>{{{c.reference[0].Get()},{c.statistics[0].Get()},{nullptr}}});
                 reads[7] = {c.reference[0].Get()}; reads[8] = {c.statistics[0].Get()};
@@ -337,6 +461,34 @@ class FlatAlbedoRecovery
             reads[13] = output;
             Describe(c,slot,descriptor,c.basePass,detail,reads,
                 std::array<View,3>{{{c.base.Get()},{c.mean.Get()},{c.variance.Get()}}});
+            if (lobe == 0 && c.reflection)
+            {
+                HybridConstants hybrid {size}; hybrid.detail = settings.reflectionDetail;
+                const View running {c.history[0].mean[c.parity^1u].Get()}, moment {c.history[0].moment[c.parity^1u].Get()};
+                const View prep4 {c.reference[0].Get()}, prep2 {c.reference[1].Get()};
+                const View sums4 {c.statistics[0].Get()}, sums2 {c.statistics[1].Get()}, decision {c.mean.Get()};
+                Describe(c,slot,descriptor,c.hybridPrep,hybrid,std::array<View,6>{{{c.base.Get()},output,mask,depth,running,moment}},
+                    std::array<View,3>{{prep4,prep2,{c.variance.Get()}}},false);
+                Describe(c,slot,descriptor,c.hybridBlur,hybrid,std::array<View,4>{prep4,prep2,running,prep4},std::array<View,2>{sums4,sums2},false);
+                hybrid.direction = 1;
+                Describe(c,slot,descriptor,c.hybridBlur,hybrid,std::array<View,4>{sums4,sums2,running,prep4},std::array<View,2>{decision,{nullptr}},false);
+                reads[13] = black; reads[10] = {c.variance.Get()}; reads[11] = decision; reads[12] = black;
+                Describe(c,slot,descriptor,c.hybridApply,detail,reads,std::array<View,3>{output,{nullptr},{nullptr}});
+                continue;
+            }
+            if (lobe == 0 && settings.rrFallback)
+            {
+                SelectConstants select {size};
+                const View filled {c.reference[0].Get()}, decision {c.statistics[0].Get()}, sums {c.mean.Get()};
+                Describe(c,slot,descriptor,c.selectPrep,select,std::array<View,4>{{{c.base.Get()},output,mask,depth}},
+                    std::array<View,2>{filled,decision},false);
+                Describe(c,slot,descriptor,c.selectBlur,select,std::array<View,1>{decision},std::array<View,1>{sums},false);
+                select.direction = 1;
+                Describe(c,slot,descriptor,c.selectBlur,select,std::array<View,1>{sums},std::array<View,1>{decision},false);
+                reads[13] = black; reads[10] = filled; reads[11] = decision; reads[12] = black;
+                Describe(c,slot,descriptor,c.selectApply,detail,reads,std::array<View,3>{output,{nullptr},{nullptr}});
+                continue;
+            }
             reads[13] = black; reads[10] = {c.base.Get()}; reads[11] = {c.mean.Get()}; reads[12] = {c.variance.Get()};
             Describe(c,slot,descriptor,c.apply,detail,reads,std::array<View,3>{output,{nullptr},{nullptr}});
         }
@@ -361,7 +513,7 @@ class FlatAlbedoRecovery
         if (p.indirect) list->ExecuteIndirect(c.signature.Get(),1,c.arguments.Get(),0,nullptr,0);
         else list->Dispatch(p.x,p.y,1);
         if (p.barriers) list->ResourceBarrier(p.barriers,p.after.data());
-        if (p.pipeline == &c.apply)
+        if (p.pipeline == &c.apply || p.pipeline == &c.selectApply || p.pipeline == &c.hybridApply)
         {
             // End each lobe at COMMON, including empty indirect tile lists.
             // Creation, warm recording and closed-list re-execution all agree.
@@ -394,7 +546,8 @@ class FlatAlbedoRecovery
             if (cold && GetTickCount64() < family->retryUntilTick.load(std::memory_order_acquire))
                 throw std::runtime_error("Flat recovery cold allocation retry is cooling down");
             if (context_ && (context_->width != in.width || context_->height != in.height || context_->temporal != settings.temporal ||
-                context_->family != family)) throw std::runtime_error("Flat recovery physical context identity changed");
+                context_->reflection != Reflection(settings) || context_->family != family))
+                throw std::runtime_error("Flat recovery physical context identity changed");
             if (context_) if (auto pending = context_->pending.lock(); pending && !pending->recorded)
                 throw std::runtime_error("Flat recovery has an unrecorded prepared predecessor");
             auto recording = MakeOwnedShared<Recording>(); auto c = context_;
@@ -440,8 +593,9 @@ class FlatAlbedoRecovery
         for (uint32_t i=1;i<slot.count;++i) Run(list,c,slot,slot.passes[i]);
         D3D12_RESOURCE_BARRIER after[] {Transition(c.output[0].Get(),Read,Write),Transition(c.output[1].Get(),Read,Write)};
         list->ResourceBarrier(2,after);
-        if (c.temporal) c.parity = r->nextParity;
-        c.lastFrame = r->frame; c.valid = c.temporal; r->recorded = true;
+        if (c.temporal || c.reflection) c.parity = r->nextParity;
+        c.lastFrame = r->frame; c.valid = c.temporal || c.reflection; r->recorded = true;
+        c.lastView = r->view; c.lastProjection = r->projection; c.lastCamera = r->camera;
     }
     uint64_t OwnedTextureBytes() const noexcept { return context_ ? context_->charge.bytes : 0; }
     uint64_t OwnedAuxiliaryBytes() const noexcept

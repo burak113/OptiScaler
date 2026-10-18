@@ -3456,13 +3456,38 @@ static void DrawNrdBridgeRRTuning(Config* config)
         { config->FfxDenoiserRecoveryFlatTemporal = flat.temporal; changed = true; }
         if (ImGui::SliderFloat("Temporal denoise##NrdFlat", &flat.temporalDenoise,0.0f,2.0f))
         { config->FfxDenoiserRecoveryFlatTemporalDenoise = flat.temporalDenoise; changed = true; }
+        if (ImGui::Checkbox("RR fallback (specular)##NrdFlat", &flat.rrFallback))
+        { config->FfxDenoiserRecoveryFlatRRFallback = flat.rrFallback; changed = true; }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Keeps the recovery output where it holds the reflection (bright, dense reflections such as signs stay sharp) "
+                              "and shows RR where the recovery has dropped a dim reflection (it can lose almost all of it). "
+                              "The RR area also covers the dark rim next to bright signs. Default off.");
+        if (ImGui::Checkbox("Diffuse from RR##NrdFlat", &flat.diffuseRR))
+        { config->FfxDenoiserRecoveryFlatDiffuseRR = flat.diffuseRR; changed = true; }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Mirror pixels' diffuse light has no structure to recover; RR's result is brighter, steadier and has no "
+                              "isolated black dots. Default off.");
+        if (ImGui::Checkbox("Reflection history##NrdFlat", &flat.reflectionHistory))
+        { config->FfxDenoiserRecoveryFlatReflectionHistory = flat.reflectionHistory; changed = true; }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Temporal reference off only. The recovery runs on a running mean that follows the reflection itself "
+                              "(the mirrored point behind the surface, from the hit distance) instead of the surface, so signs stay sharp "
+                              "but stop flickering while you walk or turn. Where that mean is still noisy (dim reflections) RR is shown "
+                              "at the history's brightness. Replaces RR fallback. Changing it resets history. Default off.");
+        if (ImGui::SliderFloat("Reflection detail##NrdFlat", &flat.reflectionDetail,0.0f,1.0f))
+        { config->FfxDenoiserRecoveryFlatReflectionDetail = flat.reflectionDetail; changed = true; }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Reflection history only. How much of the history's fine detail (text, edges) is kept over the "
+                              "single-frame fit, which smooths it; only detail that stands out from the history's noise is kept, "
+                              "and isolated dots are removed. 0 = the fit's softer look. Default 1.");
         ImGui::TextWrapped("RR skips all spatial filtering below roughness 1/1023 (mirror bypass), so mirror-like water stays as "
-            "sparse noise. Recovery gives RR a minimum roughness (default 2/1023) and keeps a reprojected running mean of the "
-            "raw lobe (up to 32 frames, NRD-style; restarted when RR shows a lighting change). Once that mean has 8 frames it "
-            "is the output; before that, and while the camera moves position (reflection parallax caps the history), RR's "
-            "clean but blurred result gets the mean's detail and brightness back. Native NRD filtering and history are never used. "
-            "Shared with the FSR-RR Near Zero-Rough settings; the bridge ignores the 1-6 frame history length. "
-            "Strength 0 or floor 0 disables both the floor and recovery.");
+            "sparse noise. Recovery gives RR a minimum roughness (default 2/1023). With Temporal reference off, the output on "
+            "mirror pixels is a robust single-frame reference of the raw lobe: sharp, but it can drop dim reflections; "
+            "RR fallback restores those from RR. Reflection history feeds that reference a running mean that follows the "
+            "reflection (not the surface) and shows RR at its brightness where the mean is still noisy. "
+            "Temporal reference on keeps a reprojected running mean (up to 32 frames). "
+            "Native NRD filtering and history are never used. Shared with the FSR-RR Near Zero-Rough settings; the bridge "
+            "ignores the 1-6 frame history length. Strength 0 or floor 0 disables both the floor and recovery.");
         ImGui::TreePop();
     }
     changed |= DrawNrdBridgeLobeRecovery(config);
@@ -4230,6 +4255,10 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserRecoveryFlatAnchor.reset();
                     config->FfxDenoiserRecoveryFlatMix.reset();
                     config->FfxDenoiserRecoveryFlatRoughness.reset();
+                    config->FfxDenoiserRecoveryFlatRRFallback.reset();
+                    config->FfxDenoiserRecoveryFlatDiffuseRR.reset();
+                    config->FfxDenoiserRecoveryFlatReflectionHistory.reset();
+                    config->FfxDenoiserRecoveryFlatReflectionDetail.reset();
                     config->FfxDenoiserInputChroma.reset();
                     config->FfxDenoiserRecoveryDebug.reset();
                 }

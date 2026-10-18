@@ -604,6 +604,16 @@ class Config
     CustomOptional<float> FfxDenoiserRecoveryFlatTemporalDenoise { 1.0f };
     // RR roughness of flat zero-roughness surfaces while Flat albedo recovery is on, in 1/1023 (0 = the game's).
     CustomOptional<int> FfxDenoiserRecoveryFlatRoughness { 2 };
+    // NRD bridge only (default off). RR fallback: Near Zero-Rough specular blends to RR where the recovery output
+    // has lost the reflection (dim heavy-tailed areas); bright, dense reflections keep the recovery output.
+    // Diffuse from RR: the bridge's Near Zero-Rough diffuse lobe passes RR through.
+    CustomOptional<bool> FfxDenoiserRecoveryFlatRRFallback { false };
+    CustomOptional<bool> FfxDenoiserRecoveryFlatDiffuseRR { false };
+    // NRD bridge only (default off, Temporal reference off): Near Zero-Rough specular runs on a running mean along the
+    // reflection's virtual motion and blends to RR, at the history's level, where that mean is still noisy.
+    CustomOptional<bool> FfxDenoiserRecoveryFlatReflectionHistory { false };
+    // Share (0-1) of the history mean's fine detail kept over the robust fit; 0 = the fit's softer result.
+    CustomOptional<float> FfxDenoiserRecoveryFlatReflectionDetail { 1.0f };
     // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.
     CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };
 

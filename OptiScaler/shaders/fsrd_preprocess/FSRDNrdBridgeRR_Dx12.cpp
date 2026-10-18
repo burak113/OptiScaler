@@ -1209,6 +1209,13 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
                     const float parallax = std::sqrt(dx*dx+dy*dy+dz*dz)*focal;
                     flatFrame.parallaxPixels = std::isfinite(parallax) ? parallax : 0.0f;
                 }
+                if (frame.camera.Complete())
+                {
+                    DirectX::XMFLOAT4X4 view, projection;
+                    DirectX::XMStoreFloat4x4(&view,frame.camera.view); DirectX::XMStoreFloat4x4(&projection,frame.camera.projection);
+                    for (int i = 0;i < 16;++i) { flatFrame.view[i] = view.m[i/4][i%4]; flatFrame.projection[i] = projection.m[i/4][i%4]; }
+                    flatFrame.camera = true;
+                }
                 const std::shared_ptr<LobeRecovery::Family> family(impl_->recoveryFamily,&impl_->recoveryFamily->budget);
                 flatPrepared = lease->context->flatAlbedo->Prepare(device.Get(),list,flatInputs,flatFrame,flat,
                     family,lease->flatAlbedo,impl_->flatAlbedoError);

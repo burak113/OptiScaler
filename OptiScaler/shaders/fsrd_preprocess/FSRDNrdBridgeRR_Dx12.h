@@ -42,6 +42,13 @@ struct FlatAlbedoSettings
     bool enabled = false, temporal = true;
     uint32_t roughness = 2, historyLength = 6;
     float strength = 1, anchor = 4, mix = 0, temporalDenoise = 1;
+    // Bridge only, default off: specular blends to RR where the recovery output has collapsed; diffuse uses RR.
+    bool rrFallback = false, diffuseRR = false;
+    // Bridge only, default off, Temporal off: the specular recovery runs on a running mean along the reflection's
+    // virtual motion and blends to RR (at the history's level) where that mean is still noisy.
+    bool reflectionHistory = false;
+    // Share of the history mean's fine detail kept over the robust fit (0 = the fit's softer result).
+    float reflectionDetail = 1;
     bool operator==(const FlatAlbedoSettings&) const = default;
 };
 // Shared by startup and live menu snapshots. This is the existing Flat Albedo
@@ -62,6 +69,18 @@ template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(c
         out.anchor = finite(config.FfxDenoiserRecoveryFlatAnchor.value_or_default(),4,0,8);
         out.mix = finite(config.FfxDenoiserRecoveryFlatMix.value_or_default(),0,0,1);
         out.temporalDenoise = finite(config.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(),1,0,2);
+    }
+    // Separate so configurations without these keys keep every other flat setting.
+    if constexpr (requires { config.FfxDenoiserRecoveryFlatRRFallback; config.FfxDenoiserRecoveryFlatDiffuseRR; })
+    {
+        out.rrFallback = config.FfxDenoiserRecoveryFlatRRFallback.value_or_default();
+        out.diffuseRR = config.FfxDenoiserRecoveryFlatDiffuseRR.value_or_default();
+    }
+    if constexpr (requires { config.FfxDenoiserRecoveryFlatReflectionHistory; config.FfxDenoiserRecoveryFlatReflectionDetail; })
+    {
+        out.reflectionHistory = config.FfxDenoiserRecoveryFlatReflectionHistory.value_or_default();
+        const float detail = config.FfxDenoiserRecoveryFlatReflectionDetail.value_or_default();
+        out.reflectionDetail = std::isfinite(detail) ? std::clamp(detail,0.0f,1.0f) : 1.0f;
     }
     return out;
 }

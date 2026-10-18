@@ -234,6 +234,10 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserRecoveryFlatAnchor.reset();
     FfxDenoiserRecoveryFlatMix.reset();
     FfxDenoiserRecoveryFlatRoughness.reset();
+    FfxDenoiserRecoveryFlatRRFallback.reset();
+    FfxDenoiserRecoveryFlatDiffuseRR.reset();
+    FfxDenoiserRecoveryFlatReflectionHistory.reset();
+    FfxDenoiserRecoveryFlatReflectionDetail.reset();
     FfxDenoiserRecoveryDebug.reset();
 
     FfxDenoiserCompareView.reset();
@@ -586,6 +590,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserRecoveryFlatHistoryLength.set_from_config(readInt("FSR-RR", "RecoveryFlatHistoryLength"));
             FfxDenoiserRecoveryFlatTemporalDenoise.set_from_config(readFloat("FSR-RR", "RecoveryFlatTemporalDenoise"));
             FfxDenoiserRecoveryFlatRoughness.set_from_config(readInt("FSR-RR", "RecoveryFlatRoughness"));
+            FfxDenoiserRecoveryFlatRRFallback.set_from_config(readBool("FSR-RR", "RecoveryFlatRRFallback"));
+            FfxDenoiserRecoveryFlatDiffuseRR.set_from_config(readBool("FSR-RR", "RecoveryFlatDiffuseRR"));
+            FfxDenoiserRecoveryFlatReflectionHistory.set_from_config(readBool("FSR-RR", "RecoveryFlatReflectionHistory"));
+            FfxDenoiserRecoveryFlatReflectionDetail.set_from_config(readFloat("FSR-RR", "RecoveryFlatReflectionDetail"));
             FfxDenoiserRecoveryDebug.set_from_config(readInt("FSR-RR", "RecoveryDebug"));
             FfxDenoiserCompareView.set_from_config(readInt("FSR-RR", "CompareView"));
             FfxDenoiserCompareSplit.set_from_config(readFloat("FSR-RR", "CompareSplit"));
@@ -1577,6 +1585,10 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "RecoveryFlatHistoryLength", GetIntValue(Instance()->FfxDenoiserRecoveryFlatHistoryLength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatTemporalDenoise", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatTemporalDenoise.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatRoughness", GetIntValue(Instance()->FfxDenoiserRecoveryFlatRoughness.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatRRFallback", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatRRFallback.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatDiffuseRR", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatDiffuseRR.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatReflectionHistory", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatReflectionHistory.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatReflectionDetail", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatReflectionDetail.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDebug", GetIntValue(Instance()->FfxDenoiserRecoveryDebug.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CompareView", GetIntValue(Instance()->FfxDenoiserCompareView.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CompareSplit", GetFloatValue(Instance()->FfxDenoiserCompareSplit.value_for_config()).c_str());
