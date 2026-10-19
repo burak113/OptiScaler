@@ -580,6 +580,10 @@ class Config
     CustomOptional<float> FfxDenoiserNrdBridgeStabilityRamp {0.035f};
     CustomOptional<bool> FfxDenoiserNrdBridgeTurnColour {false};
     CustomOptional<float> FfxDenoiserNrdBridgeTurnColourFrames {30.0f};
+    // Post-flick blotch fix (task 24 T2 c, experimental): after a flick the composite takes its low-frequency band
+    // from the last settled frame before it, level matched. Default off; nothing is allocated or dispatched while off.
+    CustomOptional<bool> FfxDenoiserPostFlickFix {false};
+    CustomOptional<float> FfxDenoiserPostFlickStrength {1.0f};
     CustomOptional<float> FfxDenoiserNrdBridgeTurnColourDegrees {3.0f};
     // Post-turn brightness correction of RR's inputs: peak excess removed and frames until it is gone.
     CustomOptional<bool> FfxDenoiserNrdBridgeTurnBrightness {false};

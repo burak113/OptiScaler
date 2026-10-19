@@ -2540,8 +2540,20 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .RecoveryFlatHistoryLength = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6)),
             .RecoveryFlatTemporalDenoise = std::clamp(cfg.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(), 0.0f, 2.0f),
             .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
+            .PostFlickFix = cfg.FfxDenoiserPostFlickFix.value_or_default(),
+            .PostFlickStrength = std::clamp(cfg.FfxDenoiserPostFlickStrength.value_or_default(), 0.0f, 1.0f),
             .CompareView = uint32_t(std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4)),
         };
+        // Post-flick blotch fix (task 24 T2 c): the pass pair needs the camera pair; the conversion desc carries the
+        // inverses, so invert once here. Off by default and unused while the option is off.
+        if (compDesc.PostFlickFix)
+        {
+            DirectX::XMMATRIX view = DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&_convDesc.InvViewMatrix));
+            DirectX::XMMATRIX projection = DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&_convDesc.InvProjMatrix));
+            DirectX::XMStoreFloat4x4(&compDesc.ViewMatrix, view);
+            DirectX::XMStoreFloat4x4(&compDesc.ProjectionMatrix, projection);
+            DirectX::XMStoreFloat4x4(&compDesc.PrevViewMatrix, DirectX::XMLoadFloat4x4(&_convDesc.PrevViewMatrix));
+        }
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
         // It is deliberately absent from composition; the title's Color input already

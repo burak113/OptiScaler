@@ -73,7 +73,8 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
                             size=lp_size if key=='lp' else size,writable=True,readback=keep(key))
         flat_values = dict(DstTexSize=[w,h,1/w,1/h], Modulation=[1,1], Strength=frame.get('strength',1),
                            Anchor=frame.get('anchor',4), Mix=frame.get('mix',0), NoiseScale=2,
-                           Epsilon=1e-4,Radius=3,Flags=frame.get('flags',0))
+                           Epsilon=1e-4,Radius=3,Flags=frame.get('flags',0),
+                           VerticalMode=frame.get('vertical_mode',0), VerticalStrength=frame.get('vertical_strength',0.0))
         flat_cb = t.constants('FSRDFlatDetailSeed',flat_values)
         common = [n('spec'),n('diff'),n('qs'),n('qd'),n('skip'),n('normal'),n('depth'),
                   -1,-1,'tiles',-1,-1,-1,-1]

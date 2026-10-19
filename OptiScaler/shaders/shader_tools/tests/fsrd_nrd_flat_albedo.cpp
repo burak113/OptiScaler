@@ -5,6 +5,11 @@
 #undef main
 #include <json.hpp>
 #include <cstdlib>
+#include <chrono>
+#include "shaders/fsrd_preprocess/FSRDPostFlickConstants.h"
+#include "shaders/fsrd_preprocess/precompile/FSRDPostFlickApply_Shader.h"
+#include "shaders/fsrd_preprocess/precompile/FSRDPostFlickPrepare_Shader.h"
+#include <algorithm>
 using Json = nlohmann::json;
 using Path = std::filesystem::path;
 
@@ -164,6 +169,343 @@ void wrapperChecks(Host& host)
         "family exhaustion never floors geometry without a retained recovery graph");
     host.submit();host.reset();output.reset();view={};fallback.DiscardRecordingHistory();
 }
+// Task 24: the vertical-surface option adds no pass, no dispatch and no resource; it only changes the arithmetic
+// inside the existing apply pass. Measure the whole NZR chain with the option off and on at the user's render
+// resolution (1505x847) and at 2560x1440: wall clock around submit(), which waits on a GPU fence.
+void timingChecks(Host& host)
+{
+    const std::pair<uint32_t,uint32_t> sizes[] = {{1505u,847u},{2560u,1440u}};
+    for (const auto& [w,h] : sizes)
+    {
+        for (uint32_t mode : {0u,1u})
+        {
+            auto family = MakeOwnedShared<LobeRecovery::Family>(); FlatAlbedoRecovery helper;
+            FlatAlbedoSettings settings; settings.enabled = true;
+            settings.verticalMode = mode; settings.verticalStrength = mode ? 0.5f : 0.0f;
+            Scene scene(host,w,h);
+            std::vector<double> samples;
+            for (uint32_t i = 0;i < 24;++i)
+            {
+                const LobeRecoveryInputs in {scene.resources.spec,scene.resources.diff,scene.resources.linearDepth,
+                    scene.resources.motion,scene.resources.normals,scene.spec(),scene.diff(),w,h};
+                LobeRecoveryFrame frame; frame.frameIndex = 100 + i; frame.reset = (i == 0);
+                FlatAlbedoRecovery::Prepared prepared; std::string error;
+                need(helper.Prepare(host.device.Get(),host.list.Get(),in,frame,settings,family,prepared,error),error.c_str());
+                need(ResTrack_Dx12::RetainComputeDispatch(host.device.Get(),host.list.Get(),prepared.owner),"timing lease");
+                helper.RecordInputs(host.list.Get(),prepared); helper.RecordOutput(host.list.Get(),prepared);
+                const auto start = std::chrono::steady_clock::now();
+                host.submit();
+                samples.push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count());
+                host.reset();
+            }
+            std::sort(samples.begin(),samples.end());
+            std::cout << "timing " << w << "x" << h << " vertical mode " << mode << ": median "
+                      << samples[samples.size()/2] << " ms, p10 " << samples[samples.size()/10]
+                      << " ms over " << samples.size() << " frames" << std::endl;
+            checks += 0;
+        }
+    }
+}
+
+// Task 24 T2 c) verification: the post-flick blotch fix pass pair, driven through the same camera and constant
+// math the preprocessor uses (FSRDPostFlickConstants.h) instead of a hand-written identity matrix.
+//   A) the shared state machine on the CPU: the first frame refreshes the keyframe, a turning camera never does, and
+//      the keyframe is only refreshed after the camera has been still for kSettledFramesNeeded frames. That lock is
+//      what stops the flick's own blotchy frames from overwriting the good reference, and it is exactly where the
+//      audit found the shipped pass inert after a flick.
+//   B) a frame without history returns the input byte-identically (GPU).
+//   C) a real translation camera pair: a synthetic spike in the keyframe band has to come back at the reprojected
+//      pixel. A transposed matrix or a wrong projection element cannot produce that (GPU).
+//   D) the cost of the pass pair at the user's resolution.
+void postFlickChecks(Host& host)
+{
+    // The user's render size is the default; FSRD24_PF_RES=2560x1440 repeats the same checks (and the cost
+    // measurement) at 1440p, so the 1440p number is reproducible instead of hand-edited.
+    uint32_t W = 1505, H = 847;
+    if (const char* knob = std::getenv("FSRD24_PF_RES"))
+    {
+        const std::string value(knob);
+        const auto split = value.find('x');
+        need(split != std::string::npos, "post-flick resolution knob is WxH");
+        W = uint32_t(std::atoi(value.substr(0, split).c_str()));
+        H = uint32_t(std::atoi(value.substr(split + 1).c_str()));
+    }
+    const uint32_t HW = W / 2, HH = H / 2;
+    const auto matrix = [](std::initializer_list<float> values) {
+        DirectX::XMFLOAT4X4 m {};
+        std::memcpy(&m.m[0][0], values.begin(), sizeof(float) * 16);
+        return m;
+    };
+    // Column-vector (HLSL) form, the form the composition desc carries.
+    const DirectX::XMFLOAT4X4 identity = matrix({1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1});
+    const DirectX::XMFLOAT4X4 turned = matrix({0.8660254f,0,-0.5f,0, 0,1,0,0, 0.5f,0,0.8660254f,0, 0,0,0,1});
+    const DirectX::XMFLOAT4X4 moved = matrix({1,0,0,-0.5f, 0,1,0,0, 0,0,1,0, 0,0,0,1});
+    const DirectX::XMFLOAT4X4 projection = matrix({1,0,0,0, 0,1,0,0, 0,0,1,1, 0,0,-1,0});
+    {
+        // A) the state machine the preprocessor runs every frame.
+        PostFlickMath::KeyState state;
+        PostFlickMath::Outputs outputs;
+        PostFlickMath::BuildFrame(state, W, H, false, 1.0f, identity, projection, identity, outputs);
+        need(outputs.Refresh && outputs.Prepare[6] == 1.0f && outputs.Prepare[7] == 0.0f,
+            "post-flick: the first frame refreshes the keyframe and reports no history");
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, turned, projection, identity, outputs);
+        need(!outputs.Refresh, "post-flick: a turning camera never refreshes the keyframe");
+        for (uint32_t i = 0; i + 1 < PostFlickMath::kSettledFramesNeeded; ++i)
+        {
+            PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, outputs);
+            need(!outputs.Refresh, "post-flick: the first still frames must not overwrite the recalled keyframe");
+        }
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, outputs);
+        need(outputs.Refresh, "post-flick: the keyframe refreshes once the camera has been still long enough");
+        need(outputs.Prepare[7] == 1.0f, "post-flick: valid history is reported to the age recursion");
+        PostFlickMath::BuildFrame(state, W, H, true, 4.0f, identity, projection, identity, outputs);
+        need(outputs.Apply[33] == 1.0f, "post-flick: the strength is clamped into the constants");
+        // The uploaded relative matrix must move the recall by the analytic shift: with P00 = 1 and P32 = -1 at a
+        // depth of 10, a camera moved by +0.5 in world x shifts the recall by 0.5/10 NDC = 37.6 px at this width.
+        PostFlickMath::KeyState translated;
+        PostFlickMath::Outputs shift;
+        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, identity, projection, identity, shift);
+        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, moved, projection, identity, shift);
+        const float* row0 = &shift.Apply[4];
+        const float* row3 = &shift.Apply[16];
+        const float viewZ = shift.Apply[24] < 0.0f ? -10.0f : 10.0f;
+        const auto keyNdc = [&](float viewX) {
+            return (row0[0] * viewX + row0[3]) / (row3[0] * viewX + row3[2] * viewZ + row3[3]);
+        };
+        const auto currentNdc = [&](float viewX) {
+            return (viewX * shift.Apply[20] + shift.Apply[22] * viewZ) / (shift.Apply[24] * viewZ);
+        };
+        const float shiftNdc = keyNdc(10.0f) - currentNdc(10.0f);
+        need(std::abs(shiftNdc - 0.05f) < 1e-5f,
+            "post-flick: the relative matrix shifts the recall by the analytic 0.05 NDC");
+        std::cout << "post-flick relative shift: " << shiftNdc * float(W) * 0.5f << " px at " << W << " wide ("
+                  << shiftNdc << " NDC, analytic 0.05)" << std::endl;
+    }
+    ComPtr<ID3D12Resource> color, motion, depth, aux[2], key[2], keyAux[2], band, out;
+    const auto texture = [&](ComPtr<ID3D12Resource>& target, DXGI_FORMAT format, uint32_t w, uint32_t h, const wchar_t* name) {
+        D3D12_RESOURCE_DESC desc {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Width = w; desc.Height = h;
+        desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1; desc.Format = format;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        hr(host.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&target)));
+        target->SetName(name);
+    };
+    texture(color, DXGI_FORMAT_R16G16B16A16_FLOAT, W, H, L"postflick color");
+    texture(motion, DXGI_FORMAT_R16G16B16A16_FLOAT, W, H, L"postflick motion");
+    texture(depth, DXGI_FORMAT_R32_FLOAT, W, H, L"postflick depth");
+    texture(band, DXGI_FORMAT_R16G16B16A16_FLOAT, HW, HH, L"postflick band");
+    texture(out, DXGI_FORMAT_R16G16B16A16_FLOAT, W, H, L"postflick output");
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        texture(aux[i], DXGI_FORMAT_R16G16_FLOAT, HW, HH, L"postflick aux");
+        texture(key[i], DXGI_FORMAT_R16G16B16A16_FLOAT, HW, HH, L"postflick key");
+        texture(keyAux[i], DXGI_FORMAT_R16G16_FLOAT, HW, HH, L"postflick keyaux");
+    }
+    Scene dummy(host, 128, 128);
+    std::vector<uint16_t> colorData(size_t(W) * H * 4, 0), motionData(size_t(W) * H * 4, 0);
+    std::vector<float> depthData(size_t(W) * H, 10.0f);
+    for (uint32_t y = 0; y < H; ++y)
+        for (uint32_t x = 0; x < W; ++x)
+        {
+            const size_t p = size_t(y) * W + x;
+            const float level = 0.02f + 0.01f * std::sin(x / 37.0f) * std::cos(y / 29.0f);
+            colorData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(level);
+            colorData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(level * 0.9f);
+            colorData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(level * 0.8f);
+            colorData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(1.0f);
+            motionData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(1.0f);
+        }
+    upload(host, dummy, color.Get(), binary(colorData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    upload(host, dummy, depth.Get(), binary(depthData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    ComPtr<ID3D12RootSignature> prepareRoot, applyRoot;
+    ComPtr<ID3D12PipelineState> preparePso, applyPso;
+    hr(host.device->CreateRootSignature(0, FSRDPostFlickPrepare_cso, sizeof(FSRDPostFlickPrepare_cso), IID_PPV_ARGS(&prepareRoot)));
+    hr(host.device->CreateRootSignature(0, FSRDPostFlickApply_cso, sizeof(FSRDPostFlickApply_cso), IID_PPV_ARGS(&applyRoot)));
+    D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline {};
+    pipeline.pRootSignature = prepareRoot.Get();
+    pipeline.CS = {FSRDPostFlickPrepare_cso, sizeof(FSRDPostFlickPrepare_cso)};
+    hr(host.device->CreateComputePipelineState(&pipeline, IID_PPV_ARGS(&preparePso)));
+    pipeline.pRootSignature = applyRoot.Get();
+    pipeline.CS = {FSRDPostFlickApply_cso, sizeof(FSRDPostFlickApply_cso)};
+    hr(host.device->CreateComputePipelineState(&pipeline, IID_PPV_ARGS(&applyPso)));
+    // One heap per recorded frame, kept alive until the check ends: a descriptor bound to a command list is never
+    // rewritten while that list is in flight, and no heap dies before its submission completes.
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc {};
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; heapDesc.NumDescriptors = 16;
+    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    std::vector<ComPtr<ID3D12DescriptorHeap>> heaps;
+    const UINT stride = host.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    const auto srv = [&](ID3D12Resource* resource, DXGI_FORMAT format, D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+        D3D12_SHADER_RESOURCE_VIEW_DESC view {};
+        view.Format = format; view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; view.Texture2D.MipLevels = 1;
+        view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        host.device->CreateShaderResourceView(resource, &view, handle);
+    };
+    const auto uav = [&](ID3D12Resource* resource, DXGI_FORMAT format, D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC view {};
+        view.Format = format; view.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        host.device->CreateUnorderedAccessView(resource, nullptr, &view, handle);
+    };
+    const auto transition = [&](ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+        D3D12_RESOURCE_BARRIER b {};
+        b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        b.Transition = {resource, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, before, after};
+        host.list->ResourceBarrier(1, &b);
+    };
+    // The motion only changes when the flick flag changes, so it is uploaded once per configuration instead of
+    // per frame (a 29 MB staging upload would otherwise dominate the measurement).
+    const auto uploadMotion = [&](bool flick) {
+        for (size_t p = 0; p < size_t(W) * H; ++p)
+            motionData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(flick ? 5.0f : 0.0f);
+        upload(host, dummy, motion.Get(), binary(motionData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    };
+    uploadMotion(false);
+    uint32_t parity = 0;
+    const auto frame = [&](const PostFlickMath::Outputs& outputs) {
+        ComPtr<ID3D12DescriptorHeap> heap;
+        hr(host.device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)));
+        heaps.push_back(heap);
+        ID3D12DescriptorHeap* bound[] {heap.Get()};
+        host.list->SetDescriptorHeaps(1, bound);
+        // Everything written below starts the frame readable; declare that before the UAV writes.
+        for (auto* resource : {band.Get(), key[parity ^ 1u].Get(), aux[parity ^ 1u].Get(), keyAux[parity ^ 1u].Get()})
+            transition(resource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto cpu = heap->GetCPUDescriptorHandleForHeapStart();
+        auto gpu = heap->GetGPUDescriptorHandleForHeapStart();
+        host.list->SetPipelineState(preparePso.Get()); host.list->SetComputeRootSignature(prepareRoot.Get());
+        srv(color.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(motion.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(depth.Get(), DXGI_FORMAT_R32_FLOAT, cpu); cpu.ptr += stride;
+        srv(aux[parity].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu); cpu.ptr += stride;
+        srv(key[parity].Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(keyAux[parity].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu); cpu.ptr += stride;
+        uav(band.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        uav(key[parity ^ 1u].Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        uav(aux[parity ^ 1u].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu); cpu.ptr += stride;
+        uav(keyAux[parity ^ 1u].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu);
+        host.list->SetComputeRootDescriptorTable(1, gpu);
+        D3D12_GPU_DESCRIPTOR_HANDLE uavTable = gpu; uavTable.ptr += uint64_t(6) * stride;
+        host.list->SetComputeRootDescriptorTable(2, uavTable);
+        host.list->SetComputeRoot32BitConstants(0, 8, outputs.Prepare, 0);
+        host.list->Dispatch((HW + 7) / 8, (HH + 7) / 8, 1);
+        transition(band.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        transition(key[parity ^ 1u].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        transition(aux[parity ^ 1u].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        transition(keyAux[parity ^ 1u].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        host.list->SetPipelineState(applyPso.Get()); host.list->SetComputeRootSignature(applyRoot.Get());
+        cpu = heap->GetCPUDescriptorHandleForHeapStart(); cpu.ptr += uint64_t(10) * stride;
+        gpu = heap->GetGPUDescriptorHandleForHeapStart(); gpu.ptr += uint64_t(10) * stride;
+        srv(color.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(aux[parity ^ 1u].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu); cpu.ptr += stride;
+        srv(band.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(key[parity ^ 1u].Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu); cpu.ptr += stride;
+        srv(keyAux[parity ^ 1u].Get(), DXGI_FORMAT_R16G16_FLOAT, cpu); cpu.ptr += stride;
+        transition(out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        uav(out.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, cpu);
+        host.list->SetComputeRootDescriptorTable(1, gpu);
+        uavTable = gpu; uavTable.ptr += uint64_t(5) * stride;
+        host.list->SetComputeRootDescriptorTable(2, uavTable);
+        host.list->SetComputeRoot32BitConstants(0, 36, outputs.Apply, 0);
+        host.list->Dispatch((W + 7) / 8, (H + 7) / 8, 1);
+        transition(out.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        parity ^= 1u;
+    };
+    const auto halfAt = [](const uint8_t* p, int c) {
+        const uint16_t word = uint16_t(p[2 * c] | (p[2 * c + 1] << 8));
+        return DirectX::PackedVector::XMConvertHalfToFloat(word);
+    };
+    // B) a frame without history returns the input byte-identically.
+    PostFlickMath::KeyState state;
+    PostFlickMath::Outputs outputs;
+    PostFlickMath::BuildFrame(state, W, H, false, 1.0f, identity, projection, identity, outputs);
+    frame(outputs);
+    auto first = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    host.submit();
+    need(packed(first, W, H, 8) == binary(colorData),
+        "post-flick: a frame without history returns the input byte-identically");
+    std::cout << "post-flick frame 0 identical: ok" << std::endl;
+    host.reset();
+    // C) the reprojection: the keyframe band gets a spike, the camera then moves, and the spike has to come back
+    // where the matrix says. The second frame does not refresh the keyframe (only two settled frames have passed).
+    {
+        const uint32_t spikeX = 200, spikeY = 300;
+        std::vector<uint16_t> keyData(size_t(HW) * HH * 4, 0), keyAuxData(size_t(HW) * HH * 2, 0);
+        for (size_t p = 0; p < size_t(HW) * HH; ++p)
+        {
+            keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.02f);
+            keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.018f);
+            keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.016f);
+            keyData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(0.02f);
+            keyAuxData[p * 2 + 0] = PackedVector::XMConvertFloatToHalf(10.0f);
+            keyAuxData[p * 2 + 1] = PackedVector::XMConvertFloatToHalf(1.0f);
+        }
+        for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx)
+            {
+                const size_t p = size_t(int(spikeY) + dy) * HW + size_t(int(spikeX) + dx);
+                keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.52f);
+                keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.51f);
+                keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.50f);
+            }
+        upload(host, dummy, key[parity].Get(), binary(keyData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        upload(host, dummy, keyAux[parity].Get(), binary(keyAuxData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        host.submit(); host.reset();
+        PostFlickMath::Outputs recall;
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, moved, projection, identity, recall);
+        need(!recall.Refresh, "post-flick: the recall frame keeps the keyframe it was given");
+        frame(recall);
+        auto readback = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        host.submit();
+        const auto data = packed(readback, W, H, 8);
+        host.reset();
+        const float* row0 = &recall.Apply[4];
+        const float* row3 = &recall.Apply[16];
+        const float viewZ = recall.Apply[24] < 0.0f ? -10.0f : 10.0f;
+        const auto keyNdc = [&](float viewX) {
+            return (row0[0] * viewX + row0[3]) / (row3[0] * viewX + row3[2] * viewZ + row3[3]);
+        };
+        const auto currentNdc = [&](float viewX) {
+            return (viewX * recall.Apply[20] + recall.Apply[22] * viewZ) / (recall.Apply[24] * viewZ);
+        };
+        const float shiftPixels = (keyNdc(10.0f) - currentNdc(10.0f)) * float(W) * 0.5f;
+        const float spikeFullX = float(spikeX) * 2.0f + 1.0f, spikeFullY = float(spikeY) * 2.0f + 1.0f;
+        const float expectedX = spikeFullX - shiftPixels, expectedY = spikeFullY;
+        float best = -1.0f; int bestX = -1, bestY = -1;
+        for (uint32_t y = 0; y < H; ++y)
+            for (uint32_t x = 0; x < W; ++x)
+            {
+                const uint8_t* p = data.data() + (size_t(y) * W + x) * 8;
+                const uint8_t* q = reinterpret_cast<const uint8_t*>(colorData.data()) + (size_t(y) * W + x) * 8;
+                const float deviation = std::abs(halfAt(p, 0) - halfAt(q, 0)) + std::abs(halfAt(p, 1) - halfAt(q, 1)) +
+                    std::abs(halfAt(p, 2) - halfAt(q, 2));
+                if (deviation > best) { best = deviation; bestX = int(x); bestY = int(y); }
+            }
+        std::cout << "post-flick recall spike at " << bestX << "," << bestY << " deviation " << best
+                  << " (expected " << expectedX << "," << expectedY << ", shift " << shiftPixels << " px)" << std::endl;
+        need(best > 0.2f, "post-flick: the recalled band shows up in the output");
+        need(std::abs(float(bestX) - expectedX) <= 2.0f && std::abs(float(bestY) - expectedY) <= 2.0f,
+            "post-flick: the recalled spike lands at the reprojected pixel");
+        need(std::abs(float(bestX) - spikeFullX) > 5.0f, "post-flick: the recall is reprojected, not sampled in place");
+    }
+    // D) the cost of the real pass pair at the user's resolution.
+    std::vector<double> samples;
+    PostFlickMath::Outputs cost;
+    PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, cost);
+    for (uint32_t batch = 0; batch < 12; ++batch)
+    {
+        for (uint32_t repetition = 0; repetition < 8; ++repetition) frame(cost);
+        const auto start = std::chrono::steady_clock::now();
+        host.submit();
+        samples.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count() / 8.0);
+        host.reset();
+    }
+    std::sort(samples.begin(), samples.end());
+    std::cout << "post-flick cost at " << W << "x" << H << ": median " << samples[samples.size() / 2]
+              << " ms per frame (prepare + apply), p10 " << samples[samples.size() / 10] << " ms" << std::endl;
+}
+
 int main(int argc,char** argv) try
 {
     std::cout.setf(std::ios::unitbuf); need(argc==2,"job JSON required");
@@ -174,6 +516,8 @@ int main(int argc,char** argv) try
     // Repeat the actual wrapper path with the signed provider, including the
     // prepare-failure/zero-strength branches. No native NRD shader is dispatched.
     loadReal(); wrapperChecks(host);
+    postFlickChecks(host);
+    timingChecks(host);
     const auto frames=job.at("frames");
     auto family=MakeOwnedShared<LobeRecovery::Family>(); FlatAlbedoRecovery helper;
     FlatAlbedoSettings settings; settings.enabled=true;

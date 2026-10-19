@@ -320,6 +320,15 @@ class FSRDPreprocessor_Dx12
         float RecoveryFlatTemporalDenoise = 1.0f;
         uint32_t RecoveryDebug = 0;
 
+        // Post-flick blotch fix (task 24 T2 c, default off): the pass pair runs after the flat detail and before the
+        // skin. It needs the current and previous views to decide whether the camera is settled and to reproject the
+        // recalled keyframe. Filled by the feature from the conversion desc.
+        bool PostFlickFix = false;
+        float PostFlickStrength = 1.0f;
+        DirectX::XMFLOAT4X4 ViewMatrix {};
+        DirectX::XMFLOAT4X4 ProjectionMatrix {};
+        DirectX::XMFLOAT4X4 PrevViewMatrix {};
+
         // Compare (split) view. 0 off, 1 RR only vs final, 2 Recovery v2 off/on,
         // 3 Flat Detail off/on, 4 Skin re-blur off/on. While nonzero the composition
         // records same-frame pre-SR A/B snapshots; the split itself is presented later,

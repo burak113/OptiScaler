@@ -39,6 +39,9 @@
 #include "precompile/FSRDFlatDetailRefine_Shader.h"
 #include "precompile/FSRDFlatDetailBase_Shader.h"
 #include "precompile/FSRDFlatDetailApply_Shader.h"
+#include "FSRDPostFlickConstants.h"
+#include "precompile/FSRDPostFlickPrepare_Shader.h"
+#include "precompile/FSRDPostFlickApply_Shader.h"
 #include "precompile/FSRDFlatTemporal_Shader.h"
 #include "precompile/FSRDFlatTemporalLP_Shader.h"
 #include "precompile/FSRDFlatTemporalStore_Shader.h"
@@ -386,6 +389,14 @@ struct FSRDPreprocessor_Dx12::Impl
 
     ComputeState m_geometryShader;
     ComputeState m_flatDetailClassifyShader, m_flatDetailSeedShader, m_flatDetailRefineShader;
+    // Post-flick blotch fix (task 24 T2 c), default off: half-resolution keyframe/band/age textures plus the two
+    // passes that recall the last settled frame band on pixels whose history is young. Created on first use only.
+    ComputeState m_postFlickPrepareShader, m_postFlickApplyShader;
+    std::array<ComPtr<ID3D12Resource>, 2> m_postFlickKey, m_postFlickKeyAux, m_postFlickAux;
+    ComPtr<ID3D12Resource> m_postFlickCur, m_postFlickOutput;
+    uint32_t m_postFlickParity = 0, m_postFlickWidth = 0, m_postFlickHeight = 0;
+    bool m_postFlickValid = false, m_postFlickActive = false;
+    PostFlickMath::KeyState m_postFlickKeyState {};
     ComputeState m_flatDetailBaseShader, m_flatDetailApplyShader;
     ComPtr<ID3D12CommandSignature> m_flatDetailSignature;
     ComPtr<ID3D12Resource> m_flatDetailTiles, m_flatDetailArguments, m_flatDetailReset;
@@ -1350,6 +1361,14 @@ struct FSRDPreprocessor_Dx12::Impl
         m_skinBounds8.Reset(); m_skinBounds16.Reset();
         m_sssKernel.Reset(); m_skinFused = false;
         m_skinOutputActive = false; m_skinMode = 0;
+        // Post-flick textures are size bound: drop them so EnsurePostFlick rebuilds them at the new extent instead
+        // of leaving the option silently dead (a size change is a context rebuild, not a toggle).
+        for (auto* set : {&m_postFlickKey, &m_postFlickKeyAux, &m_postFlickAux})
+            for (auto& resource : *set) resource.Reset();
+        m_postFlickCur.Reset(); m_postFlickOutput.Reset();
+        m_postFlickParity = 0; m_postFlickWidth = 0; m_postFlickHeight = 0;
+        m_postFlickValid = false; m_postFlickActive = false;
+        m_postFlickKeyState = PostFlickMath::KeyState {};
         for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
             for (auto& resource : *set) resource.Reset();
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
@@ -1630,6 +1649,81 @@ struct FSRDPreprocessor_Dx12::Impl
         return output;
     }
 
+    // --- Post-flick blotch fix (task 24 T2 c), default off ------------------------------------------------
+    // A half-resolution keyframe/band/age pass pair that runs after the flat detail and before the skin, so the
+    // skin copies the corrected composite. Nothing is allocated, bound or dispatched while the option is off.
+    bool EnsurePostFlick()
+    {
+        // The textures are size bound and released on a resolution change, so the pipeline state alone is not
+        // enough: recreate both whenever either is missing.
+        if (m_postFlickPrepareShader.m_pso && m_postFlickOutput) return true;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_postFlickPrepareShader.m_pso)
+        {
+            m_postFlickPrepareShader.Initialize(m_pDev, GetAsByteSpan(FSRDPostFlickPrepare_cso), 32, 6, 4,
+                L"FSRD_PostFlick_Prepare_Constants");
+            m_postFlickApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDPostFlickApply_cso), 144, 5, 1,
+                L"FSRD_PostFlick_Apply_Constants");
+        }
+        const uint32_t halfW = std::max(1u, m_postFlickWidth / 2), halfH = std::max(1u, m_postFlickHeight / 2);
+        const auto create = [&](ComPtr<ID3D12Resource>& target, DXGI_FORMAT format, uint32_t w, uint32_t h, LPCWSTR name) {
+            target = CreateTexture2D(m_pDev, w, h, format, name, kSrvState);
+        };
+        for (uint32_t parity = 0; parity < 2; ++parity)
+        {
+            create(m_postFlickKey[parity], DXGI_FORMAT_R16G16B16A16_FLOAT, halfW, halfH, L"FSR_PostFlick_Key");
+            create(m_postFlickKeyAux[parity], DXGI_FORMAT_R16G16_FLOAT, halfW, halfH, L"FSR_PostFlick_KeyAux");
+            create(m_postFlickAux[parity], DXGI_FORMAT_R16G16_FLOAT, halfW, halfH, L"FSR_PostFlick_Aux");
+        }
+        create(m_postFlickCur, DXGI_FORMAT_R16G16B16A16_FLOAT, halfW, halfH, L"FSR_PostFlick_Band");
+        create(m_postFlickOutput, DXGI_FORMAT_R16G16B16A16_FLOAT, m_postFlickWidth, m_postFlickHeight, L"FSR_PostFlick_Output");
+        m_postFlickParity = 0; m_postFlickValid = false;
+        m_postFlickKeyState = PostFlickMath::KeyState {};
+        return true;
+    }
+    // Reads the composite (SRV), the converted motion and the linear depth; writes the corrected composite into
+    // m_postFlickOutput, which CompositionColor() then prefers over the recovery output until the next frame.
+    void DispatchPostFlick(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        // Cleared before every early-out, like the flat detail and skin flags: a frame that does not dispatch must
+        // fall back to the composition output. Leaving the flag set would freeze the image when the option is
+        // switched off and would make the pass read its own previous output while it stays on.
+        m_postFlickActive = false;
+        if (!desc.PostFlickFix) return;
+        const uint32_t requestedWidth = uint32_t(desc.DstTexSize.x), requestedHeight = uint32_t(desc.DstTexSize.y);
+        if (!requestedWidth || !requestedHeight) return;
+        // The render size is constant for a swapchain; a change would need a full context rebuild, so bail out
+        // instead of reusing textures of the wrong extent.
+        if ((m_postFlickWidth && m_postFlickWidth != requestedWidth) ||
+            (m_postFlickHeight && m_postFlickHeight != requestedHeight)) return;
+        m_postFlickWidth = requestedWidth; m_postFlickHeight = requestedHeight;
+        const uint32_t width = m_postFlickWidth, height = m_postFlickHeight;
+        const uint32_t halfW = std::max(1u, width / 2), halfH = std::max(1u, height / 2);
+        if (!EnsurePostFlick()) return;
+        // Camera and constants: shared with the GPU fixture, see FSRDPostFlickConstants.h.
+        PostFlickMath::Outputs outputs {};
+        PostFlickMath::BuildFrame(m_postFlickKeyState, width, height, m_postFlickValid, desc.PostFlickStrength,
+            desc.ViewMatrix, desc.ProjectionMatrix, desc.PrevViewMatrix, outputs);
+        ID3D12Resource* composite = CompositionColor();
+        // --- prepare (half resolution) ---
+        ID3D12Resource* prepareInputs[] {composite, m_out.Resources.Motion.Get(), m_LinearDepth.Get(),
+            m_postFlickAux[m_postFlickParity].Get(), m_postFlickKey[m_postFlickParity].Get(),
+            m_postFlickKeyAux[m_postFlickParity].Get()};
+        ID3D12Resource* prepareOutputs[] {m_postFlickCur.Get(), m_postFlickKey[m_postFlickParity ^ 1u].Get(),
+            m_postFlickAux[m_postFlickParity ^ 1u].Get(), m_postFlickKeyAux[m_postFlickParity ^ 1u].Get()};
+        m_postFlickPrepareShader.Dispatch(cmdList, GetAsByteSpan(outputs.Prepare), prepareInputs, prepareOutputs,
+                                         {float(halfW), float(halfH)}, true);
+        // --- apply (full resolution) ---
+        ID3D12Resource* applyInputs[] {composite, m_postFlickAux[m_postFlickParity ^ 1u].Get(), m_postFlickCur.Get(),
+            m_postFlickKey[m_postFlickParity ^ 1u].Get(), m_postFlickKeyAux[m_postFlickParity ^ 1u].Get()};
+        ID3D12Resource* applyOutputs[] {m_postFlickOutput.Get()};
+        m_postFlickApplyShader.Dispatch(cmdList, GetAsByteSpan(outputs.Apply), applyInputs, applyOutputs,
+                                       {float(width), float(height)}, true);
+        m_postFlickParity ^= 1u;
+        m_postFlickValid = true;
+        m_postFlickActive = true;
+    }
+
     void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         m_flatDetailActive = false;
@@ -1737,6 +1831,8 @@ struct FSRDPreprocessor_Dx12::Impl
     ID3D12Resource* CompositionColor() const
     {
         if (m_skinOutputActive) return m_skinResult.Get();
+        // Post-flick blotch fix (task 24 T2 c): while active the corrected composite is the composition output.
+        if (m_postFlickActive) return m_postFlickOutput.Get();
         return m_recoveryOutputIndex < 0 ? m_compositionOutput.Get()
                                         : m_recoveryOutput[m_recoveryOutputIndex].Get();
     }
@@ -3127,6 +3223,7 @@ struct FSRDPreprocessor_Dx12::Impl
             else if (compare == 3u)
                 capturedA = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotA);
             DispatchFlatDetail(cmdList, desc);
+            DispatchPostFlick(cmdList, desc);
             if (compare == 3u)
                 capturedB = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotB);
             else if (compare == 4u)

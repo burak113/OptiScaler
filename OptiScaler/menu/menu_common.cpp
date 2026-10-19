@@ -3361,6 +3361,28 @@ static bool DrawNrdBridgeTurnColour(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Frames until the game's excess is gone and the correction is fully off. Default 12.");
     ImGui::EndDisabled();
+    bool postFlick = config->FfxDenoiserPostFlickFix.value_or_default();
+    if (ImGui::Checkbox("Post-flick blotch fix (experimental)##NrdBridge", &postFlick))
+    {
+        config->FfxDenoiserPostFlickFix = postFlick;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("After a 25-50 deg/frame flick RR has no history and paints low-frequency blotches on flat walls "
+                          "for 10-20 frames. Pixels whose history is still young take their low-frequency band from the last "
+                          "settled frame before the flick (level matched) while the current frame's detail is kept; settled "
+                          "pixels are untouched. Two half-resolution plus two full-resolution passes, only while it is on. "
+                          "Default off.");
+    ImGui::BeginDisabled(!postFlick);
+    float postFlickStrength = config->FfxDenoiserPostFlickStrength.value_or_default();
+    if (ImGui::SliderFloat("Post-flick strength##NrdBridge", &postFlickStrength, 0.0f, 1.0f, "%.2f"))
+    {
+        config->FfxDenoiserPostFlickStrength = postFlickStrength;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How much of the keyframe band is used (1 = the band is fully replaced on young pixels). Default 1.");
+    ImGui::EndDisabled();
     ImGui::BeginDisabled(!enabled && !brightness);
     float degrees = config->FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
     if (ImGui::SliderFloat("Turn speed threshold (deg/frame)##NrdBridge", &degrees, 0.5f, 20.0f, "%.1f"))

@@ -137,7 +137,7 @@ def constants(shader, values, directory=PRE):
         values.setdefault('LumaRecovery', 1.0)
         values.setdefault('ChromaRecovery', 1.0)
     text = (directory/(shader+('.hlsli' if skin_conversion else '.hlsl'))).read_text(encoding='utf-8')
-    flat = shader.startswith(('FSRDFlatDetail', 'FSRDFlatTemporal'))
+    flat = shader.startswith(('FSRDFlatDetail', 'FSRDFlatTemporal', 'FSRDNrdFlat'))
     if flat:
         marker = ('CB_Classify' if shader == 'FSRDFlatDetailClassify' else
                   'CB_FlatTemporal' if shader.startswith('FSRDFlatTemporal') else 'CB_FlatDetail')
