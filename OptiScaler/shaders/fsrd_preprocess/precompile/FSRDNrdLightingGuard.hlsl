@@ -59,11 +59,11 @@ void CSMain(uint3 group:SV_GroupID,uint3 tid:SV_GroupThreadID,uint lane:SV_Group
         const bool negativeEvent=any(events&(d<0));PositiveEvent=Event&&!negativeEvent;
         PositiveLobes=PositiveEvent?((events.x&&d.x>0?1u:0u)|(events.y&&d.y>0?2u:0u)):0;
         uint ttl=(old>>8)&15;
-        if(negativeEvent)ttl=2;
+        if(negativeEvent)ttl=1;
         if(PositiveEvent)ttl=0;
         Pending=ttl>0;
         if(Event)count=0;
-        NextFlags=count.x|(count.y<<4)|((ttl?ttl-1:0)<<8)|(Pending<<16)|(PositiveEvent<<17)|(negative.x<<20)|(negative.y<<21);
+        NextFlags=count.x|(count.y<<4)|((ttl?ttl-1:0)<<8)|(Pending<<16)|(PositiveEvent<<17)|(PositiveLobes<<18)|(negative.x<<20)|(negative.y<<21);
         NextTile[group.xy]=NextFlags;
     }
     GroupMemoryBarrierWithGroupSync();
@@ -75,6 +75,10 @@ void CSMain(uint3 group:SV_GroupID,uint3 tid:SV_GroupThreadID,uint lane:SV_Group
         // Every padded cell is written, including zero in unconfirmed neighbouring tiles.
         float2 change=min(max((fast-mean)/max(mean,1e-8),0),4);
         NextChange[p]=change*float2((PositiveLobes&1)!=0,(PositiveLobes&2)!=0);
+        // Unmasked evidence is separate from the established confirmed-cell support.
+        // This is empirical local SNR, not a sigma/independence guarantee.
+        precise float2 localZ=abs(fast-mean)/sqrt(max(var*(2.0/3.0),1e-20));
+        NextSupport[p]=float4(change,localZ);
         if(Event) { var*=pow(clamp(a/max(mean,1e-8),.25,4),2);mean=a;fast=a; }
         else { var=.95*var+.05*delta*delta;mean+=.05*delta; }
         NextMeanVar[p]=float4(mean,var);NextFast[p]=fast;

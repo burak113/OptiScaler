@@ -8,6 +8,7 @@ struct FSRDLightingGuardTestAccess
 {
     static const void* Generation(const FSRDNrdLightingGuardDx12::Lease& w){return w?w->state.get():nullptr;}
     static ID3D12Resource* Change(const FSRDNrdLightingGuardDx12::Lease& w){return w->state->change.Get();}
+    static ID3D12Resource* Support(const FSRDNrdLightingGuardDx12::Lease& w){return w->state->support.Get();}
     static std::array<ID3D12Resource*,3> History(const FSRDNrdLightingGuardDx12::Lease& w,uint32_t frame)
     {return {w->state->meanVar[frame&1].Get(),w->state->fast[frame&1].Get(),w->state->tile[frame&1].Get()};}
     static std::array<ID3D12Resource*,3> Stats(const FSRDNrdLightingGuardDx12& g,uint32_t frame)
@@ -101,6 +102,115 @@ void GuardTiming(Host& host,uint32_t width,uint32_t height,const std::filesystem
         <<" gpu_us_p90="<<Quantile(gpu,.9)<<" stats_gpu_us_p50="<<Quantile(statsGpu,.5)<<" stats_gpu_us_p90="<<Quantile(statsGpu,.9)
         <<" apply_gpu_us_p50="<<Quantile(applyGpu,.5)<<" apply_gpu_us_p90="<<Quantile(applyGpu,.9)<<" allocated_image_bytes="<<guard.ImageBytes()<<'\n';
 }
+
+void GuardEventTiming(Host& host,uint32_t width,uint32_t height,const std::filesystem::path& folder)
+{
+    Scene base(host,width,height,folder/"base"),bright(host,width,height,folder/"bright"),dim(host,width,height,folder/"dim");
+    host.submit();host.reset();base.uploads.clear();bright.uploads.clear();dim.uploads.clear();
+    std::vector<uint16_t> canonical(size_t(width)*height*4);
+    {std::ifstream f(folder/"base/motion.bin",std::ios::binary);f.read(reinterpret_cast<char*>(canonical.data()),canonical.size()*2);
+     need(f.gcount()==canonical.size()*2,"event timing canonical motion input complete");}
+    D3D12_QUERY_HEAP_DESC desc{};desc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;desc.Count=6;
+    ComPtr<ID3D12QueryHeap> heap;hr(host.device->CreateQueryHeap(&desc,IID_PPV_ARGS(&heap)));
+    auto queryReadback=buffer(host.device.Get(),48,D3D12_HEAP_TYPE_READBACK);
+    uint64_t frequency;hr(host.queue->GetTimestampFrequency(&frequency));
+    std::array<std::vector<double>,3> total,stats,apply,cpu;
+    std::array<uint64_t,3> branchMin{UINT64_MAX,UINT64_MAX,UINT64_MAX},selectedMin{UINT64_MAX,UINT64_MAX,UINT64_MAX};
+    for(uint32_t trial=0;trial<20;trial++)for(uint32_t offset=0;offset<3;offset++)
+    {
+        const uint32_t mode=(trial+offset)%3;Scene& target=mode==1?bright:mode==2?dim:base;
+        FSRDNrdLightingGuardDx12 guard;uint32_t frame=0;std::string error;
+        for(uint32_t batch=0;batch<2;batch++)
+        {
+            std::vector<FSRDNrdLightingGuardDx12::Lease> leases;
+            for(uint32_t k=0;k<16;k++)
+            {
+                FSRDNrdLightingGuardDx12::Lease work;
+                need(guard.Before(host.device.Get(),host.list.Get(),width,height,frame++,base.resources.diff,base.resources.spec,
+                    base.resources.motion,base.resources.linearDepth,work,error,.1f,.6703613f,65504.f),error.c_str());
+                leases.push_back(std::move(work));
+            }
+            host.submit();host.reset();leases.clear();
+        }
+        // Fixture calibration: bright confirms on its second changed frame, dim on its fourth.
+        // Match the still control to dim's frame35; actual tile/motion phase is asserted below.
+        // These are natural input updates, never Reset/Age/confirmation injection.
+        const uint32_t preceding=mode==1?1u:3u;
+        std::vector<FSRDNrdLightingGuardDx12::Lease> precedingLeases;
+        for(uint32_t k=0;k<preceding;k++)
+        {
+            FSRDNrdLightingGuardDx12::Lease first;
+            need(guard.Before(host.device.Get(),host.list.Get(),width,height,frame++,target.resources.diff,target.resources.spec,
+                target.resources.motion,target.resources.linearDepth,first,error,.1f,.6703613f,65504.f),error.c_str());
+            precedingLeases.push_back(std::move(first));
+        }
+        // Keep the natural transition and measured pass on one queue submission.
+        // Every preceding lease remains pinned until the diagnostic fence below.
+        FSRDNrdLightingGuardDx12::Lease work;
+        host.list->EndQuery(heap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
+        const auto start=std::chrono::steady_clock::now();
+        need(guard.Before(host.device.Get(),host.list.Get(),width,height,frame++,target.resources.diff,target.resources.spec,
+            target.resources.motion,target.resources.linearDepth,work,error,.1f,.6703613f,65504.f,heap.Get(),1),error.c_str());
+        const double record=std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-start).count();
+        host.list->EndQuery(heap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,5);
+        host.list->ResolveQueryData(heap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,6,queryReadback.Get(),0);
+        // Diagnostics are outside the timestamp span, with this exact lease still alive.
+        auto images=FSRDLightingGuardTestAccess::History(work,frame-1);
+        GuardReadback tile(host,images[2]),motion(host,work->Motion());
+        host.submit();host.reset();
+        uint64_t* ticks;hr(queryReadback->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));
+        const auto gpu=double(ticks[5]-ticks[0])*1e6/frequency,sg=double(ticks[2]-ticks[1])*1e6/frequency,
+                   ag=double(ticks[4]-ticks[3])*1e6/frequency;
+        const uint64_t tickTotal=ticks[5]-ticks[0],tickStats=ticks[2]-ticks[1],tickApply=ticks[4]-ticks[3];
+        queryReadback->Unmap(0,nullptr);
+        std::vector<uint32_t> flags(size_t(tile.width)*tile.height);uint8_t* mapped;
+        hr(tile.memory->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));
+        for(uint32_t y=0;y<tile.height;y++)std::memcpy(flags.data()+size_t(y)*tile.width,
+            mapped+tile.footprint.Offset+y*tile.footprint.Footprint.RowPitch,tile.width*4);
+        tile.memory->Unmap(0,nullptr);
+        uint64_t positive=0,negative=0,branch=0,selected=0;
+        for(uint32_t y=0;y<tile.height;y++)for(uint32_t x=0;x<tile.width;x++)
+        {
+            const uint32_t f=flags[size_t(y)*tile.width+x];positive+=bool(f&(1u<<17));negative+=bool(f&(1u<<16));
+            uint32_t lobes=0;
+            for(int oy=-1;oy<=1;oy++)for(int ox=-1;ox<=1;ox++)
+            {
+                const int xx=int(x)+ox,yy=int(y)+oy;
+                if(xx>=0&&yy>=0&&xx<int(tile.width)&&yy<int(tile.height))lobes|=(flags[size_t(yy)*tile.width+xx]>>18)&3u;
+            }
+            if(lobes)branch+=uint64_t(std::min(32u,width-x*32))*std::min(32u,height-y*32);
+        }
+        hr(motion.memory->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));
+        for(uint32_t y=0;y<height;y++)
+        {
+            const auto* actual=reinterpret_cast<const uint16_t*>(mapped+motion.footprint.Offset+y*motion.footprint.Footprint.RowPitch);
+            for(uint32_t x=0;x<width;x++)
+            {
+                const auto* original=canonical.data()+(size_t(y)*width+x)*4;
+                need(actual[x*4]==original[0]&&actual[x*4+1]==original[1]&&actual[x*4+3]==original[3],"event timing RG/alpha exact");
+                if(actual[x*4+2]!=original[2]){++selected;need((actual[x*4+2]&0x7fff)==0x7bff,"event action remains finite signed sentinel");}
+            }
+        }
+        motion.memory->Unmap(0,nullptr);
+        const bool classified=mode==0?(!positive&&!negative&&!branch&&!selected):
+            mode==1?(positive&&!negative&&branch&&selected):(!positive&&negative&&!branch&&selected);
+        std::cout<<"guard_event_sample width="<<width<<" height="<<height<<" mode="<<mode<<" trial="<<trial
+            <<" measured="<<(trial>=4)<<" frame="<<frame-1<<" frequency="<<frequency<<" ticks_total="<<tickTotal
+            <<" ticks_stats="<<tickStats<<" ticks_apply="<<tickApply<<" gpu_us="<<gpu<<" stats_us="<<sg<<" apply_us="<<ag
+            <<" marker_cpu_us="<<record<<" positive_tiles="<<positive<<" negative_tiles="<<negative
+            <<" support_branch_pixels="<<branch<<" selected_pixels="<<selected<<" classified="<<classified<<std::endl;
+        need(classified,"natural second candidate must classify from actual tile/motion output");
+        if(trial>=4){total[mode].push_back(gpu);stats[mode].push_back(sg);apply[mode].push_back(ag);cpu[mode].push_back(record);
+            branchMin[mode]=std::min(branchMin[mode],branch);selectedMin[mode]=std::min(selectedMin[mode],selected);}
+    }
+    for(uint32_t mode=0;mode<3;mode++)std::cout<<"guard_event_summary width="<<width<<" height="<<height<<" mode="<<mode
+        <<" samples="<<total[mode].size()<<" gpu_us_p50="<<Quantile(total[mode],.5)<<" gpu_us_p90="<<Quantile(total[mode],.9)
+        <<" stats_gpu_us_p50="<<Quantile(stats[mode],.5)<<" stats_gpu_us_p90="<<Quantile(stats[mode],.9)
+        <<" apply_gpu_us_p50="<<Quantile(apply[mode],.5)<<" apply_gpu_us_p90="<<Quantile(apply[mode],.9)
+        <<" marker_cpu_us_p50="<<Quantile(cpu[mode],.5)<<" marker_cpu_us_p90="<<Quantile(cpu[mode],.9)
+        <<" min_support_branch_pixels="<<branchMin[mode]<<" min_selected_pixels="<<selectedMin[mode]<<std::endl;
+}
+
 void MotionStabilityTiming(Host& host,uint32_t width,uint32_t height,const std::filesystem::path& input)
 {
     std::shared_ptr<Context> context;std::string error;
@@ -218,6 +328,9 @@ void GuardGenerationLifetime(Host& host,const std::filesystem::path& output)
     auto oldChange=FSRDLightingGuardTestAccess::Change(firstWork),newChange=FSRDLightingGuardTestAccess::Change(secondWork);
     need(oldChange&&newChange&&oldChange!=newChange,"pending generations own separate positive-support scratch maps");
     GuardReadback oldChangeReadback(host,oldChange),newChangeReadback(host,newChange);
+    auto oldSupport=FSRDLightingGuardTestAccess::Support(firstWork),newSupport=FSRDLightingGuardTestAccess::Support(secondWork);
+    need(oldSupport&&newSupport&&oldSupport!=newSupport,"pending generations own separate all-cell evidence scratch maps");
+    GuardReadback oldSupportReadback(host,oldSupport),newSupportReadback(host,newSupport);
     std::array<std::unique_ptr<GuardReadback>,6> readbacks;
     for(unsigned j=0;j<3;j++){readbacks[j]=std::make_unique<GuardReadback>(host,oldImages[j]);readbacks[j+3]=std::make_unique<GuardReadback>(host,newImages[j]);}
     settings.lightingValidation=false;need(wrapper.Configure(settings,error),error.c_str());wrapper.DiscardRecordingHistory();
@@ -225,11 +338,15 @@ void GuardGenerationLifetime(Host& host,const std::filesystem::path& output)
          "both pending generations survive toggling OFF and dropping every front context before submission");
     need(oldChange->GetDesc().Width==8&&newChange->GetDesc().Height==8,
          "positive-support scratch survives front context destruction with the pending work");
+    need(oldSupport->GetDesc().Width==8&&newSupport->GetDesc().Height==8&&
+         oldSupport->GetDesc().Format==DXGI_FORMAT_R32G32B32A32_FLOAT,"local evidence survives front context destruction with exact FP32 format");
     host.submit();host.reset();std::filesystem::create_directories(output);
     {std::ofstream f(output/"old-change.bin",std::ios::binary);oldChangeReadback.Write(f);}
     {std::ofstream f(output/"new-change.bin",std::ios::binary);newChangeReadback.Write(f);}
+    {std::ofstream f(output/"old-support.bin",std::ios::binary);oldSupportReadback.Write(f);}
+    {std::ofstream f(output/"new-support.bin",std::ios::binary);newSupportReadback.Write(f);}
     for(unsigned j=0;j<6;j++){std::ofstream f(output/("retained"+std::to_string(j)+".bin"),std::ios::binary);readbacks[j]->Write(f);}
-    std::cout<<"PASS pending detector generation lifetime checks="<<checks<<" generations=2 independent_history_images=6 independent_change_maps=2\n";
+    std::cout<<"PASS pending detector generation lifetime checks="<<checks<<" generations=2 independent_history_images=6 independent_change_maps=2 independent_support_maps=2\n";
 }
 int main(int argc,char** argv)
 {
@@ -246,6 +363,8 @@ int main(int argc,char** argv)
         {GuardTiming(host,1505,847);GuardTiming(host,2560,1440);host.checkDebug();std::cout<<"PASS guard timing checks="<<checks<<'\n';return 0;}
         if(argc==4&&std::string(argv[1])=="--timing-files")
         {GuardTiming(host,1505,847,argv[2]);GuardTiming(host,2560,1440,argv[3]);host.checkDebug();std::cout<<"PASS captured-input guard timing checks="<<checks<<'\n';return 0;}
+        if(argc==4&&std::string(argv[1])=="--event-timing")
+        {GuardEventTiming(host,1505,847,argv[2]);GuardEventTiming(host,2560,1440,argv[3]);host.checkDebug();std::cout<<"PASS classified event cost checks="<<checks<<'\n';return 0;}
         need(argc==2,"job path required");std::ifstream job(argv[1]);uint32_t w,h,n;job>>w>>h>>n;
         std::array<std::string,4> paths;for(auto& p:paths)job>>std::quoted(p);std::string controlsPath,outPath;job>>std::quoted(controlsPath)>>std::quoted(outPath);
         need(bool(job)&&w&&h&&n,"valid guard job");std::filesystem::create_directories(outPath);

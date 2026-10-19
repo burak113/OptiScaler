@@ -23,7 +23,7 @@ class FSRDNrdLightingGuardDx12
         Microsoft::WRL::ComPtr<ID3D12RootSignature> root,applyRoot;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> pso,applyPso;
         std::array<Resource,2> meanVar,fast,tile;
-        Resource change;
+        Resource change,support;
         std::vector<std::shared_ptr<Slot>> slots;
         uint32_t width=0,height=0,lastFrame=0,age=0;
         uint64_t bytes=0;
@@ -97,6 +97,8 @@ class FSRDNrdLightingGuardDx12
                     {error="RR lighting-validation history allocation failed";return false;}
                 if(!Texture(device,tw*4,th*4,DXGI_FORMAT_R32G32_FLOAT,s->change,s->bytes))
                 {error="RR lighting-validation change-map allocation failed";return false;}
+                if(!Texture(device,tw*4,th*4,DXGI_FORMAT_R32G32B32A32_FLOAT,s->support,s->bytes))
+                {error="RR lighting-validation local-support allocation failed";return false;}
                 state_=std::move(s);
             }
             auto work=std::make_shared<Work>();work->state=state_;work->inputs={diffuse,specular,motion,depth};
@@ -108,14 +110,14 @@ class FSRDNrdLightingGuardDx12
                 if(!Texture(device,width,height,DXGI_FORMAT_R16G16B16A16_FLOAT,slot->motion,slot->bytes))
                 {error="RR lighting-validation motion allocation failed";return false;}
                 D3D12_DESCRIPTOR_HEAP_DESC heap {};heap.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-                heap.NumDescriptors=14;heap.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+                heap.NumDescriptors=16;heap.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
                 if(FAILED(device->CreateDescriptorHeap(&heap,IID_PPV_ARGS(&slot->heap))))
                 {error="RR lighting-validation descriptors failed";return false;}
                 state_->slots.push_back(slot);work->slot=std::move(slot);
             }
             const auto& s=*state_;const uint32_t next=frame&1,previous=next^1;
-            std::array<ID3D12Resource*,9> srvs {diffuse,specular,motion,depth,s.meanVar[previous].Get(),s.fast[previous].Get(),s.tile[previous].Get(),s.tile[next].Get(),s.change.Get()};
-            std::array<ID3D12Resource*,5> uavs {work->slot->motion.Get(),s.meanVar[next].Get(),s.fast[next].Get(),s.tile[next].Get(),s.change.Get()};
+            std::array<ID3D12Resource*,10> srvs {diffuse,specular,motion,depth,s.meanVar[previous].Get(),s.fast[previous].Get(),s.tile[previous].Get(),s.tile[next].Get(),s.change.Get(),s.support.Get()};
+            std::array<ID3D12Resource*,6> uavs {work->slot->motion.Get(),s.meanVar[next].Get(),s.fast[next].Get(),s.tile[next].Get(),s.change.Get(),s.support.Get()};
             auto cpu=work->slot->heap->GetCPUDescriptorHandleForHeapStart();
             const auto stride=device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             const auto srv=[&](ID3D12Resource* resource)
@@ -132,17 +134,17 @@ class FSRDNrdLightingGuardDx12
             // Per-pass ranges bind only resources valid in that pass. Static descriptor validation
             // applies to whole ranges even when a compiled entry point does not read one descriptor.
             for(unsigned i=0;i<7;i++)srv(srvs[i]);
-            for(unsigned i=1;i<5;i++)uav(uavs[i]);
-            srv(srvs[7]);srv(srvs[8]);uav(uavs[0]);
+            for(unsigned i=1;i<6;i++)uav(uavs[i]);
+            srv(srvs[7]);srv(srvs[8]);srv(srvs[9]);uav(uavs[0]);
             // Everything that can fail is prepared before touching the command list.
-            std::array<D3D12_RESOURCE_BARRIER,5> barriers {};
-            for(unsigned i=0;i<5;i++)
+            std::array<D3D12_RESOURCE_BARRIER,6> barriers {};
+            for(unsigned i=0;i<6;i++)
             {
                 barriers[i].Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
                 barriers[i].Transition={uavs[i],D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
             }
-            list->ResourceBarrier(5,barriers.data());list->SetPipelineState(s.pso.Get());list->SetComputeRootSignature(s.root.Get());
+            list->ResourceBarrier(6,barriers.data());list->SetPipelineState(s.pso.Get());list->SetComputeRootSignature(s.root.Get());
             ID3D12DescriptorHeap* heaps[]={work->slot->heap.Get()};list->SetDescriptorHeaps(1,heaps);
             const bool reset=!s.valid||uint32_t(frame-s.lastFrame)!=1;
             const uint32_t age=reset?1:std::min(s.age+1,1000000u);
@@ -157,11 +159,11 @@ class FSRDNrdLightingGuardDx12
             for(auto& barrier:barriers)std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter);
             // Publish all statistics, especially the tile-active bit, before the separate apply pass.
             // Motion stays UAV until that pass completes; each root binds only its own live ranges.
-            list->ResourceBarrier(4,barriers.data()+1);list->SetPipelineState(s.applyPso.Get());
+            list->ResourceBarrier(5,barriers.data()+1);list->SetPipelineState(s.applyPso.Get());
             list->SetComputeRootSignature(s.applyRoot.Get());list->SetComputeRoot32BitConstants(0,8,constants.data(),0);
             gpu=work->slot->heap->GetGPUDescriptorHandleForHeapStart();gpu.ptr+=2*stride;list->SetComputeRootDescriptorTable(1,gpu);
-            gpu.ptr+=9*stride;list->SetComputeRootDescriptorTable(2,gpu);
-            gpu.ptr+=2*stride;list->SetComputeRootDescriptorTable(3,gpu);
+            gpu.ptr+=10*stride;list->SetComputeRootDescriptorTable(2,gpu);
+            gpu.ptr+=3*stride;list->SetComputeRootDescriptorTable(3,gpu);
             if(timestamps)list->EndQuery(timestamps,D3D12_QUERY_TYPE_TIMESTAMP,timestampOffset+2);
             list->Dispatch((width+7)/8,(height+7)/8,1);
             if(timestamps)list->EndQuery(timestamps,D3D12_QUERY_TYPE_TIMESTAMP,timestampOffset+3);

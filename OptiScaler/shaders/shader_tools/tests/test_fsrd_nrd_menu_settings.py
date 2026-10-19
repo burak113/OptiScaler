@@ -674,7 +674,7 @@ int main(){try{
  ImGui::frame();ImGui::bools["Motion-adaptive RR stability (experimental)"]=true;drawBridge(&cfg);
  need(NrdBridge::applyCalls==before+1&&NrdBridge::last.motionStability.enabled&&
  NrdBridge::last.motionStability.still==.85f,"Motion checkbox sends a coherent runtime snapshot");
- ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Walking threshold (m/frame)##MotionRR"]=.005f;
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Walking threshold (units/frame)##MotionRR"]=.005f;
  ImGui::floats["Still ramp per frame##MotionRR"]=.05f;drawBridge(&cfg);
  need(NrdBridge::applyCalls==before+1&&NrdBridge::last.motionStability.translationMetres==.005f&&
  NrdBridge::last.motionStability.ramp==.05f,"Walking and ramp controls publish together");

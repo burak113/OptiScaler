@@ -23,7 +23,7 @@ def build(out):
     return exe
 
 def hook():
-    p=Path('E:/FSRD/rrlab/hooks/23_antilag_v14.py');s=importlib.util.spec_from_file_location('actual_reference',p)
+    p=Path('E:/FSRD/rrlab/hooks/23_antilag_v19.py');s=importlib.util.spec_from_file_location('actual_reference',p)
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
 
 def case(exe,out,name,c):
@@ -64,7 +64,7 @@ def case(exe,out,name,c):
     return summary
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--case',default='local',choices=['local','dim','bright','static','turn','holdout','freeze','negative','near','pulse','all','timing','timing-real','motion-timing','lifetime','alias']);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--case',default='local',choices=['local','dim','bright','static','turn','holdout','freeze','negative','near','pulse','pulse16','phase','local2','diffuse-only','specular-only','opposing-lobes','all','timing','timing-real','event-timing','motion-timing','lifetime','alias']);a=p.parse_args()
     out=Path(os.environ['FSRD_GPU_TEST_OUTPUT']);out.mkdir(parents=True,exist_ok=True);exe=build(out)
     if a.case=='alias':
         r=subprocess.run([str(exe),'--alias'],capture_output=True,text=True,timeout=240,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
@@ -76,7 +76,7 @@ def main():
         r=subprocess.run([str(exe),'--lifetime',str(out/'retained')],capture_output=True,text=True,timeout=240,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
         (out/'lifetime.log').write_text(r.stdout+r.stderr);print(r.stdout+r.stderr);r.check_returncode()
         assert 'debug_errors=0 debug_warnings=0' in r.stdout
-        assert 'generations=2 independent_history_images=6 independent_change_maps=2' in r.stdout
+        assert 'generations=2 independent_history_images=6 independent_change_maps=2 independent_support_maps=2' in r.stdout
         return
     if a.case=='motion-timing':
         rows=[]
@@ -94,6 +94,43 @@ def main():
         (out/'motion-timing.log').write_text(r.stdout+r.stderr);print(r.stdout+r.stderr);r.check_returncode()
         assert len([x for x in r.stdout.splitlines() if x.startswith('motion_stability_timing ')])==2
         assert 'debug_errors=0 debug_warnings=0' in r.stdout
+        return
+    if a.case=='event-timing':
+        c=Capture('c7294a8e');command=[str(exe),'--event-timing'];staging=[];records={}
+        for w,h in [(1505,847),(2560,1440)]:
+            folder=out/f'event-captured-{w}x{h}';folder.mkdir();staging.append(folder);command.append(str(folder))
+            iy=np.minimum(np.arange(h)*c.H//h,c.H-1);ix=np.minimum(np.arange(w)*c.W//w,c.W-1)
+            rawfields={}
+            for target,source,dt,ch in [('spec','input_specular','f2',4),('diff','input_diffuse','f2',4),
+                ('motion','input_motion','f2',4),('depth','input_depth','f4',1),('normals','input_normal_roughness','u4',1),
+                ('spec_albedo','input_specular_albedo','u1',4),('diff_albedo','input_diffuse_albedo','u1',4)]:
+                a=np.frombuffer(c.raw(0,source),dt).reshape(c.H,c.W,ch)[iy[:,None],ix[None,:]].copy()
+                if target=='motion':a[...,:3]=0
+                rawfields[target]=a
+            records[f'{w}x{h}']={}
+            for name,gain in [('base',1.),('bright',2.),('dim',.5)]:
+                sub=folder/name;sub.mkdir();record={}
+                for target,a in rawfields.items():
+                    v=a.copy();clipped=0
+                    if target in ('spec','diff'):
+                        f=v.astype('f4');f[...,:3]*=gain;clipped=int(np.count_nonzero(f[...,:3]>65504))
+                        f[...,:3]=np.minimum(f[...,:3],65504);v=f.astype('f2')
+                        assert np.array_equal(v[...,3].view('u2'),a[...,3].view('u2'))
+                    assert np.isfinite(v).all() if v.dtype.kind=='f' else True
+                    payload=v.tobytes();(sub/(target+'.bin')).write_bytes(payload)
+                    record[target]={'sha256':__import__('hashlib').sha256(payload).hexdigest(),'clipped_rgb':clipped}
+                records[f'{w}x{h}'][name]=record
+        scope={'capture':c.uuid,'source_frame':0,'input_hashes':records,'warm':32,'trials_per_phase':20,'first_trials_excluded':4,
+            'phase_order':'rotated still/bright/dim per trial','measured_frame':{'still':35,'bright':33,'dim':35},'fixture_controls':[.1,.6703613,65504],
+            'motion':'xyz explicitly zeroed consistently for fixed geometry, alpha retained',
+            'scope':'isolated production guard only; fixed real lighting with synthetic gain steps; nearest resize only at2560; no RR dispatch or game FPS',
+            'timestamps':'natural transition and measured pass share submission; outer + per-pass, diagnostic copies/fences excluded; CPU includes query markers'}
+        (out/'event-timing-scope.json').write_text(json.dumps(scope,indent=1))
+        r=subprocess.run(command,capture_output=True,text=True,timeout=240,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+        (out/'event-timing.log').write_text(r.stdout+r.stderr);print(r.stdout+r.stderr);r.check_returncode()
+        assert 'debug_errors=0 debug_warnings=0' in r.stdout
+        assert len([x for x in r.stdout.splitlines() if x.startswith('guard_event_summary ')])==6
+        for folder in staging:shutil.rmtree(folder)
         return
     if a.case in ('timing','timing-real'):
         command=[str(exe),'--timing'];staging=[]
@@ -121,7 +158,21 @@ def main():
         c.depth=(lambda i:np.full_like(original_depth(i),.02)) if near else (lambda i:-original_depth(i))
         c.uuid+='#guard-near-depth-only' if near else '#guard-negative-depth-only'
         return c
-    cases={'pulse':lambda:LocalPulse23(period=8),'negative':lambda:signed_guard_only(),'near':lambda:signed_guard_only(True),'local':lambda:Step('d6d2a083',48,3.,(0,300,128,550)),
+    def lobe_step(kind):
+        # Guard-only wiring falsifier: independent lobe evidence must not cross into the other lobe.
+        src=Capture('d6d2a083');c=Step(src,48,3.,(0,300,128,550));both=c.raw
+        def raw(i,name):
+            if kind=='diffuse-only' and name=='input_specular':return src.raw(i,name)
+            if kind=='specular-only' and name=='input_diffuse':return src.raw(i,name)
+            if kind=='opposing-lobes' and name=='input_specular':
+                return Step(src,48,.5,(0,300,128,550)).raw(i,name)
+            return both(i,name)
+        c.raw=raw;c.uuid+='#guard-'+kind
+        return c
+    cases={'diffuse-only':lambda:lobe_step('diffuse-only'),'specular-only':lambda:lobe_step('specular-only'),
+           'opposing-lobes':lambda:lobe_step('opposing-lobes'),'phase':lambda:Step('d6d2a083',48,2.,(13,307,109,563)),
+           'local2':lambda:Step('d6d2a083',48,2.,(0,300,128,550)),
+           'pulse16':lambda:LocalPulse23(period=16),'pulse':lambda:LocalPulse23(period=8),'negative':lambda:signed_guard_only(),'near':lambda:signed_guard_only(True),'local':lambda:Step('d6d2a083',48,3.,(0,300,128,550)),
            'dim':lambda:Step('d6d2a083',48,.5),'bright':lambda:Step('d6d2a083',48,2.),
            'static':lambda:Capture('d6d2a083'),'turn':lambda:Capture('06fadf38'),
            'holdout':lambda:Capture('14ef3b0d'),'freeze':lambda:Freeze('d6d2a083',40,128,step_at=48,gain=.5)}
