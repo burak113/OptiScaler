@@ -127,15 +127,15 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
                 const float change=max(max(delta.r,delta.g),delta.b)/max(peak,1e-4f);
                 const float flat=saturate(1.0f-sd/max(mean*FlatContrast,1e-4f));
                 const float a=Strength*HistoryWeight*flat*saturate((0.8f-change)/0.6f);
-                // NZR on vertical surfaces (glass grain, mode 3): the same clamped, virtual-motion history,
-                // but gated by orientation and with its own strength; the local-contrast guard is relaxed
-                // because the neighbourhood clamp - not flatness - is what protects the sign and poster edges.
+                // NZR on vertical surfaces (glass grain, mode 3): the same clamped, virtual-motion history as a plain
+                // EMA (Strength is the per-frame weight, ~2/9 matches the verified 8-frame mean) and no innovation
+                // gate: glass noise is exactly what the gate would reject, and the clamp is what protects edges.
                 float aVertical=a;
                 if (VerticalMode==3u)
                 {
                     const float gate=GlassGate(InNormals[p].rg);
                     const float flatGlass=saturate(1.0f-sd/max(mean*GlassContrast,1e-4f));
-                    aVertical=max(a,VerticalStrength*gate*flatGlass*saturate((0.8f-change)/0.6f));
+                    aVertical=max(a,VerticalStrength*gate*flatGlass);
                 }
                 h *= lh>1e-8f ? target/lh:1.0f;
                 // Bound stale chroma too: a locally absent colour cannot survive a luma-only clamp.

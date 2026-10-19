@@ -4,6 +4,7 @@
 #include "nrd_bridge_rr_fixture.cpp"
 #undef main
 #include <json.hpp>
+#include <cstdlib>
 using Json = nlohmann::json;
 using Path = std::filesystem::path;
 
@@ -176,6 +177,10 @@ int main(int argc,char** argv) try
     const auto frames=job.at("frames");
     auto family=MakeOwnedShared<LobeRecovery::Family>(); FlatAlbedoRecovery helper;
     FlatAlbedoSettings settings; settings.enabled=true;
+    // Task 24 A/B: the same chain with "NZR on vertical surfaces" enabled, for gate/byte comparisons
+    // against the default (0) run. Unset means 0, so the default test path is unchanged.
+    if (const char* knob=std::getenv("FSRD24_GLASS_MODE")) settings.verticalMode=uint32_t(std::atoi(knob));
+    if (const char* knob=std::getenv("FSRD24_GLASS_STRENGTH")) settings.verticalStrength=float(std::atof(knob));
     const uint32_t w=job.at("width"),h=job.at("height");
     uint32_t count=0;
     for (const auto& row:frames)
