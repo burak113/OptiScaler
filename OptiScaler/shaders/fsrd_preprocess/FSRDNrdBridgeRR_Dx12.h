@@ -112,6 +112,7 @@ struct RRSettings
     FlatAlbedoSettings flatAlbedo {};
     FSRDRadianceScaleSettings radianceScale {};
     MotionStabilitySettings motionStability {};
+    bool lightingValidation = false;
     // D02/WP08 experiment selector; recorded so traces can distinguish the gated fill.
     bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
@@ -145,6 +146,8 @@ template<class Configuration> inline void ReadTurnColourSettings(const Configura
 struct RRSettingsState
 {
     bool ready = false;
+    bool lightingValidationActive = false;
+    std::string lightingValidationLastError;
     bool lobeRecoveryActive = false, lobeRecoveryFallback = false;
     bool flatAlbedoActive = false, flatAlbedoFallback = false;
     std::string flatAlbedoLastError;
@@ -183,6 +186,9 @@ struct RRRecordedOutputSnapshot
     bool outputCommitted = false, recoveryActive = false, recoveryFallback = false;
     // Exact provider geometry and separate original-roughness recovery policy.
     ID3D12Resource* providerNormals = nullptr;
+    ID3D12Resource* providerMotion = nullptr;
+    bool runtimeTuningValid = false;
+    std::array<float,8> runtimeEffective {};
     bool flatAlbedoActive = false, flatAlbedoFallback = false;
     uint32_t flatAlbedoRoughness = 0;
     std::string flatAlbedoError;

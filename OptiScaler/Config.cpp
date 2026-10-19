@@ -205,6 +205,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeRecoverySpecular.reset();
     FfxDenoiserNrdBridgeRecoveryDiffuse.reset();
     FfxDenoiserNrdBridgeSurfaceValidFill.reset();
+    FfxDenoiserNrdBridgeLightingValidation.reset();
     FfxDenoiserNrdBridgeMotionAdaptiveStability.reset();
     FfxDenoiserNrdBridgeStillStability.reset();
     FfxDenoiserNrdBridgeMovingStability.reset();
@@ -573,6 +574,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeRecoverySpecular.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoverySpecular")));
             FfxDenoiserNrdBridgeRecoveryDiffuse.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoveryDiffuse")));
             FfxDenoiserNrdBridgeSurfaceValidFill.set_from_config(readBool("FSR-RR", "NrdBridgeSurfaceValidFill"));
+            FfxDenoiserNrdBridgeLightingValidation.set_from_config(readBool("FSR-RR", "NrdBridgeLightingValidation"));
             FfxDenoiserNrdBridgeMotionAdaptiveStability.set_from_config(readBool("FSR-RR", "NrdBridgeMotionAdaptiveStability"));
             FfxDenoiserNrdBridgeStillStability.set_from_config(readFloat("FSR-RR", "NrdBridgeStillStability"));
             FfxDenoiserNrdBridgeMovingStability.set_from_config(readFloat("FSR-RR", "NrdBridgeMovingStability"));
@@ -1597,6 +1599,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeRecoverySpecular", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoveryDiffuse", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoveryDiffuse.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeSurfaceValidFill", GetBoolValue(Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeLightingValidation", GetBoolValue(Instance()->FfxDenoiserNrdBridgeLightingValidation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMotionAdaptiveStability", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMotionAdaptiveStability.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeStillStability", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStillStability.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMovingStability", GetFloatValue(Instance()->FfxDenoiserNrdBridgeMovingStability.value_for_config()).c_str());

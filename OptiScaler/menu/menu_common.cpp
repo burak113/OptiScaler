@@ -3294,10 +3294,15 @@ static bool DrawNrdBridgeMotionStability(Config* config)
     control("Still stability##MotionRR",config->FfxDenoiserNrdBridgeStillStability,0.5f,1.0f,"%.2f");
     control("Moving stability##MotionRR",config->FfxDenoiserNrdBridgeMovingStability,0.0f,0.85f,"%.2f");
     control("Rotation threshold (deg/frame)##MotionRR",config->FfxDenoiserNrdBridgeStabilityRotation,0.01f,1.0f,"%.3f");
-    control("Walking threshold (m/frame)##MotionRR",config->FfxDenoiserNrdBridgeStabilityTranslation,0.0001f,0.02f,"%.4f");
+    control("Walking threshold (units/frame)##MotionRR",config->FfxDenoiserNrdBridgeStabilityTranslation,0.0001f,0.02f,"%.4f");
     control("Still ramp per frame##MotionRR",config->FfxDenoiserNrdBridgeStabilityRamp,0.005f,0.15f,"%.3f");
     ImGui::EndDisabled();
-    if (enabled) ImGui::TextWrapped("Still-light response is slower at high stability. Keep this off if neon or headlights trail.");
+    if (enabled) ImGui::TextWrapped("Still-light response is slower at high stability. Check neon and headlights; try lighting validation below.");
+    bool validation=config->FfxDenoiserNrdBridgeLightingValidation.value_or_default();
+    if(ImGui::Checkbox("Lighting-change history validation (experimental)",&validation))
+    {config->FfxDenoiserNrdBridgeLightingValidation=validation;changed=true;}
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("Detects coherent light changes while the camera is still and lets RR discard stale history. "
+        "All lighting remains denoised by RR. Adds two GPU passes and history memory. Default off; may cause transients at sharp light boundaries. Test neon and headlights.");
     return changed;
 }
 
@@ -3466,6 +3471,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     NrdBridge::ReadTurnColourSettings(config, settings);
     settings.motionStability = NrdBridge::ReadMotionStabilitySettings(config);
+    settings.lightingValidation = NrdBridge::ReadLightingValidation(config);
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.flatAlbedo = NrdBridge::ReadFlatAlbedoSettings(config);
     settings.radianceScale = ReadFSRDRadianceScale(config);
@@ -3632,6 +3638,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
         NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
     if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
     const auto state = NrdBridge::GetRRSettingsState();
+    if (!state.lightingValidationLastError.empty()) ImGui::TextWrapped("Lighting validation inactive: %s",state.lightingValidationLastError.c_str());
     if (state.flatAlbedoFallback)
         ImGui::TextWrapped("Near Zero-Rough Recovery unavailable; original roughness retained: %s",state.flatAlbedoLastError.c_str());
     else ImGui::Text("Near Zero-Rough Recovery: %s; effective RR floor %u/1023",

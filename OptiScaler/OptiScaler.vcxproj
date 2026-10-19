@@ -353,6 +353,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdTemporalControl.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdLightingGuard_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.h" />
@@ -1124,6 +1125,9 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPolish_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeSignalScale.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDRadianceScale.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLightingGuard.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLightingGuard_Common.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdLightingGuardApply.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeTurnColour.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdFlatAccumulate.hlsl" />

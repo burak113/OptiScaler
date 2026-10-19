@@ -17,6 +17,7 @@ from fsrd_toolchain import compile_cpp
 from test_fsrd_nrd_root_restore import function
 
 KEYS = {
+    'FfxDenoiserNrdBridgeLightingValidation': ('NrdBridgeLightingValidation', 'Bool'),
     'FfxDenoiserNrdBridgeMotionAdaptiveStability': ('NrdBridgeMotionAdaptiveStability', 'Bool'),
     'FfxDenoiserNrdBridgeStillStability': ('NrdBridgeStillStability', 'Float'),
     'FfxDenoiserNrdBridgeMovingStability': ('NrdBridgeMovingStability', 'Float'),
@@ -652,6 +653,16 @@ int main(){try{
  cfg.ResetFfxDenoiserSettings();NrdBridge::RRSettings brightReset;NrdBridge::ReadTurnColourSettings(cfg,brightReset);
  need(!cfg.FfxDenoiserNrdBridgeTurnBrightness.value_or_default()&&!brightReset.turnBrightness&&brightReset.turnBrightnessAmount==.15f&&
  !NrdBridge::last.turnBrightness,"Full production reset turns the brightness correction OFF in Config and runtime payload");
+ // G3 is independent of adaptive stability and persists through the actual INI path.
+ cfg.load("[FSR-RR]\n");
+ need(!NrdBridge::ReadLightingValidation(cfg)&&!ReadNrdBridgeRRSettings(cfg).lightingValidation,
+ "Lighting validation defaults OFF in both startup-compatible reader and menu snapshot");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Lighting-change history validation (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.lightingValidation&&!NrdBridge::last.motionStability.enabled,
+ "Lighting validation checkbox works independently of motion-adaptive stability");
+ saved=cfg.save();reload.load(saved);need(NrdBridge::ReadLightingValidation(reload),"Lighting validation survives INI serialization/reload");
+ cfg.ResetFfxDenoiserSettings();need(!NrdBridge::last.lightingValidation&&!NrdBridge::ReadLightingValidation(cfg),
+ "Full reset disables lighting validation in Config and runtime");
  // G2 actual menu, startup-compatible reader, persistence and fail-closed parameters.
  cfg.load("[FSR-RR]\n");
  auto temporal=NrdBridge::ReadMotionStabilitySettings(cfg);

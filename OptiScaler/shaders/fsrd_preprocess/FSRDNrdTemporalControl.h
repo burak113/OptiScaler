@@ -11,11 +11,15 @@ struct MotionStabilitySettings
     float rotationDegrees = 0.1f, translationMetres = 0.0015f, ramp = 0.035f;
     bool operator==(const MotionStabilitySettings&) const = default;
 };
+inline bool ValidMotionThresholds(const MotionStabilitySettings& s) noexcept
+{
+    return std::isfinite(s.rotationDegrees) && s.rotationDegrees > 0 && s.rotationDegrees <= 180 &&
+        std::isfinite(s.translationMetres) && s.translationMetres > 0 && s.translationMetres <= 1;
+}
 inline bool ValidMotionStability(const MotionStabilitySettings& s) noexcept
 {
     return !s.enabled || (std::isfinite(s.still) && std::isfinite(s.moving) && s.moving >= 0 && s.still <= 1 &&
-        s.moving <= s.still && std::isfinite(s.rotationDegrees) && s.rotationDegrees > 0 && s.rotationDegrees <= 180 &&
-        std::isfinite(s.translationMetres) && s.translationMetres > 0 && s.translationMetres <= 1 &&
+        s.moving <= s.still && ValidMotionThresholds(s) &&
         std::isfinite(s.ramp) && s.ramp > 0 && s.ramp <= 1);
 }
 inline float NextMotionStability(const MotionStabilitySettings& s, float previous, bool validPrevious,
@@ -24,6 +28,12 @@ inline float NextMotionStability(const MotionStabilitySettings& s, float previou
     if (!validPrevious || !std::isfinite(degrees) || !std::isfinite(metres) ||
         degrees > s.rotationDegrees || metres > s.translationMetres) return s.moving;
     return std::min(s.still, std::max(s.moving, previous) + s.ramp);
+}
+template<class Configuration> inline bool ReadLightingValidation(const Configuration& config)
+{
+    if constexpr (requires { config.FfxDenoiserNrdBridgeLightingValidation; })
+        return config.FfxDenoiserNrdBridgeLightingValidation.value_or_default();
+    return false;
 }
 template<class Configuration> inline MotionStabilitySettings ReadMotionStabilitySettings(const Configuration& config)
 {

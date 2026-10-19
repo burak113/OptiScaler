@@ -571,6 +571,7 @@ class Config
     // depth-validity channel and fails closed without live selector/phase evidence.
     CustomOptional<bool> FfxDenoiserNrdBridgeSurfaceValidFill {false};
     // Post-turn colour filter of RR's inputs: frames to fade out (0 = always) and the per-frame turn threshold.
+    CustomOptional<bool> FfxDenoiserNrdBridgeLightingValidation {false};
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionAdaptiveStability {false};
     CustomOptional<float> FfxDenoiserNrdBridgeStillStability {0.85f};
     CustomOptional<float> FfxDenoiserNrdBridgeMovingStability {0.5f};

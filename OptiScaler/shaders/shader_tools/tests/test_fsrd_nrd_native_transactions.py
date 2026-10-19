@@ -88,6 +88,19 @@ def prepare(out):
     finally:
         baseline.compile_cpp = original
     assert len(calls) == 1
+    # Config-shaped inputs for the actual production startup reader; every new
+    # selector remains OFF in all preserved pre-existing cases.
+    support_path = out/'stubs/fixture_support.h'
+    support = support_path.read_text()
+    assert support.count('struct Config {') == 1
+    support = support.replace('struct Config {', '''
+struct FloatSetting { float value; float value_or_default() const { return value; } };
+struct Config {
+ Setting FfxDenoiserNrdBridgeMotionAdaptiveStability{false},FfxDenoiserNrdBridgeLightingValidation{false};
+ FloatSetting FfxDenoiserNrdBridgeStillStability{.85f},FfxDenoiserNrdBridgeMovingStability{.5f};
+ FloatSetting FfxDenoiserNrdBridgeStabilityRotation{.1f},FfxDenoiserNrdBridgeStabilityTranslation{.0015f},FfxDenoiserNrdBridgeStabilityRamp{.035f};
+''')
+    support_path.write_text(support)
     args, kwargs = calls[0]
     source = Path(args[0]).read_text()
     # These wrappers witness REAL caller-owned interfaces and then invoke the
@@ -169,6 +182,18 @@ def run():
         else:
             os.environ['CL'] = prior_cl
     cases, python_checks = {}, 0
+    directory = out/'temporal'
+    directory.mkdir(parents=True, exist_ok=True)
+    _, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--temporal'], directory/'native_run')
+    value = json.loads((directory/'temporal-result.json').read_text())
+    assert value['debug_errors'] == value['debug_warnings'] == 0
+    assert value['provider_dispatches'] == 20 and value['contexts'] == value['provider_destroys'] == 2
+    assert len(value['temporal']['frames']) == 10
+    assert all(row['exact_rr_rgb_words'] == 128*128*12 for row in value['temporal']['frames'])
+    python_checks += 4
+    value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+    (directory/'temporal-result.json').write_text(json.dumps(value, indent=2)+'\n')
+    cases['temporal'] = value
     directory = out/'native_debug'
     directory.mkdir(parents=True, exist_ok=True)
     _, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--native-debug'], directory/'native_run')

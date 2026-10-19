@@ -11,6 +11,7 @@
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "FSRDNrdLightingGuard_Dx12.h"
 #include "FSRDRadianceScale_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdFlatAlbedoRecovery_Dx12.h"
@@ -643,6 +644,7 @@ struct Context
 };
 struct DispatchLease
 {
+    FSRDNrdLightingGuardDx12::Lease lightingGuard;
     std::shared_ptr<Context> context;
     std::shared_ptr<Context::Slot> slot;
     LobeRecovery::Prepared recovery; // Retained before the provider; owns every graph binding.
@@ -816,12 +818,17 @@ struct RRRecordedOutput
     std::array<uint8_t, 184> providerControl {};
     uint32_t providerCheckerboardSignalFlags = 0, diffuseCheckerboardOrigin = 0, specularCheckerboardOrigin = 0;
     float diffuseRadianceScale = 256.0f, specularRadianceScale = 256.0f;
+    bool runtimeTuningValid = false;
+    std::array<float,8> runtimeEffective {};
 };
 
 struct RRWrapper::Impl
 {
     std::shared_ptr<Context> context;
     FSRDRadianceScaleDx12 radianceScale;
+    FSRDNrdLightingGuardDx12 lightingGuard;
+    bool lightingValidationActive = false;
+    std::string lightingValidationError, loggedLightingValidationError;
     uint64_t generation = 0;
     uint32_t nextFrame = 0;
     bool resetPending = true, historyValid = false;
@@ -863,6 +870,8 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
     error.clear();
     if (!ValidMotionStability(settings.motionStability))
     { error = "RR motion-adaptive stability settings are invalid"; return false; }
+    if (settings.lightingValidation && !ValidMotionThresholds(settings.motionStability))
+    { error = "RR lighting validation camera thresholds are invalid"; return false; }
     if (!std::isfinite(settings.recoverySpecular) || !std::isfinite(settings.recoveryDiffuse) ||
         settings.recoverySpecular < 0.0f || settings.recoverySpecular > 1.0f ||
         settings.recoveryDiffuse < 0.0f || settings.recoveryDiffuse > 1.0f)
@@ -915,7 +924,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.lightingValidation && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -936,6 +945,11 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
     if (impl_->context && impl_->settings.flatAlbedo != requested.flatAlbedo) impl_->context->flatAlbedo.reset();
     if (requested.motionStability.enabled && !impl_->settings.motionStability.enabled) impl_->motionStabilityReady = false;
+    if (impl_->settings.lightingValidation != requested.lightingValidation)
+    {
+        impl_->lightingGuard.Reset();impl_->lightingValidationActive=false;
+        impl_->lightingValidationError.clear();impl_->loggedLightingValidationError.clear();
+    }
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
@@ -948,6 +962,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.flatAlbedo = requested.flatAlbedo;
     impl_->settings.radianceScale = requested.radianceScale;
     impl_->settings.motionStability = requested.motionStability;
+    impl_->settings.lightingValidation = requested.lightingValidation;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.surfaceValidFill = requested.surfaceValidFill;
@@ -988,6 +1003,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
 RRSettingsState RRWrapper::GetSettingsState() const noexcept
 {
     RRSettingsState state;
+    if (impl_) { state.lightingValidationActive=impl_->lightingValidationActive;state.lightingValidationLastError=impl_->lightingValidationError; }
     if (!impl_) return state;
     state.requested = impl_->settings;
     state.flatAlbedoActive = impl_->flatAlbedoActive;
@@ -1229,6 +1245,8 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         catch (...) { DiscardRecordingHistory(); throw; }
         fresh->generation = ++impl_->generation;
         impl_->context = std::move(fresh); // Old GPU leases retain their exact physical generation.
+        if(impl_->settings.lightingValidation)
+        { impl_->lightingGuard.Reset();impl_->lightingValidationActive=false; }
         impl_->resetPending = true;
     }
     auto lease = MakeOwnedShared<DispatchLease>(); lease->context = impl_->context;
@@ -1477,11 +1495,44 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     dispatch.renderSize = { input.width, input.height };
     dispatch.frameIndex = frame.frameIndex;
     dispatch.flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | (reset ? FFX_DENOISER_DISPATCH_RESET : 0);
+    if (impl_->settings.lightingValidation)
+    {
+        const auto& s=impl_->settings.motionStability;
+        const float degrees=CameraTurnDegrees(impl_->previous.camera.view,frame.camera.view);
+        const auto& a=frame.cameraPosition;const auto& b=frame.previousCameraPosition;
+        const float dx=a.x-b.x,dy=a.y-b.y,dz=a.z-b.z;
+        const float metres=std::sqrt(dx*dx+dy*dy+dz*dz);
+        impl_->lightingValidationActive=false;
+        if(reset) impl_->lightingGuard.Invalidate();
+        if(frame.previousValid&&(!std::isfinite(degrees)||!std::isfinite(metres)||
+            degrees>s.rotationDegrees||metres>s.translationMetres)) impl_->lightingGuard.Invalidate();
+        else
+        {
+            std::string optionalError;
+            const float projectionToViewY=DirectX::XMVectorGetY(DirectX::XMMatrixInverse(nullptr,frame.camera.projection).r[1]);
+            if(impl_->lightingGuard.Before(device.Get(),list,input.width,input.height,frame.frameIndex,
+                input.diff,input.spec,input.motion,input.linearDepth,lease->lightingGuard,optionalError,
+                lease->context->configuredValues[5],projectionToViewY,frame.farPlane))
+            {
+                dispatch.motionVectors=ffxApiGetResourceDX12(lease->lightingGuard->Motion(),FFX_API_RESOURCE_STATE_COMPUTE_READ);
+                impl_->lightingValidationActive=true;impl_->lightingValidationError.clear();
+            }
+            else
+            {
+                // Optional preparation failed before any GPU mutation. Lighting still goes through ordinary RR.
+                impl_->lightingGuard.Invalidate();impl_->lightingValidationError=optionalError;
+                if(impl_->loggedLightingValidationError!=optionalError)
+                { LOG_WARN("[NRD_BRIDGE] lighting validation inactive: {}",optionalError);impl_->loggedLightingValidationError=optionalError; }
+            }
+        }
+    }
     recorded->providerCheckerboardSignalFlags = lease->context->create.checkerboardSignalFlags;
     recorded->diffuseCheckerboardOrigin = diffuse.signal.checkerboardOrigin;
     recorded->specularCheckerboardOrigin = specular.signal.checkerboardOrigin;
     std::memcpy(recorded->providerControl.data(),reinterpret_cast<const uint8_t*>(&dispatch) +
         offsetof(ffxDispatchDescDenoiser,motionVectorScale),recorded->providerControl.size());
+    if (impl_->settings.motionStability.enabled)
+    { recorded->runtimeTuningValid=true;recorded->runtimeEffective=lease->context->configuredValues; }
     ScopedSkipHeapCapture skipHeapCapture;
     if (flatPrepared) lease->context->flatAlbedo->RecordInputs(list,lease->flatAlbedo);
     ffxReturnCode_t result;
@@ -1577,6 +1628,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
     result.providerNormals = lease->flatAlbedo.owner ? lease->flatAlbedo.normals : lease->inputs[4].Get();
+    result.providerMotion=lease->lightingGuard?lease->lightingGuard->Motion():lease->inputs[3].Get();
+    result.runtimeTuningValid=output->runtimeTuningValid;
+    if(result.runtimeTuningValid)result.runtimeEffective=output->runtimeEffective;
     result.flatAlbedoActive = bool(lease->flatAlbedo.owner); result.flatAlbedoFallback = output->flatAlbedoFallback;
     result.flatAlbedoRoughness = output->flatAlbedoRoughness; result.flatAlbedoError = output->flatAlbedoError;
     // F04: tier/reason/error are read from the immutable recorded output, so an
@@ -1635,7 +1689,8 @@ bool RRWrapper::CommitOwned(ID3D12GraphicsCommandList* list, const RRRecordedOut
         lease->inputs[3].Get(),lease->inputs[4].Get(),lease->inputs[5].Get(),lease->inputs[6].Get()};
     if (!ValidateCommitTarget(list,lease->context->width,lease->context->height,inputs,outputSpec,outputDiff,
         frame,lease->context->device.Get(),error)) return false;
-    for (auto* owned : {lease->slot->spec.Get(),lease->slot->diff.Get(),output->selectedSpec,output->selectedDiff,lease->slot->nativeDebug.Get()})
+    for (auto* owned : {lease->slot->spec.Get(),lease->slot->diff.Get(),output->selectedSpec,output->selectedDiff,
+        lease->slot->nativeDebug.Get(),lease->lightingGuard?lease->lightingGuard->Motion():nullptr})
         if (owned && (owned == outputSpec || owned == outputDiff)) return reject("RR title output aliases owned stages");
     if (HasNativeTitleSignalConstants(frame.outputConstants))
     {
@@ -1708,6 +1763,10 @@ void RRWrapper::DiscardRecordingHistory() noexcept
     impl_->recoveryTier = uint32_t(LobeRecoveryTier::None);
     impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
     impl_->context.reset();
+    // A discarded recording may still be leased on another queue. Its detector
+    // images must not become the next physical provider generation's scratch.
+    if(impl_->settings.lightingValidation)
+    { impl_->lightingGuard.Reset();impl_->lightingValidationActive=false; }
     impl_->flatAlbedoActive = impl_->flatAlbedoFallback = false; impl_->flatAlbedoError.clear();
     impl_->historyValid = false;
     impl_->resetPending = true;
@@ -1721,6 +1780,7 @@ uint64_t RRWrapper::OwnedStagingBytes() const noexcept
 uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
 {
     uint64_t bytes = impl_ && impl_->context ? impl_->context->AuxiliaryBytes() : 0;
+    if (impl_) bytes += impl_->lightingGuard.ImageBytes();
     if (impl_ && impl_->recoveryFamily)
         bytes += impl_->recoveryFamily->budget.graphBytes.load(std::memory_order_acquire) +
             impl_->recoveryFamily->budget.slots.allocatedBytes.load(std::memory_order_acquire);

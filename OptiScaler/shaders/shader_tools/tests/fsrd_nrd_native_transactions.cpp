@@ -313,6 +313,70 @@ J ConfigWiring(Host& h,NativeTitle& title){
   {"decode_source","actual production CommitNativeTransaction raw decode"},
   {"scope","native RR-only flow: production startup/request/Configure wiring, gated decode fail-closed selection and legacy motion Z on real signed provider inputs; gated vs plain decode bytes are the W2 helper fixture's proven scope; no game quality claim"}};
 }
+J TemporalWiring(Host& h,NativeTitle& title){
+ // Actual Config/startup and service request -> both independently retained native chains.
+ need(NrdBridge::GetRRSettingsState().requested.motionStability.enabled&&
+      NrdBridge::GetRRSettingsState().requested.lightingValidation,
+      "temporal startup selectors reach the actual installed service");
+ J rows=J::array();std::string error;std::array<ffxContext,2> contexts{};
+ std::array<NrdBridge::RRRecordedOutputSnapshot,2> retained;
+ std::array<float,2> retainedValue{};
+ const UINT firstCreates=FfxApiProxy::creates;
+ float position=0;
+ for(UINT frame=1;frame<=10;++frame){
+  auto settings=NrdBridge::GetRRSettingsState().requested;
+  settings.motionStability.enabled=frame<=8;settings.lightingValidation=frame<=8&&frame!=7;
+  need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"live temporal request uses production service API");
+  if(frame==4)position=.02f;
+  title.SetWords();title.begin(frame);StreamlineHooks::snapshot.constants.cameraPos.x=position;title.pass(Role::PrepLast);
+  const auto before=FfxApiProxy::dispatches;title.A();title.B();title.ConsumerA();title.ConsumerB();
+  const auto stages=NrdBridge::gService->lists.at(h.list.Get()).native;
+  need(stages[0]&&stages[1]&&stages[0]->committed&&stages[1]->committed&&FfxApiProxy::dispatches==before+2,
+       "both native consumers commit only their own actual signed RR result with temporal options");
+  std::array<NrdBridge::RRRecordedOutputSnapshot,2> snapshots;
+  J lobes=J::array();std::array<std::array<Readback,2>,2> rr,output;
+  for(UINT chain=0;chain<2;++chain){
+   const auto& stage=stages[chain];const auto provider=FfxApiProxy::records[before+chain];
+   if(frame==1)contexts[chain]=provider.context;
+   need(provider.context==contexts[chain],"temporal toggles preserve the physical provider context");
+   const bool reset=bool(provider.flags&FFX_DENOISER_DISPATCH_RESET);
+   need(reset==(frame==1||frame==9),"runtime stability and G3 toggles never reset; returning to fixed scalar resets once");
+   const auto state=stage->history->rr.GetSettingsState();snapshots[chain]=stage->history->rr.GetOwnedOutputSnapshot(stage->owned);
+   const auto& snap=snapshots[chain];
+   need(state.requested.motionStability.enabled==settings.motionStability.enabled&&
+        state.requested.lightingValidation==settings.lightingValidation,"per-chain Configure stores the live requested temporal profile");
+   need(snap.providerMotion==provider.motion,"snapshot owns the actual RR motion resource");
+   const bool guard=settings.lightingValidation&&frame!=4;
+   need(state.lightingValidationActive==guard&&state.lightingValidationLastError.empty(),"G3 is active while still, skips translation, and reports no fallback");
+   need((provider.motion!=stage->inputs.motion)==guard,"only an active G3 substitutes RR's motion copy");
+   if(settings.motionStability.enabled){
+    const float expected=frame==1||frame==4?.5f:frame<4?.5f+.035f*(frame-1):.5f+.035f*(frame-4);
+    need(std::abs(state.effective[1]-expected)<1e-5f,"both actual native chains follow the ramp and translation drop");
+    need(snap.runtimeTuningValid&&snap.runtimeEffective==state.effective,"recording freezes its own per-frame effective key values");
+   }else need(!snap.runtimeTuningValid,"OFF capture retains the existing fixed-profile metadata path");
+   if(frame==6){retained[chain]=snap;retainedValue[chain]=snap.runtimeEffective[1];}
+   if(frame>=7){need(retained[chain].providerMotion&&retained[chain].owner&&retained[chain].runtimeEffective[1]==retainedValue[chain],
+       "a retained prior recording keeps its exact G3 motion and immutable runtime values across both option toggles");}
+   rr[chain]={title.readback(snap.selectedSpec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS),title.readback(snap.selectedDiff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS)};
+   output[chain]={title.readback(chain?11:7),title.readback(chain?12:8)};
+   lobes.push_back({{"chain",chain},{"stability",state.effective[1]},{"guard",guard},{"reset",reset},
+                    {"auxiliary_bytes",stage->history->rr.OwnedAuxiliaryBytes()}});
+  }
+  auto root=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+  h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
+  h.list->CopyBufferRegion(root.Get(),0,title.checksum.Get(),0,1024);
+  h.barrier(title.checksum.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  need(Execute(h),"temporal native transactions pass the actual required submission ledger");RootChecks(h,title,root);
+  UINT64 exact=0;for(UINT chain=0;chain<2;++chain)for(UINT lobe=0;lobe<2;++lobe){
+   const auto a=output[chain][lobe].signal(),b=rr[chain][lobe].signal();
+   for(size_t p=0;p<a.size();p+=4){for(UINT c=0;c<3;++c){need(a[p+c]==b[p+c],"temporal control never routes noisy input around actual signed RR");++exact;}
+    need(a[p+3]==PackedVector::XMConvertFloatToHalf(lobe?11.f:9.f),"temporal control preserves the title's alpha bits");}
+  }
+  rows.push_back({{"frame",frame},{"chains",lobes},{"exact_rr_rgb_words",exact}});h.reset();
+ }
+ retained={};need(FfxApiProxy::creates==firstCreates+2,"temporal integration uses exactly the original two physical native contexts");
+ return {{"frames",rows},{"scope","actual native Config/startup/service/Configure/A+B/consumer/submission with signed RR; synthetic title lighting, no game IQ verdict"}};
+}
 J NativeDebugPresentation(Host& h,NativeTitle& title){
  // Regression: RR-only native transactions never retained their AMD debug image, so the
  // provider-native DebugView silently stayed off in game. The request goes through the
@@ -355,7 +419,7 @@ J NativeDebugPresentation(Host& h,NativeTitle& title){
 }
 } // namespace NativeFixture
 int main(int argc,char** argv)try{
- need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation,configWiring=mode=="--config-wiring",nativeDebug=mode=="--native-debug";need(mode.empty()||missing||useOpaque||configWiring||nativeDebug,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
+ need(argc==3||argc==4,"scratch output, actual signed AMD DLL and optional isolated case");const std::string mode=argc==4?argv[3]:"";const bool missing=mode=="--missing-consumer",mutation=mode=="--opaque-mutation",useOpaque=mode=="--opaque"||mutation,configWiring=mode=="--config-wiring",nativeDebug=mode=="--native-debug",temporal=mode=="--temporal";need(mode.empty()||missing||useOpaque||configWiring||nativeDebug||temporal,"only bounded declared native cases are accepted");NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Config::Instance()->FfxDenoiserNrdBridge.value=true;
  if(configWiring) {
   // Config setter path: the production Initialize below must consume these
@@ -363,18 +427,19 @@ int main(int argc,char** argv)try{
   Config::Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value=true;
   Config::Instance()->FfxDenoiserNrdBridgeLegacyMotionDepth.value=true;
  }
+ if(temporal){Config::Instance()->FfxDenoiserNrdBridgeMotionAdaptiveStability.value=true;Config::Instance()->FfxDenoiserNrdBridgeLightingValidation.value=true;}
  NrdBridge::ConfigureStartup(true);loadProvider(argv[2]);FrameSurvey::BeginCreationTracking(false);need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"actual native metadata registry installed");need(NrdBridge::Initialize(h.device.Get()),"actual production coordinator initialized");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
  struct HookLifetime{bool active=true;void Stop()noexcept{if(!active)return;active=false;try{NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();}catch(...){std::cerr<<"native hook cleanup failed after original assertion"<<std::endl;}}~HookLifetime(){Stop();}} hookLifetime;
  struct EmitLifetime{~EmitLifetime(){emitDebug={};}} emitLifetime;
  J result;{NativeFixture::NativeTitle title(h,false);
   std::optional<NativeFixture::OpaqueWork> opaque;if(useOpaque)opaque.emplace(h,title);
   struct Cleanup{Host& host;~Cleanup(){try{host.waitComplete();NrdBridge::Shutdown();const auto recording=RecordedComputeLease::Capture(host.list.Get());RecordedComputeLease::Detach(recording);RecordedComputeLease::Poll();}catch(...){std::cerr<<"native cleanup failed after original assertion"<<std::endl;}}}cleanup{h};
-  try{if(configWiring)result["config_wiring"]=NativeFixture::ConfigWiring(h,title);else if(nativeDebug)result["native_debug"]=NativeFixture::NativeDebugPresentation(h,title);else if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
+  try{if(temporal)result["temporal"]=NativeFixture::TemporalWiring(h,title);else if(configWiring)result["config_wiring"]=NativeFixture::ConfigWiring(h,title);else if(nativeDebug)result["native_debug"]=NativeFixture::NativeDebugPresentation(h,title);else if(missing||mutation)result=NativeFixture::DeliberateDeny(h,title,opaque?&*opaque:nullptr);else result["frames"]=NativeFixture::Positive(h,title,opaque?&*opaque:nullptr);}catch(...){const auto status=NrdBridge::GetStatus();std::cerr<<"native pre-unwind sdk="<<FfxApiProxy::dispatches<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys<<" frames="<<status.framesBridged<<" phase="<<status.phase<<" reason="<<status.reason<<" required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()<<std::dec<<std::endl;if(emitDebug)emitDebug();throw;}
  }
  if(configWiring)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates>=1,"a forwarded refused frame retires every physical provider context after fenced recording detach");
- else if(nativeDebug)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==2,"the debug-capable A/B provider contexts retire after fenced recording detach");
+ else if(nativeDebug||temporal)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==2,"the debug-capable A/B provider contexts retire after fenced recording detach");
  else if(missing||mutation)need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates>=2,"forwarded negatives retire every provider context after fenced recording detach");
  else need(FfxApiProxy::creates==FfxApiProxy::destroys&&FfxApiProxy::creates==4,"all four actual native A/B provider contexts retire after fenced recording detach");hookLifetime.Stop();const auto debug=h.debugCounts();result["native_checks"]=checks;result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["provider_dispatches"]=FfxApiProxy::dispatches;result["contexts"]=FfxApiProxy::creates;result["provider_destroys"]=FfxApiProxy::destroys;result["missing_A_Consumer_denials"]=0;result["repeated_denials"]=h.denied;result["discard_recovery"]=!missing&&!mutation;result["required_latch"]=FAILED(RecordedComputeLease::RequiredSubmissionFailure())?1:0;result["opaque_case"]=useOpaque;result["mode"]=mode;
  result["scope"]="actual hardware/coordinator/raw/geometry/motion/signedRR/303compute+36pixel/requiredledger; synthetic shipping role/readiness and caller-strong native Release-coverage adapters, not full title startup/physical Release detour proof";
- std::ofstream(std::filesystem::path(argv[1])/(configWiring?"config-wiring-result.json":nativeDebug?"native-debug-result.json":"native-transactions-result.json"))<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
+ std::ofstream(std::filesystem::path(argv[1])/(temporal?"temporal-result.json":configWiring?"config-wiring-result.json":nativeDebug?"native-debug-result.json":"native-transactions-result.json"))<<result.dump(2)<<'\n';std::cout<<"PASS native_transactions "<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"FAIL native_transactions: "<<e.what()<<std::endl;return 1;}

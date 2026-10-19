@@ -826,6 +826,20 @@ void runtimeSettingsChecks(Host& host)
     need(wrapper.GetSettingsState().effective[1]==((temporal.overrideMask&2)?temporal.values[1]:defaults[1]),
         "OFF restores the exact fixed/provider stability");
     std::cout<<"motion_stability frames=15 repeated_configure_calls=0 history_resets=0 translation_drop=1 extra_gpu_bytes=0\n";
+    const auto guardBaseline=wrapper.OwnedAuxiliaryBytes();auto guardSettings=wrapper.GetSettingsState().requested;
+    guardSettings.lightingValidation=true;calls=FfxApiProxy::configures;
+    need(wrapper.Configure(guardSettings,error)&&FfxApiProxy::configures==calls,"lighting validation invents no AMD key");step(false);
+    need(wrapper.GetSettingsState().lightingValidationActive&&wrapper.OwnedAuxiliaryBytes()>guardBaseline,
+        "still-frame lighting validation owns its actual pass resources");
+    need(FfxApiProxy::lastDispatch.motionVectors.resource!=scene.resources.motion,
+        "provider reads the validation motion copy, preserving canonical consumers");
+    for(unsigned i=0;i<4;i++){need(wrapper.Configure(guardSettings,error),"reapply validation settings");step(false);}
+    need(FfxApiProxy::configures==calls,"lighting validation never configures extra provider keys per frame");
+    guardSettings.lightingValidation=false;need(wrapper.Configure(guardSettings,error),"disable validation");step(false);
+    need(wrapper.OwnedAuxiliaryBytes()==guardBaseline&&!wrapper.GetSettingsState().lightingValidationActive&&
+        FfxApiProxy::lastDispatch.motionVectors.resource==scene.resources.motion,
+        "validation OFF releases retired resources and restores exact canonical provider binding");
+    std::cout<<"lighting_validation frames=5 history_resets=0 extra_provider_keys=0 disabled_extra_gpu_bytes=0\n";
     need(FfxApiProxy::badDefaults==0,"all context initializations still apply seven exact queried AMD defaults");
     need(FfxApiProxy::badConfigureLayouts==0,"all runtime configuration descriptors preserve exact key/count/data ABI");
     std::cout<<"runtime_settings effective_changes="<<changes<<" unchanged_calls=0 debug_bounds_count=1 material_key_calls=0\n";
