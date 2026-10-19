@@ -205,6 +205,12 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeRecoverySpecular.reset();
     FfxDenoiserNrdBridgeRecoveryDiffuse.reset();
     FfxDenoiserNrdBridgeSurfaceValidFill.reset();
+    FfxDenoiserNrdBridgeMotionAdaptiveStability.reset();
+    FfxDenoiserNrdBridgeStillStability.reset();
+    FfxDenoiserNrdBridgeMovingStability.reset();
+    FfxDenoiserNrdBridgeStabilityRotation.reset();
+    FfxDenoiserNrdBridgeStabilityTranslation.reset();
+    FfxDenoiserNrdBridgeStabilityRamp.reset();
     FfxDenoiserNrdBridgeTurnColour.reset();
     FfxDenoiserNrdBridgeTurnColourFrames.reset();
     FfxDenoiserNrdBridgeTurnColourDegrees.reset();
@@ -567,6 +573,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeRecoverySpecular.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoverySpecular")));
             FfxDenoiserNrdBridgeRecoveryDiffuse.set_from_config(NormalizeNrdBridgeRecoverySetting(readFloat("FSR-RR", "NrdBridgeRecoveryDiffuse")));
             FfxDenoiserNrdBridgeSurfaceValidFill.set_from_config(readBool("FSR-RR", "NrdBridgeSurfaceValidFill"));
+            FfxDenoiserNrdBridgeMotionAdaptiveStability.set_from_config(readBool("FSR-RR", "NrdBridgeMotionAdaptiveStability"));
+            FfxDenoiserNrdBridgeStillStability.set_from_config(readFloat("FSR-RR", "NrdBridgeStillStability"));
+            FfxDenoiserNrdBridgeMovingStability.set_from_config(readFloat("FSR-RR", "NrdBridgeMovingStability"));
+            FfxDenoiserNrdBridgeStabilityRotation.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityRotationDegrees"));
+            FfxDenoiserNrdBridgeStabilityTranslation.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityTranslationMetres"));
+            FfxDenoiserNrdBridgeStabilityRamp.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityRampUp"));
             FfxDenoiserNrdBridgeTurnColour.set_from_config(readBool("FSR-RR", "NrdBridgeTurnColourFilter"));
             FfxDenoiserNrdBridgeTurnColourFrames.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourFrames"));
             FfxDenoiserNrdBridgeTurnColourDegrees.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourDegrees"));
@@ -1585,6 +1597,12 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeRecoverySpecular", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeRecoveryDiffuse", GetFloatValue(Instance()->FfxDenoiserNrdBridgeRecoveryDiffuse.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeSurfaceValidFill", GetBoolValue(Instance()->FfxDenoiserNrdBridgeSurfaceValidFill.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeMotionAdaptiveStability", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMotionAdaptiveStability.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeStillStability", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStillStability.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeMovingStability", GetFloatValue(Instance()->FfxDenoiserNrdBridgeMovingStability.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeStabilityRotationDegrees", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityRotation.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeStabilityTranslationMetres", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityTranslation.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeStabilityRampUp", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityRamp.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFilter", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnColour.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFrames", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourFrames.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourDegrees", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourDegrees.value_for_config()).c_str());

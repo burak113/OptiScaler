@@ -800,6 +800,32 @@ void runtimeSettingsChecks(Host& host)
     need(wrapper.Configure(turnSettings,error),"restore preserved colour filter OFF");step(false);
     need(FfxApiProxy::lastDiffuse.signal.input.resource==scene.resources.diff,
          "colour filter OFF restores direct provider input binding");
+    // G2 uses the actual production Configure/Prepare/Dispatch path, including repeated native Configure calls.
+    auto temporal=wrapper.GetSettingsState().requested;temporal.motionStability.enabled=true;
+    need(wrapper.Configure(temporal,error),"enable motion stability without resetting provider history");
+    const auto adaptiveGeneration=wrapper.ContextGeneration(),adaptiveBytes=wrapper.OwnedStagingBytes(),adaptiveAux=wrapper.OwnedAuxiliaryBytes();
+    float expected=.5f;
+    for(unsigned k=0;k<14;++k)
+    {
+        calls=FfxApiProxy::configures;
+        need(wrapper.Configure(temporal,error)&&FfxApiProxy::configures==calls,
+            "native per-recording Configure preserves runtime key 2 and issues no call");
+        step(false);
+        if(k)expected=std::min(.85f,expected+.035f);
+        need(near(wrapper.GetSettingsState().effective[1],expected),"still schedule ramps without history reset");
+        need(wrapper.ContextGeneration()==adaptiveGeneration&&wrapper.OwnedStagingBytes()==adaptiveBytes&&wrapper.OwnedAuxiliaryBytes()==adaptiveAux,
+            "adaptive stability adds no context, GPU storage or owned allocation");
+    }
+    auto moved=camera(token++);moved.constants.cameraPos.x=.02f;
+    need(wrapper.Configure(temporal,error)&&wrapper.PrepareFrame(moved,false,frame,error)&&!frame.reset,
+        "walking-only frame keeps valid history");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    need(wrapper.GetSettingsState().effective[1]==.5f&&!(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),
+        "translation instantly lowers key 2 without global history reset");host.submit();host.reset();
+    temporal.motionStability.enabled=false;need(wrapper.Configure(temporal,error),"disable adaptive stability");step(true);step(false);
+    need(wrapper.GetSettingsState().effective[1]==((temporal.overrideMask&2)?temporal.values[1]:defaults[1]),
+        "OFF restores the exact fixed/provider stability");
+    std::cout<<"motion_stability frames=15 repeated_configure_calls=0 history_resets=0 translation_drop=1 extra_gpu_bytes=0\n";
     need(FfxApiProxy::badDefaults==0,"all context initializations still apply seven exact queried AMD defaults");
     need(FfxApiProxy::badConfigureLayouts==0,"all runtime configuration descriptors preserve exact key/count/data ABI");
     std::cout<<"runtime_settings effective_changes="<<changes<<" unchanged_calls=0 debug_bounds_count=1 material_key_calls=0\n";

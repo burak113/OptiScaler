@@ -1,6 +1,7 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
 #include "FSRDRadianceScale.h"
+#include "FSRDNrdTemporalControl.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -110,6 +111,7 @@ struct RRSettings
     bool lobeRecovery = false;
     FlatAlbedoSettings flatAlbedo {};
     FSRDRadianceScaleSettings radianceScale {};
+    MotionStabilitySettings motionStability {};
     // D02/WP08 experiment selector; recorded so traces can distinguish the gated fill.
     bool surfaceValidFill = false;
     float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;

@@ -3275,6 +3275,32 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
     return changed;
 }
 
+static bool DrawNrdBridgeMotionStability(Config* config)
+{
+    bool changed = false;
+    bool enabled = config->FfxDenoiserNrdBridgeMotionAdaptiveStability.value_or_default();
+    if (ImGui::Checkbox("Motion-adaptive RR stability (experimental)", &enabled))
+    { config->FfxDenoiserNrdBridgeMotionAdaptiveStability = enabled; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Uses lower stability during camera rotation or walking, then ramps up while still. "
+            "Key 2 changes preserve RR history. Adds no GPU pass. Higher still stability can delay lighting changes; "
+            "watch blinking neon and headlights. Default off.");
+    ImGui::BeginDisabled(!enabled);
+    auto control = [&](const char* label, auto& setting, float lo, float hi, const char* format)
+    {
+        float value = setting.value_or_default();
+        if (ImGui::SliderFloat(label,&value,lo,hi,format)) { setting = value; changed = true; }
+    };
+    control("Still stability##MotionRR",config->FfxDenoiserNrdBridgeStillStability,0.5f,1.0f,"%.2f");
+    control("Moving stability##MotionRR",config->FfxDenoiserNrdBridgeMovingStability,0.0f,0.85f,"%.2f");
+    control("Rotation threshold (deg/frame)##MotionRR",config->FfxDenoiserNrdBridgeStabilityRotation,0.01f,1.0f,"%.3f");
+    control("Walking threshold (m/frame)##MotionRR",config->FfxDenoiserNrdBridgeStabilityTranslation,0.0001f,0.02f,"%.4f");
+    control("Still ramp per frame##MotionRR",config->FfxDenoiserNrdBridgeStabilityRamp,0.005f,0.15f,"%.3f");
+    ImGui::EndDisabled();
+    if (enabled) ImGui::TextWrapped("Still-light response is slower at high stability. Keep this off if neon or headlights trail.");
+    return changed;
+}
+
 static bool DrawNrdBridgeTurnColour(Config* config)
 {
     bool changed = false;
@@ -3439,6 +3465,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     // rebuilding the snapshot without it.
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     NrdBridge::ReadTurnColourSettings(config, settings);
+    settings.motionStability = NrdBridge::ReadMotionStabilitySettings(config);
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
     settings.flatAlbedo = NrdBridge::ReadFlatAlbedoSettings(config);
     settings.radianceScale = ReadFSRDRadianceScale(config);
@@ -3596,6 +3623,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
             "ignores the 1-6 frame history length. Strength 0 or floor 0 disables both the floor and recovery.");
         ImGui::TreePop();
     }
+    changed |= DrawNrdBridgeMotionStability(config);
     changed |= DrawNrdBridgeTurnColour(config);
     changed |= DrawNrdBridgeLobeRecovery(config);
     changed |= DrawNrdBridgeNativeDebug(config);

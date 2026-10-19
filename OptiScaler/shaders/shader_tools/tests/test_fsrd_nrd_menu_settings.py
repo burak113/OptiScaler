@@ -17,6 +17,13 @@ from fsrd_toolchain import compile_cpp
 from test_fsrd_nrd_root_restore import function
 
 KEYS = {
+    'FfxDenoiserNrdBridgeMotionAdaptiveStability': ('NrdBridgeMotionAdaptiveStability', 'Bool'),
+    'FfxDenoiserNrdBridgeStillStability': ('NrdBridgeStillStability', 'Float'),
+    'FfxDenoiserNrdBridgeMovingStability': ('NrdBridgeMovingStability', 'Float'),
+    'FfxDenoiserNrdBridgeStabilityRotation': ('NrdBridgeStabilityRotationDegrees', 'Float'),
+    'FfxDenoiserNrdBridgeStabilityTranslation': ('NrdBridgeStabilityTranslationMetres', 'Float'),
+    'FfxDenoiserNrdBridgeStabilityRamp': ('NrdBridgeStabilityRampUp', 'Float'),
+
     'FfxDenoiserRecoveryFlatAlbedo': ('RecoveryFlatAlbedo', 'Bool'),
     'FfxDenoiserRecoveryFlatAlbedoStrength': ('RecoveryFlatAlbedoStrength', 'Float'),
     'FfxDenoiserRecoveryFlatRoughness': ('RecoveryFlatRoughness', 'Int'),
@@ -645,6 +652,31 @@ int main(){try{
  cfg.ResetFfxDenoiserSettings();NrdBridge::RRSettings brightReset;NrdBridge::ReadTurnColourSettings(cfg,brightReset);
  need(!cfg.FfxDenoiserNrdBridgeTurnBrightness.value_or_default()&&!brightReset.turnBrightness&&brightReset.turnBrightnessAmount==.15f&&
  !NrdBridge::last.turnBrightness,"Full production reset turns the brightness correction OFF in Config and runtime payload");
+ // G2 actual menu, startup-compatible reader, persistence and fail-closed parameters.
+ cfg.load("[FSR-RR]\n");
+ auto temporal=NrdBridge::ReadMotionStabilitySettings(cfg);
+ need(!temporal.enabled&&temporal.still==.85f&&temporal.moving==.5f&&temporal.ramp==.035f,
+ "Motion stability defaults OFF with the calibrated schedule");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Still stability##MotionRR"]=.9f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before&&cfg.FfxDenoiserNrdBridgeStillStability.value_or_default()==.85f,
+ "Motion stability parameters are inert while OFF");
+ ImGui::frame();ImGui::bools["Motion-adaptive RR stability (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.motionStability.enabled&&
+ NrdBridge::last.motionStability.still==.85f,"Motion checkbox sends a coherent runtime snapshot");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Walking threshold (m/frame)##MotionRR"]=.005f;
+ ImGui::floats["Still ramp per frame##MotionRR"]=.05f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.motionStability.translationMetres==.005f&&
+ NrdBridge::last.motionStability.ramp==.05f,"Walking and ramp controls publish together");
+ saved=cfg.save();reload.load(saved);
+ need(NrdBridge::ReadMotionStabilitySettings(reload)==NrdBridge::last.motionStability,
+ "All motion stability settings survive production INI save and reload");
+ cfg.FfxDenoiserNrdBridgeStillStability=.1f;
+ cfg.FfxDenoiserNrdBridgeMovingStability=std::numeric_limits<float>::quiet_NaN();
+ need(NrdBridge::ValidMotionStability(NrdBridge::ReadMotionStabilitySettings(cfg)),
+ "Nonfinite moving stability is bounded by the requested still stability");
+ cfg.ResetFfxDenoiserSettings();
+ need(!NrdBridge::ReadMotionStabilitySettings(cfg).enabled&&!NrdBridge::last.motionStability.enabled,
+ "Full reset turns adaptive stability OFF in Config and runtime");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -707,8 +739,9 @@ def run():
         READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawSharedRRRadianceScale(', 'static bool DrawNrdBridgeTurnColour(', 'static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawSharedRRRadianceScale(', 'static bool DrawNrdBridgeMotionStability(', 'static bool DrawNrdBridgeTurnColour(', 'static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
     replacements['SCALE_POLICY']=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDRadianceScale.h').read_text().replace('#pragma once','')
+    replacements['SCALE_POLICY']+='\n'+(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdTemporalControl.h').read_text().replace('#pragma once','')
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)
     assert not re.search(r'__[A-Z_]+__',cpp)

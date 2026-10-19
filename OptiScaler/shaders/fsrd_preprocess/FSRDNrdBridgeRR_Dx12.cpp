@@ -215,6 +215,9 @@ struct Context
                 target[index] = requested.values[index];
                 if (index == 6) target[7] = requested.values[7];
             }
+        // Configure is also called before each native recording. Keep the last per-frame key 2 here;
+        // restoring the fixed slider would otherwise mark lightingChanged and reset RR every frame.
+        if (requested.motionStability.enabled) target[1] = configuredValues[1];
         for (uint32_t index = 0; index < 7; ++index)
         {
             const bool bounds = index == 6;
@@ -237,6 +240,17 @@ struct Context
             lightingChanged |= !bounds;
         }
         return true;
+    }
+    bool ApplyMotionStability(float value, std::string& error)
+    {
+        if (configuredValues[1] == value) return true;
+        ffxConfigureDescDenoiserKeyValue apply {};
+        apply.header.type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE;
+        apply.key = 2; apply.count = 1; apply.data = &value;
+        const auto result = FfxApiProxy::D3D12_Configure(&handle, &apply.header);
+        if (result != FFX_API_RETURN_OK) return Fail(error, "RR motion-adaptive stability key 2", result);
+        configuredValues[1] = value;
+        return true; // Runtime key 2 changes preserve history; no lightingChanged/resetPending path.
     }
     bool Check(HRESULT result, const char* operation, std::string& error)
     {
@@ -811,6 +825,7 @@ struct RRWrapper::Impl
     uint64_t generation = 0;
     uint32_t nextFrame = 0;
     bool resetPending = true, historyValid = false;
+    bool motionStabilityReady = false; // First enabled frame starts low; updated only after a successful recording.
     FrameParameters previous {};
     RRSettings settings {};
     std::shared_ptr<RRRecoveryFamily> recoveryFamily;
@@ -846,6 +861,8 @@ static float CameraTurnDegrees(const DirectX::XMMATRIX& previous, const DirectX:
 bool ValidateRRSettings(const RRSettings& settings, std::string& error)
 {
     error.clear();
+    if (!ValidMotionStability(settings.motionStability))
+    { error = "RR motion-adaptive stability settings are invalid"; return false; }
     if (!std::isfinite(settings.recoverySpecular) || !std::isfinite(settings.recoveryDiffuse) ||
         settings.recoverySpecular < 0.0f || settings.recoverySpecular > 1.0f ||
         settings.recoveryDiffuse < 0.0f || settings.recoveryDiffuse > 1.0f)
@@ -898,7 +915,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        !requested.radianceScale.enabled && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -918,6 +935,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
     if (impl_->context && impl_->settings.flatAlbedo != requested.flatAlbedo) impl_->context->flatAlbedo.reset();
+    if (requested.motionStability.enabled && !impl_->settings.motionStability.enabled) impl_->motionStabilityReady = false;
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
@@ -929,6 +947,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.lobeRecovery = requested.lobeRecovery;
     impl_->settings.flatAlbedo = requested.flatAlbedo;
     impl_->settings.radianceScale = requested.radianceScale;
+    impl_->settings.motionStability = requested.motionStability;
     impl_->settings.recoverySpecular = requested.recoverySpecular;
     impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.surfaceValidFill = requested.surfaceValidFill;
@@ -1343,6 +1362,18 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     }
     else lease->context->flatAlbedo.reset();
     if (lease->context->flatWasActive != flatPrepared) reset = true;
+    if (impl_->settings.motionStability.enabled)
+    {
+        const auto& s = impl_->settings.motionStability;
+        const float degrees = CameraTurnDegrees(impl_->previous.camera.view, frame.camera.view);
+        const auto& a = frame.cameraPosition; const auto& b = frame.previousCameraPosition;
+        const float dx = a.x-b.x, dy = a.y-b.y, dz = a.z-b.z;
+        const float metres = std::sqrt(dx*dx + dy*dy + dz*dz);
+        const float value = NextMotionStability(s,lease->context->configuredValues[1],
+            !reset && frame.previousValid && impl_->motionStabilityReady,degrees,metres);
+        if (!lease->context->ApplyMotionStability(value,error))
+        { DiscardRecordingHistory(); return false; }
+    }
     if (flatPrepared)
     {
         committedSpec = lease->flatAlbedo.specular; committedDiff = lease->flatAlbedo.diffuse;
@@ -1514,6 +1545,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     recorded->recoveryErrorText = impl_->recoveryErrorText;
     impl_->previous = frame; impl_->previous.reset = reset;
     impl_->previous.outputConstants = {}; impl_->previous.nativeSpecularBlend = 0.0f;
+    if (impl_->settings.motionStability.enabled) impl_->motionStabilityReady = true;
     impl_->historyValid = true; impl_->resetPending = false; ++impl_->nextFrame;
     output = std::move(recorded);
     return true;

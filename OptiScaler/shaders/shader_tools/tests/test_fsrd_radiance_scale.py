@@ -15,7 +15,7 @@ os.environ['TEMP']=os.environ['TMP']='F:/FSRD/tmp'
 exe=out/'fsrd_radiance_scale.exe'
 compile_cpp(Path(__file__).with_name('fsrd_radiance_scale.cpp'),exe,['d3d12.lib','dxgi.lib'],
             [ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'])
-with gpu_lock('21-input-parity'):
+with gpu_lock(os.environ.get('FSRD_GPU_TEST_OWNER','21-input-parity')):
     result=subprocess.run([str(exe)],capture_output=True,text=True,timeout=120)
 (out/'result.log').write_text(result.stdout+result.stderr)
 print(result.stdout+result.stderr)

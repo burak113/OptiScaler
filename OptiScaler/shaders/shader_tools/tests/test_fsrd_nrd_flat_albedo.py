@@ -14,6 +14,8 @@ from fsrd_toolchain import compile_cpp,dxc
 
 CAPTURE=Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/c7294a8e-9d11-4533-9d1d-4c7e10925993')
 PROBE=Path('F:/FSRD/sol_batch/15-nrd-ghosting/water-new-captures-20261016/provider-roughness-r1/floor_code2')
+if not PROBE.exists():
+    PROBE=Path('E:/FSRD_arsiv_F/FSRD/sol_batch/15-nrd-ghosting/water-new-captures-20261016/provider-roughness-r1/floor_code2')
 PROVIDER=Path('F:/SteamLibrary/steamapps/common/Cyberpunk 2077/bin/x64/amd_fidelityfx_denoiser_dx12.dll')
 PIN='48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
