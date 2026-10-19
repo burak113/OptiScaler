@@ -31,6 +31,17 @@ cbuffer CB_FlatDetail : register(b0)
     uint Debug;
     uint Flags; // bit 0/1: raw specular/diffuse are half lobes; bit 2: reference and RR are the same lighting (Base keeps the reference level); bit 3: a mature reference is the output
     float TemporalDenoise; // Base: 0 off; >0 reference alpha is the temporal residual (noise floor and Wiener strength)
+    float VerticalStrength; // NZR on vertical surfaces: 0 off, k = share of the NZR result kept (mode 2) / stabiliser strength (mode 3)
+    uint VerticalMode; // 0 off (byte-identical), 1 RR, 2 blend, 3 stabilised NZR; post-RR Flat Detail always uploads 0
+    uint VerticalReserved;
+}
+// NZR on vertical surfaces ("glass"): weight of the vertical policy from the mask's octahedral world normal
+// (world Z is up, so |n.z| >= .8 is horizontal - puddles - and |n.z| <= .5 vertical - storefront glass).
+// 1 outside the horizontal band, 0 on horizontal pixels: those keep today's result byte-exactly.
+float GlassGate(float2 octahedral)
+{
+    const float nz = abs(OctahedralDecode(octahedral).z);
+    return saturate((0.8f - nz) * (1.0f / 0.3f));
 }
 bool FlatPixel(int2 p)
 {

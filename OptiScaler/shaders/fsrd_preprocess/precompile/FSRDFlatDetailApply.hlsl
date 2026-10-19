@@ -12,6 +12,18 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
     const float4 current=OutColor[p];
     const float4 combined=InBase[p];
     float3 result=all(isfinite(combined.rgb)) ? combined.rgb : SanitizeRadiance(current.rgb);
+    // NZR on vertical surfaces (glass grain); mode 0, the post-RR Flat Detail path and horizontal pixels skip this.
+    if (VerticalMode != 0u)
+    {
+        const float gate = GlassGate(InNormals[p].rg);
+        if (gate > 0.0f)
+        {
+            const float3 rr = SanitizeRadiance(current.rgb);
+            const float3 policy = VerticalMode == 1u ? rr
+                : (VerticalMode == 2u ? lerp(rr,result,VerticalStrength) : result);
+            result = lerp(result,policy,gate);
+        }
+    }
     if (Debug==1u) result=float3(1.0f,combined.a,InMean[p].x);
     if (Debug==2u) result=InReference[p].rgb;
     OutColor[p]=float4(SanitizeRadiance(result),current.a);

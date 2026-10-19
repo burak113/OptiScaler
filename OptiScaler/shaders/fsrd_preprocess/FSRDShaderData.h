@@ -531,8 +531,11 @@ namespace FSRD
             uint32_t Radius;
             uint32_t Pass, Debug, Flags;
             float TemporalDenoise; // Base only: 0 off; >0 the reference alpha is the temporal residual
+            float VerticalStrength; // NZR on vertical surfaces: 0 off; blend share (mode 2) / stabiliser strength (mode 3)
+            uint32_t VerticalMode; // 0 off (byte-identical), 1 RR, 2 blend, 3 stabilised NZR
+            uint32_t VerticalReserved;
         };
-        static_assert(sizeof(Constants) == 64, "Flat Detail constants");
+        static_assert(sizeof(Constants) == 80, "Flat Detail constants");
         static_assert(offsetof(Constants, TemporalDenoise) == 60, "Flat Detail temporal denoise");
         static_assert(offsetof(Constants, Modulation) == 16, "Flat Detail modulation");
         static_assert(offsetof(Constants, Mix) == 32, "Flat Detail mix");

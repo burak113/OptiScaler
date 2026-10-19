@@ -2,7 +2,7 @@
 // The clamp includes the current center: a stationary clean extremum is a fixed point, not an outlier.
 // History follows the existing virtual reflection point and is rejected on invalid hits or a radiance change.
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 8)), DescriptorTable(UAV(u0, numDescriptors = 1))"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 9)), DescriptorTable(UAV(u0, numDescriptors = 1))"
 Texture2D<float4> InDetail : register(t0);
 Texture2D<float4> InDecision : register(t1);
 Texture2D<float4> InRR : register(t2);
@@ -11,6 +11,7 @@ Texture2D<float2> InMoment : register(t4);
 Texture2D<float2> InPrevMoment : register(t5);
 Texture2D<float4> InPrevPolish : register(t6); // RGB stabilized v4; a is this history's own validity flag.
 Texture2D<float> InDepth : register(t7);
+Texture2D<float4> InNormals : register(t8); // mask: octahedral RG in .rg, flat flag in .a (NZR on vertical surfaces)
 RWTexture2D<float4> OutPolish : register(u0);
 cbuffer CB_FlatPolish : register(b0)
 {
@@ -20,8 +21,17 @@ cbuffer CB_FlatPolish : register(b0)
     float ProjectionW, MaxCount, HitTolerance, HitBias;
     uint HistoryValid, Reserved0, Reserved1, Reserved2;
     float Strength, Sigma, FlatContrast, HistoryWeight;
+    float VerticalStrength, GlassContrast;
+    uint VerticalMode, Reserved3;
 }
 groupshared float4 sCurrent[100];
+// Same gate as FSRDFlatDetailBindings.hlsli (this pass does not include it): 1 outside the horizontal band,
+// 0 on horizontal pixels (puddles), from the mask's octahedral world normal.
+float GlassGate(float2 octahedral)
+{
+    const float nz = abs(OctahedralDecode(octahedral).z);
+    return saturate((0.8f - nz) * (1.0f / 0.3f));
+}
 float4 Current(int2 q)
 {
     q = clamp(q,int2(0,0),int2(DstTexSize.xy)-1);
@@ -59,7 +69,8 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
     if (!(current.a>0.0f)) { OutPolish[p]=0.0f; return; }
     float3 result = current.rgb;
     const float hit = InMoment[p].y;
-    if (HistoryValid != 0u && InRunning[p].a>=4.0f && hit>0.0f && Strength>0.0f)
+    if (HistoryValid != 0u && InRunning[p].a>=4.0f && hit>0.0f &&
+        (Strength>0.0f || (VerticalMode==3u && VerticalStrength>0.0f)))
     {
         const float z = abs(InDepth[p])*(ProjectionW<0.0f ? -1.0f:1.0f);
         const float2 ndc = float2((float(p.x)+0.5f)*DstTexSize.z*2.0f-1.0f,1.0f-(float(p.y)+0.5f)*DstTexSize.w*2.0f);
@@ -116,10 +127,20 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID,uint3 group : SV_GroupID,uint i
                 const float change=max(max(delta.r,delta.g),delta.b)/max(peak,1e-4f);
                 const float flat=saturate(1.0f-sd/max(mean*FlatContrast,1e-4f));
                 const float a=Strength*HistoryWeight*flat*saturate((0.8f-change)/0.6f);
+                // NZR on vertical surfaces (glass grain, mode 3): the same clamped, virtual-motion history,
+                // but gated by orientation and with its own strength; the local-contrast guard is relaxed
+                // because the neighbourhood clamp - not flatness - is what protects the sign and poster edges.
+                float aVertical=a;
+                if (VerticalMode==3u)
+                {
+                    const float gate=GlassGate(InNormals[p].rg);
+                    const float flatGlass=saturate(1.0f-sd/max(mean*GlassContrast,1e-4f));
+                    aVertical=max(a,VerticalStrength*gate*flatGlass*saturate((0.8f-change)/0.6f));
+                }
                 h *= lh>1e-8f ? target/lh:1.0f;
                 // Bound stale chroma too: a locally absent colour cannot survive a luma-only clamp.
                 h=clamp(h,minimumRGB,maximumRGB);
-                result=current.rgb+a*(h-current.rgb);
+                result=current.rgb+aVertical*(h-current.rgb);
             }
         }
     }

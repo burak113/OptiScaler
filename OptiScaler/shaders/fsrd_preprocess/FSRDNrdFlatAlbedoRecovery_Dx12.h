@@ -119,6 +119,11 @@ class FlatAlbedoRecovery
     static void Check(HRESULT hr,const char* label) { if (FAILED(hr)) throw std::runtime_error(label); }
     // Reflection history is a variant of the non-temporal path; Temporal's own reference takes precedence.
     static bool Reflection(const FlatAlbedoSettings& s) noexcept { return s.reflectionHistory && !s.temporal; }
+    // The polish pass carries the mode-3 glass stabiliser, so it is dispatched whenever either option needs it.
+    static bool Polish(const FlatAlbedoSettings& s) noexcept
+    {
+        return Reflection(s) && (s.reflectionPolish > 0.0f || s.verticalMode == 3u);
+    }
     static D3D12_RESOURCE_BARRIER Transition(ID3D12Resource* p,D3D12_RESOURCE_STATES a,D3D12_RESOURCE_STATES b) noexcept
     {
         D3D12_RESOURCE_BARRIER r {}; r.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -147,7 +152,7 @@ class FlatAlbedoRecovery
     {
         auto c = MakeOwnedShared<Context>(); c->device = device; c->family = family;
         c->width = in.width; c->height = in.height; c->temporal = settings.temporal; c->reflection = Reflection(settings);
-        c->polish = c->reflection && settings.reflectionPolish > 0.0f;
+        c->polish = Polish(settings);
         c->stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         struct Plan { Resource* target; D3D12_RESOURCE_DESC desc; D3D12_RESOURCE_STATES state; };
         std::vector<Plan> plans;
@@ -284,6 +289,9 @@ class FlatAlbedoRecovery
         float strength, anchor, mix, noise = 2, epsilon = 1e-4f;
         uint32_t radius = 3, pass = 0, debug = 0, flags = 0;
         float temporalDenoise;
+        // NZR on vertical surfaces (task 24): 0 keeps today's result everywhere.
+        float verticalStrength = 0;
+        uint32_t verticalMode = 0, verticalReserved = 0;
     };
     // Running-mean reference (FSRDNrdFlatAccumulate). Mirror lobes are sparse 1spp signals whose
     // noise is independent from frame to frame, so a long linear mean is the best estimate (NRD's
@@ -336,8 +344,12 @@ class FlatAlbedoRecovery
     {
         HistoryConstants history;
         float strength = 0, sigma = 3.0f, flatContrast = 0.3f, historyWeight = 0.75f;
+        // NZR on vertical surfaces, mode 3: the same clamped history, gated by |n.z| and controlled by its own
+        // strength. glassContrast is the relaxed local-contrast guard (the clamp protects sign edges, not flatness).
+        float verticalStrength = 0, glassContrast = 1.0f;
+        uint32_t verticalMode = 0, verticalReserved = 0;
     };
-    static_assert(sizeof(PolishConstants) == 144);
+    static_assert(sizeof(PolishConstants) == 160);
     // Reflection-history selector (FSRDNrdFlatHybrid*): Base where the history mean is reliable, k x RR elsewhere.
     // Noise R = standard error / mean (sigma 2, mature pixels) ramps NoiseLow..NoiseHigh; the collapse rule of the
     // RR fallback uses MatureLow/High, or ThinLow/High below MinCount; k = clipped history mean / RR (sigma 4).
@@ -391,7 +403,9 @@ class FlatAlbedoRecovery
     // detail recovery only covers thin histories (motion, parallax, disocclusion, light change),
     // at the level of the accumulator's parallax-free level history (moment x, bound as t8).
     static constexpr uint32_t SameLighting = 4, ReferenceTrust = 8;
-    static_assert(sizeof(DetailConstants) == 64 && offsetof(DetailConstants,temporalDenoise) == 60);
+    static_assert(sizeof(DetailConstants) == 80 && offsetof(DetailConstants,temporalDenoise) == 60 &&
+        offsetof(DetailConstants,verticalStrength) == 64 && offsetof(DetailConstants,verticalMode) == 68,
+        "DetailConstants must mirror CB_FlatDetail (FSRDFlatDetailBindings.hlsli)");
     static_assert(sizeof(AccumulateConstants) == 64);
     static void DescribeFrame(Context& c,Recording& r,const LobeRecoveryInputs& in,const LobeRecoveryFrame& frame,
                               const FlatAlbedoSettings& settings)
@@ -408,6 +422,8 @@ class FlatAlbedoRecovery
         r.nextParity = c.parity^1u;
         DetailConstants detail {size,{},settings.strength,settings.anchor,settings.mix};
         detail.temporalDenoise = settings.temporal ? settings.temporalDenoise : 0;
+        detail.verticalStrength = settings.verticalStrength;
+        detail.verticalMode = settings.verticalMode > 3u ? 3u : settings.verticalMode;
         detail.flags = SameLighting|ReferenceTrust;
         HistoryConstants reflection {size};
         if (c.reflection)
@@ -487,10 +503,12 @@ class FlatAlbedoRecovery
                 if (c.polish)
                 {
                     PolishConstants polish {reflection}; polish.strength = settings.reflectionPolish;
+                    polish.verticalStrength = settings.verticalStrength;
+                    polish.verticalMode = settings.verticalMode > 3u ? 3u : settings.verticalMode;
                     const View stable {c.polishHistory[c.parity^1u].Get()};
                     Describe(c,slot,descriptor,c.polishPass,polish,
-                        std::array<View,8>{{{c.variance.Get()},decision,output,running,moment,
-                            {c.history[0].moment[c.parity].Get()},{c.polishHistory[c.parity].Get()},depth}},
+                        std::array<View,9>{{{c.variance.Get()},decision,output,running,moment,
+                            {c.history[0].moment[c.parity].Get()},{c.polishHistory[c.parity].Get()},depth,mask}},
                         std::array<View,1>{stable},false);
                     reads[10] = stable;
                     Describe(c,slot,descriptor,c.apply,detail,reads,std::array<View,3>{output,{nullptr},{nullptr}});
@@ -570,7 +588,7 @@ class FlatAlbedoRecovery
                 throw std::runtime_error("Flat recovery cold allocation retry is cooling down");
             if (context_ && (context_->width != in.width || context_->height != in.height || context_->temporal != settings.temporal ||
                 context_->reflection != Reflection(settings) ||
-                context_->polish != (Reflection(settings) && settings.reflectionPolish > 0.0f) || context_->family != family))
+                context_->polish != Polish(settings) || context_->family != family))
                 throw std::runtime_error("Flat recovery physical context identity changed");
             if (context_) if (auto pending = context_->pending.lock(); pending && !pending->recorded)
                 throw std::runtime_error("Flat recovery has an unrecorded prepared predecessor");

@@ -34,6 +34,17 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
         [unroll] for (int k = 0; k < 9; ++k) w = max(w, Grown(p + int2(k % 3 - 1, k / 3 - 1)));
     const float3 off = InBase[p].rgb, rr = SanitizeRadiance(current.rgb);
     float3 result = off + w * (rr - off);
+    // NZR on vertical surfaces (glass grain): at most VerticalStrength of the OFF result is kept there
+    // (mode 1 keeps none); horizontal pixels and mode 0 keep the exact expression above.
+    if (VerticalMode != 0u)
+    {
+        const float gate = GlassGate(InNormals[p].rg);
+        if (gate > 0.0f)
+        {
+            const float forced = gate * (VerticalMode == 1u ? 1.0f : 1.0f - VerticalStrength);
+            result = off + max(w,forced) * (rr - off);
+        }
+    }
     if (!all(isfinite(result))) result = rr;
     OutColor[p] = float4(SanitizeRadiance(result), current.a);
 }

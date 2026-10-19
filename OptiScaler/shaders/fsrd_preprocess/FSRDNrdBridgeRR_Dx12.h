@@ -53,6 +53,11 @@ struct FlatAlbedoSettings
     float reflectionDetail = 1;
     // Optional reflection-history polish. Zero preserves the v4 graph and output.
     float reflectionPolish = 0;
+    // NZR on vertical surfaces ("glass"): non-horizontal NZR pixels take another policy, horizontal ones
+    // (puddles, |n.z| >= .8) keep today's result byte-exactly. 0 off; 1 RR; 2 blend by verticalStrength;
+    // 3 stabilised NZR (needs reflection history - the polish pass reprojects along the virtual motion).
+    uint32_t verticalMode = 0;
+    float verticalStrength = 0.5f;
     bool operator==(const FlatAlbedoSettings&) const = default;
 };
 // Shared by startup and live menu snapshots. This is the existing Flat Albedo
@@ -90,6 +95,13 @@ template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(c
     {
         const float polish = config.FfxDenoiserRecoveryFlatReflectionPolish.value_or_default();
         out.reflectionPolish = std::isfinite(polish) ? std::clamp(polish,0.0f,1.0f) : 0.0f;
+    }
+    if constexpr (requires { config.FfxDenoiserRecoveryFlatVerticalMode; config.FfxDenoiserRecoveryFlatVerticalStrength; })
+    {
+        const int mode = config.FfxDenoiserRecoveryFlatVerticalMode.value_or_default();
+        out.verticalMode = uint32_t(std::clamp(mode,0,3));
+        const float strength = config.FfxDenoiserRecoveryFlatVerticalStrength.value_or_default();
+        out.verticalStrength = std::isfinite(strength) ? std::clamp(strength,0.0f,1.0f) : 0.5f;
     }
     return out;
 }
