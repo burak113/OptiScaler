@@ -329,7 +329,33 @@ J TemporalWiring(Host& h,NativeTitle& title){
   need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"live temporal request uses production service API");
   if(frame==4)position=.02f;
   title.SetWords();title.begin(frame);StreamlineHooks::snapshot.constants.cameraPos.x=position;title.pass(Role::PrepLast);
-  const auto before=FfxApiProxy::dispatches;title.A();title.B();title.ConsumerA();title.ConsumerB();
+  const auto before=FfxApiProxy::dispatches;title.A();title.B();
+  if(frame==9){
+   need(!settings.motionStability.enabled&&!settings.lightingValidation&&NrdBridge::MandatoryOutputPending(*NrdBridge::gService),
+        "dormant temporal edit is tested during actual uncommitted native A/B work");
+   const auto revision=NrdBridge::gService->requestedResetRevision;
+   settings.motionStability.still=.75f;settings.motionStability.moving=.4f;
+   settings.motionStability.rotationDegrees=.2f;settings.motionStability.translationMetres=.003f;settings.motionStability.ramp=.07f;
+   need(NrdBridge::ApplyRRSettings(settings,false,error)&&error.empty(),"dormant numeric edit applies through the pending production service path");
+   need(NrdBridge::gService->requestedResetRevision==revision,"dormant temporal numeric edits never request a delayed history reset");
+   need(FfxApiProxy::dispatches==before&&NrdBridge::MandatoryOutputPending(*NrdBridge::gService),
+        "dormant edit preserves pending native owners without provider work");
+   const std::array<float NrdBridge::MotionStabilitySettings::*,5> fields={
+    &NrdBridge::MotionStabilitySettings::still,&NrdBridge::MotionStabilitySettings::moving,
+    &NrdBridge::MotionStabilitySettings::rotationDegrees,&NrdBridge::MotionStabilitySettings::translationMetres,
+    &NrdBridge::MotionStabilitySettings::ramp};
+   for(UINT policy=0;policy<3;++policy)for(UINT field=0;field<fields.size();++field){
+    auto a=settings;a.motionStability.enabled=policy==1;a.lightingValidation=policy==2;auto b=a;
+    b.motionStability.*fields[field]*=1.1f;
+    const bool active=policy==1||(policy==2&&(field==2||field==3));
+    need(NrdBridge::SameDebugSettings(a,b)!=active,"only enabled temporal numeric fields invalidate the service profile");
+   }
+   auto edge=settings;edge.motionStability.enabled=true;
+   need(!NrdBridge::SameDebugSettings(settings,edge),"G2 enable edge remains a profile change");
+   edge=settings;edge.lightingValidation=true;
+   need(!NrdBridge::SameDebugSettings(settings,edge),"G3 enable edge remains a profile change");
+  }
+  title.ConsumerA();title.ConsumerB();
   const auto stages=NrdBridge::gService->lists.at(h.list.Get()).native;
   need(stages[0]&&stages[1]&&stages[0]->committed&&stages[1]->committed&&FfxApiProxy::dispatches==before+2,
        "both native consumers commit only their own actual signed RR result with temporal options");

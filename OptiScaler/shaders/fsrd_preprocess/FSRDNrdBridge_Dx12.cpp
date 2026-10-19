@@ -587,7 +587,12 @@ bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
         a.nativeTemporalMotion != b.nativeTemporalMotion || a.nativeMaterialGuides != b.nativeMaterialGuides ||
         a.lobeRecovery != b.lobeRecovery || a.flatAlbedo != b.flatAlbedo || a.recoverySpecular != b.recoverySpecular ||
         a.recoveryDiffuse != b.recoveryDiffuse || a.radianceScale != b.radianceScale ||
-        a.motionStability != b.motionStability || a.lightingValidation != b.lightingValidation) return false;
+        a.motionStability.enabled != b.motionStability.enabled || a.lightingValidation != b.lightingValidation) return false;
+    // Dormant temporal parameters must not request a reset while native output is pending.
+    if (a.motionStability.enabled && a.motionStability != b.motionStability) return false;
+    if (a.lightingValidation &&
+        (a.motionStability.rotationDegrees != b.motionStability.rotationDegrees ||
+         a.motionStability.translationMetres != b.motionStability.translationMetres)) return false;
     for (uint32_t i=0;i<8;++i)
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;
