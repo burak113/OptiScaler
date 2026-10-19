@@ -50,7 +50,10 @@ void CSMain(uint3 group:SV_GroupID,uint3 tid:SV_GroupThreadID,uint lane:SV_Group
         float2 noise=sqrt(max(var/384,1e-20));
         float2 z=abs(d)/max(noise,.02*mean+1e-10),rel=abs(d)/max(mean,1e-8),agree=0;
         [unroll] for(uint k=0;k<16;k++) agree+=float2(sign(Fast[k]-Mean[k])==sign(d));
-        bool2 candidate=(z>4)&(rel>.2)&(agree>=14)&(mean>1e-7)&(Age>16);
+        // Replicated edge pixels cannot supply a coherent 16-cell seed.
+        // Keep their moments/support for interpolation from fully observed neighbours.
+        const bool fullRoot=(group.x+1)*32<=Width&&(group.y+1)*32<=Height;
+        bool2 candidate=(z>4)&(rel>.2)&(agree>=14)&(mean>1e-7)&(Age>16)&fullRoot;
         uint old=Reset?0:PrevTile.Load(int3(group.xy,0));
         uint2 count=uint2(old&15,(old>>4)&15),negative=uint2(d<0);
         bool2 same=negative==uint2((old>>20)&1,(old>>21)&1);

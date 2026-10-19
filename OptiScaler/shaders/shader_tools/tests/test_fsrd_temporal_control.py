@@ -23,7 +23,7 @@ def build(out):
     return exe
 
 def hook():
-    p=Path('E:/FSRD/rrlab/hooks/23_antilag_v19.py');s=importlib.util.spec_from_file_location('actual_reference',p)
+    p=Path('E:/FSRD/rrlab/hooks/23_antilag_v20.py');s=importlib.util.spec_from_file_location('actual_reference',p)
     m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
 
 def case(exe,out,name,c):
@@ -64,8 +64,14 @@ def case(exe,out,name,c):
     return summary
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--case',default='local',choices=['local','dim','bright','static','turn','holdout','freeze','negative','near','pulse','pulse16','phase','local2','diffuse-only','specular-only','opposing-lobes','all','timing','timing-real','event-timing','motion-timing','lifetime','alias']);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--case',default='local',choices=['local','dim','bright','static','turn','holdout','freeze','negative','near','pulse','pulse16','phase','local2','diffuse-only','specular-only','opposing-lobes','edge-corner','edge-heavy','edge-full65x63','edge-full63x65','edge-full65x65','all','apply-cutoffs','timing','timing-real','event-timing','motion-timing','lifetime','alias']);a=p.parse_args()
     out=Path(os.environ['FSRD_GPU_TEST_OUTPUT']);out.mkdir(parents=True,exist_ok=True);exe=build(out)
+    if a.case=='apply-cutoffs':
+        r=subprocess.run([str(exe),'--apply-cutoffs'],capture_output=True,text=True,timeout=240,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+        (out/'apply-cutoffs.log').write_text(r.stdout+r.stderr);print(r.stdout+r.stderr);r.check_returncode()
+        assert 'debug_errors=0 debug_warnings=0' in r.stdout
+        assert 'PASS isolated Apply cutoffs cases=51' in r.stdout
+        return
     if a.case=='alias':
         r=subprocess.run([str(exe),'--alias'],capture_output=True,text=True,timeout=240,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
         (out/'alias.log').write_text(r.stdout+r.stderr);print(r.stdout+r.stderr);r.check_returncode()
@@ -169,7 +175,40 @@ def main():
             return both(i,name)
         c.raw=raw;c.uuid+='#guard-'+kind
         return c
-    cases={'diffuse-only':lambda:lobe_step('diffuse-only'),'specular-only':lambda:lobe_step('specular-only'),
+    class GuardOnlyEdge:
+        # Arithmetic/lifetime fixture only, never an AMD RR quality replay.
+        def __init__(self,label,w,h,kind,gain):
+            self.W,self.H,self.n=w,h,64;self.kind,self.gain=kind,gain
+            self.source=Capture('d6d2a083')
+            self.RW,self.RH,self.X0,self.Y0=self.source.RW,self.source.RH,self.source.X0,300
+            self.uuid='#guard-only-'+label
+        def motion(self):return np.zeros(self.n),np.zeros(self.n)
+        def requested_tuning(self):return self.source.requested_tuning()
+        def controls(self,i):
+            u=self.source.controls(0).copy();u[44]=i;u[45]&=np.uint32(0xfffffffe);return u
+        def depth(self,i):return np.full((self.H,self.W),-10,np.float32)
+        def raw(self,i,name):
+            a=np.zeros((self.H,self.W,4),np.float16)
+            if name=='input_motion':a[...,3]=1
+            elif name in ('input_diffuse','input_specular'):
+                a[...,:3]=1 if name=='input_diffuse' else .25;a[...,3]=5
+                selected=np.zeros((self.H,self.W),bool)
+                if self.kind=='corner':selected[-1,-1]=True
+                elif self.kind=='heavy':
+                    selected[32:self.H:8,-1]=True
+                    if name=='input_diffuse':a[selected,:3]=100
+                else:selected[:]=True
+                if i>=32 and (name=='input_diffuse' or self.kind=='full'):
+                    a[selected,:3]=(a[selected,:3].astype(np.float32)*self.gain).astype(np.float16)
+            else:raise ValueError(name)
+            return a.tobytes()
+        def img(self,i,name):return np.frombuffer(self.raw(i,name),np.float16).reshape(self.H,self.W,4).astype(np.float32)
+    cases={'edge-corner':lambda:GuardOnlyEdge('corner65x65',65,65,'corner',.5),
+           'edge-heavy':lambda:GuardOnlyEdge('heavy65x63',65,63,'heavy',.1),
+           'edge-full65x63':lambda:GuardOnlyEdge('full65x63',65,63,'full',.5),
+           'edge-full63x65':lambda:GuardOnlyEdge('full63x65',63,65,'full',2.),
+           'edge-full65x65':lambda:GuardOnlyEdge('full65x65',65,65,'full',2.),
+           'diffuse-only':lambda:lobe_step('diffuse-only'),'specular-only':lambda:lobe_step('specular-only'),
            'opposing-lobes':lambda:lobe_step('opposing-lobes'),'phase':lambda:Step('d6d2a083',48,2.,(13,307,109,563)),
            'local2':lambda:Step('d6d2a083',48,2.,(0,300,128,550)),
            'pulse16':lambda:LocalPulse23(period=16),'pulse':lambda:LocalPulse23(period=8),'negative':lambda:signed_guard_only(),'near':lambda:signed_guard_only(True),'local':lambda:Step('d6d2a083',48,3.,(0,300,128,550)),

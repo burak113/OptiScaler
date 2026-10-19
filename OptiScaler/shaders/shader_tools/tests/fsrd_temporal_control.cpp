@@ -11,6 +11,20 @@ struct FSRDLightingGuardTestAccess
     static ID3D12Resource* Support(const FSRDNrdLightingGuardDx12::Lease& w){return w->state->support.Get();}
     static std::array<ID3D12Resource*,3> History(const FSRDNrdLightingGuardDx12::Lease& w,uint32_t frame)
     {return {w->state->meanVar[frame&1].Get(),w->state->fast[frame&1].Get(),w->state->tile[frame&1].Get()};}
+    static void ApplyOnly(Host& host,const FSRDNrdLightingGuardDx12::Lease& w)
+    {
+        const auto desc=w->slot->motion->GetDesc();const auto width=uint32_t(desc.Width),height=desc.Height;
+        const auto stride=host.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        barrier(host.list.Get(),w->slot->motion.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        host.list->SetPipelineState(w->state->applyPso.Get());host.list->SetComputeRootSignature(w->state->applyRoot.Get());
+        ID3D12DescriptorHeap* heaps[]={w->slot->heap.Get()};host.list->SetDescriptorHeaps(1,heaps);
+        std::array<uint32_t,8> c{width,height,0,0,32,std::bit_cast<uint32_t>(.1f),std::bit_cast<uint32_t>(.67f),std::bit_cast<uint32_t>(20000.f)};
+        host.list->SetComputeRoot32BitConstants(0,8,c.data(),0);
+        auto gpu=w->slot->heap->GetGPUDescriptorHandleForHeapStart();gpu.ptr+=2*stride;host.list->SetComputeRootDescriptorTable(1,gpu);
+        gpu.ptr+=10*stride;host.list->SetComputeRootDescriptorTable(2,gpu);gpu.ptr+=3*stride;host.list->SetComputeRootDescriptorTable(3,gpu);
+        host.list->Dispatch((width+7)/8,(height+7)/8,1);
+        barrier(host.list.Get(),w->slot->motion.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    }
     static std::array<ID3D12Resource*,3> Stats(const FSRDNrdLightingGuardDx12& g,uint32_t frame)
     {
         if(!g.state_)return {};
@@ -211,6 +225,78 @@ void GuardEventTiming(Host& host,uint32_t width,uint32_t height,const std::files
         <<" min_support_branch_pixels="<<branchMin[mode]<<" min_selected_pixels="<<selectedMin[mode]<<std::endl;
 }
 
+// Apply-unit falsifiers deliberately inject completed scratch fields, with the Stats path tested separately.
+void GuardApplyCutoffs(Host& host)
+{
+    struct Probe {const char* name;uint32_t flags;std::array<float,4> support;int kind;bool passes;};
+    const float rel=.2f,z=1.f;
+    const auto down=[](float x){return std::nextafter(x,0.f);};const auto up=[](float x){return std::nextafter(x,2.f);};
+    const std::vector<Probe> probes{
+        {"D-rel-below",1u<<18,{down(rel),0,2,0},0,false},{"D-rel-equal",1u<<18,{rel,0,2,0},0,false},
+        {"D-rel-above",1u<<18,{up(rel),0,2,0},0,true},{"D-z-below",1u<<18,{1,0,down(z),0},0,false},
+        {"D-z-equal",1u<<18,{1,0,z,0},0,false},{"D-z-above",1u<<18,{1,0,up(z),0},0,true},
+        {"S-rel-below",1u<<19,{0,down(rel),0,2},0,false},{"S-rel-equal",1u<<19,{0,rel,0,2},0,false},
+        {"S-rel-above",1u<<19,{0,up(rel),0,2},0,true},{"S-z-below",1u<<19,{0,1,0,down(z)},0,false},
+        {"S-z-equal",1u<<19,{0,1,0,z},0,false},{"S-z-above",1u<<19,{0,1,0,up(z)},0,true},
+        {"cross-lobe-no-borrow",3u<<18,{.21f,.19f,.99f,1.01f},0,false},
+        {"no-seed",0,{1,1,10,10},0,false},
+        {"separate-field-interpolation",1u<<18,{0,0,0,0},1,true},
+        {"V14-center-preserved",1u<<17,{0,0,0,0},2,true},
+        {"negative-bounded-halo",1u<<16,{0,0,0,0},3,true}};
+    for(auto size:std::array<std::array<uint32_t,2>,3>{{{63,65},{65,63},{65,65}}})
+    {
+        const auto width=size[0],height=size[1],tw=(width+31)/32,th=(height+31)/32,cw=tw*4,ch=th*4;
+        Scene scene(host,width,height);host.submit();host.reset();scene.uploads.clear();
+        FSRDNrdLightingGuardDx12 guard;FSRDNrdLightingGuardDx12::Lease work;std::string error;
+        need(guard.Before(host.device.Get(),host.list.Get(),width,height,0,scene.resources.diff,scene.resources.spec,
+            scene.resources.motion,scene.resources.linearDepth,work,error,.1f,.67f,20000.f),error.c_str());
+        host.submit();host.reset();uint32_t probeCount=0;
+        for(const auto& p:probes)
+        {
+            const uint32_t sx=p.kind==3?tw-1:0,sy=p.kind==3?th-1:0;
+            std::vector<uint32_t> tile(size_t(tw)*th);tile[size_t(sy)*tw+sx]=p.flags;
+            std::vector<float> change(size_t(cw)*ch*2),support(size_t(cw)*ch*4);
+            for(uint32_t y=0;y<ch;y++)for(uint32_t x=0;x<cw;x++)
+            {
+                auto* v=support.data()+(size_t(y)*cw+x)*4;std::copy(p.support.begin(),p.support.end(),v);
+                if(p.kind==1){v[0]=(x&1)?0:.8f;v[2]=(x&1)?2:0;}
+                if(p.kind==2)change[(size_t(y)*cw+x)*2]=up(rel);
+            }
+            std::vector<ComPtr<ID3D12Resource>> uploads;
+            const auto upload=[&](ID3D12Resource* target,const void* bytes,unsigned bpp)
+            {
+                auto d=target->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT rows;UINT64 rowBytes,total;
+                host.device->GetCopyableFootprints(&d,0,1,0,&fp,&rows,&rowBytes,&total);
+                auto u=buffer(host.device.Get(),total,D3D12_HEAP_TYPE_UPLOAD);uint8_t* mapped;hr(u->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));
+                for(uint32_t y=0;y<d.Height;y++)std::memcpy(mapped+fp.Offset+y*fp.Footprint.RowPitch,
+                    static_cast<const uint8_t*>(bytes)+size_t(y)*d.Width*bpp,size_t(d.Width)*bpp);
+                u->Unmap(0,nullptr);barrier(host.list.Get(),target,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_DEST);
+                D3D12_TEXTURE_COPY_LOCATION dst{},src{};dst.pResource=target;dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                src.pResource=u.Get();src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;src.PlacedFootprint=fp;host.list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
+                barrier(host.list.Get(),target,D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);uploads.push_back(std::move(u));
+            };
+            upload(FSRDLightingGuardTestAccess::History(work,0)[2],tile.data(),4);
+            upload(FSRDLightingGuardTestAccess::Change(work),change.data(),8);
+            upload(FSRDLightingGuardTestAccess::Support(work),support.data(),16);
+            FSRDLightingGuardTestAccess::ApplyOnly(host,work);GuardReadback readback(host,work->Motion());host.submit();host.reset();
+            uint8_t* mapped;hr(readback.memory->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));uint64_t selected=0;
+            for(uint32_t y=0;y<height;y++)for(uint32_t x=0;x<width;x++)
+            {
+                const auto* v=reinterpret_cast<const uint16_t*>(mapped+readback.footprint.Offset+y*readback.footprint.Footprint.RowPitch)+x*4;
+                need(v[0]==0&&v[1]==0&&v[3]==0x3c00,"apply-only canonical RG/alpha exact");
+                const bool near=std::abs(int(x/32)-int(sx))<=1&&std::abs(int(y/32)-int(sy))<=1;
+                const bool stripe=x>=4&&((x+.5f)/8-.5f)<cw-1&&(x%16==8||x%16==9||x%16==14||x%16==15);
+                const bool expected=p.kind==2?(x/32==sx&&y/32==sy):near&&p.passes&&(p.kind!=1||stripe);
+                need(v[2]==(expected?0xfbff:0),"apply-only strict per-lobe/cutoff/interpolation/bounded mask");selected+=expected;
+            }
+            readback.memory->Unmap(0,nullptr);++probeCount;
+            std::cout<<"apply_cutoff width="<<width<<" height="<<height<<" probe="<<p.name<<" selected="<<selected<<std::endl;
+        }
+        need(probeCount==17,"all cutoff and boundary probes executed");
+    }
+    std::cout<<"PASS isolated Apply cutoffs cases=51 checks="<<checks<<std::endl;
+}
+
 void MotionStabilityTiming(Host& host,uint32_t width,uint32_t height,const std::filesystem::path& input)
 {
     std::shared_ptr<Context> context;std::string error;
@@ -359,6 +445,8 @@ int main(int argc,char** argv)
         {GuardGenerationLifetime(host,argv[2]);host.checkDebug();return 0;}
         if(argc==3&&std::string(argv[1])=="--motion-timing")
         {loadReal();MotionStabilityTiming(host,1505,847,argv[2]);MotionStabilityTiming(host,2560,1440,argv[2]);host.checkDebug();std::cout<<"PASS actual SDK motion-stability Configure timing checks="<<checks<<'\n';return 0;}
+        if(argc==2&&std::string(argv[1])=="--apply-cutoffs")
+        {GuardApplyCutoffs(host);host.checkDebug();return 0;}
         if(argc==2&&std::string(argv[1])=="--timing")
         {GuardTiming(host,1505,847);GuardTiming(host,2560,1440);host.checkDebug();std::cout<<"PASS guard timing checks="<<checks<<'\n';return 0;}
         if(argc==4&&std::string(argv[1])=="--timing-files")
