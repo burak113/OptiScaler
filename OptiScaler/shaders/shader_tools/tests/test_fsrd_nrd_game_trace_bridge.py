@@ -18,6 +18,7 @@ from fsrd_toolchain import compile_cpp
 import test_fsrd_game_trace_capture as original
 from fsrd_nrd_trace_replay import inspect_capture
 from test_fsrd_nrd_trace_replay_contract import exercise
+from test_fsrd_temporal_trace_contract import exercise_adaptive
 
 
 def prepare(out):
@@ -127,6 +128,9 @@ def run():
     check(result["actual_sdk_dispatches"] == 0 and result["debug_errors"] == result["debug_warnings"] == 0)
     (out / "replay-inputs.json").write_text(json.dumps(replay, indent=2) + "\n", encoding="utf-8")
     contract = exercise(result["capture"], out / "offline-negative-contract")
+    adaptive_contract = exercise_adaptive(result["adaptive_capture"], result["capture"], out / "adaptive-negative-contract")
+    result["adaptive_contract"] = adaptive_contract
+    checks += adaptive_contract["checks"]
     result["offline_contract"] = contract
     result["python_checks"] = checks + contract["checks"]
     result["scope"] = "real_WARP_trace_copy_fence_Map_publication; CPU_RR_output_and_commit_adapter; no_AMD_SDK"

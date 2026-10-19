@@ -1,3 +1,4 @@
+#include "shaders/fsrd_preprocess/FSRDNrdLightingGuard_Dx12.h"
 // Appended to the unchanged original Trace fixture Host. Controlled words only:
 // real recorder/copies/fence/Map/publication; output lease/provider witness are
 // explicit CPU adapters. No AMD SDK call, title detour or image-quality oracle.
@@ -165,7 +166,68 @@ int main(int argc,char** argv) try
         check(!Trace::WantsNrdBridgeSignal(0)&&!Trace::WantsNrdBridgeSignal(1)&&!Trace::WantsNrdBridgeSignal(2),"OFF/invalid signal selector accessed session/native/allocated");
         g_testFailHeapAllocation.store(false);check(!token,"OFF performed allocation/native access");
     }
+    {
+        NrdBridge::RRSettingsState a;a.ready=true;a.effective={.5f,.5f,40000,40,.5f,.1f,0,1024};
+        check(!FSRDGameTraceBridgeMetadata::Settings(a).contains("lighting_validation"),"OFF metadata must not add a G3 policy");
+        a.requested.lightingValidation=true;auto g3=FSRDGameTraceBridgeMetadata::Settings(a);
+        auto changed=a;changed.requested.motionStability.rotationDegrees=.2f;
+        check(g3!=FSRDGameTraceBridgeMetadata::Settings(changed),"G3-only rotation threshold participates in settings provenance");
+        changed=a;changed.requested.motionStability.translationMetres=.002f;
+        check(g3!=FSRDGameTraceBridgeMetadata::Settings(changed),"G3-only translation threshold participates in settings provenance");
+        a.requested.lightingValidation=false;
+        auto b=a;b.effective[1]=.85f;
+        check(FSRDGameTraceBridgeMetadata::SettingsLineage(FSRDGameTraceBridgeMetadata::Settings(a))!=
+            FSRDGameTraceBridgeMetadata::SettingsLineage(FSRDGameTraceBridgeMetadata::Settings(b)),"OFF key2 changes must still break lineage");
+        a.requested.motionStability.enabled=b.requested.motionStability.enabled=true;
+        auto ja=FSRDGameTraceBridgeMetadata::Settings(a),jb=FSRDGameTraceBridgeMetadata::Settings(b);
+        check(ja!=jb,"per-frame effective tuning must stay exact in recorded settings");
+        check(FSRDGameTraceBridgeMetadata::SettingsLineage(ja)==FSRDGameTraceBridgeMetadata::SettingsLineage(jb),
+            "explicit adaptive key2 may vary without ending a capture");
+        b.effective[0]=.75f;check(FSRDGameTraceBridgeMetadata::SettingsLineage(ja)!=
+            FSRDGameTraceBridgeMetadata::SettingsLineage(FSRDGameTraceBridgeMetadata::Settings(b)),"another key change still breaks adaptive lineage");
+        b=a;b.requested.motionStability.ramp=.07f;check(FSRDGameTraceBridgeMetadata::SettingsLineage(ja)!=
+            FSRDGameTraceBridgeMetadata::SettingsLineage(FSRDGameTraceBridgeMetadata::Settings(b)),"adaptive policy edits still break lineage");
+    }
     auto request=Request(root);
+    {
+        auto adaptiveRequest=request;
+        Trace trace;check(Trace::RequestStart(adaptiveRequest),"adaptive metadata capture request");
+        result["adaptive_capture"]=Trace::GetStatus().folder;FSRDNrdLightingGuardDx12 guard;std::string lineage;
+        for(unsigned frame=0;frame<3;frame++)
+        {
+            h.Fill(frame);owner->FillStages(h);auto input=owner->Converted(h);
+            FSRDNrdLightingGuardDx12::Lease work;std::string error;
+            check(guard.Before(h.device.Get(),h.list.Get(),input.width,input.height,500+frame,
+                input.diff,input.spec,input.motion,input.linearDepth,work,error,.1f,1.f,1000.f),"actual validation motion preparation");
+            auto output=owner->Snapshot(h,frame);output.providerMotion=work->Motion();output.runtimeTuningValid=true;
+            output.runtimeEffective={.5f,.5f+.035f*frame,40000,40,.5f,.1f,0,1024};
+            auto keep=std::make_shared<std::pair<std::shared_ptr<OwnedBridgeFixture>,FSRDNrdLightingGuardDx12::Lease>>(owner,work);output.owner=keep;
+            NrdBridge::RRSettingsState live;live.ready=true;live.requested.motionStability.enabled=true;live.requested.lightingValidation=true;
+            live.effective=output.runtimeEffective;live.effective[1]=.95f; // Deliberately newer live state than this recording.
+            Trace::BridgeFrameToken token;
+            Await([&]{if(!token)token=trace.RecordBridgeOwned(h.device.Get(),h.list.Get(),Identity(frame),input,owner,
+                Parameters(frame),sl::Constants{},100+frame,2,live,output,Witness());return bool(token)||!Trace::IsActive();},"adaptive trace admission");
+            check(bool(token),"dynamic key2 unexpectedly ended capture");auto f=std::static_pointer_cast<Frame>(token);
+            check(f->bridgeOwnedResources[3]==work->Motion()&&work->Motion()!=input.motion,"trace must own actual RR motion rather than canonical motion");
+            check(f->bridgeMetadata["settings"]["provider_effective"][1]==std::bit_cast<uint32_t>(output.runtimeEffective[1]),
+                "trace must use frozen per-recording key2, not newer live effective tuning");
+            const auto& policy=f->bridgeMetadata["settings"]["lighting_validation"];
+            check(policy["enabled"]==true&&policy["rotation_degrees"]==std::bit_cast<uint32_t>(live.requested.motionStability.rotationDegrees)&&
+                policy["translation_units"]==std::bit_cast<uint32_t>(live.requested.motionStability.translationMetres),
+                "trace freezes both camera thresholds used by G3");
+            const auto current=f->bridgeMetadata["settings_lineage_sha256"].get<std::string>();
+            if(frame)check(current==lineage,"adaptive per-frame key2 changed policy lineage");else lineage=current;
+            check(trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(frame),ControlHeader(owner,frame)),"adaptive control header");
+            for(size_t k=0;k<2;k++)owner->Copy(h,owner->stages[k].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,owner->title[k].Get());
+            output.outputCommitted=true;output.encodingFlag=owner->flag.Get();output.nativeEncodingCaptured=true;
+            std::array<Trace::Source,2> targets {{{owner->title[0].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS},{owner->title[1].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS}}};
+            NrdBridge::TitleSignalConstants constants;constants.address=owner->flag->GetGPUVirtualAddress();constants.wordIndex=frame==0?36:303;
+            check(trace.CompleteBridgeFrame(token,h.list.Get(),Identity(frame),targets,output,constants),"adaptive commit rejected");
+            h.Execute();Saved(frame+1);h.Reset();token.reset();f.reset();trace.Poll();
+        }
+        Trace::RequestStop();Closed();Published(3);
+        check(Trace::GetStatus().manifestPublished==3,"adaptive capture prefix did not publish all three frames");
+    }
     {
         // CPU request/selector lifecycle only: no GPU copy/SDK/native resources.
         check(request.bridgeSignal==0,"API signal selector default must preserve A callers");

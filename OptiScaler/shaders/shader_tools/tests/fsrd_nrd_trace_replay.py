@@ -61,6 +61,47 @@ def words(value, size, label):
         uint(word, label, 0xffffffff)
 
 
+def settings_continuity_hash(frame, settings):
+    """Only attested adaptive key 2 may vary; retain every actual recorded word."""
+    if "lighting_validation" in settings:
+        lighting = settings["lighting_validation"]
+        require(isinstance(lighting, dict) and set(lighting) == {"enabled", "rotation_degrees", "translation_units"}
+                and lighting.get("enabled") is True, "invalid lighting validation policy")
+        for key, maximum in (("rotation_degrees", 180), ("translation_units", 1)):
+            word = uint(lighting[key], "lighting validation " + key, 0xffffffff)
+            value = struct.unpack("<f", struct.pack("<I", word))[0]
+            require(math.isfinite(value) and 0 < value <= maximum, "lighting validation threshold outside production bounds")
+    policy = settings.get("motion_stability")
+    if "motion_stability" not in settings:
+        require("settings_lineage_sha256" not in frame, "unexpected adaptive settings lineage")
+        return frame["settings_sha256"]
+    fields = ("still", "moving", "rotation_degrees", "translation_metres", "ramp")
+    require(isinstance(policy, dict) and set(policy) == {"enabled", *fields}
+            and policy.get("enabled") is True, "invalid motion stability policy")
+    if "lighting_validation" in settings:
+        require(settings["lighting_validation"]["rotation_degrees"] == policy["rotation_degrees"]
+                and settings["lighting_validation"]["translation_units"] == policy["translation_metres"],
+                "lighting validation camera thresholds contradict the shared motion profile")
+    values = {}
+    for key in fields:
+        word = uint(policy[key], "motion stability " + key, 0xffffffff)
+        values[key] = struct.unpack("<f", struct.pack("<I", word))[0]
+    require(all(math.isfinite(value) for value in values.values()), "nonfinite motion stability policy")
+    require(0 <= values["moving"] <= values["still"] <= 1
+            and 0 < values["rotation_degrees"] <= 180
+            and 0 < values["translation_metres"] <= 1 and 0 < values["ramp"] <= 1,
+            "motion stability policy outside production bounds")
+    actual = struct.unpack("<f", struct.pack("<I", settings["provider_effective"][1]))[0]
+    require(math.isfinite(actual) and values["moving"] <= actual <= values["still"],
+            "adaptive effective key 2 outside frozen policy")
+    lineage = dict(settings, provider_effective=list(settings["provider_effective"]))
+    lineage["provider_effective"][1] = policy["moving"]
+    encoded = json.dumps(lineage, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    digest = hashlib.sha256(encoded).hexdigest()
+    require(frame.get("settings_lineage_sha256") == digest, "adaptive settings lineage hash mismatch")
+    return digest
+
+
 def safe_file(root, relative):
     require(isinstance(relative, str) and "\\" not in relative and ":" not in relative,
             "unsafe payload path")
@@ -240,6 +281,11 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
         require(hashlib.sha256(encoded_settings).hexdigest() == frame.get("settings_sha256"), "settings hash mismatch")
         for key in ("requested_values", "provider_defaults", "provider_effective"):
             words(settings.get(key), 8, key)
+        continuity_hash = settings_continuity_hash(frame, settings)
+        if "motion_stability" in settings and "adaptive_key2_requires_per_frame_tuning_replay" not in reasons:
+            # The legacy native replay driver configures only its first frame.
+            # Inspection is valid; replay stays fail-closed until it can apply each frozen key 2.
+            reasons.append("adaptive_key2_requires_per_frame_tuning_replay")
         for key in ("recovery_specular", "recovery_diffuse"):
             uint(settings.get(key), key, 0xffffffff)
         params = frame.get("frame_parameters", {})
@@ -292,7 +338,7 @@ def inspect_capture(folder, *, verify_payload=True, strict_continuity=True):
             require(reset_reason != "", "empty reset_reason")
         if frame.get("actual_reset") and not (isinstance(reset_reason, str) and reset_reason):
             reset_reason_missing = True
-        current = (identity["domain"], frame.get("context_generation"), frame.get("settings_sha256"),
+        current = (identity["domain"], frame.get("context_generation"), continuity_hash,
                    provider.get("version_id"), provider.get("api_version"), binary_hash,
                    provider.get("signal_flags"), provider.get("context_flags"), provider.get("checkerboard_signal_flags"))
         if stable is None:

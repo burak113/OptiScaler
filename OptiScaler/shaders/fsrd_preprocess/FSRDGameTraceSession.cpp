@@ -286,7 +286,7 @@ struct Frame
     size_t diagnosticCount = LegacyDiagnosticCount;
     Image srImage; Json srMetadata; std::weak_ptr<Session> owner;
     uint64_t gpuBytes = 0; bool frozen = false, discarded = false, currentCopied = false;
-    std::string settingsHash;
+    std::string settingsHash, settingsLineageHash;
     std::vector<uint8_t> constants;
     std::vector<uint8_t> geometryConstants, flatDetailConstants;
     FSRDGameTraceSession::FrameInfo info;
@@ -2037,15 +2037,22 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             s.status.message = "Waiting for the explicitly requested actual SDK RESET; no trace payload recorded yet.";
             return {};
         }
-        const auto settingsJson = FSRDGameTraceBridgeMetadata::Settings(settings);
+        auto settingsJson = FSRDGameTraceBridgeMetadata::Settings(settings);
+        if(output.runtimeTuningValid)settingsJson["provider_effective"]=FSRDGameTraceBridgeMetadata::FloatWords(output.runtimeEffective);
         const auto serialized = settingsJson.dump();
         const auto settingsHash = RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(serialized.data()),serialized.size()});
+        std::string lineageHash=settingsHash;
+        if(settings.requested.motionStability.enabled)
+        {
+            const auto lineage=FSRDGameTraceBridgeMetadata::SettingsLineage(settingsJson).dump();
+            lineageHash=RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(lineage.data()),lineage.size()});
+        }
         const auto context = std::to_string(identity.domain)+":"+std::to_string(output.contextGeneration);
-        if (s.bound && (s.context != context || s.settingsHash != settingsHash ||
+        if (s.bound && (s.context != context || s.settingsHash != lineageHash ||
             output.frameIndex != s.lastFrameIndex+1u || identity.streamlineFrame != s.lastBridgeSL+1u ||
             identity.recordingId <= s.lastBridgeRecording))
             throw std::runtime_error("NRD_BRIDGE trace context/settings/consecutive SL or SDK frame lineage changed");
-        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,input.motion,output.providerNormals ? output.providerNormals : input.normals,
+        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,output.providerMotion ? output.providerMotion : input.motion,output.providerNormals ? output.providerNormals : input.normals,
             input.specAlbedo,input.diffAlbedo,output.rawSpec,output.rawDiff,output.selectedSpec,output.selectedDiff};
         for (auto* source : sources) if (!source) throw std::runtime_error("NRD_BRIDGE trace missing owned stage");
         auto f = std::make_shared<Frame>(); f->bridge = true; f->bridgeIdentity = identity;
@@ -2060,6 +2067,7 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
         if (nativeFrame != output.frameIndex || nativeWidth != input.width || nativeHeight != input.height)
             throw std::runtime_error("NRD_BRIDGE trace provider controls do not match owned stage extent/frame");
         f->settingsHash = settingsHash;
+        if(settings.requested.motionStability.enabled)f->settingsLineageHash=lineageHash;
         Json attestation = Json::object();
         if (!binary.routeAttestationJson.empty())
         {
@@ -2116,6 +2124,9 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             {"encoding",{{"native_flag_captured",false},{"fallback_encoding",uint32_t(parameters.outputEncoding)},
                 {"native_flag_scope","not_available_until_successful_late_commit"}}},
             {"output_scope","owned_RR_and_bridge_encoded_commit; no_native_NRD_reference"}};
+        if(settings.requested.motionStability.enabled)f->bridgeMetadata["settings_lineage_sha256"]=lineageHash;
+        if(settings.requested.lightingValidation)f->bridgeMetadata["lighting_validation"]={
+            {"active",output.providerMotion&&output.providerMotion!=input.motion}};
         LARGE_INTEGER qpc {}; QueryPerformanceCounter(&qpc); f->qpc = uint64_t(qpc.QuadPart);
         f->bridgeMetadata["recording_qpc"] = f->qpc;
         f->ticket = RRTraceFence::Arm(device,cmd);
@@ -2315,7 +2326,7 @@ bool FSRDGameTraceSession::CompleteBridgeFrame(const BridgeFrameToken& token, ID
                 "not_used; explicit_fallback_output_encoding"}};
         f->bridgeMetadata["output_committed"] = true;
         impl.Seal(*f);
-        auto& s = *impl.session; s.context = f->info.contextId; s.settingsHash = f->settingsHash;
+        auto& s = *impl.session; s.context = f->info.contextId; s.settingsHash = f->settingsLineageHash.empty()?f->settingsHash:f->settingsLineageHash;
         s.lastFrameIndex = output.frameIndex; s.lastBridgeSL = identity.streamlineFrame;
         s.lastBridgeRecording = identity.recordingId; s.bound = true;
         return true;

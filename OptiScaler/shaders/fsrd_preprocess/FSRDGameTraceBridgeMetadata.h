@@ -64,7 +64,7 @@ inline Json Frame(const NrdBridge::FrameParameters& p, const sl::Constants& c, u
 inline Json Settings(const NrdBridge::RRSettingsState& s)
 {
     const auto& p = s.requested;
-    return {{"float_encoding","ieee754_binary32_uint32_words"},{"defaults_ready",s.ready},
+    Json result {{"float_encoding","ieee754_binary32_uint32_words"},{"defaults_ready",s.ready},
         {"override_mask",p.overrideMask},{"requested_values",FloatWords(p.values)},
         {"provider_defaults",FloatWords(s.defaults)},{"provider_effective",FloatWords(s.effective)},
         {"native_debug_view",p.nativeDebugView},{"native_debug_viewport",p.nativeDebugViewport},
@@ -84,6 +84,22 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
             {"brightness",p.turnBrightness},{"brightness_amount",Bits(p.turnBrightnessAmount)},
             {"brightness_frames",Bits(p.turnBrightnessFrames)}}},
         {"native_nrd_output_used",false}};
+    if(p.motionStability.enabled)
+        result["motion_stability"]={{"enabled",true},{"still",Bits(p.motionStability.still)},
+            {"moving",Bits(p.motionStability.moving)},{"rotation_degrees",Bits(p.motionStability.rotationDegrees)},
+            {"translation_metres",Bits(p.motionStability.translationMetres)},{"ramp",Bits(p.motionStability.ramp)}};
+    if(p.lightingValidation)result["lighting_validation"]={{"enabled",true},
+        {"rotation_degrees",Bits(p.motionStability.rotationDegrees)},
+        {"translation_units",Bits(p.motionStability.translationMetres)}};
+    return result;
+}
+// Per-frame key 2 is captured exactly, but its intentional runtime variation is not a settings-domain change.
+// All other effective keys, requested keys and policy parameters remain part of the lineage fingerprint.
+inline Json SettingsLineage(Json actual)
+{
+    const auto policy=actual.find("motion_stability");
+    if(policy!=actual.end()&&policy->value("enabled",false))actual["provider_effective"][1]=(*policy)["moving"];
+    return actual;
 }
 // D06/D07 proposed diagnostic vocabulary (control-model names, not keys).
 // This payload is attached per recorded frame and is NOT part of the hashed
