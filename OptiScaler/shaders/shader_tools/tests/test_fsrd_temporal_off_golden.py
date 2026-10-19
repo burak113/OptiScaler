@@ -1,6 +1,9 @@
-"""Byte-for-byte OFF replay against base45b069216, with identical deterministic provider lighting.
+"""Byte-for-byte OFF replay against baseadccf08fd, with identical deterministic provider lighting.
 Actual GPU transforms, RR input words, dispatch controls and title commits are compared.
 This is an equivalence test, not an RR quality experiment or a claim of deterministic ML inference.
+The base side is the task base commit's whole fsrd_preprocess tree: replacing single files broke once the
+bridge settings gained members that the recovery header reads (task 24 T1), so the base side is materialised
+from the commit instead of being patched into the current tree.
 """
 from pathlib import Path
 import hashlib,json,os,shutil,subprocess,sys
@@ -40,11 +43,16 @@ def main():
             for p in (ROOT/rel).glob('*.h'):shutil.copyfile(p,dst/p.name)
         replaced={}
         if label=='base':
-            for rel in ['OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp',
-                        'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h',
-                        'OptiScaler/shaders/shader_tools/tests/nrd_bridge_rr_fixture.cpp']:
-                data=subprocess.check_output(['git','-C',str(ROOT),'show','45b069216:'+rel])
+            commit='adccf08fd'
+            tree=subprocess.check_output(['git','-C',str(ROOT),'ls-tree','-r','--name-only',commit,
+                'OptiScaler/shaders/fsrd_preprocess']).decode().split()
+            for rel in tree+['OptiScaler/shaders/shader_tools/tests/nrd_bridge_rr_fixture.cpp']:
+                data=subprocess.check_output(['git','-C',str(ROOT),'show',commit+':'+rel])
                 (overlay/rel).write_bytes(data);replaced[rel]=hashlib.sha256(data).hexdigest()
+            # The base tree has no task-24 additions: drop the overlay copies the commit does not know.
+            preprocess=overlay/'OptiScaler/shaders/fsrd_preprocess'
+            for p in sorted(preprocess.rglob('*'),reverse=True):
+                if p.is_file() and p.relative_to(overlay).as_posix() not in tree:p.unlink()
         fixture=overlay/'OptiScaler/shaders/shader_tools/tests'
         support=fixture/'nrd_bridge_rr_test_support.h';text=support.read_text()
         text=text.replace('struct FfxApiProxy\n{','void GoldenSnapshot(const ffxDispatchDescDenoiser&,const ffxDispatchDescDenoiserDirectDiffuse&,const ffxDispatchDescDenoiserIndirectSpecular&);\nstruct FfxApiProxy\n{')
@@ -69,7 +77,7 @@ def main():
     first=out/'base/result';second=out/'current/result';files=sorted(p.name for p in first.iterdir())
     assert files==sorted(p.name for p in second.iterdir())
     mismatches=[n for n in files if (first/n).read_bytes()!=(second/n).read_bytes()]
-    result=dict(passed=not mismatches,base='45b069216',profiles=4,frames=24,files=len(files),
+    result=dict(passed=not mismatches,base='adccf08fd',profiles=4,frames=24,files=len(files),
         compared_bytes=sum((first/n).stat().st_size for n in files),mismatches=mismatches,
         scope='actual D3D12 RR-wrapper transforms/dispatch inputs/controls/title commits and allocation+configure counts; deterministic provider RGB; frozen captured input crop; no quality or installed-game claim',
         cases=variants,source_manifest=source_manifest)
