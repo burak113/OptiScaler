@@ -36,7 +36,7 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
     float3 result = off + w * (rr - off);
     // NZR on vertical surfaces (glass grain): at most VerticalStrength of the OFF result is kept there
     // (mode 1 keeps none); horizontal pixels and mode 0 keep the exact expression above.
-    if (VerticalMode != 0u)
+    if (VerticalMode == 1u || VerticalMode == 2u)
     {
         const float gate = GlassGate(InNormals[p].rg);
         if (gate > 0.0f)

@@ -119,11 +119,8 @@ class FlatAlbedoRecovery
     static void Check(HRESULT hr,const char* label) { if (FAILED(hr)) throw std::runtime_error(label); }
     // Reflection history is a variant of the non-temporal path; Temporal's own reference takes precedence.
     static bool Reflection(const FlatAlbedoSettings& s) noexcept { return s.reflectionHistory && !s.temporal; }
-    // The polish pass carries the mode-3 glass stabiliser, so it is dispatched whenever either option needs it.
-    static bool Polish(const FlatAlbedoSettings& s) noexcept
-    {
-        return Reflection(s) && (s.reflectionPolish > 0.0f || s.verticalMode == 3u);
-    }
+    // The polish pass carries the optional reflection polish only.
+    static bool Polish(const FlatAlbedoSettings& s) noexcept { return Reflection(s) && s.reflectionPolish > 0.0f; }
     static D3D12_RESOURCE_BARRIER Transition(ID3D12Resource* p,D3D12_RESOURCE_STATES a,D3D12_RESOURCE_STATES b) noexcept
     {
         D3D12_RESOURCE_BARRIER r {}; r.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -175,6 +172,7 @@ class FlatAlbedoRecovery
         else if (c->reflection)
             for (uint32_t i = 0;i < 2;++i) { tex(c->history[0].mean[i],Half); tex(c->history[0].moment[i],DXGI_FORMAT_R32G32_FLOAT); }
         if (c->polish) for (auto& t:c->polishHistory) tex(t,Half);
+
         uint64_t bytes = 0;
         for (const auto& p:plans)
         {
@@ -197,6 +195,7 @@ class FlatAlbedoRecovery
             FLAT_PIPE(historyPass,FSRDNrdFlatHistory); FLAT_PIPE(hybridPrep,FSRDNrdFlatHybridPrep);
             FLAT_PIPE(hybridBlur,FSRDNrdFlatHybridBlur); FLAT_PIPE(hybridApply,FSRDNrdFlatHybridApply);
             if (c->polish) { FLAT_PIPE(polishPass,FSRDNrdFlatPolish); }
+
         }
 #undef FLAT_PIPE
         D3D12_INDIRECT_ARGUMENT_DESC arg {}; arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
@@ -344,12 +343,8 @@ class FlatAlbedoRecovery
     {
         HistoryConstants history;
         float strength = 0, sigma = 3.0f, flatContrast = 0.3f, historyWeight = 0.75f;
-        // NZR on vertical surfaces, mode 3: the same clamped history, gated by |n.z| and controlled by its own
-        // strength. glassContrast is the relaxed local-contrast guard (the clamp protects sign edges, not flatness).
-        float verticalStrength = 0, glassContrast = 1.0f;
-        uint32_t verticalMode = 0, verticalReserved = 0;
     };
-    static_assert(sizeof(PolishConstants) == 160);
+    static_assert(sizeof(PolishConstants) == 144);
     // Reflection-history selector (FSRDNrdFlatHybrid*): Base where the history mean is reliable, k x RR elsewhere.
     // Noise R = standard error / mean (sigma 2, mature pixels) ramps NoiseLow..NoiseHigh; the collapse rule of the
     // RR fallback uses MatureLow/High, or ThinLow/High below MinCount; k = clipped history mean / RR (sigma 4).
@@ -423,7 +418,7 @@ class FlatAlbedoRecovery
         DetailConstants detail {size,{},settings.strength,settings.anchor,settings.mix};
         detail.temporalDenoise = settings.temporal ? settings.temporalDenoise : 0;
         detail.verticalStrength = settings.verticalStrength;
-        detail.verticalMode = settings.verticalMode > 3u ? 3u : settings.verticalMode;
+        detail.verticalMode = settings.verticalMode > 2u ? 2u : settings.verticalMode;
         detail.flags = SameLighting|ReferenceTrust;
         HistoryConstants reflection {size};
         if (c.reflection)
@@ -503,12 +498,10 @@ class FlatAlbedoRecovery
                 if (c.polish)
                 {
                     PolishConstants polish {reflection}; polish.strength = settings.reflectionPolish;
-                    polish.verticalStrength = settings.verticalStrength;
-                    polish.verticalMode = settings.verticalMode > 3u ? 3u : settings.verticalMode;
                     const View stable {c.polishHistory[c.parity^1u].Get()};
                     Describe(c,slot,descriptor,c.polishPass,polish,
-                        std::array<View,9>{{{c.variance.Get()},decision,output,running,moment,
-                            {c.history[0].moment[c.parity].Get()},{c.polishHistory[c.parity].Get()},depth,mask}},
+                        std::array<View,8>{{{c.variance.Get()},decision,output,running,moment,
+                            {c.history[0].moment[c.parity].Get()},{c.polishHistory[c.parity].Get()},depth}},
                         std::array<View,1>{stable},false);
                     reads[10] = stable;
                     Describe(c,slot,descriptor,c.apply,detail,reads,std::array<View,3>{output,{nullptr},{nullptr}});

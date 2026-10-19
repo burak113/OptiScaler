@@ -99,7 +99,7 @@ template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(c
     if constexpr (requires { config.FfxDenoiserRecoveryFlatVerticalMode; config.FfxDenoiserRecoveryFlatVerticalStrength; })
     {
         const int mode = config.FfxDenoiserRecoveryFlatVerticalMode.value_or_default();
-        out.verticalMode = uint32_t(std::clamp(mode,0,3));
+        out.verticalMode = uint32_t(std::clamp(mode,0,2));
         const float strength = config.FfxDenoiserRecoveryFlatVerticalStrength.value_or_default();
         out.verticalStrength = std::isfinite(strength) ? std::clamp(strength,0.0f,1.0f) : 0.5f;
     }

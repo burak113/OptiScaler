@@ -181,6 +181,17 @@ int main(int argc,char** argv) try
     // against the default (0) run. Unset means 0, so the default test path is unchanged.
     if (const char* knob=std::getenv("FSRD24_GLASS_MODE")) settings.verticalMode=uint32_t(std::atoi(knob));
     if (const char* knob=std::getenv("FSRD24_GLASS_STRENGTH")) settings.verticalStrength=float(std::atof(knob));
+    // Task 24 fixture-only: a strength above 1 asks the pass for its diagnostic dump (age/gate/motion).
+    // Task 24 A/B: reproduce the user's bridge configuration (Reflection history, Temporal off, diffuse from RR)
+    // so the recorded post-RR path (and mode 3, which rides the polish pass) can be replayed with real cameras.
+    if (const char* knob=std::getenv("FSRD24_REFLECT"))
+    {
+        settings.reflectionHistory=std::atoi(knob)!=0;
+        settings.temporal=!settings.reflectionHistory;
+        settings.diffuseRR=settings.reflectionHistory;
+    }
+    if (const char* knob=std::getenv("FSRD24_POLISH")) settings.reflectionPolish=float(std::atof(knob));
+    if (const char* knob=std::getenv("FSRD24_GLASS_DEBUG")) if(std::atoi(knob)) settings.verticalStrength=1.5f;
     const uint32_t w=job.at("width"),h=job.at("height");
     uint32_t count=0;
     for (const auto& row:frames)
@@ -191,6 +202,14 @@ int main(int argc,char** argv) try
         const LobeRecoveryInputs in {scene.resources.spec,scene.resources.diff,scene.resources.linearDepth,scene.resources.motion,
             scene.resources.normals,scene.spec(),scene.diff(),w,h};
         LobeRecoveryFrame frame; frame.frameIndex=row.at("sdk_frame"); frame.reset=row.at("reset");
+        // Optional camera for the reflection-history path (identity matrices keep the plain path unchanged).
+        if (row.contains("view") && row.contains("projection"))
+        {
+            const auto view=row.at("view").get<std::vector<double>>(), projection=row.at("projection").get<std::vector<double>>();
+            need(view.size()==16 && projection.size()==16,"camera matrices are 4x4");
+            for (int i=0;i<16;++i) { frame.view[i]=view[i]; frame.projection[i]=projection[i]; }
+            frame.camera=row.value("camera",true);
+        }
         FlatAlbedoRecovery::Prepared prepared; std::string error;
         need(helper.Prepare(host.device.Get(),host.list.Get(),in,frame,settings,family,prepared,error),error.c_str());
         need(ResTrack_Dx12::RetainComputeDispatch(host.device.Get(),host.list.Get(),prepared.owner),"capture helper lease");

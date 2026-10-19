@@ -3620,20 +3620,19 @@ static void DrawNrdBridgeRRTuning(Config* config)
             ImGui::SetTooltip("Reflection history only. Reduces shimmer in low-contrast reflections. Strong settings can soften fine text "
                               "or trail moving colored edges. 0 = v4. Changing it resets history. Default 0.");
         int verticalMode = int(flat.verticalMode);
-        if (ImGui::Combo("Glass (vertical surfaces)##NrdFlat", &verticalMode, "Off\0RR\0Blend\0Stabilised\0"))
+        if (ImGui::Combo("Glass (vertical surfaces)##NrdFlat", &verticalMode, "Off\0RR\0Blend\0"))
         { config->FfxDenoiserRecoveryFlatVerticalMode = verticalMode; changed = true; }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Storefront glass and other vertical zero-rough surfaces keep roughly twice the fine noise of RR; "
                               "puddles and other horizontal surfaces (world normal Z >= 0.8) always keep the result above, byte for byte.\n"
-                              "RR = show RR on glass (least noise, softest reflected text), Blend = keep Strength of the recovery there, "
-                              "Stabilised = average the recovery along the reflection (needs Reflection history; keeps text sharp).");
+                              "RR = show RR on glass (least noise, softest reflected text), Blend = keep Strength of the recovery there. "
+                              "A stabilised third mode was prototyped and measured but is not shipped (task-24 report).");
         if (verticalMode >= 2)
         {
             if (ImGui::SliderFloat("Glass strength##NrdFlat", &flat.verticalStrength,0.0f,1.0f))
             { config->FfxDenoiserRecoveryFlatVerticalStrength = flat.verticalStrength; changed = true; }
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Blend: share of the recovery kept on glass (0 = RR, 1 = full recovery, default .5). "
-                                  "Stabilised: how strongly the recovery is averaged along the reflection (default .5).");
+                ImGui::SetTooltip("Share of the recovery kept on glass: 0 = RR, 1 = full recovery (default .5).");
         }
         ImGui::TextWrapped("RR skips all spatial filtering below roughness 1/1023 (mirror bypass), so mirror-like water stays as "
             "sparse noise. Recovery gives RR a minimum roughness (default 2/1023). With Temporal reference off, the output on "
