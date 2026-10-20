@@ -1,0 +1,2 @@
+# Preserve forensic assertion logs byte-for-byte, including unittest whitespace.
+review/*.log -whitespace
