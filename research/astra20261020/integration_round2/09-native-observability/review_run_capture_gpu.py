@@ -41,11 +41,29 @@ def prepare(out: Path) -> tuple[Path, tuple]:
     original = source.read_text(encoding="utf-8")
     if original.count("int main(") != 1:
         raise RuntimeError("Frozen fixture main boundary is no longer unique")
-    source.write_text(original.split("int main(", 1)[0] + "\n" +
+    # The inherited fixture declares recovery labels but never links their RR
+    # translation unit. Compile the exact two production definitions here; this
+    # adds no provider adapter and does not replace the recorder under test.
+    rr_source = ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
+    rr_text = rr_source.read_text(encoding="utf-8")
+    labels = []
+    for name in ("LobeRecoveryTierName", "LobeRecoveryFallbackReasonName"):
+        signature = "const char* " + name + "("
+        if rr_text.count(signature) != 1:
+            raise RuntimeError("Recovery label extraction boundary changed: " + name)
+        start = rr_text.index(signature)
+        end = rr_text.index("{", start) + 1
+        depth = 1
+        while depth:
+            depth += (rr_text[end] == "{") - (rr_text[end] == "}")
+            end += 1
+        labels.append(rr_text[start:end])
+    definitions = "\nnamespace NrdBridge {\n" + "\n".join(labels) + "\n}\n"
+    source.write_text(original.split("int main(", 1)[0] + definitions + "\n" +
                       (HERE / "review_capture_gpu.cpp").read_text(encoding="utf-8"), encoding="utf-8")
     manifest_path = out / "prepared-source-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    files = [Path(__file__), HERE / "review_capture_gpu.cpp", HERE / "observation_capture_reader.py", source,
+    files = [Path(__file__), rr_source, HERE / "review_capture_gpu.cpp", HERE / "observation_capture_reader.py", source,
              TESTS / "test_fsrd_game_trace_capture.py", TESTS.parent / "fsrd_toolchain.py",
              ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdObservationContract.h",
              ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdSupportContract.h",

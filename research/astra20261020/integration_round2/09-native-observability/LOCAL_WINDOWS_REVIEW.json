@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-20",
+  "reviewer": "codex",
+  "reviewed_commit": "1d402b16278e91c22d795e41db93f21ef3246515",
+  "production_changes_by_reviewer": false,
+  "finding": {
+    "severity": "test-blocker",
+    "description": "The new native recorder fixture inherits two recovery label declarations without definitions; on Windows it fails to link with two LNK2019 errors. CPU/source preparation cannot detect this.",
+    "repair": "Extract and compile the exact two production label functions; preserve recorder, assertions and provider-adapter boundary."
+  },
+  "cpu": {
+    "platform": "Windows MSVC via explicit external GCC-argument adapter (/W4 /WX /permissive-); no Linux rerun claimed",
+    "source_tests_unchanged": true,
+    "stages_passed": [
+      "observation",
+      "support",
+      "lifecycle",
+      "metadata",
+      "reader",
+      "gpu_prepare"
+    ],
+    "checks": {
+      "observation": 204,
+      "support": 56,
+      "lifecycle": 22,
+      "metadata": 54,
+      "reader": 26
+    },
+    "deliberately_broken_mutants_rejected": 6,
+    "receipt_sha256": "ff8ba4ddcfc78298a5f2b4f41a43b1149f7988a955fa892ba3c3782b96a84ced"
+  },
+  "native_recorder": {
+    "actual_device": "D3D12 WARP",
+    "cpp_checks": 33,
+    "python_checks": 250,
+    "debug_errors": 0,
+    "debug_warnings": 0,
+    "actual_AMD_provider_dispatches": 0,
+    "scale_roundtrip_executed": false,
+    "physical_word_canaries_preserved": true,
+    "stale_epoch_rejected": true,
+    "opt_out_no_allocation_or_native_access": true,
+    "receipt_sha256": "86f1c971f8635f296b0155a29daa0a0494b4c87e5e6b7499309ec8b8cf2c69a4"
+  },
+  "pending": [
+    "Whole DLL and native-coordinator integration build/test",
+    "Real AMD provider D16/S256 and legacy-scale observation run",
+    "Actual reset/resize/device-loss integration matrix",
+    "Game captures and quality judgement"
+  ],
+  "integration": "Kept separate from the material-albedo alias fix DLL (88b22c2cc). Support remains explicitly invalid (reason bits 3), raw_edit_eligible=false; this PR alone is not native colour correction."
+}

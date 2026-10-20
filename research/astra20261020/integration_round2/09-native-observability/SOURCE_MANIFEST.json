@@ -66,6 +66,11 @@
       "sha256": "530420b00eb9d0f11e2747c5a22734400524f5f9c4217cd4fc7874871b0419c2"
     },
     {
+      "path": "research/astra20261020/integration_round2/09-native-observability/LOCAL_WINDOWS_REVIEW.json",
+      "bytes": 2118,
+      "sha256": "a3171b26a053a1fb71c272967a8dd766168ebe357938e200c8d758a1ab94c68c"
+    },
+    {
       "path": "research/astra20261020/integration_round2/09-native-observability/README.md",
       "bytes": 5895,
       "sha256": "7a9c879e15c3cf4510caea4f075d5ec68a550cf97b609fa442cb8c039d3875b3"
@@ -532,8 +537,8 @@
     },
     {
       "path": "research/astra20261020/integration_round2/09-native-observability/review_run_capture_gpu.py",
-      "bytes": 13418,
-      "sha256": "81f23ab5932f973262f4e974412e6c1877069791874ae782bbd1817e67e7d3e0"
+      "bytes": 14413,
+      "sha256": "8f7f077ce74cd0ae0774e1094fd601152a589fbb5bc054d5e317cee98a043c17"
     },
     {
       "path": "research/astra20261020/integration_round2/09-native-observability/review_run_lifecycle.py",
