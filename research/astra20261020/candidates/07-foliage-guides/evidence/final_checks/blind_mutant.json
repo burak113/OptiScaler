@@ -1,0 +1,404 @@
+{
+  "executor": "independent skeptical reviewer /root/skeptic",
+  "stage": "independent blind CPU surrogate calibration, before candidate inspection",
+  "gpu_executed": false,
+  "historical_reference": {
+    "path": "research/astra20261020/FINDINGS.md",
+    "claim": "NormalEMA .25 lost 22-27% facade detail in a historical local native study",
+    "reexecuted": false,
+    "reason": "No AMD RR runtime or full historical variant replay is provided in the CPU package"
+  },
+  "seeds": [
+    17041,
+    31873,
+    60791
+  ],
+  "frames": 24,
+  "truth_sha256": "5ab91708fea93dd2abc5df1223af3d8b2f1dc552a947cd637dabfeb794dcfa20",
+  "mask_sha256": {
+    "all": "56985553ad70fc9084c0d2f488dcf500f3dec798b342038899cbe3b7b662e954",
+    "facade": "5674d6a8397902ca7317b5e73be96b977f153b44b47d38afd1b7fde20e90f121",
+    "windows": "5f402a475a79a88139a416e50794615b2337ec912b0e24c072fe1e5b5aac76a8",
+    "text": "029d5fc7d7bab98ef624ffd4b75e43fbabf4dfbdb2932b215d15f208e52c2e33"
+  },
+  "review_gates": {
+    "guide_and_signal_identity": "exact bytes, including all packed material bits and RGBA alpha",
+    "diagnostic_identity": "candidate RGB equals original RGB, unsupported history does not claim support",
+    "image_quality_if_claimed": {
+      "detail_transfer_relative_to_exact_normal_control_min": 0.95,
+      "flicker_ratio_max": 1.0,
+      "sparkle_ratio_max": 1.0,
+      "edge_error_ratio_max": 1.05
+    },
+    "evidence": "no AMD RR, performance, or game improvement claim from a CPU surrogate",
+    "mask_rule": "analytic truth / BASE only, fixed before interventions; fixed truth variance denominators"
+  },
+  "cases": [
+    {
+      "seed": 17041,
+      "exact_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": 0.9956967789385056,
+          "grain_rms": 0.03374434530423304,
+          "flicker_rms": 0.04886503734037574,
+          "sparkle_p995": 0.11566066229434778,
+          "edge_error": 0.010500184622550358
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": 0.9965681614397809,
+          "grain_rms": 0.037872038516958584,
+          "flicker_rms": 0.0550487745154643,
+          "sparkle_p995": 0.11929022578510168,
+          "edge_error": 0.01194925031455654
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": 0.990895227084312,
+          "grain_rms": 0.031486865239954434,
+          "flicker_rms": 0.045763894799364935,
+          "sparkle_p995": 0.10363706161461592,
+          "edge_error": 0.010089991384588095
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": 0.9981384379290281,
+          "grain_rms": 0.033938271784228584,
+          "flicker_rms": 0.04884897088643985,
+          "sparkle_p995": 0.1401184827269225,
+          "edge_error": 0.009624700394456199
+        }
+      },
+      "flat_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": -0.08157959141403107,
+          "grain_rms": 0.02431807047263652,
+          "flicker_rms": 0.03513328941193411,
+          "sparkle_p995": 0.07530810862381668,
+          "edge_error": 0.1232736672034134
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": -0.20010662440581295,
+          "grain_rms": 0.02394680744887555,
+          "flicker_rms": 0.03462137779378212,
+          "sparkle_p995": 0.07555916168219869,
+          "edge_error": 0.16513080802888824
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": -0.07308816138735152,
+          "grain_rms": 0.024527029754464608,
+          "flicker_rms": 0.03523943258887451,
+          "sparkle_p995": 0.07367285457833536,
+          "edge_error": 0.09890822713863709
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": -0.02463489505271511,
+          "grain_rms": 0.024693945598808914,
+          "flicker_rms": 0.03567135164400748,
+          "sparkle_p995": 0.07783337202390603,
+          "edge_error": 0.14194655317226906
+        }
+      },
+      "ratios": {
+        "all": {
+          "detail_transfer": -0.08193216362616097,
+          "grain_rms": 0.7206561648593004,
+          "flicker_rms": 0.7189862389177898,
+          "sparkle_p995": 0.651112548812518,
+          "edge_error": 11.74014282936216
+        },
+        "facade": {
+          "detail_transfer": -0.20079572291042402,
+          "grain_rms": 0.6323083833512816,
+          "flicker_rms": 0.6289218624486597,
+          "sparkle_p995": 0.6334061419107094,
+          "edge_error": 13.819344618442413
+        },
+        "windows": {
+          "detail_transfer": -0.07375972695156871,
+          "grain_rms": 0.7789606735236912,
+          "flicker_rms": 0.7700269556026409,
+          "sparkle_p995": 0.7108736337227964,
+          "edge_error": 9.802607690003972
+        },
+        "text": {
+          "detail_transfer": -0.024680839968279786,
+          "grain_rms": 0.7276135259864472,
+          "flicker_rms": 0.730237525923184,
+          "sparkle_p995": 0.5554825495476982,
+          "edge_error": 14.748152914352524
+        }
+      },
+      "flat_accepted": false,
+      "rejection_reasons": [
+        "all:detail",
+        "all:edge_error",
+        "facade:detail",
+        "facade:edge_error",
+        "windows:detail",
+        "windows:edge_error",
+        "text:detail",
+        "text:edge_error"
+      ],
+      "noise_only_scorer_mutant_accepted": true
+    },
+    {
+      "seed": 31873,
+      "exact_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": 0.9960463667518195,
+          "grain_rms": 0.033912799120599475,
+          "flicker_rms": 0.04923708060813693,
+          "sparkle_p995": 0.12259746356240289,
+          "edge_error": 0.010428194720237267
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": 0.9948989890421022,
+          "grain_rms": 0.03846270746570729,
+          "flicker_rms": 0.055548358601480746,
+          "sparkle_p995": 0.1325348007893279,
+          "edge_error": 0.012050802829033569
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": 0.9885516459138991,
+          "grain_rms": 0.030919107736573716,
+          "flicker_rms": 0.04486833117076327,
+          "sparkle_p995": 0.10748840779187117,
+          "edge_error": 0.009892766979368603
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": 1.0018718585652584,
+          "grain_rms": 0.03357660978664645,
+          "flicker_rms": 0.048884387924984916,
+          "sparkle_p995": 0.13294556228388682,
+          "edge_error": 0.00966759517834939
+        }
+      },
+      "flat_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": -0.08096653697205472,
+          "grain_rms": 0.0245238003464987,
+          "flicker_rms": 0.03576495579750167,
+          "sparkle_p995": 0.07700638329445574,
+          "edge_error": 0.12315553874460147
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": -0.199838064519105,
+          "grain_rms": 0.024487347093595613,
+          "flicker_rms": 0.03542877052310031,
+          "sparkle_p995": 0.0761185892078367,
+          "edge_error": 0.16506397745288942
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": -0.07122037655168369,
+          "grain_rms": 0.024012878181399133,
+          "flicker_rms": 0.03495576880428405,
+          "sparkle_p995": 0.07611019796072509,
+          "edge_error": 0.098700060603327
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": -0.024773279499689424,
+          "grain_rms": 0.024807762423227905,
+          "flicker_rms": 0.036665273576150556,
+          "sparkle_p995": 0.07698021749995705,
+          "edge_error": 0.141916369817321
+        }
+      },
+      "ratios": {
+        "all": {
+          "detail_transfer": -0.08128791959363554,
+          "grain_rms": 0.7231429130720836,
+          "flicker_rms": 0.726382542501741,
+          "sparkle_p995": 0.6281237886725037,
+          "edge_error": 11.809861826381333
+        },
+        "facade": {
+          "detail_transfer": -0.20086266718545057,
+          "grain_rms": 0.6366516739735008,
+          "flicker_rms": 0.6378004933912825,
+          "sparkle_p995": 0.5743290724738164,
+          "edge_error": 13.69734280733618
+        },
+        "windows": {
+          "detail_transfer": -0.07204517522788773,
+          "grain_rms": 0.7766355480237447,
+          "flicker_rms": 0.7790744137830032,
+          "sparkle_p995": 0.7080781967493329,
+          "edge_error": 9.976992363124118
+        },
+        "text": {
+          "detail_transfer": -0.024726994064057525,
+          "grain_rms": 0.7388405970960787,
+          "flicker_rms": 0.7500405575787287,
+          "sparkle_p995": 0.5790356306559257,
+          "edge_error": 14.679593756174562
+        }
+      },
+      "flat_accepted": false,
+      "rejection_reasons": [
+        "all:detail",
+        "all:edge_error",
+        "facade:detail",
+        "facade:edge_error",
+        "windows:detail",
+        "windows:edge_error",
+        "text:detail",
+        "text:edge_error"
+      ],
+      "noise_only_scorer_mutant_accepted": true
+    },
+    {
+      "seed": 60791,
+      "exact_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": 0.9964367662054631,
+          "grain_rms": 0.033905259302054624,
+          "flicker_rms": 0.048789646165881835,
+          "sparkle_p995": 0.11916251173006337,
+          "edge_error": 0.010458990536958843
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": 0.9955189912716205,
+          "grain_rms": 0.038363001552551006,
+          "flicker_rms": 0.05459350738608855,
+          "sparkle_p995": 0.12138541071371636,
+          "edge_error": 0.011997025262197787
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": 0.9870565822265093,
+          "grain_rms": 0.031176904640530093,
+          "flicker_rms": 0.04532319584276557,
+          "sparkle_p995": 0.10447512241230378,
+          "edge_error": 0.009894442913887025
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": 1.002218129275522,
+          "grain_rms": 0.03392864360461447,
+          "flicker_rms": 0.04896178247861493,
+          "sparkle_p995": 0.13418759676581477,
+          "edge_error": 0.009732388227827541
+        }
+      },
+      "flat_normals": {
+        "all": {
+          "pixels": 3780,
+          "detail_denominator": 76.79191999999998,
+          "detail_transfer": -0.08161063695857562,
+          "grain_rms": 0.024107250713961324,
+          "flicker_rms": 0.034998326528007995,
+          "sparkle_p995": 0.07362959118960845,
+          "edge_error": 0.12324584152649722
+        },
+        "facade": {
+          "pixels": 990,
+          "detail_denominator": 18.78714749999999,
+          "detail_transfer": -0.19982945319797885,
+          "grain_rms": 0.02425205960421122,
+          "flicker_rms": 0.0347592803398637,
+          "sparkle_p995": 0.0730019146445103,
+          "edge_error": 0.1650649416056408
+        },
+        "windows": {
+          "pixels": 1080,
+          "detail_denominator": 14.221769999999992,
+          "detail_transfer": -0.07376819056034208,
+          "grain_rms": 0.024058104393624782,
+          "flicker_rms": 0.03518169565475656,
+          "sparkle_p995": 0.07527552172441984,
+          "edge_error": 0.09888999781920549
+        },
+        "text": {
+          "pixels": 900,
+          "detail_denominator": 33.318937500000004,
+          "detail_transfer": -0.024735806481902482,
+          "grain_rms": 0.024147304200299577,
+          "flicker_rms": 0.035271235118004035,
+          "sparkle_p995": 0.07278284598238333,
+          "edge_error": 0.14200082456744464
+        }
+      },
+      "ratios": {
+        "all": {
+          "detail_transfer": -0.08190247462401211,
+          "grain_rms": 0.7110180311318383,
+          "flicker_rms": 0.7173310175076042,
+          "sparkle_p995": 0.617892239099493,
+          "edge_error": 11.783722443479078
+        },
+        "facade": {
+          "detail_transfer": -0.20072892124612093,
+          "grain_rms": 0.6321731518059108,
+          "flicker_rms": 0.6366925666461397,
+          "sparkle_p995": 0.6014060027088675,
+          "edge_error": 13.75882254126402
+        },
+        "windows": {
+          "detail_transfer": -0.07473552366566741,
+          "grain_rms": 0.7716643031441023,
+          "flicker_rms": 0.7762403996577885,
+          "sparkle_p995": 0.7205114479536119,
+          "edge_error": 9.994498798958316
+        },
+        "text": {
+          "detail_transfer": -0.02468106069861595,
+          "grain_rms": 0.7117085045219851,
+          "flicker_rms": 0.7203829871473629,
+          "sparkle_p995": 0.5423962254082582,
+          "edge_error": 14.590542551665347
+        }
+      },
+      "flat_accepted": false,
+      "rejection_reasons": [
+        "all:detail",
+        "all:edge_error",
+        "facade:detail",
+        "facade:edge_error",
+        "windows:detail",
+        "windows:edge_error",
+        "text:detail",
+        "text:edge_error"
+      ],
+      "noise_only_scorer_mutant_accepted": true
+    }
+  ],
+  "all_negative_controls_rejected": true,
+  "all_noise_only_mutants_incorrectly_accept": true,
+  "elapsed_seconds": 0.09261636300107057
+}

@@ -1,0 +1,1553 @@
+{
+  "schema": "fsrd.job07.source_audit.v1",
+  "executor": "mechanism subagent, CPU file and source inspection",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "gpu_executed": false,
+  "source_files": [
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPreprocessCommon.hlsli",
+      "sha256": "7f944a8350d85670ab1b624bfde902588fa16c024765a72bb9c056d95922e2b7",
+      "reviewed_line_ranges": [
+        [
+          32,
+          58
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPreprocessCommon.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometry.hlsl",
+      "sha256": "b9a4e1a9a73699aade525ab656662e6047970b45c12b29b830b6f9506edc5068",
+      "reviewed_line_ranges": [
+        [
+          1,
+          102
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometry.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometryMaterial.hlsl",
+      "sha256": "87cebac21d279275c7d58afe19fa8fc6eec1179d58a07ae74c212892a8428012",
+      "reviewed_line_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometryMaterial.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometryMaterialParams.hlsl",
+      "sha256": "c5036a503b1716ff08287a39ed313fe4464ea86bd258d13dc310d024a1a16660",
+      "reviewed_line_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometryMaterialParams.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMaterial.hlsl",
+      "sha256": "58b6d1f60eaf97e67957c94c0321bcb4add181fedea958ecac608b45967d9623",
+      "reviewed_line_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMaterial.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMaterialParams.hlsl",
+      "sha256": "b7a2d17134c779e90d5125b9dd4d25352b0551dd8b2e6869ab820448e7bc29e2",
+      "reviewed_line_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMaterialParams.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridge.hlsl",
+      "sha256": "95e1c69aff18075797e18743ccc61e20ba8bcc57aac36dd0aa6750405b0537e3",
+      "reviewed_line_ranges": [
+        [
+          1,
+          131
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridge.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMaterialGuides.hlsli",
+      "sha256": "35a3d659cb35a0a1311726d3a7b8f58e167e61be6e40500ed777d304eb7ca727",
+      "reviewed_line_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMaterialGuides.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMaterialQuantization.hlsli",
+      "sha256": "6535ccacc984a2481ac882a7fb431399f231620f9b81389cade4b64ef32cea21",
+      "reviewed_line_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMaterialQuantization.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdNativeMaterialCapture.hlsl",
+      "sha256": "145a7ccd3ba58ae08e500b64e06beb78635334abe16a1346815b304502bef39b",
+      "reviewed_line_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdNativeMaterialCapture.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdNativeMaterialParamsCapture.hlsl",
+      "sha256": "7fb825b8b31ae8f1eca467663dc91ef2cdec2fb56022146b1278f65648a98a68",
+      "reviewed_line_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdNativeMaterialParamsCapture.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialCapture_Dx12.h",
+      "sha256": "894b83449a9d516334c15177a39d85b2e8e40d8157ed5c3e46d9c07ba5daf784",
+      "reviewed_line_ranges": [
+        [
+          22,
+          31
+        ],
+        [
+          241,
+          324
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialCapture_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+      "sha256": "eed671b1c2b5f57599ea1f2b1da695e050ed0ead0a5827c41e19c5eed634f56f",
+      "reviewed_line_ranges": [
+        [
+          1312,
+          1396
+        ],
+        [
+          1691,
+          1833
+        ],
+        [
+          1855,
+          1921
+        ],
+        [
+          3724,
+          3744
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.cpp",
+      "sha256": "dc9d294b0074e099a7ba1447c30454b488d362fb8906cf9632cc97e55e6c6823",
+      "reviewed_line_ranges": [
+        [
+          237,
+          252
+        ],
+        [
+          268,
+          388
+        ],
+        [
+          410,
+          535
+        ],
+        [
+          562,
+          638
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h",
+      "sha256": "e4442cfeba6046fad088edfb3807d72c16ace687b130c13753bf2826fd110e90",
+      "reviewed_line_ranges": [
+        [
+          38,
+          93
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h",
+      "sha256": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+      "reviewed_line_ranges": [
+        [
+          108,
+          146
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+      "sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "reviewed_line_ranges": [
+        [
+          731,
+          768
+        ],
+        [
+          1233,
+          1355
+        ],
+        [
+          1510,
+          1593
+        ],
+        [
+          1670,
+          1700
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdLightingGuard_Dx12.h",
+      "sha256": "b49831511028d59996006247992a93df33e46d884bd01e930eb504c65a4d86f6",
+      "reviewed_line_ranges": [
+        [
+          16,
+          28
+        ],
+        [
+          58,
+          104
+        ],
+        [
+          132,
+          173
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdLightingGuard_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuard_Common.hlsli",
+      "sha256": "c0413b95d993b276f444de2424f1dd636eee56fe53c9f1318472cb88a2468237",
+      "reviewed_line_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuard_Common.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuardApply.hlsl",
+      "sha256": "a2503b0afe06c4a0a0728356103734a597a080aa8a0860f8403bc684f7ec973d",
+      "reviewed_line_ranges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuardApply.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp",
+      "sha256": "aedd87a2ef04eefad5ccf6490241ee4689ee9470e7659a8ba3dbdea65f7418cf",
+      "reviewed_line_ranges": [
+        [
+          33,
+          46
+        ],
+        [
+          979,
+          1035
+        ],
+        [
+          2073,
+          2163
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h",
+      "sha256": "4a66843a00dd6170cb68af32535565ac57f7f40135b2d1a1bbb9406cdb736662",
+      "reviewed_line_ranges": [
+        [
+          30,
+          104
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h"
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/README.md",
+      "sha256": "3ad70e067262c3c8c39db6e883cd801d028e8f3108ee34a379a4fbed2409eedc",
+      "reviewed_line_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/research/astra20261020/fixtures/clips/README.md"
+    },
+    {
+      "path": "research/astra20261020/fixtures/glass/README.md",
+      "sha256": "bb6fc862759b6b37e43f4c4d45b051a07c78d962a4256cc117513b6376cf01c1",
+      "reviewed_line_ranges": [
+        [
+          1,
+          19
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/research/astra20261020/fixtures/glass/README.md"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/README.md",
+      "sha256": "29bfc3c9b69df122da8ca42f7d6fbf1bf1933e66edada0962cb85865a833f1bb",
+      "reviewed_line_ranges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/research/astra20261020/portable/anchor/README.md"
+    },
+    {
+      "path": "research/astra20261020/portable/colour/README.md",
+      "sha256": "8e6f346b43b83c7e1a36a3b5a2bc6b59b021ce9aa1614276885bb2dc142c8519",
+      "reviewed_line_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/research/astra20261020/portable/colour/README.md"
+    }
+  ],
+  "clip_inventory": [
+    {
+      "id": "bottle_track7",
+      "path": "research/astra20261020/fixtures/clips/bottle_track7.npz",
+      "archive_sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+      "manifest_sha256": "cb81c8fc1fabc973b79b97a324407597127fd23c7dcff4db74ca804d02a3ff39",
+      "capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+      "source_manifest_sha256": "49ad92072c94c344b03550a59c750330920ba80980c91a46b7df86c9e398974a",
+      "source_frame_indices": [
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186
+      ],
+      "sdk_frame_indices": [
+        20946,
+        20947,
+        20948,
+        20949,
+        20950,
+        20951,
+        20952
+      ],
+      "actual_provider_flags": [
+        2
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_extent_wh": [
+        128,
+        256
+      ],
+      "global_crop_origin_xy_per_frame": [
+        [
+          688,
+          160
+        ],
+        [
+          688,
+          176
+        ],
+        [
+          688,
+          208
+        ],
+        [
+          688,
+          272
+        ],
+        [
+          688,
+          384
+        ],
+        [
+          688,
+          480
+        ],
+        [
+          688,
+          560
+        ]
+      ],
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            7,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            7
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            7,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            7,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            7,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            7,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            7,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            7,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      },
+      "observed_original_category_counts": {
+        "0": 229376
+      },
+      "prepared_vs_original": {
+        "normal20_changed_words": 0,
+        "roughness10_changed_words": 152,
+        "category2_changed_words": 0,
+        "denominator_pixels": 229376
+      },
+      "provider_depth_bounds": [
+        0.019999999552965164,
+        65504.0
+      ],
+      "depth_minmax": [
+        0.5908275246620178,
+        27.11792755126953
+      ],
+      "motion_b_minmax": [
+        -0.002716064453125,
+        0.0027561187744140625
+      ],
+      "motion_b_abs65504_count": 0,
+      "motion_alpha_unique": [
+        1.0
+      ],
+      "evidence_class": "captured_native_typed_tensors_inspected_on_CPU",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "timestamps_or_frame_durations": false,
+      "albedos": false,
+      "first_history_available": false,
+      "native_raw_validity": false,
+      "original_pre_G3_motion_separate_role": false,
+      "per_layer_or_per_sample_coverage": false
+    },
+    {
+      "id": "facade16",
+      "path": "research/astra20261020/fixtures/clips/facade16.npz",
+      "archive_sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+      "manifest_sha256": "a8099b44c712bab359bfb0cf320c6c5f07014178c62e4896ed69ef9ce2b771fc",
+      "capture_uuid": "f2ef375f-4452-4883-b59d-af48c1b903b5",
+      "source_manifest_sha256": "378962acfab2ee52ad5552983ee552bc56ff5ff99e55b64ed9b0479d1c09cb12",
+      "source_frame_indices": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "sdk_frame_indices": [
+        15103,
+        15104,
+        15105,
+        15106,
+        15107,
+        15108,
+        15109,
+        15110,
+        15111,
+        15112,
+        15113,
+        15114,
+        15115,
+        15116,
+        15117,
+        15118
+      ],
+      "actual_provider_flags": [
+        2
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_extent_wh": [
+        96,
+        96
+      ],
+      "global_crop_origin_xy_per_frame": [
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ]
+      ],
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            16,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            16
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            16,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            16,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            16,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            16,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            16,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            16,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      },
+      "observed_original_category_counts": {
+        "0": 147456
+      },
+      "prepared_vs_original": {
+        "normal20_changed_words": 0,
+        "roughness10_changed_words": 1090,
+        "category2_changed_words": 0,
+        "denominator_pixels": 147456
+      },
+      "provider_depth_bounds": [
+        0.019999999552965164,
+        65504.0
+      ],
+      "depth_minmax": [
+        86.78296661376953,
+        108.62907409667969
+      ],
+      "motion_b_minmax": [
+        -0.00043487548828125,
+        0.00043487548828125
+      ],
+      "motion_b_abs65504_count": 0,
+      "motion_alpha_unique": [
+        1.0
+      ],
+      "evidence_class": "captured_native_typed_tensors_inspected_on_CPU",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "timestamps_or_frame_durations": false,
+      "albedos": false,
+      "first_history_available": false,
+      "native_raw_validity": false,
+      "original_pre_G3_motion_separate_role": false,
+      "per_layer_or_per_sample_coverage": false
+    },
+    {
+      "id": "foliage23",
+      "path": "research/astra20261020/fixtures/clips/foliage23.npz",
+      "archive_sha256": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+      "manifest_sha256": "cfc567a4adf9d35597bfa384f7ff01fc185dac6ee4fd5f4e4fdfeb7951652568",
+      "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "source_manifest_sha256": "e5e66eadc911cb2f4e2c89f5fa512c0d9dbb4c7d87b9cab6fae1b6cc0e07adf6",
+      "source_frame_indices": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "sdk_frame_indices": [
+        34893,
+        34894,
+        34895,
+        34896,
+        34897,
+        34898,
+        34899,
+        34900,
+        34901,
+        34902,
+        34903,
+        34904,
+        34905,
+        34906,
+        34907,
+        34908,
+        34909,
+        34910,
+        34911,
+        34912,
+        34913,
+        34914,
+        34915
+      ],
+      "actual_provider_flags": [
+        2
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_extent_wh": [
+        192,
+        64
+      ],
+      "global_crop_origin_xy_per_frame": [
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ]
+      ],
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            23,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            23
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            23,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            23,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            23,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            23,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            23,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            23,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      },
+      "observed_original_category_counts": {
+        "0": 282624
+      },
+      "prepared_vs_original": {
+        "normal20_changed_words": 0,
+        "roughness10_changed_words": 526,
+        "category2_changed_words": 0,
+        "denominator_pixels": 282624
+      },
+      "provider_depth_bounds": [
+        0.019999999552965164,
+        65504.0
+      ],
+      "depth_minmax": [
+        28.09215545654297,
+        370.4216613769531
+      ],
+      "motion_b_minmax": [
+        -4.66015625,
+        13.171875
+      ],
+      "motion_b_abs65504_count": 0,
+      "motion_alpha_unique": [
+        1.0
+      ],
+      "evidence_class": "captured_native_typed_tensors_inspected_on_CPU",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "timestamps_or_frame_durations": false,
+      "albedos": false,
+      "first_history_available": false,
+      "native_raw_validity": false,
+      "original_pre_G3_motion_separate_role": false,
+      "per_layer_or_per_sample_coverage": false
+    }
+  ],
+  "glass_inventory": {
+    "path": "research/astra20261020/fixtures/glass/glass_crop.npz",
+    "archive_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+    "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "frame_indices": [
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "crop_in_original_roi_xyxy": [
+      50,
+      180,
+      242,
+      340
+    ],
+    "original_roi": {
+      "origin": [
+        496,
+        167
+      ],
+      "extent": [
+        512,
+        512
+      ]
+    },
+    "render_extent_wh": [
+      1505,
+      847
+    ],
+    "arrays": {
+      "aligned_raw_spec_rgb": {
+        "shape": [
+          18,
+          160,
+          192,
+          3
+        ],
+        "dtype": "<f4"
+      },
+      "aligned_selected_spec_rgb_xor": {
+        "shape": [
+          18,
+          160,
+          192,
+          3
+        ],
+        "dtype": "<u4"
+      },
+      "aligned_equal_diffuse_rgb": {
+        "shape": [
+          18,
+          160,
+          192,
+          3
+        ],
+        "dtype": "<f4"
+      },
+      "common_mask": {
+        "shape": [
+          160,
+          192
+        ],
+        "dtype": "|b1"
+      },
+      "original_normal_roughness_u32": {
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "<u4"
+      },
+      "original_depth_f32": {
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "<f4"
+      },
+      "original_motion_rgba_f16": {
+        "shape": [
+          18,
+          160,
+          192,
+          4
+        ],
+        "dtype": "<f2"
+      },
+      "aligned_original_eligibility": {
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "|b1"
+      },
+      "aligned_prior_glass_mask": {
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "|b1"
+      },
+      "alignment_valid": {
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "|b1"
+      },
+      "camera_view_words_u32": {
+        "shape": [
+          18,
+          16
+        ],
+        "dtype": "<u4"
+      },
+      "camera_projection_words_u32": {
+        "shape": [
+          18,
+          16
+        ],
+        "dtype": "<u4"
+      }
+    },
+    "fixed_mask_pixels": 6497,
+    "alignment": "reference-depth camera-only reprojection, P00/P11 convention, bilinear source sampling; no source-depth occlusion or dynamic-motion compensation",
+    "geometry_unwarped": true,
+    "radiance_already_camera_aligned": true,
+    "physical_input_diffuse_specular_present": false,
+    "aligned_raw_selected_RGB_present": true,
+    "raw_input_alpha_present": false,
+    "semantic_labels": false,
+    "ground_truth": false,
+    "mask_provenance": "original captured raw-vs-selected spec RGB difference AND decoded abs(nz)<=.5 AND abs(depth)<500, warped >.999; frozen before all policy variants",
+    "packed_guide_authority": "provider_prepared_input_normal_roughness; not pre-Flat recovery_original_normal_roughness",
+    "packed_guide_source_role": "frames/*/input_normal_roughness",
+    "unwarped_geometry_mask_requirement": "fixed unwarped rectangle/geometry mask; never align via stored common_mask or aligned RGB implicitly"
+  },
+  "pipeline_findings": [
+    {
+      "claim": "Native packed guide is R10G10B10A2_UNORM. World-space oct normal uses bits0..19, linear roughness bits20..29, category bits30..31.",
+      "evidence": [
+        "FSRDPreprocessCommon.hlsli:47-58",
+        "FSRDNrdBridgePass_Dx12.cpp:248",
+        "fixtures/clips/README.md"
+      ]
+    },
+    {
+      "claim": "Native categorical A preserves only an equality code under independent preserveNativeMaterialIDs option; it is not a foliage classifier.",
+      "evidence": [
+        "FSRDNrdBridge.hlsl:102-104",
+        "FSRDNrdBridgeGeometry.hlsl:80-81",
+        "FSRDNrdBridgePass_Dx12.cpp:464",
+        "FSRDNrdBridgeRR_Dx12.h:117"
+      ]
+    },
+    {
+      "claim": "Native material guide validity restricts category3 to white fallback because of an unavailable late-compositor branch; category0..2 still do not provide vegetation semantics.",
+      "evidence": [
+        "FSRDNrdMaterialGuides.hlsli:4-17"
+      ]
+    },
+    {
+      "claim": "Optional material capture decodes squared base RGB and metallic R, optionally roughness G, rounds half nearest-even explicitly, and does not read or demodulate physical D/S.",
+      "evidence": [
+        "FSRDNrdNativeMaterialCapture.hlsl:13-23",
+        "FSRDNrdNativeMaterialParamsCapture.hlsl:24-27",
+        "FSRDNrdMaterialQuantization.hlsli:6-23"
+      ]
+    },
+    {
+      "claim": "Existing native geometry validity is a separate R8_UINT texture: class bits0..1 and raw-negative bit2, never a repurposed material/normal/depth channel.",
+      "evidence": [
+        "FSRDNrdBridgeGeometry.hlsl:32-43,68-77",
+        "FSRDNrdBridgePass_Dx12.cpp:447-448"
+      ]
+    },
+    {
+      "claim": "Native Anchor private physical D/S feed RR and recovery/NZR, whereas G3 LightingGuard reads the unmodified sourceInput D/S.",
+      "evidence": [
+        "FSRDNrdBridgeRR_Dx12.cpp:1295-1337,1569-1573"
+      ]
+    },
+    {
+      "claim": "Examined provider dispatch has seven texture inputs and no guide uncertainty sidecar input. LightingGuard modifies motion B only after a confirmed light-change test; this is not a general uncertainty API.",
+      "evidence": [
+        "FSRDNrdBridgeRR_Dx12.cpp:1238-1241,1540-1554,1573",
+        "FSRDNrdLightingGuardApply.hlsl:48-65"
+      ]
+    },
+    {
+      "claim": "Trace captures actual provider normals/motion and explicit pre-flat original normal when active; original pre-G3 motion and raw depth-class sidecar are not clip roles.",
+      "evidence": [
+        "FSRDGameTraceSession.cpp:2074-2077,2112-2120",
+        "FSRDNrdBridgeRR_Dx12.cpp:1686-1689"
+      ]
+    },
+    {
+      "claim": "Provider control suffix has 46 original uint32 words. The three clip intervals have NON_GAMMA flag2 with no reset and consecutive SDK counters distinct from local capture indices.",
+      "evidence": [
+        "FSRDGameTraceSession.cpp:33-46",
+        "clip_inventory"
+      ]
+    },
+    {
+      "claim": "Source trace can record QPC metadata, but packaged clip NPZs do not carry frame durations or timestamps. CPU captured temporal measurements are per-frame, not per-second.",
+      "evidence": [
+        "FSRDGameTraceSession.cpp:2163",
+        "clip_inventory"
+      ]
+    }
+  ],
+  "recommended_integration_boundary": {
+    "mode": "default_off_diagnostic_only",
+    "observe": "original normal/roughness, existing signed depth and physical-UV motion with explicit source authority and provenance",
+    "preserve": [
+      "all packed guide bits",
+      "depth",
+      "all motion components",
+      "physical D/S RGB",
+      "input hit-distance alpha",
+      "albedo semantics",
+      "D16/S256 + G2/G3 + NZR configuration"
+    ],
+    "sidecar": "independent observation texture(s) and flags; unsupported implies no consumer change; uncertainty zero without supported flag is not a confidence guarantee",
+    "consumer": "job04 may transport a separately versioned observation with same domain/frame/crop validity; job08 may integrate only after local contracts; no AMD input substitution is justified"
+  },
+  "limitations": [
+    "Normal and roughness bit identity cannot prove that the original native encoding is physically correct. A known-normal writer witness remains necessary.",
+    "Spatial normal dispersion is equally compatible with valid bump normals, rigid geometric detail and mixed coverage.",
+    "No per-sample coverage, per-layer geometry/motion, sampling-randomness witness or converged same-pose truth exists in clips.",
+    "Stored RR outputs carry unseen pre-crop history and are not executable AMD temporal replays.",
+    "Glass fields are mixed coordinate spaces; original geometry must not be treated as already aligned to the stored RGB.",
+    "recovery_original_normal_roughness is original relative to Flat Albedo, already bridge-converted, and not an unmodified native writer/per-sample GBuffer dump; categorical preservation mode remains a required witness."
+  ]
+}

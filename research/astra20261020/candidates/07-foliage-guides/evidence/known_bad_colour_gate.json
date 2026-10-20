@@ -1,0 +1,8 @@
+{
+  "command": "cd research/astra20261020/portable/colour && python -B compare.py --quality-gate",
+  "exit_code": 1,
+  "expected_exit_code": 1,
+  "elapsed_seconds": 2.5333663539986446,
+  "executor": "root CPU",
+  "description": "Frozen rejected soft2 quality gate: nonzero is the intended detection, not an accepted candidate."
+}

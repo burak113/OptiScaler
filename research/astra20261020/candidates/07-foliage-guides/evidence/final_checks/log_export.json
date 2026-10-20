@@ -1,0 +1,16 @@
+{
+  "executor": "/root",
+  "operation": "Removed only the machine-specific repository prefix from traceback filenames. Exit codes, line numbers, messages, measurements and failure classifications are unchanged.",
+  "files": [
+    {
+      "path": "evidence/final_checks/blind_detail_mutant.txt",
+      "sha256_before_path_normalization": "40316c5b5c479ccf40852051b4ffe9312478cb2e004bd5d19a580baa3a10731a",
+      "sha256": "170f57d1a47be81783175eeb10630de234f434bf4371bf567c307003afdb0f00"
+    },
+    {
+      "path": "evidence/final_checks/crop_clamp_mutant.txt",
+      "sha256_before_path_normalization": "d54f7da77c32406bc652a6d96b7d6999e939770595db76e6eec072a9e5ef69b3",
+      "sha256": "1f48219d728e05d5867ee287d404e8fbb91407d32091215f940d126f7122a85c"
+    }
+  ]
+}

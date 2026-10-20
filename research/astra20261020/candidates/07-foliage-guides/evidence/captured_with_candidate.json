@@ -1,0 +1,3479 @@
+{
+  "schema": "job07.captured_diagnostics.v1",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "executor": "/root",
+  "mask_policy": {
+    "version": 1,
+    "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "labels": "Fixed clip regions, not semantic foliage/bottle/facade labels",
+    "core": "Two-pixel image border excluded; original finite positive depth",
+    "available_pair": "core AND four previous bilinear taps inside previous crop; t0 false",
+    "depth_edge": "core AND any 4-connected original depth jump >2% of current magnitude",
+    "normal_edge": "core AND any 4-connected original normal dot <cos(15 degrees)",
+    "high_motion": "original full-render motion magnitude >12 pixels, square erosion radius2",
+    "stable_guide_pair": "available_pair; all four previous original normal dots >.99; all depths within2% of current depth+MV.B; identical categories",
+    "sampling": "continuous NumPy bilinear; explicitly not a D3D sampler-parity claim",
+    "first_previous_frame": "absent; no sequence looping or invented history"
+  },
+  "gpu_executed": false,
+  "clips": [
+    {
+      "fixture": "foliage23",
+      "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "source_archive_sha256": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+      "source_manifest_sha256": "e5e66eadc911cb2f4e2c89f5fa512c0d9dbb4c7d87b9cab6fae1b6cc0e07adf6",
+      "stage": "Captured native inputs + recorded raw/selected RR; CPU diagnostics only",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "gpu_executed": false,
+      "frame_indices": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "extent_wh": [
+        192,
+        64
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_origins_xy": [
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ],
+        [
+          752,
+          423
+        ]
+      ],
+      "timing": "Frame ordinals only. recording_qpc/frame durations absent; no Hz or per-second claims.",
+      "partial_history": true,
+      "stored_rr_has_pre_fixture_history": true,
+      "source_formats": {
+        "input_depth": {
+          "dtype": "float32",
+          "shape": [
+            23,
+            64,
+            192
+          ]
+        },
+        "input_motion": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "input_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            64,
+            192
+          ]
+        },
+        "recovery_original_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            64,
+            192
+          ]
+        },
+        "input_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "input_specular": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "raw_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "raw_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "selected_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "selected_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ]
+        },
+        "provider_controls": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            46
+          ]
+        },
+        "frame_indices": {
+          "dtype": "int32",
+          "shape": [
+            23
+          ]
+        },
+        "crop_origin_render": {
+          "dtype": "int32",
+          "shape": [
+            23,
+            2
+          ]
+        },
+        "crop_origin_source": {
+          "dtype": "int32",
+          "shape": [
+            23,
+            2
+          ]
+        },
+        "source_roi_origin": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "source_roi_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "render_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "view_u32": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            4,
+            4
+          ]
+        },
+        "projection_u32": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            4,
+            4
+          ]
+        },
+        "camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            3
+          ]
+        },
+        "previous_camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            23,
+            3
+          ]
+        }
+      },
+      "unsupported_history": {
+        "first_frame_pixels": 12288,
+        "later_outside_previous_crop_pixels": 6582,
+        "available_pair_pixels": 247740,
+        "available_core_pair_fraction": 0.9983075435203095
+      },
+      "guide_words": {
+        "total_pixels": 282624,
+        "normal20_changed": 0,
+        "roughness10_changed": 526,
+        "category2_changed": 0,
+        "original_categories_in_this_tile": [
+          0
+        ],
+        "prepared_categories_in_this_tile": [
+          0
+        ],
+        "roughness_abs_delta": {
+          "count": 282624,
+          "mean": 3.6385727071319707e-06,
+          "p50": 0.0,
+          "p90": 0.0,
+          "p99": 0.0,
+          "max": 0.0019550342112779617
+        },
+        "original_depth": {
+          "count": 282624,
+          "mean": 70.382568359375,
+          "p50": 42.6215705871582,
+          "p90": 144.1190200805664,
+          "p99": 366.76295959472657,
+          "max": 370.4216613769531
+        }
+      },
+      "original_normal_temporal_angle_degrees": {
+        "count": 247740,
+        "mean": 30.14844317902309,
+        "p50": 8.23835563659668,
+        "p90": 93.92619018554687,
+        "p99": 158.09565963745106,
+        "max": 179.65621948242188
+      },
+      "fixed_masks": {
+        "core": {
+          "count": 259440,
+          "sha256": "2ae07839ee1a629f8623697ac53be76dedab9e60d15e1bad2528b2bec567f095"
+        },
+        "available_pair": {
+          "count": 247740,
+          "sha256": "724379e6d9ed5770f922b9dbb902736060503057b0a3b6fbd944d4b5dba712f9"
+        },
+        "depth_edge": {
+          "count": 153337,
+          "sha256": "56191928eee60e587449183227b18589f510a0afe0273070805ff5d93bf7d201"
+        },
+        "normal_edge": {
+          "count": 187321,
+          "sha256": "68129d3a318a1b2afee55d0328c22f90ea91d323f9d96d2a84144926ca35c98d"
+        },
+        "high_motion": {
+          "count": 11280,
+          "sha256": "e9ec9b7d40156a903a5f1c5313c2aa69638f11119f521a54f6b4058610c8b0dc"
+        },
+        "stable_guide_pair": {
+          "count": 77688,
+          "sha256": "8068917e533cd1dab43229da1d12214bf878c66acb827c19c423f8046b334d05"
+        }
+      },
+      "signals": {
+        "input_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.006514207622726506,
+            "p50": 9.052472887560725e-05,
+            "p90": 0.012770534772425892,
+            "p99": 0.0936340952664613,
+            "max": 4.67578125
+          },
+          "exact_zero_rgb_fraction": 0.361054579093432,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.3305277604368192,
+          "base_mean_normalizer": 0.006514207622726506,
+          "spatial_highpass_rms_over_base_mean_proxy": 5.770584519997979,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 1.228596956453274,
+            "p50": 0.22702184414963844,
+            "p90": 2.585992946732137,
+            "p99": 14.967589927957206,
+            "max": 717.7246830356726
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 1.3482241892587226,
+            "p50": 0.46368842659688747,
+            "p90": 2.793276977770364,
+            "p99": 14.65932003763921,
+            "max": 210.48946094379596
+          },
+          "angle_abs_delta_pearson_descriptive": -0.016201093695259298,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.08545761752150279,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 1.4362364733475734,
+              "p50": 0.4307294861899461,
+              "p90": 2.887668382699858,
+              "p99": 16.657160090787364,
+              "max": 564.0656900720985
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 1.2672087609316438,
+              "p50": 0.11635313829516084,
+              "p90": 2.483136328158608,
+              "p99": 16.90736880019088,
+              "max": 427.23624228488706
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.8312971911389547,
+              "p50": 0.08475196114151148,
+              "p90": 1.8250377718305215,
+              "p99": 12.380318420663285,
+              "max": 202.20088653563894
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 1.1201378846672014,
+              "p50": 0.09142230617408464,
+              "p90": 2.4173270469059083,
+              "p99": 14.266004616122082,
+              "max": 717.7246830356726
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "input_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.002733081414001713,
+            "p50": 7.721179827058222e-06,
+            "p90": 0.003122060955502094,
+            "p99": 0.04648206181824198,
+            "max": 9.234375
+          },
+          "exact_zero_rgb_fraction": 0.3846554116558742,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.5458691075413861,
+          "base_mean_normalizer": 0.002733081414001713,
+          "spatial_highpass_rms_over_base_mean_proxy": 15.058306548147998,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 1.3571410598898277,
+            "p50": 0.076808523795479,
+            "p90": 1.8528930875617236,
+            "p99": 21.982144914418168,
+            "max": 3377.140507852841
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 1.419849689460261,
+            "p50": 0.3004909393794166,
+            "p90": 2.456411649620436,
+            "p99": 19.849404845697403,
+            "max": 340.4263394065628
+          },
+          "angle_abs_delta_pearson_descriptive": -0.003912766446380064,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.10303438366148365,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 1.5707066173906634,
+              "p50": 0.28022691223397356,
+              "p90": 2.7095243055313043,
+              "p99": 23.064085747824667,
+              "max": 1633.001368624272
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 1.8114362628891723,
+              "p50": 0.02505232697485364,
+              "p90": 1.605487910499352,
+              "p99": 28.151648655213982,
+              "max": 2063.041905326683
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.660986654282571,
+              "p50": 0.012768300185178393,
+              "p90": 0.5323452457797443,
+              "p99": 11.359824387103655,
+              "max": 635.2956980443153
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 1.2726543770339849,
+              "p50": 0.019418424351445175,
+              "p90": 1.1494650591486255,
+              "p99": 22.46745158933431,
+              "max": 3377.140507852841
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.004947878531137087,
+            "p50": 0.003770950250327587,
+            "p90": 0.010765270888805389,
+            "p99": 0.01612354276701807,
+            "max": 0.1849752962589264
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.04613155993656805,
+          "base_mean_normalizer": 0.004947878531137087,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.40200861654233216,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 0.11132271340769961,
+            "p50": 0.020101270447930288,
+            "p90": 0.2849843158834818,
+            "p99": 1.2591380503203022,
+            "max": 34.90537093235323
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 0.013270527205259156,
+            "p50": 0.007608859299761439,
+            "p90": 0.027472004499272097,
+            "p99": 0.0987281990119272,
+            "max": 1.79538127733488
+          },
+          "angle_abs_delta_pearson_descriptive": 0.24931231066958415,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.11772480240675631,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 0.04801328956994655,
+              "p50": 0.010003063165130695,
+              "p90": 0.10352817393781517,
+              "p99": 0.6354727977356363,
+              "max": 12.746981709223608
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 0.08283808027623775,
+              "p50": 0.02154589905982775,
+              "p90": 0.21440310192344555,
+              "p99": 0.8528456330744543,
+              "max": 5.565777803309804
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.06401853888988436,
+              "p50": 0.019723941002650746,
+              "p90": 0.146227357094665,
+              "p99": 0.6543061963703408,
+              "max": 10.694198804105865
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 0.18830900838915904,
+              "p50": 0.056135190986665404,
+              "p90": 0.4843040271830386,
+              "p99": 1.7789525146129563,
+              "max": 34.90537093235323
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.0016448882081394308,
+            "p50": 0.0008999566780403256,
+            "p90": 0.00398641317151487,
+            "p99": 0.009274258175864768,
+            "max": 0.17146636545658112
+          },
+          "exact_zero_rgb_fraction": 0.000192722787542399,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.10103172360683516,
+          "base_mean_normalizer": 0.0016448882081394308,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.8497561519375114,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 0.16276457037408218,
+            "p50": 0.012403964909645366,
+            "p90": 0.3420072550946829,
+            "p99": 2.6099511292480484,
+            "max": 96.94046984710238
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 0.016107427447470013,
+            "p50": 0.00615345349624385,
+            "p90": 0.033355895826038144,
+            "p99": 0.1648453007301889,
+            "max": 5.604930407061052
+          },
+          "angle_abs_delta_pearson_descriptive": 0.15562729515479082,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.1555803283518352,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 0.07789838624444512,
+              "p50": 0.008488259716058539,
+              "p90": 0.1507640854484838,
+              "p99": 1.1839289411781042,
+              "max": 11.836570447530882
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 0.09592323881727605,
+              "p50": 0.010659042128302125,
+              "p90": 0.18988661173623986,
+              "p99": 1.5480344463437576,
+              "max": 9.949377212087736
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.07168781239984023,
+              "p50": 0.007155806791239421,
+              "p90": 0.1300919359438097,
+              "p99": 0.9925801657981784,
+              "max": 65.56567160886847
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 0.2759786320784695,
+              "p50": 0.02702793725868375,
+              "p90": 0.6131240919828805,
+              "p99": 4.2079010385190285,
+              "max": 96.94046984710238
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.004947878531137087,
+            "p50": 0.003770950250327587,
+            "p90": 0.010765270888805389,
+            "p99": 0.01612354276701807,
+            "max": 0.1849752962589264
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.04613155993656805,
+          "base_mean_normalizer": 0.004947878531137087,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.40200861654233216,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 0.11132271340769961,
+            "p50": 0.020101270447930288,
+            "p90": 0.2849843158834818,
+            "p99": 1.2591380503203022,
+            "max": 34.90537093235323
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 0.013270527205259156,
+            "p50": 0.007608859299761439,
+            "p90": 0.027472004499272097,
+            "p99": 0.0987281990119272,
+            "max": 1.79538127733488
+          },
+          "angle_abs_delta_pearson_descriptive": 0.24931231066958415,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.11772480240675631,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 0.04801328956994655,
+              "p50": 0.010003063165130695,
+              "p90": 0.10352817393781517,
+              "p99": 0.6354727977356363,
+              "max": 12.746981709223608
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 0.08283808027623775,
+              "p50": 0.02154589905982775,
+              "p90": 0.21440310192344555,
+              "p99": 0.8528456330744543,
+              "max": 5.565777803309804
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.06401853888988436,
+              "p50": 0.019723941002650746,
+              "p90": 0.146227357094665,
+              "p99": 0.6543061963703408,
+              "max": 10.694198804105865
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 0.18830900838915904,
+              "p50": 0.056135190986665404,
+              "p90": 0.4843040271830386,
+              "p99": 1.7789525146129563,
+              "max": 34.90537093235323
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 259440,
+            "mean": 0.0016444998321988055,
+            "p50": 0.0008976886456366628,
+            "p90": 0.00398561442270875,
+            "p99": 0.009292082702741003,
+            "max": 0.17146636545658112
+          },
+          "exact_zero_rgb_fraction": 0.000192722787542399,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.10148040659391637,
+          "base_mean_normalizer": 0.0016444998321988055,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.8589143522215333,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 247740,
+            "mean": 0.16507788535548235,
+            "p50": 0.012477999115495297,
+            "p90": 0.3486071569675242,
+            "p99": 2.624680322426919,
+            "max": 96.96336394865493
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 77688,
+            "mean": 0.016660507616042423,
+            "p50": 0.006156251015151656,
+            "p90": 0.03347468691731794,
+            "p99": 0.172355155329515,
+            "max": 12.001794198200667
+          },
+          "angle_abs_delta_pearson_descriptive": 0.15297401961145587,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.15580742816564977,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 103876,
+              "mean": 0.07869711047806927,
+              "p50": 0.008498346325946569,
+              "p90": 0.15298218753024292,
+              "p99": 1.1906983513546772,
+              "max": 21.369916345716863
+            },
+            "normal_angle_1_5": {
+              "count": 11450,
+              "mean": 0.11070573515472183,
+              "p50": 0.010840613072642283,
+              "p90": 0.20576728388553273,
+              "p99": 1.668171178051084,
+              "max": 31.961890093306017
+            },
+            "normal_angle_5_15": {
+              "count": 26483,
+              "mean": 0.07555366241072485,
+              "p50": 0.007207016494765148,
+              "p90": 0.1415511909275128,
+              "p99": 1.0292134969978017,
+              "max": 65.58115603087037
+            },
+            "normal_angle_15_181": {
+              "count": 105931,
+              "mean": 0.2780412340183938,
+              "p50": 0.027462372023254147,
+              "p90": 0.6167468816990348,
+              "p99": 4.227757316695497,
+              "max": 96.96336394865493
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        }
+      },
+      "raw_selected_equal": {
+        "diffuse": true,
+        "specular": false
+      },
+      "candidate_diagnostic": {
+        "angular_dispersion": {
+          "count": 247740,
+          "mean": 0.24432162940502167,
+          "p50": 0.252771258354187,
+          "p90": 0.5260385274887085,
+          "p99": 0.7335582721233362,
+          "max": 0.9780808687210083
+        },
+        "relative_depth_span": {
+          "count": 247740,
+          "mean": 0.649327278137207,
+          "p50": 0.0709456093609333,
+          "p90": 2.491579508781433,
+          "p99": 6.680239920616141,
+          "max": 10.687882423400879
+        },
+        "temporal_innovation": {
+          "count": 247740,
+          "mean": 0.06767463684082031,
+          "p50": 0.0,
+          "p90": 0.2241055473685265,
+          "p99": 1.038441561460486,
+          "max": 1.9982194900512695
+        },
+        "temporal_supported": {
+          "core_fraction": 0.495386216466235,
+          "pair_fraction": 0.5187817873577137,
+          "outside_available_pair_true_count": 0
+        },
+        "experimental_history_multiplier": {
+          "count": 247740,
+          "mean": 0.9359674453735352,
+          "p50": 1.0,
+          "p90": 1.0,
+          "p99": 1.0,
+          "max": 1.0
+        },
+        "temporal_value_sentinels": "Unsupported innovation is initialized to0 and multiplier to1. These are identity/sentinel values, not measured agreement. Fixed-pair primary statistics retain every BASE pixel.",
+        "conditional_comparable_observations": {
+          "scope": "Descriptive diagnostic distribution only; not an output-quality denominator or candidate-derived foliage mask",
+          "count": 128523,
+          "base_pair_count": 247740,
+          "temporal_innovation": {
+            "count": 128523,
+            "mean": 0.13044914603233337,
+            "p50": 1.702047484286595e-05,
+            "p90": 0.4946538805961609,
+            "p99": 1.2793366146087646,
+            "max": 1.9982194900512695
+          },
+          "experimental_history_multiplier": {
+            "count": 128523,
+            "mean": 0.8765713572502136,
+            "p50": 0.9999829530715942,
+            "p90": 0.9999999403953552,
+            "p99": 1.0,
+            "max": 1.0
+          }
+        },
+        "stage": "CPU observable diagnostic sidecar; no lighting/normal/depth/material modification",
+        "captured_output_quality_improvement": null
+      },
+      "all_source_arrays_bitwise_unchanged": true,
+      "source_array_sha256": {
+        "input_depth": "2cd5f9f7827eff98bd49819cb25b1d55122809f25796ed427148ca50b59263e7",
+        "input_motion": "c24b67f324d44c3f1830e28c70bef3f4107d034fdbfd6600964c0b38409ff6bb",
+        "input_normal_roughness": "b52aa4b08774c188ce308e2a308d6cf7897e855596f08819a7ee52577463f18c",
+        "recovery_original_normal_roughness": "75255dca5ffb601023e9c9bc52e6d8486b5e5b436c39b554d7d4fc607ef3ce90",
+        "input_diffuse": "9f37f4773eb3764f2be6b24d717d3a9e2e58c3910cc3b2e16b23655f6e1e3aac",
+        "input_specular": "dc33d07c5d308414b10e81e80bd45716ed5f5dc9d087ed7100e8057ccf836660",
+        "raw_rr_diffuse": "1e901e80569b0331cd8d00f19950ae69c056c03788f18132405f34f3aff958ca",
+        "raw_rr_specular": "3b9b383f0ed289bf3bfabbc5e48e76586093a8605584041633c9c3805d5371d3",
+        "selected_rr_diffuse": "1e901e80569b0331cd8d00f19950ae69c056c03788f18132405f34f3aff958ca",
+        "selected_rr_specular": "a1ba39741a1050ec55c585e70c52d70193653889f48dc77d9f3fb0ea44a50a7d",
+        "provider_controls": "9a95530ac1e4a3ce384b58703f86ea2c39cf25ad3557265eb39fba3f55206ec2",
+        "frame_indices": "37531808d70d7f6b4f95631c6d20a8c5c444420f1d9be95a94dc481978a3307b",
+        "crop_origin_render": "897df9a0d548c792017091986a7eed9138edc14c5b68cd467775c4872ba372ca",
+        "crop_origin_source": "fb5036e051bceb87e4517afd1327aa6b9d3c3e444e44aa8e542172fb2dfa5531",
+        "source_roi_origin": "04475a89589053315f118797b8103e41a6b8564fdc5ac5636f8d52cb9a7a60ea",
+        "source_roi_extent": "bac95cc64206b14b009cf0331b3555aef75d5969ac9e347be37f0fc168e33410",
+        "render_extent": "4df2a9fdb1926448f3d282870ce34cf5c45a08160e528b0c81ca97f79928379f",
+        "view_u32": "a76d6b614103d48a66a84a27035deb5b50e4cd60a325e538d55af8a3469d84bd",
+        "projection_u32": "1373fc582973e5fb768e93b31e6094903418cc60b3bc656f002605f3c7f61ef6",
+        "camera_position_u32": "d08ae6cc0916a3042d57582e587dcb17de008214b7add278f8a06a2a2719af75",
+        "previous_camera_position_u32": "39761f218c8881556ce13cd5bc5442ce1bbd815dd4d3c8e1b1861cf961779cb9"
+      }
+    },
+    {
+      "fixture": "facade16",
+      "capture_uuid": "f2ef375f-4452-4883-b59d-af48c1b903b5",
+      "source_archive_sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+      "source_manifest_sha256": "378962acfab2ee52ad5552983ee552bc56ff5ff99e55b64ed9b0479d1c09cb12",
+      "stage": "Captured native inputs + recorded raw/selected RR; CPU diagnostics only",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "gpu_executed": false,
+      "frame_indices": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "extent_wh": [
+        96,
+        96
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_origins_xy": [
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ],
+        [
+          688,
+          359
+        ]
+      ],
+      "timing": "Frame ordinals only. recording_qpc/frame durations absent; no Hz or per-second claims.",
+      "partial_history": true,
+      "stored_rr_has_pre_fixture_history": true,
+      "source_formats": {
+        "input_depth": {
+          "dtype": "float32",
+          "shape": [
+            16,
+            96,
+            96
+          ]
+        },
+        "input_motion": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "input_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            96,
+            96
+          ]
+        },
+        "recovery_original_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            96,
+            96
+          ]
+        },
+        "input_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "input_specular": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "raw_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "raw_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "selected_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "selected_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ]
+        },
+        "provider_controls": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            46
+          ]
+        },
+        "frame_indices": {
+          "dtype": "int32",
+          "shape": [
+            16
+          ]
+        },
+        "crop_origin_render": {
+          "dtype": "int32",
+          "shape": [
+            16,
+            2
+          ]
+        },
+        "crop_origin_source": {
+          "dtype": "int32",
+          "shape": [
+            16,
+            2
+          ]
+        },
+        "source_roi_origin": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "source_roi_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "render_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "view_u32": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            4,
+            4
+          ]
+        },
+        "projection_u32": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            4,
+            4
+          ]
+        },
+        "camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            3
+          ]
+        },
+        "previous_camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            16,
+            3
+          ]
+        }
+      },
+      "unsupported_history": {
+        "first_frame_pixels": 9216,
+        "later_outside_previous_crop_pixels": 2960,
+        "available_pair_pixels": 126960,
+        "available_core_pair_fraction": 1.0
+      },
+      "guide_words": {
+        "total_pixels": 147456,
+        "normal20_changed": 0,
+        "roughness10_changed": 1090,
+        "category2_changed": 0,
+        "original_categories_in_this_tile": [
+          0
+        ],
+        "prepared_categories_in_this_tile": [
+          0
+        ],
+        "roughness_abs_delta": {
+          "count": 147456,
+          "mean": 1.4451681636273861e-05,
+          "p50": 0.0,
+          "p90": 0.0,
+          "p99": 0.0,
+          "max": 0.0019550342112779617
+        },
+        "original_depth": {
+          "count": 147456,
+          "mean": 96.15760803222656,
+          "p50": 95.01599502563477,
+          "p90": 102.27508163452148,
+          "p99": 106.1766731262207,
+          "max": 108.62907409667969
+        }
+      },
+      "original_normal_temporal_angle_degrees": {
+        "count": 126960,
+        "mean": 7.021912067737703,
+        "p50": 0.11364090442657471,
+        "p90": 1.2834722876548785,
+        "p99": 90.17296600341797,
+        "max": 152.26905822753906
+      },
+      "fixed_masks": {
+        "core": {
+          "count": 135424,
+          "sha256": "27fec20bd3c9c8c9b20087ced70b1ee696cfca7acac5b47ec4ece07eaede8125"
+        },
+        "available_pair": {
+          "count": 126960,
+          "sha256": "b719d5e290a034b634182f37d27e69394a8d098449618e5e78f3690cf2f26cfc"
+        },
+        "depth_edge": {
+          "count": 10146,
+          "sha256": "96b586792501d2607e38e52c84a04a137729886f5e4b358d2633f2cf5afd4aad"
+        },
+        "normal_edge": {
+          "count": 49849,
+          "sha256": "6b9db4d49d3fd66e3daf62a5da86d970e1c2d7b8891eea3a10ac6782915a51cf"
+        },
+        "high_motion": {
+          "count": 0,
+          "sha256": "8123c216413f82bbaa0339c27a43d9822c2a043e20662b27c97874429b996e9a"
+        },
+        "stable_guide_pair": {
+          "count": 90103,
+          "sha256": "f09b164c5a970677a343cba128b58cf6dbb7067cf994abb25a2c430da4493b70"
+        }
+      },
+      "signals": {
+        "input_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.0037655317209525406,
+            "p50": 0.0013258621911518276,
+            "p90": 0.0073638004250824425,
+            "p99": 0.0390065440908074,
+            "max": 1.294692039489746
+          },
+          "exact_zero_rgb_fraction": 0.14907992674858223,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.24181629676168181,
+          "base_mean_normalizer": 0.0037655317209525406,
+          "spatial_highpass_rms_over_base_mean_proxy": 4.01516195760924,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.9149137357263106,
+            "p50": 0.261190318729831,
+            "p90": 1.7912289571699342,
+            "p99": 11.067480577884577,
+            "max": 342.68728206630647
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.8080682348927293,
+            "p50": 0.26018112519271264,
+            "p90": 1.7064531126016342,
+            "p99": 9.046509849164176,
+            "max": 302.42868387640425
+          },
+          "angle_abs_delta_pearson_descriptive": 0.02053871142769213,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.015074288308658111,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.882352942424445,
+              "p50": 0.2594231058903118,
+              "p90": 1.7658910390292626,
+              "p99": 10.46722894369998,
+              "max": 342.68728206630647
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 1.2153541458892008,
+              "p50": 0.2090172976263291,
+              "p90": 2.31960825987636,
+              "p99": 18.515662957104283,
+              "max": 187.6910899598599
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 1.064793283658041,
+              "p50": 0.269930264513625,
+              "p90": 2.158610003869081,
+              "p99": 16.68231959136036,
+              "max": 32.40724152951901
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 1.1932219045608956,
+              "p50": 0.30091906945624064,
+              "p90": 2.0313645858172897,
+              "p99": 16.656529707882402,
+              "max": 249.59713380874604
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "input_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.0005870914408402279,
+            "p50": 0.00027107262576464564,
+            "p90": 0.0009935552254319191,
+            "p99": 0.005621898295357822,
+            "max": 0.8424180150032043
+          },
+          "exact_zero_rgb_fraction": 0.15359906663516068,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.30661397533479195,
+          "base_mean_normalizer": 0.0005870914408402279,
+          "spatial_highpass_rms_over_base_mean_proxy": 7.3834615277218045,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.9902104703564735,
+            "p50": 0.27841666531942943,
+            "p90": 1.6081496396038533,
+            "p99": 11.52592712354527,
+            "max": 1427.563874205723
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.8131709574983365,
+            "p50": 0.26413727151479827,
+            "p90": 1.4997165789433977,
+            "p99": 9.159796278737344,
+            "max": 337.38005147370154
+          },
+          "angle_abs_delta_pearson_descriptive": 0.012513797052355655,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.021736354440805045,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.9276982150945249,
+              "p50": 0.2712365885141382,
+              "p90": 1.5763222966729231,
+              "p99": 10.920942143537479,
+              "max": 503.46393633983814
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 1.4424414709667268,
+              "p50": 0.3673029992729322,
+              "p90": 1.932241743732616,
+              "p99": 17.318973194483387,
+              "max": 461.63558295711294
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 3.0568256276181778,
+              "p50": 0.4688152355110779,
+              "p90": 2.9949048404837217,
+              "p99": 47.16982754570084,
+              "max": 493.2301204146981
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 1.4635957156473036,
+              "p50": 0.34022573023287717,
+              "p90": 1.8791636819260749,
+              "p99": 16.897966696114768,
+              "max": 1427.563874205723
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.0031900291854390227,
+            "p50": 0.002402027719654143,
+            "p90": 0.006346961064264178,
+            "p99": 0.007725877929478881,
+            "max": 0.019814807921648026
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.027185458622486534,
+          "base_mean_normalizer": 0.0031900291854390227,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.17111063693339915,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.07718882726983636,
+            "p50": 0.014429504777285666,
+            "p90": 0.2169367079751635,
+            "p99": 0.8200657503758018,
+            "max": 5.051107001968632
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.03600299876730777,
+            "p50": 0.008176087653807073,
+            "p90": 0.0966803194603679,
+            "p99": 0.37253966688699497,
+            "max": 3.7269533427238914
+          },
+          "angle_abs_delta_pearson_descriptive": 0.43451522215392024,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.1356501153577852,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.057054918499215374,
+              "p50": 0.011882757696521062,
+              "p90": 0.16028734496932628,
+              "p99": 0.6049096928047077,
+              "max": 5.051107001968632
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 0.0431882077778528,
+              "p50": 0.016784766496194523,
+              "p90": 0.10939291565039758,
+              "p99": 0.3623684803716977,
+              "max": 2.259413149179655
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 0.04373237838742767,
+              "p50": 0.020926763296999544,
+              "p90": 0.12019812173065395,
+              "p99": 0.3242127625511118,
+              "max": 0.5233134281918772
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 0.310585791637788,
+              "p50": 0.17112072861952074,
+              "p90": 0.8003610144919904,
+              "p99": 1.3054673597760196,
+              "max": 4.706287446628138
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.000458255758908812,
+            "p50": 0.00046343146823346615,
+            "p90": 0.0008440960315056145,
+            "p99": 0.0010855643625836818,
+            "max": 0.0035258939024060965
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.026105317197748928,
+          "base_mean_normalizer": 0.000458255758908812,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.1460960043357186,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.053960597849088826,
+            "p50": 0.011298329914147934,
+            "p90": 0.1699521260485365,
+            "p99": 0.5146297449312511,
+            "max": 6.826113387038065
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.01759642697507923,
+            "p50": 0.0069370278237995235,
+            "p90": 0.04279496612003785,
+            "p99": 0.15180762495469644,
+            "max": 2.3659216457528096
+          },
+          "angle_abs_delta_pearson_descriptive": 0.5028876398832706,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.11159952064050209,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.037143321019350264,
+              "p50": 0.009519912565432461,
+              "p90": 0.10447023801474499,
+              "p99": 0.3593295360829187,
+              "max": 2.3659216457528096
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 0.06830794788700525,
+              "p50": 0.023296940559426316,
+              "p90": 0.2071119005732627,
+              "p99": 0.4428489745934802,
+              "max": 0.6735912766575152
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 0.07464254135943155,
+              "p50": 0.027618176403291506,
+              "p90": 0.2301358329789549,
+              "p99": 0.46873218329855143,
+              "max": 0.6044390789526992
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 0.23574051690974104,
+              "p50": 0.1977784774817082,
+              "p90": 0.5094950228528998,
+              "p99": 0.9873745170473576,
+              "max": 6.826113387038065
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.003187980223773465,
+            "p50": 0.0024017622927203774,
+            "p90": 0.006346961064264178,
+            "p99": 0.007725877929478881,
+            "max": 0.019814807921648026
+          },
+          "exact_zero_rgb_fraction": 0.0010042533081285445,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.027202931115622688,
+          "base_mean_normalizer": 0.003187980223773465,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.17135507291956767,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.07738890476328765,
+            "p50": 0.014480146650555846,
+            "p90": 0.21716840387286987,
+            "p99": 0.8205928186660083,
+            "max": 5.054353422551321
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.036192230744199465,
+            "p50": 0.008200844671952071,
+            "p90": 0.09746952392048623,
+            "p99": 0.372779103597003,
+            "max": 3.7293487103210983
+          },
+          "angle_abs_delta_pearson_descriptive": 0.4342522442198046,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.13549075029300023,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.05724679631758058,
+              "p50": 0.011934960235663853,
+              "p90": 0.1605449346164097,
+              "p99": 0.6052984771398294,
+              "max": 5.054353422551321
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 0.04386617714984016,
+              "p50": 0.01683883562748537,
+              "p90": 0.11190025545780254,
+              "p99": 0.36260137991089536,
+              "max": 2.2608653071619425
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 0.04376923643412372,
+              "p50": 0.020940213234819108,
+              "p90": 0.12027537482710089,
+              "p99": 0.32442113885062523,
+              "max": 0.5236497694105086
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 0.31076608187648586,
+              "p50": 0.1712307104225787,
+              "p90": 0.8008754182593262,
+              "p99": 1.3063064028026579,
+              "max": 4.7093122466232336
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 135424,
+            "mean": 0.0004577722507463398,
+            "p50": 0.00046342879068106413,
+            "p90": 0.0008440960315056145,
+            "p99": 0.0010855643625836818,
+            "max": 0.0035258939024060965
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.026132890153358315,
+          "base_mean_normalizer": 0.0004577722507463398,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.14669947898846616,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 126960,
+            "mean": 0.054604363386729804,
+            "p50": 0.011616779907863634,
+            "p90": 0.1718397912915267,
+            "p99": 0.51517330711074,
+            "max": 6.833323263860464
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 90103,
+            "mean": 0.018258406854798515,
+            "p50": 0.007076794068994247,
+            "p90": 0.04471234944265273,
+            "p99": 0.16015085897512923,
+            "max": 2.368420579284989
+          },
+          "angle_abs_delta_pearson_descriptive": 0.5008401116256765,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.1116127540216942,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 113625,
+              "mean": 0.03765709705592003,
+              "p50": 0.009725360327207498,
+              "p90": 0.10665825134102894,
+              "p99": 0.3599791921356159,
+              "max": 2.368420579284989
+            },
+            "normal_angle_1_5": {
+              "count": 2555,
+              "mean": 0.07644982936008286,
+              "p50": 0.03324640310218269,
+              "p90": 0.2186902366975634,
+              "p99": 0.4433167204946555,
+              "max": 0.6743027371706918
+            },
+            "normal_angle_5_15": {
+              "count": 530,
+              "mean": 0.07518891704376204,
+              "p50": 0.028073394210082044,
+              "p90": 0.2303789070262377,
+              "p99": 0.46922726755992544,
+              "max": 0.6050774995382947
+            },
+            "normal_angle_15_181": {
+              "count": 10250,
+              "mean": 0.2359612568343509,
+              "p50": 0.19789517220935413,
+              "p90": 0.5100331616367311,
+              "p99": 0.9884174016643938,
+              "max": 6.833323263860464
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        }
+      },
+      "raw_selected_equal": {
+        "diffuse": false,
+        "specular": false
+      },
+      "candidate_diagnostic": {
+        "angular_dispersion": {
+          "count": 126960,
+          "mean": 0.09725325554609299,
+          "p50": 1.615285873413086e-05,
+          "p90": 0.2812952756881715,
+          "p99": 0.38672647058963866,
+          "max": 0.5561027526855469
+        },
+        "relative_depth_span": {
+          "count": 126960,
+          "mean": 0.008059841580688953,
+          "p50": 0.003957728389650583,
+          "p90": 0.024733069725334674,
+          "p99": 0.09751819178462029,
+          "max": 0.12291127443313599
+        },
+        "temporal_innovation": {
+          "count": 126960,
+          "mean": 0.07906854152679443,
+          "p50": 9.389856131747365e-06,
+          "p90": 0.38365911841392536,
+          "p99": 0.7466560232639313,
+          "max": 1.0632719993591309
+        },
+        "temporal_supported": {
+          "core_fraction": 0.8894361413043478,
+          "pair_fraction": 0.948731884057971,
+          "outside_available_pair_true_count": 0
+        },
+        "experimental_history_multiplier": {
+          "count": 126960,
+          "mean": 0.9209347367286682,
+          "p50": 0.9999905824661255,
+          "p90": 0.9999999403953552,
+          "p99": 1.0,
+          "max": 1.0
+        },
+        "temporal_value_sentinels": "Unsupported innovation is initialized to0 and multiplier to1. These are identity/sentinel values, not measured agreement. Fixed-pair primary statistics retain every BASE pixel.",
+        "conditional_comparable_observations": {
+          "scope": "Descriptive diagnostic distribution only; not an output-quality denominator or candidate-derived foliage mask",
+          "count": 120451,
+          "base_pair_count": 126960,
+          "temporal_innovation": {
+            "count": 120451,
+            "mean": 0.08334128558635712,
+            "p50": 1.0909089724009391e-05,
+            "p90": 0.3889199495315552,
+            "p99": 0.7515848577022552,
+            "max": 1.0632719993591309
+          },
+          "experimental_history_multiplier": {
+            "count": 120451,
+            "mean": 0.9166621565818787,
+            "p50": 0.9999890923500061,
+            "p90": 0.9999999403953552,
+            "p99": 1.0,
+            "max": 1.0
+          }
+        },
+        "stage": "CPU observable diagnostic sidecar; no lighting/normal/depth/material modification",
+        "captured_output_quality_improvement": null
+      },
+      "all_source_arrays_bitwise_unchanged": true,
+      "source_array_sha256": {
+        "input_depth": "2854f59103b06a3f29692b1d949b8623f5c82dc8226d55ac3e2574f2212f8fe3",
+        "input_motion": "db1be6a284a6b05442b0e980360efce0e05b02bd1ea32840cd5d854c1c679cd9",
+        "input_normal_roughness": "63277331528daa6416e332b24fdf1e83a14fbffdcfa19982318ee7b655f330b8",
+        "recovery_original_normal_roughness": "6cf8c3eac8a02823827ed776ebd303cbe07d40b20687384a60b4d80e0e3e9d83",
+        "input_diffuse": "a23551bd07abb4cfad6d30ad88619116cc79f30ca7e9ccdc75fb0ebd6572f75d",
+        "input_specular": "deb66a4ddb46192710d0c2e65d22de319c74f2681b2714e09fea112d45ca421d",
+        "raw_rr_diffuse": "130ce5f73fe4f83cb0e86b6b56a07e4066bd9cefeffa9ddc0bf690889c6d4da0",
+        "raw_rr_specular": "0ec382a01627af130f14aceb3ac4da44d5cdfa01c3e124bdd4f778eab229dce7",
+        "selected_rr_diffuse": "7877877f6e5ad11a6da5d003058f76d134d080be99045c59a7ad3895f0ef2fc2",
+        "selected_rr_specular": "25d3da469b506f435fcde789ed87a15c62c792a9f6b1a41c00c31cd8dbb98382",
+        "provider_controls": "d34c99e2d0c86dfd0a17ec7ca0a29b4ad1ee86b37f8776ab53e43a6d5ac8ab6c",
+        "frame_indices": "4413448e1748434a9c6ff1bf665700e5dadcd65e6ca2e874d643969f99ebf358",
+        "crop_origin_render": "934db46aabbde75bb5552f8b407d5e5357899df35c44e86f5c803bce7eb94f50",
+        "crop_origin_source": "ce50348aa5e03d26de5e8eac0bf43844891200a3bc7fd6ea0b4e5f30b4478a6c",
+        "source_roi_origin": "04475a89589053315f118797b8103e41a6b8564fdc5ac5636f8d52cb9a7a60ea",
+        "source_roi_extent": "bac95cc64206b14b009cf0331b3555aef75d5969ac9e347be37f0fc168e33410",
+        "render_extent": "4df2a9fdb1926448f3d282870ce34cf5c45a08160e528b0c81ca97f79928379f",
+        "view_u32": "24465b8caed7a36896e761a31cf30748fe869d338975ceacf3cf44e4779d5e8f",
+        "projection_u32": "141076544c2e98e086fb5710e4f7a18cff9a3fbc67ca73d2b4e42b5da8fb6697",
+        "camera_position_u32": "36779ae6df36a890b285fd88061f189556f30a7dd18c36b8f16d236f37ea9642",
+        "previous_camera_position_u32": "d228b7ddbb226f8ae8b3d978384f51220865e87134c4a03b3186f899dae7a667"
+      }
+    },
+    {
+      "fixture": "bottle_track7",
+      "capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+      "source_archive_sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+      "source_manifest_sha256": "49ad92072c94c344b03550a59c750330920ba80980c91a46b7df86c9e398974a",
+      "stage": "Captured native inputs + recorded raw/selected RR; CPU diagnostics only",
+      "ground_truth": false,
+      "semantic_labels": false,
+      "gpu_executed": false,
+      "frame_indices": [
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186
+      ],
+      "extent_wh": [
+        128,
+        256
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "crop_origins_xy": [
+        [
+          688,
+          160
+        ],
+        [
+          688,
+          176
+        ],
+        [
+          688,
+          208
+        ],
+        [
+          688,
+          272
+        ],
+        [
+          688,
+          384
+        ],
+        [
+          688,
+          480
+        ],
+        [
+          688,
+          560
+        ]
+      ],
+      "timing": "Frame ordinals only. recording_qpc/frame durations absent; no Hz or per-second claims.",
+      "partial_history": true,
+      "stored_rr_has_pre_fixture_history": true,
+      "source_formats": {
+        "input_depth": {
+          "dtype": "float32",
+          "shape": [
+            7,
+            256,
+            128
+          ]
+        },
+        "input_motion": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "input_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            256,
+            128
+          ]
+        },
+        "recovery_original_normal_roughness": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            256,
+            128
+          ]
+        },
+        "input_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "input_specular": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "raw_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "raw_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "selected_rr_diffuse": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "selected_rr_specular": {
+          "dtype": "float16",
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ]
+        },
+        "provider_controls": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            46
+          ]
+        },
+        "frame_indices": {
+          "dtype": "int32",
+          "shape": [
+            7
+          ]
+        },
+        "crop_origin_render": {
+          "dtype": "int32",
+          "shape": [
+            7,
+            2
+          ]
+        },
+        "crop_origin_source": {
+          "dtype": "int32",
+          "shape": [
+            7,
+            2
+          ]
+        },
+        "source_roi_origin": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "source_roi_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "render_extent": {
+          "dtype": "int32",
+          "shape": [
+            2
+          ]
+        },
+        "view_u32": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            4,
+            4
+          ]
+        },
+        "projection_u32": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            4,
+            4
+          ]
+        },
+        "camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            3
+          ]
+        },
+        "previous_camera_position_u32": {
+          "dtype": "uint32",
+          "shape": [
+            7,
+            3
+          ]
+        }
+      },
+      "unsupported_history": {
+        "first_frame_pixels": 32768,
+        "later_outside_previous_crop_pixels": 49643,
+        "available_pair_pixels": 141929,
+        "available_core_pair_fraction": 0.7570031148660181
+      },
+      "guide_words": {
+        "total_pixels": 229376,
+        "normal20_changed": 0,
+        "roughness10_changed": 152,
+        "category2_changed": 0,
+        "original_categories_in_this_tile": [
+          0
+        ],
+        "prepared_categories_in_this_tile": [
+          0
+        ],
+        "roughness_abs_delta": {
+          "count": 229376,
+          "mean": 1.0739323670350132e-06,
+          "p50": 0.0,
+          "p90": 0.0,
+          "p99": 0.0,
+          "max": 0.0019550342112779617
+        },
+        "original_depth": {
+          "count": 229376,
+          "mean": 2.275879144668579,
+          "p50": 1.0049960613250732,
+          "p90": 3.873445987701416,
+          "p99": 26.526427268981934,
+          "max": 27.11792755126953
+        }
+      },
+      "original_normal_temporal_angle_degrees": {
+        "count": 141929,
+        "mean": 23.365223965773737,
+        "p50": 14.98876953125,
+        "p90": 65.68477325439453,
+        "p99": 122.124548034668,
+        "max": 167.46348571777344
+      },
+      "fixed_masks": {
+        "core": {
+          "count": 218736,
+          "sha256": "b88f6b1789d7bdb2c161d43dbb70ce08673f69a45a1a15b6425213cfe910b263"
+        },
+        "available_pair": {
+          "count": 141929,
+          "sha256": "2925ab509e5a2d73f57184b0048e412c8e4377477405e12c2cd6d67afa40d674"
+        },
+        "depth_edge": {
+          "count": 14640,
+          "sha256": "91340c99bf52ceaeaa5cb7cef1609bbbb8c2e034d8b0b875d829b0106552d57d"
+        },
+        "normal_edge": {
+          "count": 39312,
+          "sha256": "56e7839c2ad03c125bffa577b46005999554474819d31b9cd1176e6f23339495"
+        },
+        "high_motion": {
+          "count": 55452,
+          "sha256": "c0996ec8bdda8668ad0e28fc028cb28ac9c8df878817a895aa6a343c88398913"
+        },
+        "stable_guide_pair": {
+          "count": 37735,
+          "sha256": "60af18ac34ae2da6862a10c80af0c2dbaea1392e6a40e40a2e565e4e452c5cf9"
+        }
+      },
+      "signals": {
+        "input_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.0068362628860576735,
+            "p50": 0.0008982918225228786,
+            "p90": 0.012084259651601315,
+            "p99": 0.07967503815889342,
+            "max": 2.3240363597869873
+          },
+          "exact_zero_rgb_fraction": 0.23488588983980688,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.36907684707043087,
+          "base_mean_normalizer": 0.0068362628860576735,
+          "spatial_highpass_rms_over_base_mean_proxy": 5.575518722432525,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 1.5660908297225697,
+            "p50": 0.24976516270786708,
+            "p90": 2.4015441270806104,
+            "p99": 28.663912766853002,
+            "max": 339.8711485825732
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.9208372220720878,
+            "p50": 0.40621667352558477,
+            "p90": 1.9086554180277426,
+            "p99": 8.365039086223819,
+            "max": 151.25880892515266
+          },
+          "angle_abs_delta_pearson_descriptive": 0.04841669416050915,
+          "crop_index_lag_one_delta_pearson_descriptive": -0.0008342465952943537,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 1.0745350749586715,
+              "p50": 0.3852625065395618,
+              "p90": 2.159700556933957,
+              "p99": 11.350635477690751,
+              "max": 151.25880892515266
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.8402812845715386,
+              "p50": 0.38660989062514745,
+              "p90": 1.755313952483502,
+              "p99": 7.60576105621763,
+              "max": 102.90139770696015
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 1.385510094232095,
+              "p50": 0.22455750913854353,
+              "p90": 2.1852078496568517,
+              "p99": 23.933625650585014,
+              "max": 158.59451336778977
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 2.0513858982234647,
+              "p50": 0.15506325863255396,
+              "p90": 3.114977693759021,
+              "p99": 40.9324095859651,
+              "max": 339.8711485825732
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "input_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.00436939814972339,
+            "p50": 0.0002445285354042426,
+            "p90": 0.01010700361803174,
+            "p99": 0.057971646264195244,
+            "max": 3.454570770263672
+          },
+          "exact_zero_rgb_fraction": 0.2082647575159096,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.34608850890359405,
+          "base_mean_normalizer": 0.00436939814972339,
+          "spatial_highpass_rms_over_base_mean_proxy": 5.8079043442864045,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 1.6001511958441572,
+            "p50": 0.21859125688024944,
+            "p90": 3.0927317430875414,
+            "p99": 22.85827550612469,
+            "max": 790.4875940708946
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.9070960366121966,
+            "p50": 0.15217874926197705,
+            "p90": 1.9515588437735931,
+            "p99": 11.576655347415025,
+            "max": 121.71167171000373
+          },
+          "angle_abs_delta_pearson_descriptive": 0.02591257558103454,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.004092704243075302,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 1.144289990958237,
+              "p50": 0.20047662143285772,
+              "p90": 2.6785918944411633,
+              "p99": 14.09355346543959,
+              "max": 61.3428690037059
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.8233132211597813,
+              "p50": 0.15205560509563917,
+              "p90": 1.635283331355847,
+              "p99": 10.043056002853994,
+              "max": 180.26627176646485
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 1.35970455762146,
+              "p50": 0.24088668870918437,
+              "p90": 2.487044480762921,
+              "p99": 18.177360074201246,
+              "max": 790.4875940708946
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 2.1220977248384454,
+              "p50": 0.2603215683351165,
+              "p90": 4.205290071457494,
+              "p99": 30.859004253715984,
+              "max": 701.2069685727456
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.006275366688072247,
+            "p50": 0.005813899217173457,
+            "p90": 0.011201571207493544,
+            "p99": 0.017050873115658758,
+            "max": 0.2108459621667862
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.03880685039445878,
+          "base_mean_normalizer": 0.006275366688072247,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.29457887179364445,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 0.2808164255908579,
+            "p50": 0.05198300747154799,
+            "p90": 0.8876534177754596,
+            "p99": 2.185715297753111,
+            "max": 32.86315962987153
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.02949815389556981,
+            "p50": 0.009955939952098388,
+            "p90": 0.06914996542924387,
+            "p99": 0.309380484614143,
+            "max": 4.051355433634966
+          },
+          "angle_abs_delta_pearson_descriptive": 0.40184577202423755,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.046019777422128115,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 0.04738419825697827,
+              "p50": 0.013940233699367654,
+              "p90": 0.11073087911854762,
+              "p99": 0.5140557213963215,
+              "max": 4.051355433634966
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.029670707287870288,
+              "p50": 0.00922054084918136,
+              "p90": 0.05339580023162281,
+              "p99": 0.35673989560349056,
+              "max": 8.876120265353501
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 0.09403012888327242,
+              "p50": 0.019523988449855693,
+              "p90": 0.2073009538431574,
+              "p99": 1.2211801999781644,
+              "max": 14.964584798769286
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 0.5057407943800845,
+              "p50": 0.28149812602894686,
+              "p90": 1.2313479860697993,
+              "p99": 2.9150792463549062,
+              "max": 32.86315962987153
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "raw_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.004041239966574084,
+            "p50": 0.002918400219641626,
+            "p90": 0.009266787208616734,
+            "p99": 0.020543755404651164,
+            "max": 0.1650419533252716
+          },
+          "exact_zero_rgb_fraction": 1.3715163484748739e-05,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.060248095015086406,
+          "base_mean_normalizer": 0.004041239966574084,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.2380065501258366,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 0.44011836003920096,
+            "p50": 0.040867312103032405,
+            "p90": 1.5168129125051182,
+            "p99": 3.3195362676993927,
+            "max": 39.99239761268392
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.06935816112857217,
+            "p50": 0.005646006435835378,
+            "p90": 0.07033348034093309,
+            "p99": 0.6359840699821128,
+            "max": 39.99239761268392
+          },
+          "angle_abs_delta_pearson_descriptive": 0.35230752918574393,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.08836022441004475,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 0.14212607328387972,
+              "p50": 0.010574909353422264,
+              "p90": 0.2854166841289913,
+              "p99": 1.389595496665501,
+              "max": 38.93807759875476
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.04255573071287007,
+              "p50": 0.005341542771325605,
+              "p90": 0.031630160683520404,
+              "p99": 0.39072078074739897,
+              "max": 39.99239761268392
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 0.11339658969082098,
+              "p50": 0.013483065000287734,
+              "p90": 0.19569165609565542,
+              "p99": 2.1785596640592746,
+              "max": 5.865136704440541
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 0.792714682575115,
+              "p50": 0.4219161430746992,
+              "p90": 2.1334318344223573,
+              "p99": 3.778366472869879,
+              "max": 18.66805821832385
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_diffuse": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.006275366688072247,
+            "p50": 0.005813899217173457,
+            "p90": 0.011201571207493544,
+            "p99": 0.017050873115658758,
+            "max": 0.2108459621667862
+          },
+          "exact_zero_rgb_fraction": 0.0,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.03880685039445878,
+          "base_mean_normalizer": 0.006275366688072247,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.29457887179364445,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 0.2808164255908579,
+            "p50": 0.05198300747154799,
+            "p90": 0.8876534177754596,
+            "p99": 2.185715297753111,
+            "max": 32.86315962987153
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.02949815389556981,
+            "p50": 0.009955939952098388,
+            "p90": 0.06914996542924387,
+            "p99": 0.309380484614143,
+            "max": 4.051355433634966
+          },
+          "angle_abs_delta_pearson_descriptive": 0.40184577202423755,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.046019777422128115,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 0.04738419825697827,
+              "p50": 0.013940233699367654,
+              "p90": 0.11073087911854762,
+              "p99": 0.5140557213963215,
+              "max": 4.051355433634966
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.029670707287870288,
+              "p50": 0.00922054084918136,
+              "p90": 0.05339580023162281,
+              "p99": 0.35673989560349056,
+              "max": 8.876120265353501
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 0.09403012888327242,
+              "p50": 0.019523988449855693,
+              "p90": 0.2073009538431574,
+              "p99": 1.2211801999781644,
+              "max": 14.964584798769286
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 0.5057407943800845,
+              "p50": 0.28149812602894686,
+              "p90": 1.2313479860697993,
+              "p99": 2.9150792463549062,
+              "max": 32.86315962987153
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        },
+        "selected_rr_specular": {
+          "unit": "captured linear lobe units (not display RGB); input alpha is unmodified hit distance",
+          "luma": {
+            "count": 218736,
+            "mean": 0.00404130091272268,
+            "p50": 0.0029184361919760704,
+            "p90": 0.009266787208616734,
+            "p99": 0.020543755404651164,
+            "max": 0.1650419533252716
+          },
+          "exact_zero_rgb_fraction": 1.3715163484748739e-05,
+          "negative_rgb_fraction": 0.0,
+          "top_one_percent_positive_luma_energy_fraction": 0.060247186424157224,
+          "base_mean_normalizer": 0.00404130091272268,
+          "spatial_highpass_rms_over_base_mean_proxy": 0.2380300855812445,
+          "motion_compensated_abs_delta_over_base_mean": {
+            "count": 141929,
+            "mean": 0.44010936482196855,
+            "p50": 0.04087970211016617,
+            "p90": 1.516747239148623,
+            "p99": 3.3194862063565207,
+            "max": 39.99179449436627
+          },
+          "stable_guide_abs_delta_over_base_mean": {
+            "count": 37735,
+            "mean": 0.06936920159560611,
+            "p50": 0.005656514880243816,
+            "p90": 0.07035937596701256,
+            "p99": 0.6359744788181607,
+            "max": 39.99179449436627
+          },
+          "angle_abs_delta_pearson_descriptive": 0.3523135141872287,
+          "crop_index_lag_one_delta_pearson_descriptive": 0.08832999678167812,
+          "lag_one_correlation_scope": "Eulerian local crop indices, not advected material points; moving crop changes their world correspondence. Not an estimator of Monte Carlo noise correlation.",
+          "angle_bins": {
+            "normal_angle_0_1": {
+              "count": 14367,
+              "mean": 0.14215786996822455,
+              "p50": 0.010621337957742767,
+              "p90": 0.28541237981015477,
+              "p99": 1.3895745404201096,
+              "max": 38.937490380451884
+            },
+            "normal_angle_1_5": {
+              "count": 31425,
+              "mean": 0.042555351156122925,
+              "p50": 0.005341462216458125,
+              "p90": 0.03162968367462778,
+              "p99": 0.39071488835599405,
+              "max": 39.99179449436627
+            },
+            "normal_angle_5_15": {
+              "count": 25206,
+              "mean": 0.1133967566989466,
+              "p50": 0.013482861664554816,
+              "p90": 0.19568870490419282,
+              "p99": 2.1785268095839756,
+              "max": 5.865048253345004
+            },
+            "normal_angle_15_181": {
+              "count": 70931,
+              "mean": 0.7926903520681913,
+              "p50": 0.42187134306264834,
+              "p90": 2.133399660511924,
+              "p99": 3.778309491989346,
+              "max": 18.667776688619742
+            }
+          },
+          "interpretation": "Variation mixes lighting, stochastic samples, reprojection, motion, and geometry; no causal noise/flicker attribution or converged truth. Clamped depth is observed; absent raw validity prevents physical correspondence certification."
+        }
+      },
+      "raw_selected_equal": {
+        "diffuse": true,
+        "specular": false
+      },
+      "candidate_diagnostic": {
+        "angular_dispersion": {
+          "count": 141929,
+          "mean": 0.02942323125898838,
+          "p50": 0.0016283988952636719,
+          "p90": 0.0925198554992675,
+          "p99": 0.40279795169830335,
+          "max": 0.801589846611023
+        },
+        "relative_depth_span": {
+          "count": 141929,
+          "mean": 0.10607299953699112,
+          "p50": 0.003498191013932228,
+          "p90": 0.023995811864733686,
+          "p99": 2.831295909881592,
+          "max": 33.09319305419922
+        },
+        "temporal_innovation": {
+          "count": 141929,
+          "mean": 0.014050506055355072,
+          "p50": 0.0,
+          "p90": 0.014212352782487862,
+          "p99": 0.2587777006626132,
+          "max": 1.8111681938171387
+        },
+        "temporal_supported": {
+          "core_fraction": 0.29787049228293466,
+          "pair_fraction": 0.4590675619499891,
+          "outside_available_pair_true_count": 0
+        },
+        "experimental_history_multiplier": {
+          "count": 141929,
+          "mean": 0.9867093563079834,
+          "p50": 1.0,
+          "p90": 1.0,
+          "p99": 1.0,
+          "max": 1.0
+        },
+        "temporal_value_sentinels": "Unsupported innovation is initialized to0 and multiplier to1. These are identity/sentinel values, not measured agreement. Fixed-pair primary statistics retain every BASE pixel.",
+        "conditional_comparable_observations": {
+          "scope": "Descriptive diagnostic distribution only; not an output-quality denominator or candidate-derived foliage mask",
+          "count": 65155,
+          "base_pair_count": 141929,
+          "temporal_innovation": {
+            "count": 65155,
+            "mean": 0.030606620013713837,
+            "p50": 0.0024703186936676502,
+            "p90": 0.07713305354118347,
+            "p99": 0.6205311715602861,
+            "max": 1.8111681938171387
+          },
+          "experimental_history_multiplier": {
+            "count": 65155,
+            "mean": 0.9710485935211182,
+            "p50": 0.9975296854972839,
+            "p90": 0.9999206066131592,
+            "p99": 0.9999999403953552,
+            "max": 1.0
+          }
+        },
+        "stage": "CPU observable diagnostic sidecar; no lighting/normal/depth/material modification",
+        "captured_output_quality_improvement": null
+      },
+      "all_source_arrays_bitwise_unchanged": true,
+      "source_array_sha256": {
+        "input_depth": "f69e716702d83a672e0d4d050a28177c2c02f8c927ca2712dfc71af6cf4de388",
+        "input_motion": "6cc36400f7639dce400f526f91eb2492bb3f2c65e808a111cb863f70c90619e9",
+        "input_normal_roughness": "5f534b44925d32ee4e7676eb96b3ea6d2a1b676d82013080731fda98ab5b4502",
+        "recovery_original_normal_roughness": "0f7a36e36e26d78c0a30d4c4eefd38199e4d5c8ec33f2cdfca3559aaef502a94",
+        "input_diffuse": "616a09edaf9e4e0d591ee6209e43c881565a99219e23b7eb7edce40f6aa27ef8",
+        "input_specular": "a26f0ba6197dfabccdf97475ca20f96fd8f77c211a437313e27eb8b601b910c3",
+        "raw_rr_diffuse": "3ec0b2c6bf0218ca13e63071954393c7908e741b163fe2e202e25d5b58851fb1",
+        "raw_rr_specular": "1de29600f476d1d51fa60ff112d63315e341fcaea6a5b6a74e21756a03e3b67d",
+        "selected_rr_diffuse": "3ec0b2c6bf0218ca13e63071954393c7908e741b163fe2e202e25d5b58851fb1",
+        "selected_rr_specular": "3f1a1127014cea4e4df08e7072cde9ac6fd373dda0cdaa9cb4bc96234b6baf9f",
+        "provider_controls": "4798f8f0c83c69effc748a7d0e0e579be6685e8cff043e8872ad7281955c6f73",
+        "frame_indices": "70ddfe54673b7a296b499387e3674f50b4353f7453f26437f6624dd430144cff",
+        "crop_origin_render": "35099f6985a787936456ff8eac4bde47154548e41e4a40227fb68b857ac90b4e",
+        "crop_origin_source": "251135f07a3a6db85bb2e1fe64cbf2ec4419e4dc4f4eb7b1142f3146c44e028b",
+        "source_roi_origin": "019a614b3a9326cbec2a893f739261e013e16ff67090ae44990ceb90007d00ac",
+        "source_roi_extent": "feb083509a68f74009050ad59630d45d274b424bdebcbadd3bb801c227128235",
+        "render_extent": "4df2a9fdb1926448f3d282870ce34cf5c45a08160e528b0c81ca97f79928379f",
+        "view_u32": "79b328dd5a024ee4b0df52deabe3adfc072d78053a45625f7f61d4756b776ee0",
+        "projection_u32": "a2bb85c61650863fe5e756a98f4feda39c34e90dd14551127f17c364495a78c3",
+        "camera_position_u32": "29dd474da9c2396bda3fd61c0a29d1a36f8d6895ab4d097ef29395e7d158cfc9",
+        "previous_camera_position_u32": "c9f25e71b52fe948d7a7b00a4e66749237466fbf62c8cc42309041f5ef27494c"
+      }
+    }
+  ],
+  "glass_geometry_control": {
+    "stage": "CPU diagnostic on unwarped captured provider geometry only",
+    "normal_source_authority": "original_normal_roughness_u32 refers to frames/*/input_normal_roughness; provider/prepared guide, not recovery_original pre-Flat guide",
+    "source_archive_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+    "frames": [
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "crop_extent_wh": [
+      192,
+      160
+    ],
+    "crop_origin_xy": [
+      546,
+      347
+    ],
+    "render_extent_wh": [
+      1505,
+      847
+    ],
+    "fixed_masks": {
+      "core": {
+        "count": 527904,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328
+        ],
+        "sha256": "d54ef5e2173c5ead6f1064d24baf5a9c05026a21a48c87cbcc0136c15497487d"
+      },
+      "available_pair": {
+        "count": 498264,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          0,
+          29016,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328,
+          29328
+        ],
+        "sha256": "0d514bbede7afea519ca61b8727c5d65678c3bff379c2492f3856fb7449f680c"
+      },
+      "depth_edge": {
+        "count": 0,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sha256": "d1768af9860251b5b7bc5c43b5368761bba981c92dd8005238016b83940d5bad"
+      },
+      "normal_edge": {
+        "count": 49698,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          2659,
+          2796,
+          2751,
+          2774,
+          2763,
+          2786,
+          2756,
+          2759,
+          2736,
+          2804,
+          2785,
+          2756,
+          2757,
+          2752,
+          2767,
+          2808,
+          2763,
+          2726
+        ],
+        "sha256": "8af9be5a3f707e06be33041417bd5861394d9d393343b270dceae51eae71eef9"
+      },
+      "high_motion": {
+        "count": 0,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "sha256": "d1768af9860251b5b7bc5c43b5368761bba981c92dd8005238016b83940d5bad"
+      },
+      "stable_guide_pair": {
+        "count": 459443,
+        "shape": [
+          18,
+          160,
+          192
+        ],
+        "dtype": "bool",
+        "per_frame_count": [
+          0,
+          26771,
+          27027,
+          27025,
+          27016,
+          27074,
+          27189,
+          27012,
+          27018,
+          27047,
+          27024,
+          27036,
+          27039,
+          27079,
+          27013,
+          27039,
+          26993,
+          27041
+        ],
+        "sha256": "03ba47a73eb0688e35b95063f9934bc727969c2f158a44505ed9fee5bf4d8e18"
+      }
+    },
+    "aligned_glass_mask_used_for_unwarped_geometry": false,
+    "aligned_rgb_paired_with_unwarped_guide_pixels": false,
+    "physical_input_D_S_and_hit_distance_alpha_present": false,
+    "image_quality_change": null,
+    "gpu_executed": false,
+    "interpretation": "Independent geometry/identity control only. Camera-aligned RGB/common_mask cannot be indexed onto these unwarped guide pixels. No glass causal or active RR-quality claim.",
+    "diagnostic": {
+      "base_pair_pixels": 498264,
+      "comparable_pair_pixels": 498264,
+      "comparable_pair_fraction": 1.0,
+      "conditional_supported_innovation": {
+        "count": 498264,
+        "mean": 0.02125798910856247,
+        "p50": 0.0,
+        "p90": 2.4404120813414972e-05,
+        "p99": 0.5934030491113661,
+        "max": 1.3569566011428833
+      },
+      "fixed_pair_multiplier": {
+        "count": 498264,
+        "mean": 0.9788157939910889,
+        "p50": 1.0,
+        "p90": 1.0,
+        "p99": 1.0,
+        "max": 1.0
+      },
+      "outside_available_pair_support_count": 0,
+      "unsupported_identity_exact": true,
+      "sentinel_semantics": "innovation0 / multiplier1 when unsupported are not measured normal agreement"
+    },
+    "all_source_arrays_bitwise_unchanged": true,
+    "source_array_sha256": {
+      "aligned_raw_spec_rgb": "d017e70cc9291cad3a281f107f31c85b68001bffbe35aae9114ab75d61b1324b",
+      "aligned_selected_spec_rgb_xor": "59c4eb64398c329fc42948633c0e9a4d9101f76e5b6217a4552f2881f034b74c",
+      "aligned_equal_diffuse_rgb": "0b630124d32d4ee063defcce170b61e1f29aab99921fea3d324578b88ae8f357",
+      "common_mask": "5216f5fd5161fc4874bdde3b980454a1249b52f9d11140d731f47af582a00446",
+      "original_normal_roughness_u32": "b89542830fa3ddcbce7c2cf46789d3e3ad42877a64c0044773992b73520a5675",
+      "original_depth_f32": "ee89a6c010fbf67377ee2d57e1fa88fd6894c96c04c08a760e2b661885aa1428",
+      "original_motion_rgba_f16": "b8c37929647b5271d602bf66d844e09ce5ee68827eba94732ab9203cfbd4c93e",
+      "aligned_original_eligibility": "43e51ef5cfea4704f8c481f862ee3e277eee52c63f5e9f585e2ee3df2b674ea7",
+      "aligned_prior_glass_mask": "0d8f9068cea21eea887528209f4743f69c75addc7409cd9a3af3efe1353be643",
+      "alignment_valid": "e92c2d013ab2a6937aec69aa0490646afc7ccea6ec0e64cf3ebf911d35981b0d",
+      "camera_view_words_u32": "cf45db577724880a50a8c33469a14f36f2f9b7c1dcb1ad1e9497132c7f661101",
+      "camera_projection_words_u32": "89e286d9fac45ab708c219d0d70a3e55b96cad5cce776119d412245f01e36a15"
+    }
+  },
+  "other_fixture_inventory": [
+    {
+      "path": "portable/anchor/fixtures/combined/22f9ca14.npz",
+      "sha256": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+      "bytes": 927216,
+      "arrays": {
+        "stats": {
+          "shape": [
+            35,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            35,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            35,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            35,
+            64,
+            64
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            35
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            35
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            35
+          ],
+          "dtype": "float64"
+        },
+        "counters": {
+          "shape": [
+            35,
+            4
+          ],
+          "dtype": "uint32"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/combined/2405579e.npz",
+      "sha256": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+      "bytes": 532809,
+      "arrays": {
+        "stats": {
+          "shape": [
+            53,
+            105,
+            16,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            53,
+            105,
+            16,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            53,
+            105,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            53,
+            105,
+            16
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            53
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            53
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            53
+          ],
+          "dtype": "float64"
+        },
+        "counters": {
+          "shape": [
+            53,
+            4
+          ],
+          "dtype": "uint32"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/combined/87ee1fba.npz",
+      "sha256": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+      "bytes": 1103676,
+      "arrays": {
+        "stats": {
+          "shape": [
+            45,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            45,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            45,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            45,
+            64,
+            64
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            45
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            45
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            45
+          ],
+          "dtype": "float64"
+        },
+        "counters": {
+          "shape": [
+            45,
+            4
+          ],
+          "dtype": "uint32"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/22f9ca14.npz",
+      "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+      "bytes": 78999,
+      "arrays": {
+        "stats": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            3
+          ],
+          "dtype": "float64"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            3,
+            3
+          ],
+          "dtype": "float64"
+        },
+        "valid_count": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/2405579e.npz",
+      "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+      "bytes": 11221,
+      "arrays": {
+        "stats": {
+          "shape": [
+            1,
+            105,
+            16,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            1,
+            105,
+            16,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            1,
+            105,
+            16
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            1,
+            105,
+            16
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            1
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            1
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            1
+          ],
+          "dtype": "float64"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            1,
+            3
+          ],
+          "dtype": "float64"
+        },
+        "valid_count": {
+          "shape": [
+            1
+          ],
+          "dtype": "int32"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/87ee1fba.npz",
+      "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+      "bytes": 73746,
+      "arrays": {
+        "stats": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "recalled": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "gain": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "float16"
+        },
+        "fixed_mask": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "bool"
+        },
+        "frames": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "k": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        },
+        "frame_ratio": {
+          "shape": [
+            3
+          ],
+          "dtype": "float64"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            3,
+            3
+          ],
+          "dtype": "float64"
+        },
+        "valid_count": {
+          "shape": [
+            3
+          ],
+          "dtype": "int32"
+        }
+      }
+    },
+    {
+      "path": "portable/colour/fixtures/soft2_gpu_87ee63.npz",
+      "sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+      "bytes": 9101728,
+      "arrays": {
+        "input_rgb": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "rr_rgb": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "depth": {
+          "shape": [
+            512,
+            512
+          ],
+          "dtype": "float32"
+        },
+        "normals_u32": {
+          "shape": [
+            512,
+            512
+          ],
+          "dtype": "uint32"
+        },
+        "normals_oct": {
+          "shape": [
+            512,
+            512,
+            2
+          ],
+          "dtype": "float64"
+        },
+        "motion_uv_original": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "motion_uv_roi": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "motion_px": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "prev_history": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "expected_bilinear": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "expected_soft2": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "expected_history": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "expected_gain": {
+          "shape": [
+            64,
+            64,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "expected_stats": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "float32"
+        },
+        "expected_packed_normal": {
+          "shape": [
+            64,
+            64
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "fixtures/glass/glass_crop.npz",
+      "sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+      "bytes": 19310928,
+      "arrays": {
+        "aligned_raw_spec_rgb": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "aligned_selected_spec_rgb_xor": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "uint32"
+        },
+        "aligned_equal_diffuse_rgb": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "float32"
+        },
+        "common_mask": {
+          "shape": [
+            160,
+            192
+          ],
+          "dtype": "bool"
+        },
+        "original_normal_roughness_u32": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "uint32"
+        },
+        "original_depth_f32": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "float32"
+        },
+        "original_motion_rgba_f16": {
+          "shape": [
+            18,
+            160,
+            192,
+            4
+          ],
+          "dtype": "float16"
+        },
+        "aligned_original_eligibility": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "bool"
+        },
+        "aligned_prior_glass_mask": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "bool"
+        },
+        "alignment_valid": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "bool"
+        },
+        "camera_view_words_u32": {
+          "shape": [
+            18,
+            16
+          ],
+          "dtype": "uint32"
+        },
+        "camera_projection_words_u32": {
+          "shape": [
+            18,
+            16
+          ],
+          "dtype": "uint32"
+        }
+      }
+    }
+  ],
+  "missing_observables": [
+    "sample-level coverage/layer identities",
+    "unclamped raw view depth and validity byte",
+    "albedo/material source witnesses",
+    "frame timestamps",
+    "same-pose converged reference",
+    "per-layer motion",
+    "unmodified original pre-G3 motion for sentinel comparison",
+    "final game display/RR rerun"
+  ]
+}

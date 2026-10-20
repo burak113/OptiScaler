@@ -1,0 +1,50 @@
+{
+  "executor": "/root/skeptic",
+  "gpu_executed": false,
+  "source_sha256": "65e89ff693f8ba1ba05b0a5e41eebf2b4f8821cda5d1b32147f9c1527dc8aa0a",
+  "runs": [
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.2761299659996439,
+      "stdout": "{\n  \"negative_controls_rejected\": true,\n  \"noise_only_mutant_falsified\": true,\n  \"all_region_ratios\": [\n    {\n      \"detail_transfer\": -0.08193216362616097,\n      \"grain_rms\": 0.7206561648593004,\n      \"flicker_rms\": 0.7189862389177898,\n      \"sparkle_p995\": 0.651112548812518,\n      \"edge_error\": 11.74014282936216\n    },\n    {\n      \"detail_transfer\": -0.08128791959363554,\n      \"grain_rms\": 0.7231429130720836,\n      \"flicker_rms\": 0.726382542501741,\n      \"sparkle_p995\": 0.6281237886725037,\n      \"edge_error\": 11.809861826381333\n    },\n    {\n      \"detail_transfer\": -0.08190247462401211,\n      \"grain_rms\": 0.7110180311318383,\n      \"flicker_rms\": 0.7173310175076042,\n      \"sparkle_p995\": 0.617892239099493,\n      \"edge_error\": 11.783722443479078\n    }\n  ]\n}\n",
+      "stderr": "",
+      "expected_exit_code": 0
+    },
+    {
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/07-foliage-guides/tests",
+        "-p",
+        "test_review_calibration.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.2496203480004624,
+      "stdout": "",
+      "stderr": "test_fixed_denominators (test_review_calibration.TestBlindControl.test_fixed_denominators) ... ok\ntest_negative_control_and_noise_only_mutation (test_review_calibration.TestBlindControl.test_negative_control_and_noise_only_mutation) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.096s\n\nOK\n",
+      "expected_exit_code": 0
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py",
+        "--mutant-ignore-detail",
+        "--output",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_mutant_result.json"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 0.23210723400006827,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py\", line 198, in <module>\n    main()\n  File \"research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py\", line 190, in main\n    assert not any(r[\"noise_only_scorer_mutant_accepted\"] for r in result[\"cases\"]), \"MUTANT CAUGHT: noise-only scoring accepts destroyed facade detail\"\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: MUTANT CAUGHT: noise-only scoring accepts destroyed facade detail\n",
+      "expected_exit_code": 1
+    }
+  ]
+}

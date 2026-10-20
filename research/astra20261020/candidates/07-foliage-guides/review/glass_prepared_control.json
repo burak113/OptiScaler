@@ -1,0 +1,91 @@
+{
+  "executor": "/root/skeptic",
+  "gpu_executed": false,
+  "stage": "Captured prepared-guide CPU observation; no image reconstruction or filtering",
+  "source_archive_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+  "frames": [
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63
+  ],
+  "crop_origin_render_xy": [
+    546,
+    347
+  ],
+  "extent_wh": [
+    192,
+    160
+  ],
+  "render_extent_wh": [
+    1505,
+    847
+  ],
+  "guide_authority": "unwarped input_normal_roughness provider capture; pre-Flat original recovery guide absent here",
+  "depth_admission": "positive bridge linear-depth numerical comparison only; raw validity/sanitization class absent",
+  "mask": {
+    "coordinate_space": "unwarped source crop",
+    "semantic_glass_mask": false,
+    "definition": "6-pixel rectangular halo excluded; original finite positive depth",
+    "count": 479520,
+    "per_frame_count": [
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640,
+      26640
+    ],
+    "sha256": "19261673fdd553bef472a49a0bb0bec3ea649c8f50df7d5df0285a4591535c19"
+  },
+  "aligned_mask_used_for_unwarped_guides": false,
+  "all_source_arrays_bitwise_unchanged": true,
+  "source_array_sha256": {
+    "aligned_raw_spec_rgb": "d017e70cc9291cad3a281f107f31c85b68001bffbe35aae9114ab75d61b1324b",
+    "aligned_selected_spec_rgb_xor": "59c4eb64398c329fc42948633c0e9a4d9101f76e5b6217a4552f2881f034b74c",
+    "aligned_equal_diffuse_rgb": "0b630124d32d4ee063defcce170b61e1f29aab99921fea3d324578b88ae8f357",
+    "common_mask": "5216f5fd5161fc4874bdde3b980454a1249b52f9d11140d731f47af582a00446",
+    "original_normal_roughness_u32": "b89542830fa3ddcbce7c2cf46789d3e3ad42877a64c0044773992b73520a5675",
+    "original_depth_f32": "ee89a6c010fbf67377ee2d57e1fa88fd6894c96c04c08a760e2b661885aa1428",
+    "original_motion_rgba_f16": "b8c37929647b5271d602bf66d844e09ce5ee68827eba94732ab9203cfbd4c93e",
+    "aligned_original_eligibility": "43e51ef5cfea4704f8c481f862ee3e277eee52c63f5e9f585e2ee3df2b674ea7",
+    "aligned_prior_glass_mask": "0d8f9068cea21eea887528209f4743f69c75addc7409cd9a3af3efe1353be643",
+    "alignment_valid": "e92c2d013ab2a6937aec69aa0490646afc7ccea6ec0e64cf3ebf911d35981b0d",
+    "camera_view_words_u32": "cf45db577724880a50a8c33469a14f36f2f9b7c1dcb1ad1e9497132c7f661101",
+    "camera_projection_words_u32": "89e286d9fac45ab708c219d0d70a3e55b96cad5cce776119d412245f01e36a15"
+  },
+  "temporal_comparable_fraction_on_fixed_core": 0.9444444444444444,
+  "first_frame_comparable_count": 0,
+  "unsupported_identity_exact": true,
+  "mean_angular_dispersion_on_fixed_core": 0.012217569164931774,
+  "mean_experimental_multiplier_on_fixed_core": 0.9827474355697632,
+  "captured_glass_output_quality_improvement": null,
+  "limitation": "Aligned RGB/masks and unwarped prepared guides are distinct grids; this control does not validate the proposed original-guide adapter or glass history quality",
+  "elapsed_seconds": 0.44244657199851645
+}

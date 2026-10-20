@@ -1,0 +1,29 @@
+{
+  "schema": "fsrd.job07.shader_build_request.v1",
+  "source": "FoliageGuideObservation.hlsl",
+  "source_sha256": "1283813131d32072d0d5ae89c5dc359974f332a041c0156a7853da5189c67a68",
+  "compiler": "DXC",
+  "compiler_version": null,
+  "profile": "cs_6_2",
+  "entry_point": "CSMain",
+  "required_flags": [
+    "-HV",
+    "2021",
+    "-O3",
+    "-Gis"
+  ],
+  "command_from_adapter_directory": "dxc -T cs_6_2 -E CSMain -HV 2021 -O3 -Gis -Fo FoliageGuideObservation.cso FoliageGuideObservation.hlsl",
+  "status": "pending_local_compilation",
+  "compiled_bytecode": null,
+  "compiled_bytecode_sha256": null,
+  "dxil_validation": null,
+  "root_signature_reflection": null,
+  "gpu_executed": false,
+  "native16_enabled": false,
+  "additional_includes": [],
+  "notes": [
+    "No generated header or pre-existing CSO is supplied.",
+    "The C++ layout header can be compiled independently; this does not compile HLSL or certify Windows/native RR integration.",
+    "Expected root constants16 DWORDs, SRV table5, UAV table2, threads8x8x1; verify actual DXIL reflection before integration."
+  ]
+}
