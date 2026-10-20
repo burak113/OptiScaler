@@ -42,7 +42,9 @@ namespace PostFlickMath
     // old on a static scene, window blotch p90 +7 %, 18-37 % of pixels above 25 % of the frame level). Clamping the
     // applied band difference to this fraction of the current wide level removes that harm (blotch p90 +7 % -> +0 %,
     // in-strip +9 % -> -5 %, applied energy -48 %) at ~2 points of the 22f9 benefit (SA20 measured 0.25; the milder
-    // knee is 0.35/0.40). 0 disables the clamp, >= 1 restores the unclamped behaviour.
+    // knee is 0.35/0.40). The value is the fraction of the wide level the correction may move; 0 scales every
+    // correction to nothing (the pass becomes an identity), and a value of 1.0 or more is still a one-level clamp,
+    // not the unclamped pass (SA21 measured 1.12 at 1.0 against 1.42 with the clamp removed).
     inline constexpr float kBandDeltaClamp = 0.25f;
 
     struct KeyState

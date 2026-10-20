@@ -617,6 +617,10 @@ void postFlickChecks(Host& host)
         need(best > 0.06f, "post-flick: the recalled band shows up in the output");
         need(best > 0.5f * clampedPeak && best < 1.5f * clampedPeak,
             "post-flick: the band-difference clamp bounds the recalled band to the measured ceiling");
+        // ...and a bound that does not move with the constant it tests (SA21: deriving the ceiling from
+        // kBandDeltaClamp makes the check pass for any value of it). Shipped 0.289 passes; 1.0 gives 1.157 and a
+        // removed clamp gives 1.422, so both fail here.
+        need(best < 0.45f, "post-flick: the clamped correction stays under an absolute ceiling");
         need(std::abs(float(bestX) - expectedX) <= 3.0f && std::abs(float(bestY) - expectedY) <= 3.0f,
             "post-flick: the recalled spike lands at the reprojected pixel");
         need(std::abs(float(bestX) - spikeFullX) > 5.0f, "post-flick: the recall is reprojected, not sampled in place");
@@ -625,7 +629,7 @@ void postFlickChecks(Host& host)
         PostFlickMath::Outputs unclamped;
         PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(moved), descForm(projection), descForm(identity), unclamped);
         need(!unclamped.Refresh, "post-flick: the unclamped control keeps the keyframe it was given");
-        unclamped.Apply[34] = 1.0f;
+        unclamped.Apply[34] = 100.0f;   // effectively no clamp: the constant is the fraction of the level
         frame(unclamped);
         auto unclampedReadback = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         host.submit();
@@ -642,8 +646,8 @@ void postFlickChecks(Host& host)
                 unclampedPeak = std::max(unclampedPeak, deviation);
             }
         std::cout << "post-flick band clamp: peak " << best << " clamped, " << unclampedPeak
-                  << " unclamped (ceiling ~" << clampedPeak << ")" << std::endl;
-        need(unclampedPeak > 1.0f, "post-flick: with the clamp off the same spike is not bounded");
+                  << " with the clamp effectively off (ceiling ~" << clampedPeak << ")" << std::endl;
+        need(unclampedPeak > 1.0f, "post-flick: with the clamp effectively off the same spike is not bounded");
         // C2) the depth tolerance has power: a keyframe depth 2 % off must be rejected at the shipped 1 % and
         // accepted at the old 3 %, so the 3 % -> 1 % change is visible in a test rather than only in the numbers
         // (SA14 measured that the fixture had no power over the tolerance at all before this).
