@@ -18,18 +18,27 @@ RWStructuredBuffer<uint> Check:register(u0,space1); SamplerState Samp:register(s
 )";
 
 struct NativeMaterialTitle {
- Title& title; Host& h; ComPtr<ID3D12Resource> base,params,originalNormal,check;
+ Title& title; Host& h; bool placed=false;
+ std::vector<ComPtr<ID3D12Heap>> allocations; // Outlive the placed resources.
+ ComPtr<ID3D12Resource> base,params,originalNormal,check;
  ComPtr<ID3D12RootSignature> root; ComPtr<ID3D12PipelineState> pso;
  ComPtr<ID3D12DescriptorHeap> heap;
  std::vector<uint32_t> baseWords,normalWords;std::vector<uint8_t> parameterBytes;
  UINT lastParam=0,dispatchCount=0;
  ~NativeMaterialTitle(){titleTextures.erase(base.Get());titleTextures.erase(params.Get());titleTextures.erase(originalNormal.Get());}
- ComPtr<ID3D12Resource> texture(DXGI_FORMAT format,bool uav){
+ ComPtr<ID3D12Resource> texture(DXGI_FORMAT format,bool uav,D3D12_HEAP_FLAGS extraFlags=D3D12_HEAP_FLAG_NONE){
   D3D12_RESOURCE_DESC d{};d.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;d.Width=title.width;d.Height=title.height;
   d.DepthOrArraySize=d.MipLevels=d.SampleDesc.Count=1;d.Format=format;d.Flags=uav?D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS:D3D12_RESOURCE_FLAG_NONE;
   D3D12_HEAP_PROPERTIES hp{};hp.Type=D3D12_HEAP_TYPE_DEFAULT;ComPtr<ID3D12Resource> r;
-  hr(h.device->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&r)));
-  titleTextures.insert(r.Get());FrameSurvey::ResourceCreated(r.Get(),D3D12_RESOURCE_STATE_COPY_DEST);return r;
+  ID3D12Heap* allocation=nullptr;
+  if(placed){
+   const auto info=h.device->GetResourceAllocationInfo(0,1,&d);D3D12_HEAP_DESC hd{};
+   hd.SizeInBytes=info.SizeInBytes;hd.Alignment=info.Alignment;hd.Properties=hp;hd.Flags=D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES|extraFlags;
+   ComPtr<ID3D12Heap> owned;hr(h.device->CreateHeap(&hd,IID_PPV_ARGS(&owned)));allocation=owned.Get();allocations.push_back(owned);
+   hr(h.device->CreatePlacedResource(allocation,0,&d,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&r)));
+   D3D12_RESOURCE_BARRIER activate{};activate.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;activate.Aliasing={nullptr,r.Get()};h.list->ResourceBarrier(1,&activate);
+  }else hr(h.device->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&r)));
+  titleTextures.insert(r.Get());FrameSurvey::ResourceCreated(r.Get(),D3D12_RESOURCE_STATE_COPY_DEST,allocation);return r;
  }
  void upload(ID3D12Resource* r,const void* values){
   const auto d=r->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 bytes=0;h.device->GetCopyableFootprints(&d,0,1,0,&fp,nullptr,nullptr,&bytes);
@@ -40,7 +49,7 @@ struct NativeMaterialTitle {
  }
  void srv(UINT slot,ID3D12Resource* r){D3D12_SHADER_RESOURCE_VIEW_DESC d{};d.Format=r->GetDesc().Format;d.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;d.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;d.Texture2D.MipLevels=1;
   D3D12_CPU_DESCRIPTOR_HANDLE at{heap->GetCPUDescriptorHandleForHeapStart().ptr+UINT64(slot)*title.increment};h.device->CreateShaderResourceView(r,&d,at);FrameSurvey::View(r,at,&d);}
- NativeMaterialTitle(Title& t):title(t),h(t.h){
+ NativeMaterialTitle(Title& t,bool usePlaced=false):title(t),h(t.h),placed(usePlaced){
   base=texture(DXGI_FORMAT_R10G10B10A2_UNORM,false);params=texture(DXGI_FORMAT_R8G8B8A8_UNORM,false);
   originalNormal=title.tex[2];title.tex[2]=texture(DXGI_FORMAT_R10G10B10A2_UNORM,true);title.views();
   const size_t pixels=size_t(title.width)*title.height;baseWords.resize(pixels);normalWords.resize(pixels);parameterBytes.resize(pixels*4);
@@ -68,8 +77,9 @@ struct NativeMaterialTitle {
   hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso)));FrameSurvey::PipelineCreated(pso.Get(),pd);NrdBridge::RegisterPipelineRoleForTesting(pso.Get(),NrdBridge::Role::MaterialGuide,true);
  }
  void start(){auto zero=h.upload(0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);h.list->CopyBufferRegion(check.Get(),0,zero.Get(),0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.uploads.push_back(zero);dispatchCount=0;}
- void dispatch(bool known,bool pixelOnly=false,bool badProfile=false){
+ void dispatch(bool known,bool pixelOnly=false,bool badProfile=false,ID3D12Resource* aliasAfter=nullptr){
   if(known)for(auto* r:{base.Get(),params.Get()}){h.barrier(r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_SOURCE);h.barrier(r,D3D12_RESOURCE_STATE_COPY_SOURCE,pixelOnly&&r==base.Get()?D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);}
+  if(aliasAfter){D3D12_RESOURCE_BARRIER alias{};alias.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;alias.Aliasing={nullptr,aliasAfter};h.list->ResourceBarrier(1,&alias);}
   h.barrier(title.tex[2].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
   h.list->SetComputeRootSignature(root.Get());ID3D12DescriptorHeap* heaps[]={heap.Get(),title.sampler.Get()};h.list->SetDescriptorHeaps(2,heaps);
   const UINT first[]={11,22,30},dims[]={title.width,title.height};h.list->SetComputeRoot32BitConstants(0,3,first,0);h.list->SetComputeRoot32BitConstant(0,40,5);h.list->SetComputeRoot32BitConstant(0,33,2);

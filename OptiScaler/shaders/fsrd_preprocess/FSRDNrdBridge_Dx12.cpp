@@ -3493,7 +3493,7 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
                 {
                     owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
                     // Existing lists must see every packet, including wildcard aliases.
-                    found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
+                    found->second.materialStates.Observe(count,barriers,owner->cancellationSerial,&FrameSurvey::ResourcesOnDistinctPrivateHeaps);
                 }
                 for(const auto& stage:found->second.native)
                     if(stage && !stage->committed && !stage->invalidated)stage->targetStates.Observe(count,barriers,stage->serial);
@@ -3517,7 +3517,7 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
         if (ListLive(found->second))
         {
             owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
-            found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
+            found->second.materialStates.Observe(count,barriers,owner->cancellationSerial,&FrameSurvey::ResourcesOnDistinctPrivateHeaps);
         }
     } catch (...) {}
 }

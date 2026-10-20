@@ -18,7 +18,8 @@ CASES = [
     "diagnostics", "unknown", "whole", "subresource-zero", "other-subresource", "pixel-only",
     "common", "read-combinations", "writable", "one-target", "serial",
     "reset-early", "split-match", "split-unpaired", "split-mismatch",
-    "split-serial", "alias-endpoints", "alias-wildcard", "uav", "other-resource",
+    "split-serial", "alias-endpoints", "alias-wildcard", "alias-disjoint", "alias-disjoint-no-state",
+    "alias-disjoint-negative", "uav", "other-resource",
     "same-selection", "changed-selection", "birth-live", "birth-invalid",
     "ping-pong-two", "ping-pong-four", "ring-eviction", "allocation-free", "duplicate-target",
     "legacy-generation", "legacy-zero-generation",
@@ -94,10 +95,10 @@ void observe(Witness& w,const Pair& p,uint64_t serial=1,
 void select(Witness& w,const Pair& p) { w.Select(p.base,p.params); }
 void prove(Witness& w,const Pair& p,uint64_t serial=1)
 { select(w,p); observe(w,p,serial); need(w.Readable(serial),"selected pair has fresh native transition evidence"); }
-void alias(Witness& w,ID3D12Resource* before,ID3D12Resource* after,uint64_t serial=1)
+void alias(Witness& w,ID3D12Resource* before,ID3D12Resource* after,uint64_t serial=1,Witness::DisjointHeaps proof=nullptr)
 {
     D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
-    b.Aliasing={before,after};w.Observe(1,&b,serial);
+    b.Aliasing={before,after};w.Observe(1,&b,serial,proof);
 }
 bool metadata(void*,const Token&) noexcept { return true; }
 Token birth(NrdBridgeBirth::Registry& registry,ID3D12Resource* resource,
@@ -110,7 +111,11 @@ Token birth(NrdBridgeBirth::Registry& registry,ID3D12Resource* resource,
 // Only startup/receiver/retirement facades below are explicit CPU adapters.
 // The extracted production OnResourceBarriers body and actual witness/cache run
 // unchanged except one counted Capture facade; no NativeReady/GUID/COM claim.
-namespace FrameSurvey { bool Internal() noexcept { return false; } }
+namespace FrameSurvey {
+ bool Internal() noexcept { return false; }
+ // CPU gate adapter: real heap metadata is exercised by material_native on D3D12.
+ bool ResourcesOnDistinctPrivateHeaps(ID3D12Resource*,const Token&,uint64_t,ID3D12Resource*) noexcept { return false; }
+}
 namespace BarrierGateFixture
 {
 using NrdBridge::NativeMaterialStateWitness;
@@ -332,6 +337,32 @@ void run(const std::string& mode)
         need(!w.Readable(1),"null alias before is conservative wildcard");
         observe(w,p);alias(w,pair(10).base.resource,nullptr);
         need(!w.Readable(1),"null alias after is conservative wildcard");
+    }
+    else if(mode=="alias-disjoint" || mode=="alias-disjoint-no-state" || mode=="alias-disjoint-negative")
+    {
+        const auto yes=+[](ID3D12Resource*,const Token&,uint64_t,ID3D12Resource*) noexcept {return true;};
+        const auto no=+[](ID3D12Resource*,const Token&,uint64_t,ID3D12Resource*) noexcept {return false;};
+        select(w,p);
+        if(mode=="alias-disjoint-no-state"){
+            alias(w,nullptr,pair(10).base.resource,1,yes);
+            need(!w.Readable(1),"disjoint allocation never invents an unobserved state");
+        }else if(mode=="alias-disjoint"){
+            observe(w,p);alias(w,nullptr,pair(10).base.resource,1,yes);
+            need(w.Readable(1),"proved unrelated null-before activation preserves local evidence");
+            need(!w.Readable(2),"heap proof never carries state across recording serials");
+            observe(w,p,1,readState,D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+            alias(w,nullptr,pair(10).base.resource,1,yes);
+            need(!w.Readable(1),"disjoint alias does not finish a pending split transition");
+        }else{
+            observe(w,p);alias(w,nullptr,pair(10).base.resource,1,no);
+            need(!w.Readable(1),"missing or overlapping allocation proof still rejects");
+            observe(w,p);alias(w,nullptr,nullptr,1,yes);
+            need(!w.Readable(1),"global alias never bypasses invalidation");
+            observe(w,p);alias(w,nullptr,p.base.resource,1,yes);
+            need(!w.Readable(1),"direct target activation still invalidates");
+            observe(w,p);alias(w,p.base.resource,pair(10).base.resource,1,yes);
+            need(!w.Readable(1),"direct target deactivation still invalidates");
+        }
     }
     else if(mode=="uav")
     {

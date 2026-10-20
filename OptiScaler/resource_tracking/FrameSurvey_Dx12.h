@@ -271,6 +271,7 @@ struct PreparedResource
     uint64_t address = 0;
     D3D12_RESOURCE_STATES initial = D3D12_RESOURCE_STATE_COMMON;
     ID3D12Heap* heap = nullptr;
+    uint64_t privatePlacementHeap = 0; // Canonical IUnknown identity; zero means no disjointness proof.
     uint64_t offset = 0;
     bool initialKnown = false;
 };
@@ -286,7 +287,11 @@ struct PreparedRoot
     ID3D12RootSignature* object = nullptr;
     std::shared_ptr<void> layout; // Raw layout metadata only; never owns the native root.
 };
-bool PrepareResourceMetadata(ID3D12Resource*, PreparedResource&) noexcept;
+bool PrepareResourceMetadata(ID3D12Resource*, PreparedResource&, ID3D12Heap* placementHeap = nullptr) noexcept;
+// Bounded metadata-only lookup: exact live target birth/generation and two distinct,
+// non-shared DEFAULT placed heaps. No COM calls, state inference or catalog scan.
+bool ResourcesOnDistinctPrivateHeaps(ID3D12Resource*, const NrdBridgeBirth::Token&, uint64_t generation,
+                                     ID3D12Resource* activated) noexcept;
 bool PrepareHeapMetadata(ID3D12Device*, ID3D12DescriptorHeap*, PreparedHeap&) noexcept;
 bool PrepareRootMetadata(ID3D12RootSignature*, const void* bytes, size_t length, PreparedRoot&) noexcept;
 // POD publication requires a matching current Birth guard; an initializing creator token is permitted.

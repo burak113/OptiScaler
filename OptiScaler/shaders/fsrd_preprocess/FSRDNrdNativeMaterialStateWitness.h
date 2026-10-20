@@ -33,8 +33,9 @@ struct NativeMaterialStateWitness
             for (auto& target : pair.targets) target.Forget("recording_invalidated");
     }
 
+    using DisjointHeaps = bool (*)(ID3D12Resource*, const NrdBridgeBirth::Token&, uint64_t, ID3D12Resource*) noexcept;
     void Observe(UINT count, const D3D12_RESOURCE_BARRIER* barriers,
-                 uint64_t cancellationSerial) noexcept
+                 uint64_t cancellationSerial, DisjointHeaps disjointHeaps = nullptr) noexcept
     {
         if (count && !barriers) { Invalidate(); return; }
         for (UINT index = 0; index != count; ++index)
@@ -49,12 +50,18 @@ struct NativeMaterialStateWitness
                     if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
                     {
                         const auto& alias = barrier.Aliasing;
-                        // A null alias endpoint may stand for any placed resource;
-                        // with no heap scan available the only safe result is unknown.
+                        // Activation invalidates overlapping physical memory, not every
+                        // resource when Before is null. Preserve LOCAL state only with
+                        // exact live creation metadata proving distinct private heaps.
+                        // Unknown/global/shared/same-heap cases remain conservative.
                         if (!alias.pResourceBefore || !alias.pResourceAfter ||
-                            alias.pResourceBefore == target.resource ||
-                            alias.pResourceAfter == target.resource)
-                            target.Forget("alias_barrier");
+                            alias.pResourceBefore == target.resource || alias.pResourceAfter == target.resource)
+                        {
+                            const bool unrelatedActivation = !alias.pResourceBefore && alias.pResourceAfter &&
+                                alias.pResourceAfter != target.resource && target.Live() && disjointHeaps &&
+                                disjointHeaps(target.resource,target.birth,target.generation,alias.pResourceAfter);
+                            if (!unrelatedActivation) target.Forget("alias_barrier");
+                        }
                     }
                     else if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
                              barrier.Transition.pResource == target.resource)

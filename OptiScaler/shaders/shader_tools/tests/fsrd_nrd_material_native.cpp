@@ -10,19 +10,33 @@ int main(int argc,char** argv)try{
  AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());NativeDraw::Attach(h.list.Get());NrdBridge::SetNativeElisionContractForTesting(true);
  J rows=J::array();
  {
-  NativeFixture::NativeTitle title(h,false);NativeMaterialTitle writer(title);
+  NativeFixture::NativeTitle title(h,false);NativeMaterialTitle writer(title,true);
   NrdBridge::RRSettings settings;settings.nativeMaterialGuides=true;std::string error;
   need(NrdBridge::ApplyRRSettings(settings,false,error),"enable native material guides");
-  for(UINT frame=0;frame<6;++frame){
+  const auto& baseMetadata=FrameSurvey::gResources.at(writer.base.Get());
+  const auto disjoint=[&](ID3D12Resource* other){return FrameSurvey::ResourcesOnDistinctPrivateHeaps(
+      writer.base.Get(),baseMetadata.birth,baseMetadata.id,other);};
+  need(disjoint(title.tex[2].Get()),"actual non-shared placed heaps prove disjointness");
+  need(!disjoint(nullptr)&&!disjoint(writer.base.Get()),"null and same resource are not disjoint proofs");
+  need(!disjoint(writer.originalNormal.Get()),"committed or unobserved placement stays unknown");
+  need(!FrameSurvey::ResourcesOnDistinctPrivateHeaps(writer.base.Get(),baseMetadata.birth,baseMetadata.id+1,title.tex[2].Get()),"wrong generation fails closed");
+  need(!FrameSurvey::ResourcesOnDistinctPrivateHeaps(writer.base.Get(),FrameSurvey::gResources.at(writer.params.Get()).birth,baseMetadata.id,title.tex[2].Get()),"wrong native birth fails closed");
+  ComPtr<ID3D12Resource> overlap;const auto bd=writer.base->GetDesc();
+  hr(h.device->CreatePlacedResource(writer.allocations[0].Get(),0,&bd,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,nullptr,IID_PPV_ARGS(&overlap)));
+  NativeFixtureResourceCreated(overlap.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,writer.allocations[0].Get());
+  need(!disjoint(overlap.Get()),"different resource on the same heap never bypasses alias invalidation");
+  auto shared=writer.texture(DXGI_FORMAT_R10G10B10A2_UNORM,false,D3D12_HEAP_FLAG_SHARED);
+  need(!disjoint(shared.Get()),"shared heap cannot prove independent physical memory by pointer");
+  for(UINT frame=0;frame<8;++frame){
    if(frame==4||frame==5){settings.nativeMaterialGuides=frame==5;
     need(NrdBridge::ApplyRRSettings(settings,false,error),"native material OFF/ON toggle applies");}
-   writer.start();writer.dispatch(frame!=0&&frame!=3);
+   writer.start();writer.dispatch(frame!=0&&frame!=3,false,false,frame==2?title.tex[2].Get():frame==6?writer.base.Get():frame==7?shared.Get():nullptr);
    const auto status=NrdBridge::GetStatus();
    std::cout<<"writer frame="<<frame<<" attempts="<<status.nativeMaterialAttempts<<" snapshots="<<status.nativeMaterialSnapshots<<" unknown="<<status.nativeMaterialUnknownState<<" unsupported="<<status.nativeMaterialUnsupportedState<<" failures="<<status.nativeMaterialCaptureFailures<<std::endl;
    const bool captured=bool(NrdBridge::gService->lists.at(h.list.Get()).pendingMaterial.snapshot);
-   const bool expected=frame!=0&&frame!=3&&frame!=4;
+   const bool expected=frame==1||frame==2||frame==5;
    need(captured==expected,"only known enabled same-recording sources reach native material capture");
-   if(frame==3)need(status.nativeMaterialCaptureReason=="source_state_unknown",
+   if(frame==3||frame>=6)need(status.nativeMaterialCaptureReason=="source_state_unknown",
                    "missing local state has an explicit rejection reason");
    title.Begin(frame+1);title.A();title.ConsumerA();
    auto stage=NrdBridge::gService->lists.at(h.list.Get()).native[0];
@@ -52,6 +66,7 @@ int main(int argc,char** argv)try{
    rows.push_back({{"frame",frame},{"captured",captured},{"requested",settings.nativeMaterialGuides},
                    {"nonwhite_diffuse_components",nonwhite},{"capture_reason",status.nativeMaterialCaptureReason}});h.reset();
   }
+  titleTextures.erase(shared.Get());
   h.waitComplete();NrdBridge::Shutdown();auto recording=RecordedComputeLease::Capture(h.list.Get());RecordedComputeLease::Detach(recording);RecordedComputeLease::Poll();
  }
  NativeDraw::Detach();Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();

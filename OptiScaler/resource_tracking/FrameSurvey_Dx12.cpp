@@ -113,7 +113,7 @@ uint32_t gRenderWidth = 0, gRenderHeight = 0;
 Status gStatus;
 struct Resource
 {
-    uint64_t id = 0, heap = 0, offset = 0, va = 0;
+    uint64_t id = 0, heap = 0, offset = 0, va = 0, privatePlacementHeap = 0;
     ID3D12Resource* object = nullptr;
     D3D12_RESOURCE_DESC desc {};
     D3D12_RESOURCE_STATES initial = D3D12_RESOURCE_STATE_COMMON;
@@ -172,7 +172,7 @@ template<class Node,class... Args> std::shared_ptr<Node> MakeNativeNode(Args&&..
 struct alignas(64) NativeResourceNode
 {
     ID3D12Resource* object = nullptr;
-    uint64_t id = 0, epoch = 0, address = 0;
+    uint64_t id = 0, epoch = 0, address = 0, privatePlacementHeap = 0;
     D3D12_RESOURCE_DESC description {};
     NrdBridgeBirth::Token birth;
     std::shared_ptr<FrameSurveyMetadata::DescriptorHandles> handles;
@@ -665,7 +665,7 @@ void PublishNativeResource(Resource& resource)
     auto node = MakeNativeNode<NativeResourceNode>();
     node->object = resource.object; node->id = resource.id; node->epoch = epoch;
     node->address = resource.va; node->description = resource.desc; node->birth = resource.birth;
-    node->handles = resource.handles.Share();
+    node->handles = resource.handles.Share(); node->privatePlacementHeap = resource.privatePlacementHeap;
     if (gNativeResources.Insert(resource.object,node) != node) throw std::logic_error("Native resource publication raced another node");
     if (resource.desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER && resource.va)
         gNativeBuffers.Insert(resource.va,resource.desc.Width,resource.id,resource.object);
@@ -2375,7 +2375,7 @@ void SetPassHashes(const std::string& list) noexcept
 }
 bool Internal() noexcept { return gInternal; }
 std::mutex& SubmissionMutex() { return gSubmissionMutex; }
-bool PrepareResourceMetadata(ID3D12Resource* object, PreparedResource& out) noexcept
+bool PrepareResourceMetadata(ID3D12Resource* object, PreparedResource& out, ID3D12Heap* placementHeap) noexcept
 {
     out = {};
     if (!Tracking() || gInternal || !object || NrdBridgeBirth::InMetadataScope()) return false;
@@ -2383,9 +2383,35 @@ bool PrepareResourceMetadata(ID3D12Resource* object, PreparedResource& out) noex
     try
     {
         out.object = object; out.description = object->GetDesc();
+        if (placementHeap)
+        {
+            // Creation caller owns the heap. Query once here, outside all Birth,
+            // metadata and coordinator locks. Canonical identity avoids interface aliases.
+            const auto desc = placementHeap->GetDesc();
+            if (desc.Properties.Type == D3D12_HEAP_TYPE_DEFAULT &&
+                !(desc.Flags & (D3D12_HEAP_FLAG_SHARED | D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER)))
+            {
+                IUnknown* identity = nullptr;
+                if (SUCCEEDED(placementHeap->QueryInterface(IID_PPV_ARGS(&identity))) && identity)
+                {
+                    out.privatePlacementHeap = uint64_t(reinterpret_cast<uintptr_t>(identity));
+                    identity->Release();
+                }
+            }
+        }
         if (out.description.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) out.address = object->GetGPUVirtualAddress();
         return true;
     } catch (...) { out = {}; MetadataFailed("Resource metadata preparation failed"); return false; }
+}
+bool ResourcesOnDistinctPrivateHeaps(ID3D12Resource* target, const NrdBridgeBirth::Token& birth,
+                                     uint64_t generation, ID3D12Resource* activated) noexcept
+{
+    if (!NativeTracking() || !gMetadataHealthy.load(std::memory_order_acquire) ||
+        !target || !activated || target == activated || !birth) return false;
+    const auto a = NativeResource(target), b = NativeResource(activated);
+    return a && b && a->birth == birth && a->id == generation &&
+        a->privatePlacementHeap && b->privatePlacementHeap &&
+        a->privatePlacementHeap != b->privatePlacementHeap && NativeNodeCurrent(a) && NativeNodeCurrent(b);
 }
 bool PrepareHeapMetadata(ID3D12Device* device, ID3D12DescriptorHeap* object, PreparedHeap& out) noexcept
 {
@@ -2431,6 +2457,7 @@ bool PublishResourceMetadata(const PreparedResource& prepared, const NrdBridgeBi
         auto& resource = Register(prepared.object,&description);
         resource.birth = birth; resource.initial = prepared.initial; resource.initialKnown = prepared.initialKnown;
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(prepared.heap)); resource.offset = prepared.offset;
+        resource.privatePlacementHeap = prepared.privatePlacementHeap;
         PublishNativeResource(resource); return true;
     } catch (...) { MetadataFailed("Prepared resource publication failed"); return false; }
 }
@@ -2644,7 +2671,7 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
     if (NativeTracking())
     {
         PreparedResource prepared;
-        if (PrepareResourceMetadata(object,prepared))
+        if (PrepareResourceMetadata(object,prepared,heap))
         {
             prepared.initial = initial; prepared.initialKnown = true; prepared.heap = heap; prepared.offset = offset;
             const auto birth = NrdBridgeNativeBirth::Prepare(object);
@@ -2666,7 +2693,7 @@ void ResourceCreatedWithLayout(ID3D12Resource* object, D3D12_BARRIER_LAYOUT, ID3
     if (NativeTracking())
     {
         PreparedResource prepared;
-        if (PrepareResourceMetadata(object,prepared))
+        if (PrepareResourceMetadata(object,prepared,heap))
         {
             prepared.heap = heap; prepared.offset = offset;
             const auto birth = NrdBridgeNativeBirth::Prepare(object);
