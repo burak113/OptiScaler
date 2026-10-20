@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "<repo>\research\astra20261020\candidates\01-numerical-contract\mutants.py", line 40, in <module>
+    run(parser.parse_args().mutant)
+  File "<repo>\research\astra20261020\candidates\01-numerical-contract\mutants.py", line 17, in run
+    np.testing.assert_equal(value,np.float32(23))
+  File "C:\Users\burak\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\numpy\testing\_private\utils.py", line 374, in assert_equal
+    return assert_array_equal(actual, desired, err_msg, verbose,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\burak\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\numpy\testing\_private\utils.py", line 1054, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "C:\Users\burak\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\site-packages\numpy\testing\_private\utils.py", line 919, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError: 
+Arrays are not equal
+
+Mismatched elements: 1 / 1 (100%)
+Max absolute difference among violations: 15.362637
+Max relative difference among violations: 0.66794074
+ ACTUAL: array(38.362637, dtype=float32)
+ DESIRED: array(23., dtype=float32)

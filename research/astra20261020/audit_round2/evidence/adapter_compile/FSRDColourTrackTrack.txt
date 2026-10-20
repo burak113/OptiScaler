@@ -1,0 +1,4 @@
+<repo>\research\astra20261020\candidates\01-numerical-contract\adapter\FSRDColourTrackTrack.hlsl:10:9: warning: #pragma once in main file
+#pragma once
+        ^
+

@@ -1,0 +1,42 @@
+glass_unwarped_provider immutable BASE support {'core': 527904, 'available_pair': 498264, 'depth_edge': 0, 'normal_edge': 49698, 'high_motion': 0, 'stable_guide_pair': 459443}
+test_crop_clamp_mutant_is_killed (test_candidate_contract.CandidateContract.test_crop_clamp_mutant_is_killed) ... ok
+test_crop_origin_changes_previous_local_coordinate (test_candidate_contract.CandidateContract.test_crop_origin_changes_previous_local_coordinate) ... ok
+test_depth_delta_sign_and_material_equality (test_candidate_contract.CandidateContract.test_depth_delta_sign_and_material_equality) ... ok
+test_extreme_span_finite_and_predicted_depth_invalid (test_candidate_contract.CandidateContract.test_extreme_span_finite_and_predicted_depth_invalid) ... ok
+test_four_taps_and_invalid_data (test_candidate_contract.CandidateContract.test_four_taps_and_invalid_data) ... ok
+test_guide_only_identifiability_collision (test_candidate_contract.CandidateContract.test_guide_only_identifiability_collision) ... ok
+test_numpy_metadata_does_not_promote_transport_arithmetic (test_candidate_contract.CandidateContract.test_numpy_metadata_does_not_promote_transport_arithmetic) ... ok
+test_oct_cardinal_and_oblique_decode_and_codes (test_candidate_contract.CandidateContract.test_oct_cardinal_and_oblique_decode_and_codes) ... ok
+test_off_identity_and_input_bytes (test_candidate_contract.CandidateContract.test_off_identity_and_input_bytes) ... ok
+test_outside_crop_never_manufactures_history (test_candidate_contract.CandidateContract.test_outside_crop_never_manufactures_history) ... ok
+test_sanitized_depth_is_not_proven_physical_validity (test_candidate_contract.CandidateContract.test_sanitized_depth_is_not_proven_physical_validity) ... ok
+test_unknown_depth_reset_and_nonconsecutive_identity (test_candidate_contract.CandidateContract.test_unknown_depth_reset_and_nonconsecutive_identity) ... ok
+test_coverage_decomposition_and_alpha_preservation (test_candidate_contract.SyntheticContract.test_coverage_decomposition_and_alpha_preservation) ... ok
+test_exact_guide_is_real_sample_normal_before_quantization (test_candidate_contract.SyntheticContract.test_exact_guide_is_real_sample_normal_before_quantization) ... ok
+test_moderate_light_response_has_correct_raw_identity (test_candidate_contract.SyntheticContract.test_moderate_light_response_has_correct_raw_identity) ... ok
+test_noise_correlation_changes_only_lighting_family (test_candidate_contract.SyntheticContract.test_noise_correlation_changes_only_lighting_family) ... ok
+test_observation_intervention_keeps_lighting_rng_fixed (test_candidate_contract.SyntheticContract.test_observation_intervention_keeps_lighting_rng_fixed) ... ok
+test_rigid_texture_detail_rotation_is_equivalent (test_candidate_contract.SyntheticContract.test_rigid_texture_detail_rotation_is_equivalent) ... ok
+test_single_motion_cannot_transport_two_layers (test_candidate_contract.SyntheticContract.test_single_motion_cannot_transport_two_layers) ... ok
+test_actual_frozen_support_and_source_hashes (test_captured_diagnostics.CapturedContracts.test_actual_frozen_support_and_source_hashes) ... ok
+test_frozen_masks_detect_changed_denominator (test_captured_diagnostics.CapturedContracts.test_frozen_masks_detect_changed_denominator) ... ok
+test_glass_provider_geometry_is_separate_from_aligned_rgb (test_captured_diagnostics.CapturedContracts.test_glass_provider_geometry_is_separate_from_aligned_rgb) ... ok
+test_invalid_coordinates_are_not_clamped_or_wrapped (test_captured_diagnostics.CapturedContracts.test_invalid_coordinates_are_not_clamped_or_wrapped) ... ok
+test_material_or_depth_disagreement_not_called_stable (test_captured_diagnostics.CapturedContracts.test_material_or_depth_disagreement_not_called_stable) ... ok
+test_moving_crop_is_not_motion_and_wrong_scale_is_detected (test_captured_diagnostics.CapturedContracts.test_moving_crop_is_not_motion_and_wrong_scale_is_detected) ... ok
+test_source_oct_axes_and_material_roughness_are_separate (test_captured_diagnostics.CapturedContracts.test_source_oct_axes_and_material_roughness_are_separate) ... ok
+test_crop_origin_and_motion_b_sign (test_review_adversarial.TestIndependentGuideContract.test_crop_origin_and_motion_b_sign) ... ok
+test_enabled_api_and_all_input_words_unchanged (test_review_adversarial.TestIndependentGuideContract.test_enabled_api_and_all_input_words_unchanged) ... ok
+test_known_normals_and_category_bits (test_review_adversarial.TestIndependentGuideContract.test_known_normals_and_category_bits) ... ok
+test_negative_and_overflowed_predicted_depth_rejected (test_review_adversarial.TestIndependentGuideContract.test_negative_and_overflowed_predicted_depth_rejected) ... ok
+test_nonfinite_motion_and_missing_material_agreement (test_review_adversarial.TestIndependentGuideContract.test_nonfinite_motion_and_missing_material_agreement) ... ok
+test_unsupported_is_explicit_identity_not_positive_evidence (test_review_adversarial.TestIndependentGuideContract.test_unsupported_is_explicit_identity_not_positive_evidence) ... ok
+test_fixed_denominators (test_review_calibration.TestBlindControl.test_fixed_denominators) ... ok
+test_negative_control_and_noise_only_mutation (test_review_calibration.TestBlindControl.test_negative_control_and_noise_only_mutation) ... ok
+test_flat_truth_detail_is_unavailable (test_review_metrics.TestSymmetricDetailMetric.test_flat_truth_detail_is_unavailable) ... ok
+test_rotated_truth_identity_and_destroyed_detail (test_review_metrics.TestSymmetricDetailMetric.test_rotated_truth_identity_and_destroyed_detail) ... ok
+
+----------------------------------------------------------------------
+Ran 36 tests in 2.712s
+
+OK

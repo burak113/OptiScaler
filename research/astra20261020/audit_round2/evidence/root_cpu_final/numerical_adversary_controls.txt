@@ -1,0 +1,54 @@
+{
+  "implementation_owner": "independent_skeptic",
+  "executor": "calling local CPU process; see enclosing run record",
+  "evidence_kind": "synthetic CPU controls, no GPU execution",
+  "old_normal_packing": {
+    "population": 65536,
+    "bad_count": 59383,
+    "first_bad_codes": [
+      2049,
+      2051,
+      2053,
+      2055,
+      2057,
+      2059,
+      2061,
+      2063
+    ],
+    "max_code_error": 32
+  },
+  "new_11bit_payload_identity": true,
+  "missing_high_word": {
+    "count": 262145,
+    "increment": 1048576,
+    "exact": 274878955520,
+    "low": 1048576,
+    "high": 64,
+    "mutant_error": 274877906944
+  },
+  "premature_rounding": {
+    "terms": [
+      1,
+      0.00048828125,
+      0.00048828125,
+      0.00048828125
+    ],
+    "correct_final_store": 0.250244140625,
+    "wrong_per_add_store": 0.25
+  },
+  "nonidentifiability": {
+    "preimages": [
+      1.0,
+      1.00048828125
+    ],
+    "same_half_export": [
+      1.0,
+      1.0
+    ],
+    "valid_16_16_results": [
+      65536,
+      65568
+    ],
+    "exact_reconstruction_possible": false
+  }
+}

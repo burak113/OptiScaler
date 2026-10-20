@@ -1,0 +1,201 @@
+{
+  "schema": "astra-local-audit-cpu-v1",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.14",
+  "runner_sha256": "d3196130197b179b10d92f5be74de3535b2be2e99f9b22f647ed485e66269754",
+  "intake_files": 559,
+  "intake_unchanged_after_execution": true,
+  "commands": [
+    {
+      "name": "frozen_package",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\validate_package.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.9250197000219487,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "364d30ad8ebfbb0158811c3b8406141d06a4cde6ddf3b0839d81141c3aca8c03"
+    },
+    {
+      "name": "four_baselines",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\run_cpu.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 6.576147100015078,
+      "unittest_count": 7,
+      "passed": true,
+      "log_sha256": "f1e28bcc214a2951a9533e21e33294e21efd618cfc3bfe6d5749c7aca82dab50"
+    },
+    {
+      "name": "01-numerical-contract",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 14.875212299986742,
+      "unittest_count": 125,
+      "passed": true,
+      "log_sha256": "b6f12178fe2373f990d1607b5919da502d4f6ce6673d83dc7b9e5f13eaff8cc7"
+    },
+    {
+      "name": "02-anchor-estimator",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\02-anchor-estimator\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.4435782000073232,
+      "unittest_count": 14,
+      "passed": true,
+      "log_sha256": "2d12c88e38acda422754ec0af5b0f362dd4cf776918096c47bda133c38e1810c"
+    },
+    {
+      "name": "03-native-colour",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\03-native-colour\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.5317694999976084,
+      "unittest_count": 24,
+      "passed": true,
+      "log_sha256": "d2a7012ffab643d56221b0e7e6468f2a361cf4c035153ba3911fb22acc9778f7"
+    },
+    {
+      "name": "04-geometry-transport",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\04-geometry-transport\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.4967923000222072,
+      "unittest_count": 55,
+      "passed": true,
+      "log_sha256": "cc1c5f3ee56de03e0c2d8286e0aea599a394fe5f82a12c3d3a3f1cb4bf65499e"
+    },
+    {
+      "name": "05-glass-nzr",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.600456399959512,
+      "unittest_count": 35,
+      "passed": true,
+      "log_sha256": "c528398124d8c60c55684560784b4ecf983cadff6d08d50a0b33921834743118"
+    },
+    {
+      "name": "06-moving-bottle",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\06-moving-bottle\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.438281500013545,
+      "unittest_count": 41,
+      "passed": true,
+      "log_sha256": "77d09d663db783d3b9bdbe18df87143d0513dcba43260223125e982356a42b37"
+    },
+    {
+      "name": "07-foliage-guides",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\07-foliage-guides\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.1538502000039443,
+      "unittest_count": 36,
+      "passed": true,
+      "log_sha256": "5af0023e7b0c208c772aa3d1e9ab962cd9eb2cfde51bd448ef44b19d5c5d5ed9"
+    },
+    {
+      "name": "anchor_independent",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\02-anchor-estimator\\reviewer",
+        "-p",
+        "test_independent_audit.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.4352952999761328,
+      "unittest_count": 12,
+      "passed": true,
+      "log_sha256": "5adc7bf22398c96d05ecc181781e56fd06c3cfca09ae9355a6bd4d80a46afe4a"
+    },
+    {
+      "name": "numerical_verify_adapter",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\verify_adapter.py"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.16761589999077842,
+      "unittest_count": null,
+      "passed": false,
+      "log_sha256": "c3af18c9a9f06231a28b06560a654bd64e20e18e3d5673080786e65655cb08e4"
+    }
+  ],
+  "passed": false,
+  "quality_accepted": false,
+  "gpu_executed": false
+}

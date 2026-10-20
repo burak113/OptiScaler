@@ -1,0 +1,295 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "scope": "heldout synthetic CPU truth tests; no game truth, GPU execution, or native bridge execution",
+  "gpu_executed": false,
+  "runtime": {
+    "python": "3.12.14",
+    "numpy": "2.3.5"
+  },
+  "command": "python -B research/astra20261020/candidates/03-native-colour/review/run_review.py --quality-gate",
+  "source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+  "frozen_protocol_sha256": "33330f612290005613e979d2f9c31e745a1e3f937172a8c36666000fffd73446",
+  "holdout_seeds": [
+    104729,
+    130363,
+    155921
+  ],
+  "input_precision": "generated positive analytic RGB, RNE float16 input store; original words preserved thereafter",
+  "control_scope": "B4/soft2 frozen RGB CPU references applied per lobe behind identical original-word selection/authority gate; this is not production native integration",
+  "temporal_history": "candidate stateless; B4/soft2 fresh initial CPU histories, one unlooped sequence",
+  "correction_strength_caveat": "default controls have different achieved correction; all low-band correction fractions reported separately, no claim of equal-strength dominance",
+  "summary": {
+    "quality_pass": false,
+    "failed_gates": [
+      "primary_log_diffuse_true_step_response_below_0.90"
+    ],
+    "boundary": {
+      "static": {
+        "raw": {
+          "case_count": 640,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.0,
+          "interior_correction_fraction_min": 0.0
+        },
+        "B4": {
+          "case_count": 640,
+          "worst_contamination": 0.2966963411846755,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 73,
+            "phase": 1
+          },
+          "max_above_storage_envelope": 0.28890328582727964,
+          "interior_correction_fraction_median": 0.9192084706443728,
+          "interior_correction_fraction_min": 0.43397259663014864
+        },
+        "soft2": {
+          "case_count": 640,
+          "worst_contamination": 0.2393106291036889,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "depth",
+            "angle_degrees": 73,
+            "phase": 0
+          },
+          "max_above_storage_envelope": 0.2315973523709296,
+          "interior_correction_fraction_median": 0.9914203780231314,
+          "interior_correction_fraction_min": 0.9043391964262808
+        },
+        "log": {
+          "case_count": 640,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.906430358296882,
+          "interior_correction_fraction_min": 0.8973895604053023
+        },
+        "linear": {
+          "case_count": 640,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.8992475361946892,
+          "interior_correction_fraction_min": 0.8845586493567007
+        }
+      },
+      "thin": {
+        "raw": {
+          "case_count": 144,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "width_pixels": 1,
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.0,
+          "interior_correction_fraction_min": 0.0
+        },
+        "B4": {
+          "case_count": 144,
+          "worst_contamination": 0.042547657444639904,
+          "worst_case": {
+            "lobe": "specular",
+            "width_pixels": 3,
+            "angle_degrees": 73,
+            "phase": 2
+          },
+          "max_above_storage_envelope": 0.03478349451177481,
+          "interior_correction_fraction_median": 0.05820380819709242,
+          "interior_correction_fraction_min": 0.011928468812621662
+        },
+        "soft2": {
+          "case_count": 144,
+          "worst_contamination": 0.01864638374067884,
+          "worst_case": {
+            "lobe": "specular",
+            "width_pixels": 3,
+            "angle_degrees": 73,
+            "phase": 1
+          },
+          "max_above_storage_envelope": 0.011594498170591602,
+          "interior_correction_fraction_median": 0.031622460554562914,
+          "interior_correction_fraction_min": 0.012473177694280912
+        },
+        "log": {
+          "case_count": 144,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "width_pixels": 1,
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.7432695342594171,
+          "interior_correction_fraction_min": 0.5534212354084889
+        },
+        "linear": {
+          "case_count": 144,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "width_pixels": 1,
+            "angle_degrees": 0,
+            "phase": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.7290258313853502,
+          "interior_correction_fraction_min": 0.5302595140686087
+        }
+      },
+      "moving": {
+        "raw": {
+          "case_count": 128,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 27,
+            "frame": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.0,
+          "interior_correction_fraction_min": 0.0
+        },
+        "B4": {
+          "case_count": 128,
+          "worst_contamination": 0.5951000782005584,
+          "worst_case": {
+            "lobe": "specular",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 27,
+            "frame": 7
+          },
+          "max_above_storage_envelope": 0.5876401342003235,
+          "interior_correction_fraction_median": 0.7617407796953044,
+          "interior_correction_fraction_min": -0.835212827480974
+        },
+        "soft2": {
+          "case_count": 128,
+          "worst_contamination": 0.5940031686680849,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 27,
+            "frame": 6
+          },
+          "max_above_storage_envelope": 0.5861142365639118,
+          "interior_correction_fraction_median": 0.8030056860702571,
+          "interior_correction_fraction_min": 0.3373666227903398
+        },
+        "log": {
+          "case_count": 128,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 27,
+            "frame": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.906430358296882,
+          "interior_correction_fraction_min": 0.8973895604053023
+        },
+        "linear": {
+          "case_count": 128,
+          "worst_contamination": 0.0,
+          "worst_case": {
+            "lobe": "diffuse",
+            "pair": "red_blue",
+            "guide": "normal",
+            "angle_degrees": 27,
+            "frame": 0
+          },
+          "max_above_storage_envelope": -0.006916016452633587,
+          "interior_correction_fraction_median": 0.8992475361946892,
+          "interior_correction_fraction_min": 0.8845586493567007
+        }
+      }
+    },
+    "temporal": {
+      "raw": {
+        "sequence_count": 24,
+        "median_temporal_p90_over_B4": 0.777027249557191,
+        "worst_temporal_p90_over_B4": 1.050826979041562,
+        "median_low_band_bias_correction_fraction": 0.0,
+        "worst_chroma_RMSE": 0.10668101683651951,
+        "worst_sparkle_error_p999": 0.2121430762340334
+      },
+      "B4": {
+        "sequence_count": 24,
+        "median_temporal_p90_over_B4": 1.0,
+        "worst_temporal_p90_over_B4": 1.0,
+        "median_low_band_bias_correction_fraction": 0.9545729047417578,
+        "worst_chroma_RMSE": 0.036549707480353584,
+        "worst_sparkle_error_p999": 0.2775856036993807
+      },
+      "soft2": {
+        "sequence_count": 24,
+        "median_temporal_p90_over_B4": 0.7376396451379159,
+        "worst_temporal_p90_over_B4": 0.9628477552144149,
+        "median_low_band_bias_correction_fraction": 0.9555752888301359,
+        "worst_chroma_RMSE": 0.03030789715205171,
+        "worst_sparkle_error_p999": 0.2029572022870909
+      },
+      "log": {
+        "sequence_count": 24,
+        "median_temporal_p90_over_B4": 2.767157497505419,
+        "worst_temporal_p90_over_B4": 4.608882577422643,
+        "median_low_band_bias_correction_fraction": 0.6541677572040312,
+        "worst_chroma_RMSE": 0.11729860759962882,
+        "worst_sparkle_error_p999": 0.42160799000008264
+      },
+      "linear": {
+        "sequence_count": 24,
+        "median_temporal_p90_over_B4": 3.168292032937585,
+        "worst_temporal_p90_over_B4": 5.533803599317898,
+        "median_low_band_bias_correction_fraction": 0.769910852345002,
+        "worst_chroma_RMSE": 0.1362739467182249,
+        "worst_sparkle_error_p999": 0.6091253490344773
+      }
+    },
+    "recommendation": "keep_as_research"
+  },
+  "rendering": {
+    "rendered": false,
+    "reason": "matplotlib unavailable; arrays supplied"
+  },
+  "elapsed_seconds": 46.94370539998636,
+  "quality_gate_exit_code": 1,
+  "hashes": {
+    "boundary_results.json": "4bbf18a4e80ed8992d933ccc515b1fc03c200a9a0b51db35ad38044be9617ce5",
+    "temporal_results.json": "18f359c5743f723a6a53462d33b3c28e63c3bac499d632f21bf172631c0b7c5c",
+    "dynamics_results.json": "912929fbb6cdaa7667c3492741c03c4bf19de018910014d64f4e6b47b8ba42cf",
+    "representative_arrays.npz": "85d4957002cf741229a06e6640b688fc00fa374dfc2c82e83e0632850a918aaf"
+  }
+}
