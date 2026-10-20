@@ -1,0 +1,28 @@
+{
+  "executor": "independent skeptical_review agent",
+  "scope": "focused exact-gain/footprint aliasing regression after full-sweep discrepancy",
+  "test": "test_point_gain_alias_is_separate_from_exact_footprint_reconstruction",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python -W error -m unittest discover -s research/astra20261020/candidates/04-geometry-transport/tests -p test_adversarial_reconstruction.py -v",
+  "exit_code": 0,
+  "test_count": 14,
+  "tool_wall_time_seconds": 0.119887992,
+  "coarse_point_strip_bounds_open": [
+    11.5,
+    12.5
+  ],
+  "coarse_point_x": 12.0,
+  "extent": [
+    16,
+    16
+  ],
+  "observed_foreground_texels": 0,
+  "certified_uniform_background_cells": 4,
+  "point_gain_max_abs_error": 0.2,
+  "footprint_exact_gain_asserted_error_upper_bound": 1e-15,
+  "source_sha256": {
+    "tests/test_adversarial_reconstruction.py": "e4b1cd50de03c272e894acd4075d5943f70f17f3d0ec75f588699885cb58f928",
+    "reconstruction.py": "e05bf88489fa0bb67253d55e98d5c2943e72dddaf97b277d2d92e541c0444e50"
+  },
+  "gpu_executed": false,
+  "no_candidate_or_threshold_tuning": true
+}

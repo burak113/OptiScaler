@@ -1,0 +1,41 @@
+{
+  "scope": "CPU-generated GPU inputs and arithmetic oracle; NO GPU execution",
+  "source_shader": "adapter/SupportCertifiedApply.hlsl",
+  "entry": "CSMain",
+  "support": "exact local-gain synthetic intervention; not native estimator certificate",
+  "gpu_executed": false,
+  "files": [
+    {
+      "path": "apply_angle000_phase000.npz",
+      "sha256": "b9cfb047472ea5280a35b0c85e9020f7d9bf34c11469e1e55034e2dff8e1be0e",
+      "bytes": 16130,
+      "angle_degrees": 0,
+      "phase_pixels": 0.0
+    },
+    {
+      "path": "apply_angle000_phase325.npz",
+      "sha256": "3940d0c233caf590b2d610f0dbfe011de45fcfb0b8e5ad2d19523d63f78d58ca",
+      "bytes": 16307,
+      "angle_degrees": 0,
+      "phase_pixels": 3.25
+    },
+    {
+      "path": "apply_angle017_phase000.npz",
+      "sha256": "1d2af4e188f78b8c06b528f8983554ea4bcef43b0a80377da912b2a837cf4473",
+      "bytes": 16707,
+      "angle_degrees": 17,
+      "phase_pixels": 0.0
+    },
+    {
+      "path": "apply_angle017_phase325.npz",
+      "sha256": "78660e7a9cd253e1223a067bf366ece9ea08f8d84c8d3d14449fc577a6488e90",
+      "bytes": 16881,
+      "angle_degrees": 17,
+      "phase_pixels": 3.25
+    }
+  ],
+  "all_phases": false,
+  "scalar_tolerances_from_float32_cb": true,
+  "alpha": "legal finite FP16 values; raw word equality required locally",
+  "format": "NPZ arrays tightly packed C order; local harness must honor D3D row pitch separately"
+}

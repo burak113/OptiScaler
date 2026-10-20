@@ -1,0 +1,21 @@
+{
+  "reason": "Analytic centre point gain and discrete texel geometry have different observation footprints",
+  "candidate_changed": false,
+  "policy_thresholds_changed": false,
+  "observed_foreground_texels": 0,
+  "coarse_gain_one_cells": 6,
+  "certified_background_cells": 48,
+  "expected_cell_gain": 0.8,
+  "centre_gain_vs_texel_gain_max_error": 0.1875,
+  "previous_full_result_sha256": "6640b60c92cd036eaf0a47928873f55001a9c521756b4fb9d9b8e9df7f5fbf31",
+  "case": {
+    "extent": [
+      64,
+      48
+    ],
+    "angle": 0,
+    "phase": 4,
+    "kind": "one_pixel_foreground_strip",
+    "cell": 8
+  }
+}

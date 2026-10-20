@@ -1,0 +1,705 @@
+{
+  "scene_cases": 7680,
+  "variants": {
+    "bilinear": {
+      "all": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.15510620117187504,
+          "p50": 0.17499999999999993,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.061214145480831914,
+          "p50": 0.012483677898014748,
+          "p95": 0.19999999999999996,
+          "max": 0.20000000000000004
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.44720165427808795,
+          "p50": 0.23417741016280824,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.1761019678901625,
+          "p50": 0.0,
+          "p95": 0.6079691516709511,
+          "max": 1.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.5901981852913086,
+          "mean": 0.9720966374105035,
+          "p50": 0.9792405052624957,
+          "p95": 1.0,
+          "max": 1.0000000000000004
+        },
+        "gain_mae_all_observed": {
+          "min": 1.214306433183765e-17,
+          "mean": 0.007262116573768933,
+          "p50": 0.005906786820613918,
+          "p95": 0.015139055023923445,
+          "max": 0.07831447963800901
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.00012854235262635584,
+          "p50": 0.0,
+          "p95": 0.00011940298507462687,
+          "max": 0.020766773162939296
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.08131056315140349,
+          "p50": 0.0822765100859178,
+          "p95": 0.15221896325773257,
+          "max": 0.1744750841824123
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5125767953372594,
+          "p50": 0.5649109435848636,
+          "p95": 0.8499550763701708,
+          "max": 0.912018721791943
+        },
+        "pair_bilinear_supported_dose": {
+          "min": 0.0,
+          "mean": 0.9164223176565279,
+          "p50": 0.9715716480307807,
+          "p95": 0.9956317204301075,
+          "max": 1.0
+        },
+        "pair_bilinear_supported_spill_peak": {
+          "min": 0.0,
+          "mean": 0.14720294349807947,
+          "p50": 0.1745453352107706,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        }
+      },
+      "held_out": {
+        "spill_peak": {
+          "min": 0.05859375,
+          "mean": 0.17748955620659723,
+          "p50": 0.17578125,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        },
+        "spill_mean": {
+          "min": 0.0010869565217391294,
+          "mean": 0.06210813608463796,
+          "p50": 0.01268332066186409,
+          "p95": 0.183299412818471,
+          "max": 0.2
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.03331431831146606,
+          "mean": 0.4595522479476861,
+          "p50": 0.24537722876829926,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.17592911364592775,
+          "p50": 0.0,
+          "p95": 0.6111111111111112,
+          "max": 0.9476987447698745
+        },
+        "eligible_correction_dose": {
+          "min": 0.7833273695928754,
+          "mean": 0.9719446068679051,
+          "p50": 0.9776623301795246,
+          "p95": 0.994437986060419,
+          "max": 1.0000000000000002
+        },
+        "gain_mae_all_observed": {
+          "min": 0.0017384521089875865,
+          "mean": 0.007285044651255583,
+          "p50": 0.005924479166666677,
+          "p95": 0.014762443438914027,
+          "max": 0.04605013955342901
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.00015736604565001094,
+          "p50": 0.0,
+          "p95": 0.0002007303511249306,
+          "max": 0.020766773162939296
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.09331002937018039,
+          "p50": 0.09812181577634438,
+          "p95": 0.15390228170090836,
+          "max": 0.1744750841824123
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5068984039695557,
+          "p50": 0.5593376264949401,
+          "p95": 0.8480152714614564,
+          "max": 0.8851607749151189
+        },
+        "pair_bilinear_supported_dose": {
+          "min": 0.0,
+          "mean": 0.918179550848697,
+          "p50": 0.9731279097435522,
+          "p95": 0.9920269511510389,
+          "max": 1.0
+        },
+        "pair_bilinear_supported_spill_peak": {
+          "min": 0.0,
+          "mean": 0.1687871776122696,
+          "p50": 0.17500000000000004,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        }
+      },
+      "worst_spill": {
+        "width": 64,
+        "height": 48,
+        "cell": 4,
+        "kind": "two_surface_boundary",
+        "angle": 135,
+        "phase": 0.25,
+        "held_out": false,
+        "variant": "bilinear",
+        "protected_pixels": 1512,
+        "eligible_pixels": 1560,
+        "unknown_pixels": 0,
+        "spill_peak": 0.20000000000000007,
+        "spill_mean": 0.011197916666666665,
+        "occlusion_leakage_fraction": 0.1693121693121693,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.9918870192307696,
+        "gain_mae_all_observed": 0.0063354492187500085,
+        "eligible_identity_fraction": 0.0,
+        "matched_dose": 0.676923076923077,
+        "dose_attenuation": 0.6824598606482882,
+        "matched_spill_peak": 0.1364919721296577,
+        "pair_bilinear_supported_dose": 0.9918870192307696,
+        "pair_bilinear_supported_spill_peak": 0.20000000000000007
+      },
+      "zero_common_dose_cases": 428,
+      "zero_pairwise_dose_cases": 320
+    },
+    "hard_identity": {
+      "all": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.0,
+          "mean": 0.5125767953372594,
+          "p50": 0.5649109435848636,
+          "p95": 0.8499550763701708,
+          "max": 0.912018721791943
+        },
+        "gain_mae_all_observed": {
+          "min": 0.009672925837187272,
+          "mean": 0.070390442075954,
+          "p50": 0.06172909039707124,
+          "p95": 0.14479638009049772,
+          "max": 0.19999999999999996
+        },
+        "eligible_identity_fraction": {
+          "min": 0.08798127820805705,
+          "mean": 0.48733180281711935,
+          "p50": 0.43501763939075394,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5125767953372594,
+          "p50": 0.5649109435848636,
+          "p95": 0.8499550763701708,
+          "max": 0.912018721791943
+        },
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "held_out": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.0,
+          "mean": 0.5068984039695557,
+          "p50": 0.5593376264949401,
+          "p95": 0.8480152714614564,
+          "max": 0.8851607749151189
+        },
+        "gain_mae_all_observed": {
+          "min": 0.012213740458015265,
+          "mean": 0.07117522724987863,
+          "p50": 0.06203822365855017,
+          "p95": 0.14501685105400258,
+          "max": 0.19904306220095688
+        },
+        "eligible_identity_fraction": {
+          "min": 0.11483922508488116,
+          "mean": 0.4931015960304443,
+          "p50": 0.4406623735050598,
+          "p95": 0.9587611700806321,
+          "max": 1.0
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5068984039695557,
+          "p50": 0.5593376264949401,
+          "p95": 0.8480152714614564,
+          "max": 0.8851607749151189
+        },
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "worst_spill": {
+        "width": 64,
+        "height": 48,
+        "cell": 4,
+        "kind": "two_surface_boundary",
+        "angle": 0,
+        "phase": 0.0,
+        "held_out": false,
+        "variant": "hard_identity",
+        "protected_pixels": 1536,
+        "eligible_pixels": 1536,
+        "unknown_pixels": 0,
+        "spill_peak": 0.0,
+        "spill_mean": 0.0,
+        "occlusion_leakage_fraction": 0.0,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.8020833333333334,
+        "gain_mae_all_observed": 0.019791666666666662,
+        "eligible_identity_fraction": 0.19791666666666666,
+        "matched_dose": 0.8020833333333334,
+        "dose_attenuation": 1.0,
+        "matched_spill_peak": 0.0,
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "zero_common_dose_cases": 428,
+      "zero_pairwise_dose_cases": 0
+    },
+    "supported": {
+      "all": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.0,
+          "mean": 0.926244078173952,
+          "p50": 0.9842696629213483,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "gain_mae_all_observed": {
+          "min": 0.0,
+          "mean": 0.00993776804934152,
+          "p50": 0.002431007751937984,
+          "p95": 0.035294117647058816,
+          "max": 0.19999999999999996
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.07363632169142884,
+          "p50": 0.015625,
+          "p95": 0.23965351299326276,
+          "max": 1.0
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5125767953372594,
+          "p50": 0.5649109435848636,
+          "p95": 0.8499550763701708,
+          "max": 0.912018721791943
+        },
+        "pair_bilinear_supported_dose": {
+          "min": 0.0,
+          "mean": 0.9164223176565279,
+          "p50": 0.9715716480307807,
+          "p95": 0.9956317204301075,
+          "max": 1.0
+        },
+        "pair_bilinear_supported_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        }
+      },
+      "held_out": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.0,
+          "mean": 0.9256355236905682,
+          "p50": 0.9831348186048904,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "gain_mae_all_observed": {
+          "min": 0.0,
+          "mean": 0.009935332566934232,
+          "p50": 0.0025367799123486336,
+          "p95": 0.02743221197602721,
+          "max": 0.19904306220095688
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.07436447630943172,
+          "p50": 0.01686518139510966,
+          "p95": 0.2311963626661922,
+          "max": 1.0
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5068984039695557,
+          "p50": 0.5593376264949401,
+          "p95": 0.8480152714614564,
+          "max": 0.8851607749151189
+        },
+        "pair_bilinear_supported_dose": {
+          "min": 0.0,
+          "mean": 0.918179550848697,
+          "p50": 0.9731279097435522,
+          "p95": 0.9920269511510389,
+          "max": 1.0
+        },
+        "pair_bilinear_supported_spill_peak": {
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        }
+      },
+      "worst_spill": {
+        "width": 64,
+        "height": 48,
+        "cell": 4,
+        "kind": "two_surface_boundary",
+        "angle": 0,
+        "phase": 0.0,
+        "held_out": false,
+        "variant": "supported",
+        "protected_pixels": 1536,
+        "eligible_pixels": 1536,
+        "unknown_pixels": 0,
+        "spill_peak": 0.0,
+        "spill_mean": 0.0,
+        "occlusion_leakage_fraction": 0.0,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 1.0,
+        "gain_mae_all_observed": 0.0,
+        "eligible_identity_fraction": 0.0,
+        "matched_dose": 0.8020833333333334,
+        "dose_attenuation": 0.8020833333333334,
+        "matched_spill_peak": 0.0,
+        "pair_bilinear_supported_dose": 0.9843750000000001,
+        "pair_bilinear_supported_spill_peak": 0.0
+      },
+      "zero_common_dose_cases": 428,
+      "zero_pairwise_dose_cases": 320
+    },
+    "wrong_half_pixel": {
+      "all": {
+        "spill_peak": {
+          "min": 0.0,
+          "mean": 0.14564900716145832,
+          "p50": 0.15000000000000002,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        },
+        "spill_mean": {
+          "min": 0.0,
+          "mean": 0.059818936824246445,
+          "p50": 0.009996418099426894,
+          "p95": 0.19999999999999996,
+          "max": 0.2
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.0,
+          "mean": 0.4055586362341113,
+          "p50": 0.18060357078262668,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.17234140110487803,
+          "p50": 0.0,
+          "p95": 0.5977326121108247,
+          "max": 1.0
+        },
+        "eligible_correction_dose": {
+          "min": 0.55,
+          "mean": 0.9672560688746209,
+          "p50": 0.9754164917959043,
+          "p95": 1.0,
+          "max": 1.0000000000000002
+        },
+        "gain_mae_all_observed": {
+          "min": 1.3262392692354812e-17,
+          "mean": 0.0073479806424979,
+          "p50": 0.0058823529411764774,
+          "p95": 0.01592760180995476,
+          "max": 0.08181818181818179
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.0013200357484251136,
+          "p50": 0.0,
+          "p95": 0.005332069791367995,
+          "max": 0.125
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.07631427863078984,
+          "p50": 0.07617079787340325,
+          "p95": 0.15087561742254163,
+          "max": 0.1746124404891558
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5125767953372594,
+          "p50": 0.5649109435848636,
+          "p95": 0.8499550763701708,
+          "max": 0.912018721791943
+        },
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "held_out": {
+        "spill_peak": {
+          "min": 0.043749999999999956,
+          "mean": 0.16782836914062496,
+          "p50": 0.17499999999999993,
+          "p95": 0.20000000000000007,
+          "max": 0.20000000000000007
+        },
+        "spill_mean": {
+          "min": 0.0005434782608695653,
+          "mean": 0.06072078829427262,
+          "p50": 0.01049529897186147,
+          "p95": 0.18253012326546852,
+          "max": 0.2
+        },
+        "occlusion_leakage_fraction": {
+          "min": 0.017227609811751282,
+          "mean": 0.41903082318190266,
+          "p50": 0.1952741052774042,
+          "p95": 1.0,
+          "max": 1.0
+        },
+        "unknown_changed_fraction": {
+          "min": 0.0,
+          "mean": 0.17218580056268376,
+          "p50": 0.0,
+          "p95": 0.5997858554160849,
+          "max": 0.9288702928870293
+        },
+        "eligible_correction_dose": {
+          "min": 0.7391459923664123,
+          "mean": 0.967065817451235,
+          "p50": 0.9724816434667337,
+          "p95": 0.9943966472295439,
+          "max": 1.0000000000000002
+        },
+        "gain_mae_all_observed": {
+          "min": 0.0017384521089875925,
+          "mean": 0.007374433294502932,
+          "p50": 0.006024414936523834,
+          "p95": 0.015141402714932129,
+          "max": 0.04775717703349281
+        },
+        "eligible_identity_fraction": {
+          "min": 0.0,
+          "mean": 0.0010737200113476206,
+          "p50": 0.00035369299914705585,
+          "p95": 0.004162878787878784,
+          "max": 0.027156549520766772
+        },
+        "matched_spill_peak": {
+          "min": 0.0,
+          "mean": 0.08839439661029777,
+          "p50": 0.09052522579555644,
+          "p95": 0.1665415354148572,
+          "max": 0.1746124404891558
+        },
+        "matched_dose": {
+          "min": 0.0,
+          "mean": 0.5068984039695557,
+          "p50": 0.5593376264949401,
+          "p95": 0.8480152714614564,
+          "max": 0.8851607749151189
+        },
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "worst_spill": {
+        "width": 64,
+        "height": 48,
+        "cell": 8,
+        "kind": "two_surface_boundary",
+        "angle": 135,
+        "phase": 0.25,
+        "held_out": false,
+        "variant": "wrong_half_pixel",
+        "protected_pixels": 1512,
+        "eligible_pixels": 1560,
+        "unknown_pixels": 0,
+        "spill_peak": 0.20000000000000007,
+        "spill_mean": 0.02508680555555555,
+        "occlusion_leakage_fraction": 0.31746031746031744,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.9886818910256412,
+        "gain_mae_all_observed": 0.01349690755208334,
+        "eligible_identity_fraction": 0.0,
+        "matched_dose": 0.4102564102564103,
+        "dose_attenuation": 0.4149528923108094,
+        "matched_spill_peak": 0.08299057846216185,
+        "pair_bilinear_supported_dose": null,
+        "pair_bilinear_supported_spill_peak": null
+      },
+      "zero_common_dose_cases": 428,
+      "zero_pairwise_dose_cases": 0
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "astra.geometry.final_validation.v1",
+  "source_revision": "cd4207f3dc2b886ec0136a246dd2484966bdbfec",
+  "executed_at_utc": "2026-10-20T18:29:55.280168+00:00",
+  "commands": [
+    {
+      "name": "package_after",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.6445619280002575,
+      "executor": "root / Linux CPU",
+      "log": "evidence/package_after.log",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "name": "baseline_after",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/run_cpu.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.612396828999408,
+      "executor": "root / Linux CPU",
+      "log": "evidence/baseline_after.log",
+      "log_sha256": "f4acec37078a26656c7c7948e8ac58ba58816a27e772c032b15a27d430577607"
+    }
+  ],
+  "figures_visually_reviewed": [
+    "evidence/boundary_witness.png",
+    "evidence/temporal_tradeoff.png"
+  ],
+  "figure_review": "Labels, legends, panels and ranges are readable; temporal plot explicitly identifies the negative matched-dose result."
+}

@@ -1,0 +1,13 @@
+{
+  "output": "research/astra20261020/candidates/04-geometry-transport/evidence/transport_metrics.json",
+  "correspondence": {
+    "count": 2464,
+    "max": 4.263256414560601e-14,
+    "rms": 4.615804104674556e-15,
+    "median": 0.0,
+    "p95": 1.0048591735576161e-14
+  },
+  "support_purity": 1.0,
+  "occlusion_leakage_count": 0,
+  "invalid_to_valid_count": 0
+}

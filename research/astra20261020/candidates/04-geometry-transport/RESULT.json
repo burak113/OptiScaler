@@ -1,0 +1,1390 @@
+{
+  "schema": "astra.research.return.v1",
+  "task_id": "04-geometry-transport",
+  "date_utc": "2026-10-20",
+  "base_tag": "astra-handoff-20261020",
+  "base_tag_object": "1f18416f5b99a0f78e147f362ac436ce2116ed22",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "frozen_production_baseline": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "source_revision": "cd4207f3dc2b886ec0136a246dd2484966bdbfec",
+  "source_revision_scope": "All executable candidate sources and tests. Final result/report/evidence commit follows; see PR head.",
+  "task_branch": "astra/04-geometry-transport",
+  "pr_target": "sol/26-integration",
+  "changed_paths": [
+    "research/astra20261020/candidates/04-geometry-transport/.gitignore",
+    "research/astra20261020/candidates/04-geometry-transport/BLOCKED_DATA_REQUEST.json",
+    "research/astra20261020/candidates/04-geometry-transport/EXPERIMENT_PLAN.json",
+    "research/astra20261020/candidates/04-geometry-transport/GPU_REQUEST.json",
+    "research/astra20261020/candidates/04-geometry-transport/HASHES.json",
+    "research/astra20261020/candidates/04-geometry-transport/README.md",
+    "research/astra20261020/candidates/04-geometry-transport/REPORT.md",
+    "research/astra20261020/candidates/04-geometry-transport/RESULT.json",
+    "research/astra20261020/candidates/04-geometry-transport/adapter/PRODUCTION_ADAPTER.md",
+    "research/astra20261020/candidates/04-geometry-transport/adapter/SupportCertifiedApply.hlsl",
+    "research/astra20261020/candidates/04-geometry-transport/docs/API_RECONSTRUCTION.md",
+    "research/astra20261020/candidates/04-geometry-transport/docs/API_TRANSPORT.md",
+    "research/astra20261020/candidates/04-geometry-transport/docs/COORDINATE_LEDGER.md",
+    "research/astra20261020/candidates/04-geometry-transport/docs/INDEPENDENT_REVIEW.md",
+    "research/astra20261020/candidates/04-geometry-transport/docs/MECHANISM_REVIEW.md",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/baseline_after.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/baseline_before.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/baseline_execution.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/boundary_witness.png",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/candidate_tests.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/execution.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/experiments.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/experiments_before_oracle_separation.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/final_validation.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/fixture_diagnostics.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/fixture_diagnostics.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_fixture_export_CPU_only.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs/apply_angle000_phase000.npz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs/apply_angle000_phase325.npz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs/apply_angle017_phase000.npz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs/apply_angle017_phase325.npz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs/manifest.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/oracle_discrepancy.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/package_after.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/package_before.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/phase_and_temporal_experiments.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/phase_example.npz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/phase_sweep.csv.gz",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_defects.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_execution.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_final_signoff.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_oracle_followup.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_preregistered_control.py",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_preregistration.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_temporal_validation.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_test_adversarial_reconstruction.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/reviewer_test_negative_controls.log",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/temporal_tradeoff.png",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/transport_metrics.json",
+    "research/astra20261020/candidates/04-geometry-transport/evidence/transport_metrics.log",
+    "research/astra20261020/candidates/04-geometry-transport/experiments.py",
+    "research/astra20261020/candidates/04-geometry-transport/fixture_diagnostics.py",
+    "research/astra20261020/candidates/04-geometry-transport/generate_gpu_fixtures.py",
+    "research/astra20261020/candidates/04-geometry-transport/history.py",
+    "research/astra20261020/candidates/04-geometry-transport/plot_evidence.py",
+    "research/astra20261020/candidates/04-geometry-transport/reconstruction.py",
+    "research/astra20261020/candidates/04-geometry-transport/run_checks.py",
+    "research/astra20261020/candidates/04-geometry-transport/tests/test_adversarial_reconstruction.py",
+    "research/astra20261020/candidates/04-geometry-transport/tests/test_certificate_contract.py",
+    "research/astra20261020/candidates/04-geometry-transport/tests/test_history.py",
+    "research/astra20261020/candidates/04-geometry-transport/tests/test_negative_controls.py",
+    "research/astra20261020/candidates/04-geometry-transport/tests/test_transport.py",
+    "research/astra20261020/candidates/04-geometry-transport/transport.py",
+    "research/astra20261020/candidates/04-geometry-transport/transport_experiment.py"
+  ],
+  "dependency_versions": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "matplotlib_optional_figures": "3.10.8"
+  },
+  "seeds": [
+    1701,
+    20261020,
+    99173
+  ],
+  "cpu_commands": [
+    {
+      "name": "package_before",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.6575311480009987,
+      "executor": "root / Linux CPU"
+    },
+    {
+      "name": "baseline_before",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/run_cpu.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.379380815998957,
+      "executor": "root / Linux CPU"
+    },
+    {
+      "name": "candidate_tests",
+      "command": [
+        "python",
+        "-B",
+        "-W",
+        "error",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/04-geometry-transport/tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.2527617260002444,
+      "executor": "root Linux CPU",
+      "log_sha256": "fdf28a48b24f8605a00bd3d08a596e84b9838ae2a3f055198fb14eb97ddad0bd"
+    },
+    {
+      "name": "fixture_diagnostics",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/fixture_diagnostics.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.508797782998954,
+      "executor": "root Linux CPU",
+      "log_sha256": "ff6bcf1f2353e3638e865f6827da88f5764620e5528b8cd4d430ae516f69df8d"
+    },
+    {
+      "name": "phase_and_temporal_experiments",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/experiments.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 164.28896308299954,
+      "executor": "root Linux CPU",
+      "log_sha256": "7d7e8b738141bf10014aa7057a5d8ba2a21e36ae690bc8e56ccd92652ed0f619"
+    },
+    {
+      "name": "gpu_fixture_export_CPU_only",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/generate_gpu_fixtures.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.14629461799995624,
+      "executor": "root Linux CPU",
+      "log_sha256": "d0ffd02fdd0f52c7193fd33b43a1a0c6b245d509fe3593b1b3fe379abbc3922e"
+    },
+    {
+      "name": "transport_metrics",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/transport_experiment.py",
+        "--output",
+        "research/astra20261020/candidates/04-geometry-transport/evidence",
+        "--executor",
+        "root Linux CPU"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.1369962549997581,
+      "executor": "root Linux CPU",
+      "log_sha256": "8ca025db195a114d08fd828151d2ea68ac3de4e08653dde6a90e2eb96121eedb",
+      "original_log_sha256": "b612801c5a35c65a5f658bfdceaaccb53e0902205157762736de92a43bfa60fb",
+      "log_sanitization": "Removed local repository absolute prefix; no measurements changed."
+    },
+    {
+      "name": "package_after",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.6445619280002575,
+      "executor": "root / Linux CPU",
+      "log": "evidence/package_after.log",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "name": "baseline_after",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/run_cpu.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.612396828999408,
+      "executor": "root / Linux CPU",
+      "log": "evidence/baseline_after.log",
+      "log_sha256": "f4acec37078a26656c7c7948e8ac58ba58816a27e772c032b15a27d430577607"
+    }
+  ],
+  "cpu_test_count": 55,
+  "gpu_executed": false,
+  "amd_rr_executed": false,
+  "native_bridge_executed": false,
+  "game_observed": false,
+  "shader_compiled": false,
+  "dxc_available_in_execution_environment": false,
+  "gpu_performance_ms": null,
+  "resident_vram_bytes": null,
+  "fixture_hashes": {
+    "portable/anchor/fixtures/combined/22f9ca14.npz": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+    "portable/anchor/fixtures/combined/2405579e.npz": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+    "portable/anchor/fixtures/combined/87ee1fba.npz": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+    "portable/anchor/fixtures/native_policy/22f9ca14.npz": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+    "portable/anchor/fixtures/native_policy/2405579e.npz": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+    "portable/anchor/fixtures/native_policy/87ee1fba.npz": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+    "portable/colour/fixtures/soft2_gpu_87ee63.npz": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+    "fixtures/clips/bottle_track7.npz": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+    "fixtures/clips/facade16.npz": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+    "fixtures/clips/foliage23.npz": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+    "fixtures/glass/glass_crop.npz": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d"
+  },
+  "source_hashes": {
+    "adapter/SupportCertifiedApply.hlsl": "7d85210aa07d55371c98379991a6c6174a2810b65f1b69747b3914dac5f8bfc4",
+    "experiments.py": "df79408aa32cfe3fd86ec4e9a0e0f3f97bc07cacfd602caa5a13e0e4b15b77d4",
+    "fixture_diagnostics.py": "aa05000b786a5998cd46d364113b07b5bc14036f856b0e3f47bd4ca113dafe9a",
+    "generate_gpu_fixtures.py": "f5ff9921b45a3540633a5b665518d6a6d1aeaae033b02e8d55b0f45eb038fe2b",
+    "history.py": "f72ab481d6af37c611fc019cb57c98b2734911665119e695dc87a0a6b8057cb1",
+    "plot_evidence.py": "bda4cae6108a54a74a63b1cee39867bb4904ac1ae88d7773206808211b637838",
+    "reconstruction.py": "e05bf88489fa0bb67253d55e98d5c2943e72dddaf97b277d2d92e541c0444e50",
+    "run_checks.py": "f7cd1d627ca9b9d94a044ff1d44f13aeef97a9455e6517751f135067a7b2007f",
+    "tests/test_adversarial_reconstruction.py": "e4b1cd50de03c272e894acd4075d5943f70f17f3d0ec75f588699885cb58f928",
+    "tests/test_certificate_contract.py": "310d914d098d2ffaf1f4fd8ff9808532fae9c00e999a5690f477792791852c07",
+    "tests/test_history.py": "0a7098d82e4a660db468903b63e044ee80fb049d90404404a2ee4f616bb41796",
+    "tests/test_negative_controls.py": "1d3e53a301c2afed595ff46f99322940dd079a8724750c8098a46ab2813169bf",
+    "tests/test_transport.py": "58d9b6050b8fc42a37f4f9b8d8f10b71ddd9105a133b7a6fac65ae2b24d6d1e0",
+    "transport.py": "1f95346e2ba02fcb63093dedfffdac94c9827596eb42f50f0123013131182bfb",
+    "transport_experiment.py": "6cea7d258288aa5369b73e18fdf2348ced5a70eac17faca8583edb4f80ec671e"
+  },
+  "result_hashes": {
+    "evidence/baseline_after.log": "f4acec37078a26656c7c7948e8ac58ba58816a27e772c032b15a27d430577607",
+    "evidence/baseline_before.log": "e1e11dd06143ea87e104d1190d1beae543c5cab94f5756872d6591e848c84cb4",
+    "evidence/baseline_execution.json": "fe954093c9c808a99f9483bd5e743d30743d83131da30b4d344e7a075ecd4165",
+    "evidence/boundary_witness.png": "eb77d465a40a711a5a9cf9e7127964edad75b67cf52566951e147eacd9bec0f7",
+    "evidence/candidate_tests.log": "fdf28a48b24f8605a00bd3d08a596e84b9838ae2a3f055198fb14eb97ddad0bd",
+    "evidence/execution.json": "bd5069c1dd072cbba51e4a0958ca9527cc9c204ba718a26a54b66457c0b7acc0",
+    "evidence/experiments.json": "4d4fca54533295425483f9d8be5628393d6bbf40c0089f157c7437611f5de9c0",
+    "evidence/experiments_before_oracle_separation.json": "6640b60c92cd036eaf0a47928873f55001a9c521756b4fb9d9b8e9df7f5fbf31",
+    "evidence/final_validation.json": "b0442c0a7a149fa16d38d6d534ea3caaa772332659f240915c669766ee2cb6e4",
+    "evidence/fixture_diagnostics.json": "8c86e3614eadd5c2a422f985f5e1429c73230f654522bdb0b0a08f6393361e22",
+    "evidence/fixture_diagnostics.log": "ff6bcf1f2353e3638e865f6827da88f5764620e5528b8cd4d430ae516f69df8d",
+    "evidence/gpu_fixture_export_CPU_only.log": "d0ffd02fdd0f52c7193fd33b43a1a0c6b245d509fe3593b1b3fe379abbc3922e",
+    "evidence/gpu_inputs/apply_angle000_phase000.npz": "b9cfb047472ea5280a35b0c85e9020f7d9bf34c11469e1e55034e2dff8e1be0e",
+    "evidence/gpu_inputs/apply_angle000_phase325.npz": "3940d0c233caf590b2d610f0dbfe011de45fcfb0b8e5ad2d19523d63f78d58ca",
+    "evidence/gpu_inputs/apply_angle017_phase000.npz": "1d2af4e188f78b8c06b528f8983554ea4bcef43b0a80377da912b2a837cf4473",
+    "evidence/gpu_inputs/apply_angle017_phase325.npz": "78660e7a9cd253e1223a067bf366ece9ea08f8d84c8d3d14449fc577a6488e90",
+    "evidence/gpu_inputs/manifest.json": "d0ffd02fdd0f52c7193fd33b43a1a0c6b245d509fe3593b1b3fe379abbc3922e",
+    "evidence/oracle_discrepancy.json": "f5c538c9a0b33d444d763de57f7d02cd543f8504cd63cbc82d9c796578ef9324",
+    "evidence/package_after.log": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/package_before.log": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/phase_and_temporal_experiments.log": "7d7e8b738141bf10014aa7057a5d8ba2a21e36ae690bc8e56ccd92652ed0f619",
+    "evidence/phase_example.npz": "5b9069bc30fb760c941ae7124bb346dbba645810430f87ca09aa2a697df99c0a",
+    "evidence/phase_sweep.csv.gz": "bbff6acb926aa9701d19081fea7447ded168c222773ae68a0f98720decdd60eb",
+    "evidence/reviewer_defects.json": "b93db4241a07d81a062628526d7e6ea3a89c0eafef496d0c9c8a3636c876cd8b",
+    "evidence/reviewer_execution.json": "15ecb40f65a1c5fce14961c7a2aed71b0340eb0546fae5a522b8b15a71d9daa8",
+    "evidence/reviewer_final_signoff.json": "2c45d354da66d4720d766a2201088256569bdf1cd975274fd5be01de8c54051d",
+    "evidence/reviewer_oracle_followup.json": "761a6b64bf7ec71f349c8214a4662cc644b0242cd3ee4326ae53691b0db4084a",
+    "evidence/reviewer_preregistered_control.py": "94205a8fadafda814db1c08684688f189a2d1defb09575c3a6e4db64904ac650",
+    "evidence/reviewer_preregistration.json": "c02d9c368ec44cd77f7cfc7385fc9977bf7e530b819c996694744e5a2f7c9729",
+    "evidence/reviewer_temporal_validation.json": "14d898bded5153d3f7a8a9d43fba1f03a580fe5114361618fa2d6fec04b6b188",
+    "evidence/reviewer_test_adversarial_reconstruction.log": "502929eb6abca351997e287878701c33c78396d0f107556c93a865fa80f49b4a",
+    "evidence/reviewer_test_negative_controls.log": "888c1bcf02bc0003494a66086761eb14f54dc242dc20122def38a638e6c8a990",
+    "evidence/temporal_tradeoff.png": "548541c2fa487bbafb3d6eb307b8eea9ed1cfa4d4c23c650b44312f7821af353",
+    "evidence/transport_metrics.json": "4af8c05d026c2e97e8bcbe58c15be12004d18eb635338288e746824c0f479335",
+    "evidence/transport_metrics.log": "8ca025db195a114d08fd828151d2ea68ac3de4e08653dde6a90e2eb96121eedb"
+  },
+  "measured_comparisons": {
+    "transport_correspondence": {
+      "count": 2464,
+      "max": 4.263256414560601e-14,
+      "rms": 4.615804104674556e-15,
+      "median": 0.0,
+      "p95": 1.0048591735576161e-14
+    },
+    "transport_phase_roundtrip": {
+      "count": 4096,
+      "max": 5.114550578215915e-14,
+      "rms": 1.1517761281662794e-14,
+      "median": 7.105427357601002e-15,
+      "p95": 2.4290283347230774e-14
+    },
+    "analytic_support": {
+      "scene": "one-pixel foreground strip at Z2 moving three pixels over static wall Z8",
+      "extent": [
+        81,
+        55
+      ],
+      "baseline_pixel_denominator": 4455,
+      "foreground_pixel_count": 55,
+      "genuine_disocclusion_pixel_count": 55,
+      "accepted_pixel_count": 4400,
+      "depth_normal_support_purity": 1.0,
+      "occlusion_leakage_count": 0,
+      "occlusion_leakage_rate": 0.0,
+      "expected_occlusion_order_count": 55,
+      "partial_domain_queries": [
+        [
+          0.1,
+          4.5
+        ],
+        [
+          -2.5,
+          7.5
+        ],
+        [
+          18.9,
+          4.5
+        ],
+        [
+          21.5,
+          7.5
+        ],
+        [
+          9.5,
+          7.5
+        ]
+      ],
+      "partial_domain_known": [
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "partial_domain_weight_coverage": [
+        0.6,
+        0.0,
+        0.6000000000000014,
+        0.0,
+        1.0
+      ],
+      "unknown_query_count": 4,
+      "invalid_to_valid_count": 0,
+      "invalid_to_valid_rate": 0.0,
+      "limitation": "exact analytic geometry and object motion; not a mixed-coarse-cell or captured-key purity claim"
+    },
+    "native_source_arithmetic_witnesses": {
+      "scope": "source-derived arithmetic witnesses; no GPU execution and no source change",
+      "extra_half_pixel_is_separate_from_jitter": true,
+      "cases": [
+        {
+          "handedness": "LH",
+          "extent": [
+            137,
+            131
+          ],
+          "cell_count": 272,
+          "mean_signed_identity_phase_xy_px": [
+            0.49999999999999883,
+            0.49999999999999917
+          ],
+          "identity_correspondence_error_px": {
+            "count": 272,
+            "max": 0.7071067811865576,
+            "rms": 0.7071067811865461,
+            "median": 0.7071067811865476,
+            "p95": 0.70710678118655
+          },
+          "absolute_key_match_count": 272,
+          "signed_key_match_count": 272,
+          "signed_key_mismatch_count": 0
+        },
+        {
+          "handedness": "RH",
+          "extent": [
+            137,
+            131
+          ],
+          "cell_count": 272,
+          "mean_signed_identity_phase_xy_px": [
+            0.49999999999999883,
+            0.49999999999999917
+          ],
+          "identity_correspondence_error_px": {
+            "count": 272,
+            "max": 0.7071067811865576,
+            "rms": 0.7071067811865461,
+            "median": 0.7071067811865476,
+            "p95": 0.70710678118655
+          },
+          "absolute_key_match_count": 272,
+          "signed_key_match_count": 0,
+          "signed_key_mismatch_count": 272
+        }
+      ],
+      "near_zero_native_tolerance_floor_accepts_stored_zero": true,
+      "near_zero_caveat": "preserved baseline arithmetic; generic correspondence support rejects zero depth"
+    },
+    "virtual_transport": {
+      "scene": "planar mirror Z5; real point (1,0,2); virtual image (1,0,8); camera translates +.4X",
+      "extent": [
+        101,
+        71
+      ],
+      "surface_position_world": [
+        0.775,
+        0.0,
+        5.0
+      ],
+      "virtual_position_world": [
+        1.0,
+        0.0,
+        8.0
+      ],
+      "usable_reflection_distance": 3.0084256680197368,
+      "reconstructed_virtual_point_valid": true,
+      "virtual_reconstruction_error_world": 0.0,
+      "surface_motion_px": [
+        4.919024293495605,
+        0.0
+      ],
+      "virtual_motion_px": [
+        3.074390183434753,
+        0.0
+      ],
+      "surface_vs_virtual_correspondence_error_px": 1.8446341100608519,
+      "surface_to_virtual_parallax_ratio": 1.6,
+      "generic_surface_property_accepted_as_reflection_distance": false,
+      "scope": "analytic planar mirror only; captured alpha/direction role remains unverified"
+    },
+    "reconstruction_phase_scene_count": 7680,
+    "reconstruction_variant_row_count": 30720,
+    "primary_gain_intervention": "Point-centre gain is not an exact full-cell statistic for aliased thin strips. Separate exact-footprint ablation replaces only independently oracle-pure cells; primary comparisons remain unchanged.",
+    "phase_distributions": {
+      "bilinear": {
+        "all": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.15510620117187504,
+            "p50": 0.17499999999999993,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.061214145480831914,
+            "p50": 0.012483677898014748,
+            "p95": 0.19999999999999996,
+            "max": 0.20000000000000004
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.44720165427808795,
+            "p50": 0.23417741016280824,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.1761019678901625,
+            "p50": 0.0,
+            "p95": 0.6079691516709511,
+            "max": 1.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.5901981852913086,
+            "mean": 0.9720966374105035,
+            "p50": 0.9792405052624957,
+            "p95": 1.0,
+            "max": 1.0000000000000004
+          },
+          "gain_mae_all_observed": {
+            "min": 1.214306433183765e-17,
+            "mean": 0.007262116573768933,
+            "p50": 0.005906786820613918,
+            "p95": 0.015139055023923445,
+            "max": 0.07831447963800901
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.00012854235262635584,
+            "p50": 0.0,
+            "p95": 0.00011940298507462687,
+            "max": 0.020766773162939296
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.08131056315140349,
+            "p50": 0.0822765100859178,
+            "p95": 0.15221896325773257,
+            "max": 0.1744750841824123
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5125767953372594,
+            "p50": 0.5649109435848636,
+            "p95": 0.8499550763701708,
+            "max": 0.912018721791943
+          },
+          "pair_bilinear_supported_dose": {
+            "min": 0.0,
+            "mean": 0.9164223176565279,
+            "p50": 0.9715716480307807,
+            "p95": 0.9956317204301075,
+            "max": 1.0
+          },
+          "pair_bilinear_supported_spill_peak": {
+            "min": 0.0,
+            "mean": 0.14720294349807947,
+            "p50": 0.1745453352107706,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          }
+        },
+        "held_out": {
+          "spill_peak": {
+            "min": 0.05859375,
+            "mean": 0.17748955620659723,
+            "p50": 0.17578125,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          },
+          "spill_mean": {
+            "min": 0.0010869565217391294,
+            "mean": 0.06210813608463796,
+            "p50": 0.01268332066186409,
+            "p95": 0.183299412818471,
+            "max": 0.2
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.03331431831146606,
+            "mean": 0.4595522479476861,
+            "p50": 0.24537722876829926,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.17592911364592775,
+            "p50": 0.0,
+            "p95": 0.6111111111111112,
+            "max": 0.9476987447698745
+          },
+          "eligible_correction_dose": {
+            "min": 0.7833273695928754,
+            "mean": 0.9719446068679051,
+            "p50": 0.9776623301795246,
+            "p95": 0.994437986060419,
+            "max": 1.0000000000000002
+          },
+          "gain_mae_all_observed": {
+            "min": 0.0017384521089875865,
+            "mean": 0.007285044651255583,
+            "p50": 0.005924479166666677,
+            "p95": 0.014762443438914027,
+            "max": 0.04605013955342901
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.00015736604565001094,
+            "p50": 0.0,
+            "p95": 0.0002007303511249306,
+            "max": 0.020766773162939296
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.09331002937018039,
+            "p50": 0.09812181577634438,
+            "p95": 0.15390228170090836,
+            "max": 0.1744750841824123
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5068984039695557,
+            "p50": 0.5593376264949401,
+            "p95": 0.8480152714614564,
+            "max": 0.8851607749151189
+          },
+          "pair_bilinear_supported_dose": {
+            "min": 0.0,
+            "mean": 0.918179550848697,
+            "p50": 0.9731279097435522,
+            "p95": 0.9920269511510389,
+            "max": 1.0
+          },
+          "pair_bilinear_supported_spill_peak": {
+            "min": 0.0,
+            "mean": 0.1687871776122696,
+            "p50": 0.17500000000000004,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          }
+        },
+        "worst_spill": {
+          "width": 64,
+          "height": 48,
+          "cell": 4,
+          "kind": "two_surface_boundary",
+          "angle": 135,
+          "phase": 0.25,
+          "held_out": false,
+          "variant": "bilinear",
+          "protected_pixels": 1512,
+          "eligible_pixels": 1560,
+          "unknown_pixels": 0,
+          "spill_peak": 0.20000000000000007,
+          "spill_mean": 0.011197916666666665,
+          "occlusion_leakage_fraction": 0.1693121693121693,
+          "unknown_changed_fraction": 0.0,
+          "eligible_correction_dose": 0.9918870192307696,
+          "gain_mae_all_observed": 0.0063354492187500085,
+          "eligible_identity_fraction": 0.0,
+          "matched_dose": 0.676923076923077,
+          "dose_attenuation": 0.6824598606482882,
+          "matched_spill_peak": 0.1364919721296577,
+          "pair_bilinear_supported_dose": 0.9918870192307696,
+          "pair_bilinear_supported_spill_peak": 0.20000000000000007
+        },
+        "zero_common_dose_cases": 428,
+        "zero_pairwise_dose_cases": 320
+      },
+      "hard_identity": {
+        "all": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.0,
+            "mean": 0.5125767953372594,
+            "p50": 0.5649109435848636,
+            "p95": 0.8499550763701708,
+            "max": 0.912018721791943
+          },
+          "gain_mae_all_observed": {
+            "min": 0.009672925837187272,
+            "mean": 0.070390442075954,
+            "p50": 0.06172909039707124,
+            "p95": 0.14479638009049772,
+            "max": 0.19999999999999996
+          },
+          "eligible_identity_fraction": {
+            "min": 0.08798127820805705,
+            "mean": 0.48733180281711935,
+            "p50": 0.43501763939075394,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5125767953372594,
+            "p50": 0.5649109435848636,
+            "p95": 0.8499550763701708,
+            "max": 0.912018721791943
+          },
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "held_out": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.0,
+            "mean": 0.5068984039695557,
+            "p50": 0.5593376264949401,
+            "p95": 0.8480152714614564,
+            "max": 0.8851607749151189
+          },
+          "gain_mae_all_observed": {
+            "min": 0.012213740458015265,
+            "mean": 0.07117522724987863,
+            "p50": 0.06203822365855017,
+            "p95": 0.14501685105400258,
+            "max": 0.19904306220095688
+          },
+          "eligible_identity_fraction": {
+            "min": 0.11483922508488116,
+            "mean": 0.4931015960304443,
+            "p50": 0.4406623735050598,
+            "p95": 0.9587611700806321,
+            "max": 1.0
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5068984039695557,
+            "p50": 0.5593376264949401,
+            "p95": 0.8480152714614564,
+            "max": 0.8851607749151189
+          },
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "worst_spill": {
+          "width": 64,
+          "height": 48,
+          "cell": 4,
+          "kind": "two_surface_boundary",
+          "angle": 0,
+          "phase": 0.0,
+          "held_out": false,
+          "variant": "hard_identity",
+          "protected_pixels": 1536,
+          "eligible_pixels": 1536,
+          "unknown_pixels": 0,
+          "spill_peak": 0.0,
+          "spill_mean": 0.0,
+          "occlusion_leakage_fraction": 0.0,
+          "unknown_changed_fraction": 0.0,
+          "eligible_correction_dose": 0.8020833333333334,
+          "gain_mae_all_observed": 0.019791666666666662,
+          "eligible_identity_fraction": 0.19791666666666666,
+          "matched_dose": 0.8020833333333334,
+          "dose_attenuation": 1.0,
+          "matched_spill_peak": 0.0,
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "zero_common_dose_cases": 428,
+        "zero_pairwise_dose_cases": 0
+      },
+      "supported": {
+        "all": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.0,
+            "mean": 0.926244078173952,
+            "p50": 0.9842696629213483,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "gain_mae_all_observed": {
+            "min": 0.0,
+            "mean": 0.00993776804934152,
+            "p50": 0.002431007751937984,
+            "p95": 0.035294117647058816,
+            "max": 0.19999999999999996
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.07363632169142884,
+            "p50": 0.015625,
+            "p95": 0.23965351299326276,
+            "max": 1.0
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5125767953372594,
+            "p50": 0.5649109435848636,
+            "p95": 0.8499550763701708,
+            "max": 0.912018721791943
+          },
+          "pair_bilinear_supported_dose": {
+            "min": 0.0,
+            "mean": 0.9164223176565279,
+            "p50": 0.9715716480307807,
+            "p95": 0.9956317204301075,
+            "max": 1.0
+          },
+          "pair_bilinear_supported_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          }
+        },
+        "held_out": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.0,
+            "mean": 0.9256355236905682,
+            "p50": 0.9831348186048904,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "gain_mae_all_observed": {
+            "min": 0.0,
+            "mean": 0.009935332566934232,
+            "p50": 0.0025367799123486336,
+            "p95": 0.02743221197602721,
+            "max": 0.19904306220095688
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.07436447630943172,
+            "p50": 0.01686518139510966,
+            "p95": 0.2311963626661922,
+            "max": 1.0
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5068984039695557,
+            "p50": 0.5593376264949401,
+            "p95": 0.8480152714614564,
+            "max": 0.8851607749151189
+          },
+          "pair_bilinear_supported_dose": {
+            "min": 0.0,
+            "mean": 0.918179550848697,
+            "p50": 0.9731279097435522,
+            "p95": 0.9920269511510389,
+            "max": 1.0
+          },
+          "pair_bilinear_supported_spill_peak": {
+            "min": 0.0,
+            "mean": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          }
+        },
+        "worst_spill": {
+          "width": 64,
+          "height": 48,
+          "cell": 4,
+          "kind": "two_surface_boundary",
+          "angle": 0,
+          "phase": 0.0,
+          "held_out": false,
+          "variant": "supported",
+          "protected_pixels": 1536,
+          "eligible_pixels": 1536,
+          "unknown_pixels": 0,
+          "spill_peak": 0.0,
+          "spill_mean": 0.0,
+          "occlusion_leakage_fraction": 0.0,
+          "unknown_changed_fraction": 0.0,
+          "eligible_correction_dose": 1.0,
+          "gain_mae_all_observed": 0.0,
+          "eligible_identity_fraction": 0.0,
+          "matched_dose": 0.8020833333333334,
+          "dose_attenuation": 0.8020833333333334,
+          "matched_spill_peak": 0.0,
+          "pair_bilinear_supported_dose": 0.9843750000000001,
+          "pair_bilinear_supported_spill_peak": 0.0
+        },
+        "zero_common_dose_cases": 428,
+        "zero_pairwise_dose_cases": 320
+      },
+      "wrong_half_pixel": {
+        "all": {
+          "spill_peak": {
+            "min": 0.0,
+            "mean": 0.14564900716145832,
+            "p50": 0.15000000000000002,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          },
+          "spill_mean": {
+            "min": 0.0,
+            "mean": 0.059818936824246445,
+            "p50": 0.009996418099426894,
+            "p95": 0.19999999999999996,
+            "max": 0.2
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.0,
+            "mean": 0.4055586362341113,
+            "p50": 0.18060357078262668,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.17234140110487803,
+            "p50": 0.0,
+            "p95": 0.5977326121108247,
+            "max": 1.0
+          },
+          "eligible_correction_dose": {
+            "min": 0.55,
+            "mean": 0.9672560688746209,
+            "p50": 0.9754164917959043,
+            "p95": 1.0,
+            "max": 1.0000000000000002
+          },
+          "gain_mae_all_observed": {
+            "min": 1.3262392692354812e-17,
+            "mean": 0.0073479806424979,
+            "p50": 0.0058823529411764774,
+            "p95": 0.01592760180995476,
+            "max": 0.08181818181818179
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.0013200357484251136,
+            "p50": 0.0,
+            "p95": 0.005332069791367995,
+            "max": 0.125
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.07631427863078984,
+            "p50": 0.07617079787340325,
+            "p95": 0.15087561742254163,
+            "max": 0.1746124404891558
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5125767953372594,
+            "p50": 0.5649109435848636,
+            "p95": 0.8499550763701708,
+            "max": 0.912018721791943
+          },
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "held_out": {
+          "spill_peak": {
+            "min": 0.043749999999999956,
+            "mean": 0.16782836914062496,
+            "p50": 0.17499999999999993,
+            "p95": 0.20000000000000007,
+            "max": 0.20000000000000007
+          },
+          "spill_mean": {
+            "min": 0.0005434782608695653,
+            "mean": 0.06072078829427262,
+            "p50": 0.01049529897186147,
+            "p95": 0.18253012326546852,
+            "max": 0.2
+          },
+          "occlusion_leakage_fraction": {
+            "min": 0.017227609811751282,
+            "mean": 0.41903082318190266,
+            "p50": 0.1952741052774042,
+            "p95": 1.0,
+            "max": 1.0
+          },
+          "unknown_changed_fraction": {
+            "min": 0.0,
+            "mean": 0.17218580056268376,
+            "p50": 0.0,
+            "p95": 0.5997858554160849,
+            "max": 0.9288702928870293
+          },
+          "eligible_correction_dose": {
+            "min": 0.7391459923664123,
+            "mean": 0.967065817451235,
+            "p50": 0.9724816434667337,
+            "p95": 0.9943966472295439,
+            "max": 1.0000000000000002
+          },
+          "gain_mae_all_observed": {
+            "min": 0.0017384521089875925,
+            "mean": 0.007374433294502932,
+            "p50": 0.006024414936523834,
+            "p95": 0.015141402714932129,
+            "max": 0.04775717703349281
+          },
+          "eligible_identity_fraction": {
+            "min": 0.0,
+            "mean": 0.0010737200113476206,
+            "p50": 0.00035369299914705585,
+            "p95": 0.004162878787878784,
+            "max": 0.027156549520766772
+          },
+          "matched_spill_peak": {
+            "min": 0.0,
+            "mean": 0.08839439661029777,
+            "p50": 0.09052522579555644,
+            "p95": 0.1665415354148572,
+            "max": 0.1746124404891558
+          },
+          "matched_dose": {
+            "min": 0.0,
+            "mean": 0.5068984039695557,
+            "p50": 0.5593376264949401,
+            "p95": 0.8480152714614564,
+            "max": 0.8851607749151189
+          },
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "worst_spill": {
+          "width": 64,
+          "height": 48,
+          "cell": 8,
+          "kind": "two_surface_boundary",
+          "angle": 135,
+          "phase": 0.25,
+          "held_out": false,
+          "variant": "wrong_half_pixel",
+          "protected_pixels": 1512,
+          "eligible_pixels": 1560,
+          "unknown_pixels": 0,
+          "spill_peak": 0.20000000000000007,
+          "spill_mean": 0.02508680555555555,
+          "occlusion_leakage_fraction": 0.31746031746031744,
+          "unknown_changed_fraction": 0.0,
+          "eligible_correction_dose": 0.9886818910256412,
+          "gain_mae_all_observed": 0.01349690755208334,
+          "eligible_identity_fraction": 0.0,
+          "matched_dose": 0.4102564102564103,
+          "dose_attenuation": 0.4149528923108094,
+          "matched_spill_peak": 0.08299057846216185,
+          "pair_bilinear_supported_dose": null,
+          "pair_bilinear_supported_spill_peak": null
+        },
+        "zero_common_dose_cases": 428,
+        "zero_pairwise_dose_cases": 0
+      }
+    },
+    "exact_support_ablation": {
+      "certified_cells": 1162534,
+      "false_certified_cells": 0,
+      "true_pure_cells": 1162534,
+      "missed_pure_cells": 0,
+      "centre_sampled_gain_vs_exact_cell_gain_max_error": 0.19999999999999996,
+      "centre_gain_disagrees_with_observed_cell_count": 165,
+      "centre_gain_disagreement_scene_count": 18,
+      "centre_gain_worst_case": {
+        "extent": [
+          65,
+          17
+        ],
+        "cell": 4,
+        "kind": "one_pixel_foreground_strip",
+        "angle": 90,
+        "phase": 5.5
+      },
+      "exact_footprint_gain_output_max_abs_error": 0.0,
+      "unknown_query_promoted": 0
+    },
+    "estimator_ablation": {
+      "exact_gain_local_support": {
+        "protected_pixels": 4096,
+        "eligible_pixels": 4096,
+        "unknown_pixels": 0,
+        "spill_peak": 0.0,
+        "spill_mean": 0.0,
+        "occlusion_leakage_fraction": 0.0,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 1.0,
+        "gain_mae_all_observed": 0.0,
+        "eligible_identity_fraction": 0.0
+      },
+      "mixed_gain_local_only_INVALID_PROVENANCE": {
+        "protected_pixels": 4096,
+        "eligible_pixels": 4096,
+        "unknown_pixels": 0,
+        "spill_peak": 0.06666666666666687,
+        "spill_mean": 0.025000000000000078,
+        "occlusion_leakage_fraction": 0.4375,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.8750000000000003,
+        "gain_mae_all_observed": 0.025000000000000064,
+        "eligible_identity_fraction": 0.0
+      },
+      "mixed_gain_full_donor_certificate": {
+        "protected_pixels": 4096,
+        "eligible_pixels": 4096,
+        "unknown_pixels": 0,
+        "spill_peak": 0.0,
+        "spill_mean": 0.0,
+        "occlusion_leakage_fraction": 0.0,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.6875000000000004,
+        "gain_mae_all_observed": 0.03125000000000003,
+        "eligible_identity_fraction": 0.3125
+      },
+      "coplanar_identical_guides_unidentifiable": {
+        "protected_pixels": 1488,
+        "eligible_pixels": 1584,
+        "unknown_pixels": 0,
+        "spill_peak": 0.0625,
+        "spill_mean": 0.003629032258064514,
+        "occlusion_leakage_fraction": 0.0967741935483871,
+        "unknown_changed_fraction": 0.0,
+        "eligible_correction_dose": 0.9526515151515151,
+        "gain_mae_all_observed": 0.006640624999999997,
+        "eligible_identity_fraction": 0.0
+      },
+      "scope": "synthetic interventions; no captured keys; full support is a necessary precondition, not recovered evidence"
+    },
+    "temporal_seed_tradeoffs": [
+      {
+        "seed": 1701,
+        "matched_flicker_worse_percent": 18.580844794740692,
+        "matched_gain_noise_std_worse_percent": 10.839473121147925,
+        "noiseless_support_flicker_worse_percent": 26.20552439143069
+      },
+      {
+        "seed": 20261020,
+        "matched_flicker_worse_percent": 18.47055438772147,
+        "matched_gain_noise_std_worse_percent": 8.397543924524054,
+        "noiseless_support_flicker_worse_percent": 26.20552439143069
+      },
+      {
+        "seed": 99173,
+        "matched_flicker_worse_percent": 17.55862910528334,
+        "matched_gain_noise_std_worse_percent": 8.513610230537383,
+        "noiseless_support_flicker_worse_percent": 26.20552439143069
+      }
+    ],
+    "stored_native_field_checks": [
+      {
+        "fixture": "portable/anchor/fixtures/native_policy/22f9ca14.npz",
+        "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+        "frames": [
+          41,
+          44,
+          52
+        ],
+        "k": [
+          0,
+          2,
+          10
+        ],
+        "fixed_mask_sha256": "18ff00bbeb13270fada396f5575e22fb4d08cce22443735137b53d985fce632e",
+        "fixed_mask_count": 9649,
+        "moving_centres": 0,
+        "changed_moving_centres": 0,
+        "missing_own_recall_centres": 2639,
+        "changed_centres_without_own_recall": 395,
+        "raw_six_key_textures_available": false,
+        "full_resolution_protected_mask_available": false,
+        "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+      },
+      {
+        "fixture": "portable/anchor/fixtures/native_policy/2405579e.npz",
+        "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+        "frames": [
+          92
+        ],
+        "k": [
+          1
+        ],
+        "fixed_mask_sha256": "2521981d6004c05fba1e0870caf50aa7d801b8eff48e069103c0325e312c78ec",
+        "fixed_mask_count": 641,
+        "moving_centres": 187,
+        "changed_moving_centres": 0,
+        "missing_own_recall_centres": 1039,
+        "changed_centres_without_own_recall": 138,
+        "raw_six_key_textures_available": false,
+        "full_resolution_protected_mask_available": false,
+        "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+      },
+      {
+        "fixture": "portable/anchor/fixtures/native_policy/87ee1fba.npz",
+        "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+        "frames": [
+          41,
+          44,
+          60
+        ],
+        "k": [
+          0,
+          1,
+          17
+        ],
+        "fixed_mask_sha256": "2c8f11bf61ee2a89f4d5821426b9cb824f128f709d1878449c20b675fdf45b35",
+        "fixed_mask_count": 7719,
+        "moving_centres": 20,
+        "changed_moving_centres": 0,
+        "missing_own_recall_centres": 4569,
+        "changed_centres_without_own_recall": 379,
+        "raw_six_key_textures_available": false,
+        "full_resolution_protected_mask_available": false,
+        "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+      }
+    ]
+  },
+  "rejected_hypotheses": [
+    {
+      "claim": "Coarse centre gain1 guarantees full-resolution identity.",
+      "verdict": "falsified",
+      "evidence": "Independent preregistered [0.6,1] control: max spill0.175;4/8 protected pixels changed."
+    },
+    {
+      "claim": "Centre-cell purity certifies a gain formed by neighboring estimator donors.",
+      "verdict": "falsified",
+      "evidence": "Mixed-gain local-only false provenance spills0.0666667; full-donor rejection loses31.25% correction dose."
+    },
+    {
+      "claim": "Analytic point-centre gain is an exact statistic of the observed full cell.",
+      "verdict": "falsified",
+      "evidence": "165 disagreement cells in18 scenes; original0.2 error preserved; separate exact-footprint output error0."
+    },
+    {
+      "claim": "Protected-pixel leakage reduction proves a temporal quality improvement.",
+      "verdict": "falsified in synthetic CPU experiment",
+      "evidence": "Matched-dose flicker17.56–18.58% worse; gain noise8.40–10.84% worse."
+    },
+    {
+      "claim": "Surface motion always transports a planar mirror feature.",
+      "verdict": "falsified analytically",
+      "evidence": "1.844634px endpoint difference; captured hit-distance role unverified."
+    }
+  ],
+  "unresolved_risks": [
+    "No raw six-key textures or captured complete estimator-support certificates; cannot validate a new captured key selector.",
+    "Full-resolution eligibility is analytically supplied in the reconstruction experiment; actual native production eligibility remains unverified.",
+    "Geometry cannot identify coplanar radiance/material changes or layers below precision/tolerance; hidden subpixel support remains unknown.",
+    "Support renormalization increases temporal error and injected gain-noise variance in measured controls.",
+    "HLSL source uncompiled; typed UAV FP16 stores, sampler fractions, ABI and native routing require actual local execution.",
+    "History model is conservative CPU math, not actual command-list/fence integration; fresh GPU debug/lifetime validation required.",
+    "Partial crops/history and missing albedo/converged truth prevent full RR replay or game-quality claims.",
+    "New debug guides, support-builder memory and GPU cost are unmeasured."
+  ],
+  "acceptance_status": {
+    "recommendation": "keep_as_research",
+    "cpu_contract_tests": "pass",
+    "production_quality_acceptance": "not_accepted_temporal_regression_and_unexecuted_GPU_gates",
+    "production_files_changed": false,
+    "baseline_fixture_bytes_changed": false,
+    "experiments_enabled_by_default": false,
+    "remaining_local_gate": "GPU_REQUEST.json and BLOCKED_DATA_REQUEST.json"
+  },
+  "evidence_classes": {
+    "baseline_execution": "Fresh Linux CPU validation of frozen package including historical stored GPU fields.",
+    "transport": "Analytic CPU ground truth and source arithmetic; not GPU or capture key replay.",
+    "reconstruction": "Synthetic CPU exact-support/gain interventions and injected coarse gain noise.",
+    "captured_diagnostics": "Documented field/crop consistency and stored gain gates only.",
+    "gpu_inputs": "CPU-generated textures and expected arithmetic, not GPU output.",
+    "gpu": null,
+    "amd_rr": null,
+    "final_game_observation": null
+  },
+  "independent_review": {
+    "agents": [
+      "mechanism_ledger",
+      "transport_implementation",
+      "skeptical_review"
+    ],
+    "preregistration_sha256": "c02d9c368ec44cd77f7cfc7385fc9977bf7e530b819c996694744e5a2f7c9729",
+    "known_bad_control_before_candidate_inspection": true,
+    "repaired_new_code_defects": [
+      "nonfinite/negative policy fail-open",
+      "logical reset releasing physical inflight reservation",
+      "NaN/numeric support and nonfinite tolerance acceptance"
+    ],
+    "preserved_oracle_discrepancy": "evidence/experiments_before_oracle_separation.json",
+    "recommendation": "keep_as_research",
+    "final_report_signoff": "evidence/reviewer_final_signoff.json",
+    "final_report_signoff_sha256": "2c45d354da66d4720d766a2201088256569bdf1cd975274fd5be01de8c54051d"
+  },
+  "final_validation": "evidence/final_validation.json"
+}

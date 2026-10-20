@@ -1,0 +1,36 @@
+{
+  "executor": "independent skeptical_review agent",
+  "timestamp_utc": "2026-10-20T18:10:22.394486+00:00",
+  "commands": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python research/astra20261020/candidates/04-geometry-transport/tests/test_negative_controls.py -v",
+      "exit_code": 0,
+      "elapsed_seconds": 0.13655663699864817,
+      "log": "evidence/reviewer_test_negative_controls.log",
+      "log_sha256": "888c1bcf02bc0003494a66086761eb14f54dc242dc20122def38a638e6c8a990"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python research/astra20261020/candidates/04-geometry-transport/tests/test_adversarial_reconstruction.py -v",
+      "exit_code": 0,
+      "elapsed_seconds": 0.14482309999948484,
+      "log": "evidence/reviewer_test_adversarial_reconstruction.log",
+      "log_sha256": "502929eb6abca351997e287878701c33c78396d0f107556c93a865fa80f49b4a"
+    }
+  ],
+  "source_sha256": {
+    "reconstruction.py": "5bbe4c7f2c9649f3efe03f59f1bb1fb4da1d7efda557cc6cc3926199b007cfca",
+    "transport.py": "1f95346e2ba02fcb63093dedfffdac94c9827596eb42f50f0123013131182bfb",
+    "history.py": "d15ec822f72f15a321450806227637dee4d2fd70297a32e924373731536dd6a3",
+    "tests/test_negative_controls.py": "1d3e53a301c2afed595ff46f99322940dd079a8724750c8098a46ab2813169bf",
+    "tests/test_adversarial_reconstruction.py": "14d67a8a9a6c1992c3eeda08179811f59bf4f44185dcc9a0513c6e27b0100e9f",
+    "evidence/reviewer_preregistered_control.py": "94205a8fadafda814db1c08684688f189a2d1defb09575c3a6e4db64904ac650"
+  },
+  "gpu_executed": false,
+  "recommendation": "keep_as_research",
+  "known_remaining_limits": [
+    "no actual key textures or native sampler/camera witnesses",
+    "same observable geometry cannot separate coplanar or sub-tolerance surfaces",
+    "estimator contamination not recoverable from centre certificate",
+    "partial support renormalization may increase noise/flicker"
+  ]
+}

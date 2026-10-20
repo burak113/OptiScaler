@@ -1,0 +1,405 @@
+{
+  "schema": "fsrd.task04.blocked_data_request.v1",
+  "task_id": "04-geometry-transport",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "status": "partially_blocked_capture_mechanism_and_gpu_validation_only",
+  "gpu_executed": false,
+  "not_blocked": "Standalone analytical transport, partial-domain handling, mutation tests, source coordinate ledger, boundary reconstruction experiments and captured stored-field policy diagnostics remain executable and are delivered.",
+  "requests": [
+    {
+      "id": "R1_raw_native_ring_and_complete_current_support",
+      "missing_observable": "Raw six-slice native Anchor key level/depth textures before StatsRecall, with exact slot cameras, priority, jitter, frame/generation publication and original current full-resolution guide support.",
+      "why_current_data_cannot_identify_it": "portable/anchor exports already-recalled FP16 fields, fixed masks and stored gain. It omits raw key textures, key cameras/jitters and original native16.16 pre-store sums. Clips have current fields and camera words but omit albedo and pre-window history; none reconstructs which old key texels a new coordinate model would sample. A candidate selector cannot be validated by resampling the already-selected result.",
+      "hypotheses_distinguished": [
+        {
+          "hypothesis": "H1 coordinate phase or matrix/jitter mismatch",
+          "prediction": "Corrected explicit coordinates alter sampled key/depth match at deterministic signed locations even on homogeneous same-surface cells."
+        },
+        {
+          "hypothesis": "H2 mixed measurement support",
+          "prediction": "Coordinate correction leaves failures concentrated where sparse cells or bilinear key footprints combine surfaces; full support certificate rejects them."
+        },
+        {
+          "hypothesis": "H3 Apply spill",
+          "prediction": "Coarse cell identity holds while full-resolution protected pixels darken; support-aware Apply alone removes only supported boundary spill."
+        }
+      ],
+      "capture": {
+        "preferred_existing_capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+        "source_frame_ordinals": [
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "frame_count": 8,
+        "order": "strict increasing original frame order, no loop or duplicate frame warmup",
+        "route": "actual native NRD bridge with native Anchor enabled only in isolated default-off A/B",
+        "replay_requirement": "Replay genuine preceding original history locally when possible. Otherwise record an actual new native run with a new UUID and a frame mapping; do not label reconstructed synthetic keys as original capture keys.",
+        "render_extent_xy": [
+          1505,
+          847
+        ],
+        "core_origin_global_xy": [
+          752,
+          423
+        ],
+        "core_extent_xy": [
+          192,
+          192
+        ],
+        "patch_origin_global_xy": [
+          688,
+          359
+        ],
+        "patch_extent_xy": [
+          320,
+          320
+        ],
+        "halo_pixels_each_side": 64,
+        "halo_reason": "The frozen gain donor offset is24px, each cell contributes taps within4px, and full-resolution bilinear reconstruction reaches a neighbouring coarse centre about4px away. A64px halo covers that complete32px radius and the candidate certificate neighbourhood without inventing out-of-crop samples. If final certificate footprint exceeds64px, reject those core recipients rather than silently expanding or clamping.",
+        "key_extent_xy": [
+          188,
+          105
+        ],
+        "key_slices": 6,
+        "key_extent_reason": "Full coarse key slices are small and preserve arbitrary projected key locations; cropping them to the current ROI would remove recall support.",
+        "actual_drs_extent_per_frame": null,
+        "drs_rule": "Record actual active/allocation extents and source origins. If this capture has different DRS dimensions, preserve them and update grid dimensions using exact source contract; never rescale raw keys to the requested dimensions."
+      },
+      "tensors": [
+        {
+          "stage": "before native StatsRecall, after prior submitted key writes",
+          "name": "InKeyLevel",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "6",
+            "Gy",
+            "Gx",
+            "4"
+          ],
+          "channels": "x=pre-gain physical composite luma; others preserved",
+          "units": "physical input luma; no display exposure"
+        },
+        {
+          "stage": "same exact moment as InKeyLevel",
+          "name": "InKeyDepth",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "dtype": "<f4",
+          "shape": [
+            "6",
+            "Gy",
+            "Gx"
+          ],
+          "channels": "native absolute key depth from FP16 Stats store",
+          "units": "positive linear view-depth magnitude in original game distance units"
+        },
+        {
+          "stage": "native converted current inputs before Anchor",
+          "name": "original_diffuse_and_specular",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "2",
+            "320",
+            "320",
+            "4"
+          ],
+          "channels": "RGB physical lobe radiance, A original hit-distance payload",
+          "units": "unchanged original physical units"
+        },
+        {
+          "stage": "native converted current guides before Anchor",
+          "name": "linear_depth",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "dtype": "<f4",
+          "shape": [
+            "320",
+            "320"
+          ],
+          "channels": "signed linear view Z",
+          "units": "original game distance units; preserve handedness sign"
+        },
+        {
+          "stage": "native canonical motion",
+          "name": "motion",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "320",
+            "320",
+            "4"
+          ],
+          "channels": "RG full-render previous-minus-current UV including exactly one canonical jitter delta; B signed previous-minus-current depth; W original constant1",
+          "units": "RG normalized original render; B original game distance"
+        },
+        {
+          "stage": "original and provider-prepared guides, identified separately",
+          "name": "normal_roughness_original_and_provider",
+          "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+          "dtype": "<u4",
+          "shape": [
+            "2",
+            "320",
+            "320"
+          ],
+          "channels": "oct normal bits0..19, roughness bits20..29, material bits30..31",
+          "units": "world-space normal encoding; original packed words, no semantic class inference"
+        },
+        {
+          "stage": "native geometry conversion if actually available",
+          "name": "depth_validity_class",
+          "format": "DXGI_FORMAT_R8_UINT",
+          "dtype": "u1",
+          "shape": [
+            "320",
+            "320"
+          ],
+          "channels": "exact original class plus source enum mapping",
+          "units": "categorical",
+          "absent_policy": "Record null with source path reason; do not synthesize validity from motion.w or corrected colour"
+        },
+        {
+          "stage": "after native StatsRecall and after Gain before Apply",
+          "name": "Stats_Recalled_Gain",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "3",
+            "Gy",
+            "Gx",
+            "4"
+          ],
+          "channels": "exact original channels and order",
+          "units": "physical levels, signed depth, flags, slice and scalar gain as source ABI"
+        },
+        {
+          "stage": "native provider input boundary",
+          "name": "private_corrected_diffuse_and_specular",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "2",
+            "320",
+            "320",
+            "4"
+          ],
+          "channels": "RGB after Apply, exact original A",
+          "units": "native physical units"
+        },
+        {
+          "stage": "native provider output before NZR; selected output after NZR",
+          "name": "raw_RR_and_selected_diffuse_specular",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "dtype": "<f2",
+          "shape": [
+            "2",
+            "2",
+            "192",
+            "192",
+            "4"
+          ],
+          "channels": "exact stored RGBA for lobe and stage",
+          "units": "original captured units; selected is not truth"
+        },
+        {
+          "stage": "frozen baseline inputs before candidate evaluation",
+          "name": "fixed_protected_and_observed_support_masks",
+          "format": "R8_UINT or lossless NPZ bool",
+          "dtype": "u1",
+          "shape": [
+            "192",
+            "192"
+          ],
+          "channels": "bit0 observed, bit1 protected moving/disoccluded; document exact immutable construction",
+          "units": "categorical"
+        }
+      ],
+      "metadata": [
+        "Exact current/previous/key world-to-view and projection matrices as original32-bit words, mathematical column-vector convention, raw memory layout and all shared Desc-transpose adapters.",
+        "Per-key physical slice, validity, captured original frame ordinal, capture generation, capture jitter, original extent and crop origin; current KeySlice priority including unused sentinel6.",
+        "All StatsRecall/Gain/Apply constant-buffer bytes, actual sizeof/offset manifest and source commit. Include current/previous jitter pixels, whether projection or MVs already contain jitter, motion direction/scale, P32 and depth sign.",
+        "Native32-byte split16.16 sums buffer after Stats if available; exact counters are optional for transport and must not be reconstructed from rounded fields as exact.",
+        "Actual source/input/output resource IDs, format, active extent, allocation extent, subresource, row pitch, slice pitch, frame index, conversion provenance and source stage.",
+        "Scheduled/recorded/submitted/completed IDs and queue/fence dependency for each ring producer and consumer; current reset, previousValid, cut, gap and option flags.",
+        "Original46-word provider controls and provider binary/version/hash. Original source manifest UUID/hash and per-tensor SHA256, without machine-private absolute paths."
+      ],
+      "proposed_local_extraction": "Use a dedicated diagnostic native route run. Before each StatsRecall, enqueue CopyTextureRegion of all six current key slices to per-frame leased readback staging, retaining old graph generation until fence completion. Copy current320x320 guides/original inputs and private provider-boundary pair. Capture Stats/recalled/gain after their producing barriers. Read back only after producer fence completion; serialize uncompressed typed arrays or allow_pickle=False NPZ without any tone map, normalization, filtering, rescaling or new half store. Keep actual row/slice pitch metadata even if file rows are packed.",
+      "maximum_useful_payload": {
+        "ring_bytes_per_snapshot": 1421280,
+        "eight_ring_snapshots_bytes": 11370240,
+        "primary_uncompressed_tensor_estimate_bytes": 68310016,
+        "paired_candidate_outputs_and_debug_increment_bytes": 27262976,
+        "paired_total_estimate_bytes": 95572992,
+        "cap_bytes": 100663296,
+        "cap_rationale": "About91MiB typed paired payload plus a small manifest fits96MiB. Original guides are shared by both modes; no duplicate unchanged input files, no whole-frame radiance, no complete game install or full long capture."
+      },
+      "competing_outcomes": [
+        "A deterministic q correction lowers exact recall mismatch while all support tests pass: consider a separate coordinate-only adapter after native GPU parity.",
+        "Correct q still selects mixed geometry: retain support-first rejection and reject gain-only or threshold-only explanations.",
+        "Coarse identity passes but full-resolution spill persists: require recipient and donor support in Apply; centre safety alone is insufficient.",
+        "Missing raw ring provenance, original guides or submission witness: keep captured-selector conclusions blocked and retain analytic diagnostic deliverable."
+      ],
+      "useful_work_completed_without_observation": [
+        "source coordinate/support ledger",
+        "independent mechanism review",
+        "canonical CPU transport/projection and partial-domain model",
+        "known bad coordinate and reconstruction controls",
+        "phase/support reconstruction candidate and CPU tests",
+        "precise default-off adapter contract"
+      ]
+    },
+    {
+      "id": "R2_actual_sampler_near_threshold_witness",
+      "missing_observable": "Actual D3D sampled values/fractions at support threshold and odd-extent key coordinates.",
+      "why_current_data_cannot_identify_it": "Frozen colour provenance states continuous NumPy differs on9/4096 hard depth decisions. Recalled anchor grids omit the exact q, surrounding key texels and hardware-sampled depth used for each decision.",
+      "hypotheses_distinguished": [
+        "Coordinate mapping error independent of hardware fraction quantization",
+        "Hardware interpolation-fraction quantization changing a hard threshold",
+        "Genuine unsupported mixed geometry"
+      ],
+      "exact_capture_stage": "Instrumented copy of StatsRecall immediately after SampleLevel and before threshold; isolated synthetic32x32 or137x131 shader dispatch, no game needed.",
+      "format_extent_sequence": {
+        "active_extent_xy": [
+          137,
+          131
+        ],
+        "guide_allocation_extent_xy": [
+          192,
+          160
+        ],
+        "grid_extent_xy": [
+          17,
+          16
+        ],
+        "fractions": [
+          0,
+          0.001953125,
+          0.00390625,
+          0.498046875,
+          0.5,
+          0.99609375
+        ],
+        "depth_values_around_2percent_gate": [
+          1.0199,
+          1.02,
+          1.0201
+        ],
+        "frames": [
+          0,
+          1
+        ],
+        "crop_origin_xy": [
+          0,
+          0
+        ]
+      },
+      "requested_tensors_metadata": [
+        "float32 q and normalized UV",
+        "four unrounded/actual stored source depths",
+        "actual SampleLevel result",
+        "expected depth and tolerance",
+        "accept/reject uint",
+        "device/driver/compiler/source/CSO hashes",
+        "actual sampler/filter/address modes",
+        "all current/previous transforms and jitter from GPU_REQUEST experimentA"
+      ],
+      "units": "q in pixel-edge coordinates; depth in linear game/analytic distance; UV normalized to actual allocation.",
+      "provenance_requirements": "Actual freshly compiled native and combined Stats routes labelled separately; matched exact input bytes and constants. Do not infer sampled values by recomputing ideal bilinear.",
+      "proposed_local_extraction": "Add diagnostic UAV outputs to a scratch-only shader copy, reflect root ABI and capture raw float32 intermediates after a producer fence. Keep uninstrumented output comparison to exclude changed optimization behaviour.",
+      "maximum_useful_payload": {
+        "cap_bytes": 2097152,
+        "reason": "Selected cells and their surrounding texels/metadata only; scalar sweep table covers remaining phases."
+      },
+      "competing_outcomes": [
+        "Actual sample explains continuous-model mismatch: model hardware quantization separately with measured driver-specific bound.",
+        "Actual sample agrees but q or guide correspondence differs: coordinate/support model is wrong and must fail."
+      ],
+      "useful_work_completed_without_observation": [
+        "ideal explicit interpolation reference labelled as CPU model",
+        "negative coordinate mutants",
+        "near-threshold GPU request and exact mask/denominator design"
+      ]
+    },
+    {
+      "id": "R3_virtual_distance_and_visibility_truth",
+      "missing_observable": "Verified planar-reflection virtual-point correspondence with native alpha distance-role and visible/occluded truth.",
+      "why_current_data_cannot_identify_it": "Stored native alpha preserves a payload but does not by itself establish that every source path supplies a usable reflection-ray distance. Short raw clips and selected RR contain no converged same-pose reflected-feature truth; glass aligned outputs use camera-only alignment without source-depth occlusion compensation.",
+      "hypotheses_distinguished": [
+        "Surface MV is correct for the physical receiver but wrong for the virtual reflected feature under translation",
+        "Hit-distance virtual reprojection is appropriate",
+        "Mixed hits/reflector geometry or disocclusion invalidates virtual history even when hit magnitudes agree"
+      ],
+      "exact_capture_stage": "First run an analytic static planar mirror in the local FlatHistory harness. Only if it passes, request a tiny native planar-reflector trace with alpha provenance.",
+      "format_extent_sequence": {
+        "active_extent_xy": [
+          137,
+          131
+        ],
+        "frame_ordinals": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "trajectory": "identity,3-degree rotation,0.125 world-unit translation, object/occluder crossing; unlooped",
+        "crop_extent_xy": [
+          137,
+          131
+        ],
+        "crop_origin_xy": [
+          0,
+          0
+        ],
+        "first_frame_history": "invalid"
+      },
+      "requested_tensors_metadata": [
+        "R32F signed surface depth and exact analytical surface/virtual positions",
+        "RGBA16F raw native specular with unchanged alpha",
+        "packed original normal/roughness",
+        "original current/previous column-vector transforms and jitter",
+        "R8 exact visibility and object IDs for synthetic only",
+        "R32G32 history moment/hit and RGBA16 mean/count",
+        "surface and virtual q plus each tap-valid decision",
+        "source path evidence that alpha is actual reflected-ray distance, including units"
+      ],
+      "units": "View depth signed; reflection distance positive ray length in same world units; q pixel-edge; IDs synthetic oracle only.",
+      "provenance_requirements": "Analytical truth, actual GPU shader, native route and game observation are separate result categories. Missing usable hit must stay missing; no inferred normal/material class from colour.",
+      "proposed_local_extraction": "Feed the exact matrices in GPU_REQUEST experimentA, construct a planar mirror analytically, and read back FlatHistory debug buffers. Export one actual native trace only if the original alpha role and camera timing are attested.",
+      "maximum_useful_payload": {
+        "cap_bytes": 16777216,
+        "reason": "Eight small raw/guide/history frames plus diagnostics, not a converged whole-frame capture."
+      },
+      "competing_outcomes": [
+        "Virtual model follows truth and surface model drifts: justified transport distinction, pending support checks.",
+        "Both fail at mixed/occluded pixels: require stricter visibility support; do not hide the issue with history resets or roughness.",
+        "Alpha lacks required semantics: virtual transport unsupported for that path; use explicit fallback."
+      ],
+      "useful_work_completed_without_observation": [
+        "analytical surface/virtual projection API and unit tests",
+        "source review of FlatHistory hit-only support and median neighbourhood",
+        "specified missing-hit/occlusion controls"
+      ]
+    }
+  ],
+  "smallest_next_action": "Run GPU_REQUEST A/B centre-cell witness and export R1 eight native ring/guide snapshots. Synthetic CPU work is already useful; no request to upload everything or edit the user working game is made.",
+  "unavailable_measurements": {
+    "new_capture_selector_error": null,
+    "new_native_gpu_support_metrics": null,
+    "new_gpu_performance": null,
+    "new_AMD_RR_quality": null,
+    "final_game_quality": null
+  },
+  "geometry_identifiability_limit": "Even the requested raw guides cannot establish distinct coplanar object/material identity, or resolve parallel surfaces below the guide/plane-tolerance precision. Such cases require an attested semantic/object or visibility observation; this request does not ask the user to invent one and does not treat zero material IDs as evidence.",
+  "alpha_payload_provenance": "Preserve original raw16-bit input alpha words. Active legal finite nonnegative hit distances are compared bitwise at each stage. Typed HLSL load/store may canonicalize arbitrary NaNs; unsupported NaN/signed-zero/subnormal probes belong to separate diagnostics, not a promised arbitrary-bit native payload contract. OFF/unsupported candidate no-write path must preserve all bytes."
+}

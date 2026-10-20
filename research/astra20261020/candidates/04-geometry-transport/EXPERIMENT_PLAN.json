@@ -1,0 +1,28 @@
+{
+  "stage": "frozen before candidate sweep execution",
+  "task": "04-geometry-transport",
+  "scope": "CPU analytic transport and support reconstruction; no RR or GPU execution",
+  "training": "Only analytic identity and the independently preregistered two-cell bilinear spill control",
+  "held_out_orientation_degrees": [17, 33, 58, 81, 121, 147],
+  "canonical_orientation_degrees": [0, 45, 90, 135],
+  "subpixel_phases": "0,0.25,...,7.75 pixels; entire eight-pixel cell, no tuned phase selection",
+  "extent_width_height": [[64, 48], [67, 53], [137, 131], [65, 17]],
+  "geometry": ["two_surface_boundary", "one_pixel_foreground_strip", "partial_observation"],
+  "cell_sizes": [4, 8],
+  "gain": 0.8,
+  "plane_absolute_tolerance": 0.00001,
+  "plane_relative_tolerance": 0.0001,
+  "normal_angle_degrees": 3,
+  "seeds": [1701, 20261020, 99173],
+  "temporal_frames": 48,
+  "constraints": [
+    "Freeze masks and all metric denominators from analytic BASE scene before variant evaluation",
+    "Report exact-gain and exact-support isolation separately from contaminated-gain ablations",
+    "Record correction dose lost on eligible pixels; compare at common dose by attenuation only",
+    "Report fixed-mask detail, grain, sparkle tails and unlooped temporal flicker separately",
+    "No production validity claim from synthetic surface IDs; candidate accepts no IDs",
+    "All nonzero estimator donors must be certified; cell purity alone is insufficient",
+    "Run positive controls and eight independent coordinate mutants",
+    "Keep recommendation as research until actual native GPU route, sampler and game gates"
+  ]
+}
