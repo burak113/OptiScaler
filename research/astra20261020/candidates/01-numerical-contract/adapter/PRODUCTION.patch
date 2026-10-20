@@ -1,0 +1,13 @@
+--- a/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl
++++ b/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl
+@@ -82,7 +82,9 @@
+         if (all(uv >= 0.0f) && all(uv <= 1.0f) && abs(history.a) > 1e-9f)
+         {
+             const float expected = centre.a + motion.z;
+-            const bool valid = abs(history.a - expected) <= Params.y * max(abs(expected), 1e-3f);
++            // Reject nonfinite depth before a relative comparison can become Inf <= Inf.
++            const bool valid = isfinite(history.a) && isfinite(expected) &&
++                               abs(history.a - expected) <= Params.y * max(abs(expected), 1e-3f);
+             target = valid ? lerp(history.rgb, source, Params.x) : source;
+         }
+     }
