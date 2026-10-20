@@ -103,7 +103,11 @@ def phase_sweep(evidence):
     digest=hashlib.sha256()
     examples={}
     oracle_totals={'certified_cells':0,'false_certified_cells':0,'true_pure_cells':0,
-                   'missed_pure_cells':0,'output_max_abs_error':0.,'unknown_query_promoted':0}
+                   'missed_pure_cells':0,'centre_sampled_gain_vs_exact_cell_gain_max_error':0.,
+                   'centre_gain_disagrees_with_observed_cell_count':0,
+                   'centre_gain_disagreement_scene_count':0,
+                   'centre_gain_worst_case':None,
+                   'exact_footprint_gain_output_max_abs_error':0.,'unknown_query_promoted':0}
     orientations=plan['canonical_orientation_degrees']+plan['held_out_orientation_degrees']
     for extent in plan['extent_width_height']:
         for cell in plan['cell_sizes']:
@@ -121,8 +125,22 @@ def phase_sweep(evidence):
                         oracle_totals['false_certified_cells']+=int((cells.valid&~oracle_cells).sum())
                         oracle_totals['true_pure_cells']+=int(oracle_cells.sum())
                         oracle_totals['missed_pure_cells']+=int((~cells.valid&oracle_cells).sum())
-                        oracle_totals['output_max_abs_error']=max(oracle_totals['output_max_abs_error'],
-                            float(np.abs(supported.gain-oracle_output).max()))
+                        centre_error=float(np.abs(supported.gain-oracle_output).max())
+                        if centre_error>oracle_totals['centre_sampled_gain_vs_exact_cell_gain_max_error']:
+                            oracle_totals['centre_sampled_gain_vs_exact_cell_gain_max_error']=centre_error
+                            oracle_totals['centre_gain_worst_case']={'extent':extent,'cell':cell,'kind':kind,
+                                'angle':angle,'phase':float(phase)}
+                        mismatched=oracle_cells&(np.abs(coarse-.8)>1e-12)
+                        oracle_totals['centre_gain_disagrees_with_observed_cell_count']+=int(mismatched.sum())
+                        oracle_totals['centre_gain_disagreement_scene_count']+=int(mismatched.any())
+                        # Distinct exact-footprint intervention. Crucially the
+                        # truth mask comes from oracle_cells, NOT cells.valid.
+                        exact_gain=np.where(oracle_cells,.8,coarse)
+                        exact_result=reconstruct(exact_gain,support,field)
+                        exact_error=float(np.abs(exact_result.gain-oracle_output).max())
+                        oracle_totals['exact_footprint_gain_output_max_abs_error']=max(
+                            oracle_totals['exact_footprint_gain_output_max_abs_error'],exact_error)
+                        assert exact_error<=1e-12, 'exact-footprint gain and exact-support oracle disagree'
                         oracle_totals['unknown_query_promoted']+=int(((~field.observed)&(supported.support_mass>0)).sum())
                         variants={
                             'bilinear':bilinear_gain(coarse,tuple(extent),cell),
@@ -176,7 +194,8 @@ def phase_sweep(evidence):
                             'zero_common_dose_cases':sum(x['matched_dose']<=1e-12 for x in rows),
                             'zero_pairwise_dose_cases':sum(x['pair_bilinear_supported_dose'] is not None and
                                 x['pair_bilinear_supported_dose']<=1e-12 for x in rows)}
-    return {'scope':'analytic CPU; exact centre gain intervention, conservative measured geometry support',
+    return {'scope':'analytic CPU; centre-sampled point-gain intervention, conservative measured geometry support',
+            'gain_footprint_note':'Point-centre gain is not an exact full-cell statistic for aliased thin strips. Separate exact-footprint ablation replaces only independently oracle-pure cells; primary comparisons remain unchanged.',
             'scene_cases':len(cases)//4,'variant_rows':len(cases),'base_masks_sha256':digest.hexdigest(),
             'plan_sha256':hashlib.sha256((ROOT/'EXPERIMENT_PLAN.json').read_bytes()).hexdigest(),
             'variants':summaries,'exact_support_ablation':oracle_totals,

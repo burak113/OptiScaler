@@ -185,3 +185,37 @@ These are separately measured arithmetic/representation trade-offs, not actual
 RR grain, fresh GPU, or game measurements. The negative flicker/noise results
 reinforce **keep as research**. Safety on protected pixels is insufficient to
 accept this reconstruction as a production quality improvement.
+
+## Reconciliation of the full-sweep exact-gain discrepancy
+
+The final sweep exposed a genuine mismatch between two experimental
+representations: the primary gain intervention samples analytic geometry at a
+coarse **point**, while the current-cell certificate observes discrete
+full-resolution **texel centres**. An open one-pixel strip can contain the coarse
+point and none of the adjacent texel centres. The gain may therefore be one
+although every observed source texel in that cell belongs to the static
+background whose target gain is 0.8.
+
+The root retained the original full result instead of rewriting its discrepancy
+as a success. The reviewer independently reproduced a minimal 16x16 witness:
+the strip `11.5 < x < 12.5` contains coarse point `x=12`, but no texel centres.
+All four cells have uniform observed background geometry. Point-intervention
+reconstruction has a maximum **0.2** error against a gain of 0.8; using the
+exact gain of the **same discrete source footprint** yields maximum error below
+1e-15. This regression was added to the independently owned reconstruction
+suite, which now has 14 checks and passed with warnings treated as errors.
+
+The correct reconciliation is a separate exact-footprint-gain ablation, not
+threshold tuning or changes to the primary sweep. Its gain truth must be derived
+from independent analytic/discrete support, never from candidate validity. Its
+expected output is 0.8 only for eligible observed queries with at least one
+independently valid contributor, and identity elsewhere. The primary
+centre-sampled results, their aliasing error, and the support/dose trade-offs
+remain reported.
+
+This finding also narrows certificate language: agreement on all supplied texel
+centres is not continuous subpixel coverage proof. In the captured pipeline,
+the actual radiance/guide/temporal measurement footprint must be declared and
+matched; a synthetic coarse point cannot silently stand in for native Stats'
+four bilinear measurements or the gain estimator's broader donor footprint.
+The independent recommendation remains **keep as research**.

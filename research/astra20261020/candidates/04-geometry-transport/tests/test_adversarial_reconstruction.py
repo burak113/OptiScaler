@@ -85,6 +85,25 @@ class IndependentReconstructionChallenges(unittest.TestCase):
         expected_correct_gain = .9
         self.assertGreater(np.max(np.abs(out.gain-expected_correct_gain)), .29)
 
+    def test_point_gain_alias_is_separate_from_exact_footprint_reconstruction(self):
+        field = plane(16, 16)
+        pixel_x = np.arange(16)+.5
+        coarse_x = np.array([4., 12.])
+        # Open strip 11.5 < x < 12.5 intersects the coarse point x=12 but
+        # contains neither adjacent full-resolution texel centre. A point gain
+        # is therefore not exact for the estimator's discrete pixel footprint.
+        self.assertFalse(np.any(np.abs(pixel_x-12.) < .5))
+        point_gain = np.broadcast_to(np.where(np.abs(coarse_x-12.) < .5, 1., .8), (2, 2))
+        support = local(field)
+        self.assertTrue(support.valid.all())
+        mismatched = r.reconstruct(point_gain, support, field)
+        self.assertAlmostEqual(float(np.max(np.abs(mismatched.gain-.8))), .2)
+        # Derive this gain from known uniform discrete input, not candidate
+        # validity: every supplied observed texel is the static background.
+        exact_footprint_gain = np.full((2, 2), .8)
+        isolated = r.reconstruct(exact_footprint_gain, support, field)
+        np.testing.assert_allclose(isolated.gain, .8, rtol=0, atol=1e-15)
+
     def test_sub_tolerance_parallel_surfaces_are_not_observably_separable(self):
         field = plane(16, 16)
         field.position[:, 7, 2] += .0005
