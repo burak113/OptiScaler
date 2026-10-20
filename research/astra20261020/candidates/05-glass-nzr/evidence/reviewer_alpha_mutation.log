@@ -1,0 +1,29 @@
+test_raw_output_alpha_bits_and_read_only_inputs_are_protected (__main__.IndependentAdversarialTests.test_raw_output_alpha_bits_and_read_only_inputs_are_protected) ... FAIL
+
+======================================================================
+FAIL: test_raw_output_alpha_bits_and_read_only_inputs_are_protected (__main__.IndependentAdversarialTests.test_raw_output_alpha_bits_and_read_only_inputs_are_protected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py", line 247, in test_raw_output_alpha_bits_and_read_only_inputs_are_protected
+    np.testing.assert_array_equal(output[..., 3].view(np.uint32), alpha_words)
+  File "site-packages/numpy/testing/_private/utils.py", line 1054, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "site-packages/numpy/testing/_private/utils.py", line 919, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError: 
+Arrays are not equal
+
+Mismatched elements: 80 / 80 (100%)
+Max absolute difference among violations: 1082130432
+Max relative difference among violations: 0.50390625
+ ACTUAL: array([[1065353216, 1065353216, 1065353216, 1065353216, 1065353216,
+        1065353216, 1065353216, 1065353216, 1065353216, 1065353216],
+       [1065353216, 1065353216, 1065353216, 1065353216, 1065353216,...
+ DESIRED: array([[2147483648,          0, 2143289635, 1065427781, 1123418112,
+        2147483648,          0, 2143289635, 1065427781, 1123418112],
+       [2147483648,          0, 2143289635, 1065427781, 1123418112,...
+
+----------------------------------------------------------------------
+Ran 1 test in 0.044s
+
+FAILED (failures=1)

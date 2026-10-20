@@ -1,0 +1,136 @@
+{
+  "executor": "independent reviewer, read-only audit of root-executed holdout",
+  "candidate_or_holdout_reexecuted": false,
+  "holdout_sha256": "bf2b89353e1afeda86117cee327f7908d756cb15a26043afad3b600db26ad4ef",
+  "gpu_executed": false,
+  "summaries_verified": {
+    "independent_gaussian": {
+      "sequences": 48,
+      "accepted_blocks": 320827,
+      "maximum_absolute_texture_match_error": 1.555074935488676e-08,
+      "mean_detail_matched_scalar_strength": 0.48747078764553575,
+      "independently_recomputed_mean_paired_ratios": {
+        "blend05": {
+          "grain_highpass_error_rms": 0.7779409582231637,
+          "positive_sparkle_error_p995": 0.878001569111015,
+          "temporal_error_rms": 0.8685896672772421,
+          "texture_contrast_gain": 0.9774196214341105,
+          "text_stroke_contrast_gain": 0.9878635688714578,
+          "isolated_glint_peak_gain": 0.894844001347653
+        },
+        "detail_matched_scalar_null": {
+          "grain_highpass_error_rms": 0.7964077770602142,
+          "positive_sparkle_error_p995": 0.8995007813005254,
+          "temporal_error_rms": 0.8856431614740656,
+          "texture_contrast_gain": 1.000000001279924,
+          "text_stroke_contrast_gain": 1.0045092393764292,
+          "isolated_glint_peak_gain": 0.9150980404311682
+        }
+      }
+    },
+    "sparse_heavy_tail": {
+      "sequences": 48,
+      "accepted_blocks": 320829,
+      "maximum_absolute_texture_match_error": 1.708061203586908e-08,
+      "mean_detail_matched_scalar_strength": 0.4435201912953974,
+      "independently_recomputed_mean_paired_ratios": {
+        "blend05": {
+          "grain_highpass_error_rms": 0.8359951372853128,
+          "positive_sparkle_error_p995": 0.9779548084577904,
+          "temporal_error_rms": 0.8878987292009283,
+          "texture_contrast_gain": 0.8982320090167315,
+          "text_stroke_contrast_gain": 0.9335564676348674,
+          "isolated_glint_peak_gain": 0.6813163999810282
+        },
+        "detail_matched_scalar_null": {
+          "grain_highpass_error_rms": 0.9411040957253247,
+          "positive_sparkle_error_p995": 1.0999333133115943,
+          "temporal_error_rms": 0.9962304168963515,
+          "texture_contrast_gain": 0.9999999992464325,
+          "text_stroke_contrast_gain": 1.0089092969770035,
+          "isolated_glint_peak_gain": 0.7568852176245257
+        }
+      }
+    },
+    "temporal_ar1": {
+      "sequences": 48,
+      "accepted_blocks": 0,
+      "maximum_absolute_texture_match_error": 0.0,
+      "mean_detail_matched_scalar_strength": 0.500000000082731,
+      "independently_recomputed_mean_paired_ratios": {
+        "blend05": {
+          "grain_highpass_error_rms": 1.0,
+          "positive_sparkle_error_p995": 1.0,
+          "temporal_error_rms": 1.0,
+          "texture_contrast_gain": 1.0,
+          "text_stroke_contrast_gain": 1.0,
+          "isolated_glint_peak_gain": 1.0
+        },
+        "detail_matched_scalar_null": {
+          "grain_highpass_error_rms": 1.0,
+          "positive_sparkle_error_p995": 1.0,
+          "temporal_error_rms": 1.0,
+          "texture_contrast_gain": 1.0,
+          "text_stroke_contrast_gain": 1.0,
+          "isolated_glint_peak_gain": 1.0
+        }
+      }
+    },
+    "spatial_correlated_honest": {
+      "sequences": 48,
+      "accepted_blocks": 0,
+      "maximum_absolute_texture_match_error": 0.0,
+      "mean_detail_matched_scalar_strength": 0.4999999997703873,
+      "independently_recomputed_mean_paired_ratios": {
+        "blend05": {
+          "grain_highpass_error_rms": 1.0,
+          "positive_sparkle_error_p995": 1.0,
+          "temporal_error_rms": 1.0,
+          "texture_contrast_gain": 1.0,
+          "text_stroke_contrast_gain": 1.0,
+          "isolated_glint_peak_gain": 1.0
+        },
+        "detail_matched_scalar_null": {
+          "grain_highpass_error_rms": 1.0,
+          "positive_sparkle_error_p995": 1.0,
+          "temporal_error_rms": 1.0,
+          "texture_contrast_gain": 1.0,
+          "text_stroke_contrast_gain": 1.0,
+          "isolated_glint_peak_gain": 1.0
+        }
+      }
+    },
+    "spatial_correlated_false_contract": {
+      "sequences": 48,
+      "accepted_blocks": 320831,
+      "maximum_absolute_texture_match_error": 1.5549316723095785e-08,
+      "mean_detail_matched_scalar_strength": 0.48719966458490244,
+      "independently_recomputed_mean_paired_ratios": {
+        "blend05": {
+          "grain_highpass_error_rms": 0.8940348220975919,
+          "positive_sparkle_error_p995": 0.9554623215330067,
+          "temporal_error_rms": 0.9256605710470523,
+          "texture_contrast_gain": 0.9769289048864565,
+          "text_stroke_contrast_gain": 0.9872953082935916,
+          "isolated_glint_peak_gain": 0.8991097245678787
+        },
+        "detail_matched_scalar_null": {
+          "grain_highpass_error_rms": 0.9158022654727259,
+          "positive_sparkle_error_p995": 0.9794867954962504,
+          "temporal_error_rms": 0.9441993850854596,
+          "texture_contrast_gain": 0.9999999988715995,
+          "text_stroke_contrast_gain": 1.00430122176532,
+          "isolated_glint_peak_gain": 0.9199502688532809
+        }
+      }
+    }
+  },
+  "limitations": [
+    "48 held-out noise seeds per model, not 48 unseen scene designs or game captures.",
+    "Supplied count 64 is an analytic support annotation, not 64 observed chronological frames; each sequence has 32 frames.",
+    "The rho=.85 finite-mean effective count for annotated 64 observations is 5.738462, below the minimum 8; the AR model therefore only tests identity abstention.",
+    "Detail matching uses one truth-dependent texture regression coefficient; it does not match glint peaks, every spatial frequency, or native detail.",
+    "Quiet-flat positive p99.5 and temporal error retain separate meanings; all-active high-pass tails include blur error.",
+    "Raw RR and NZR are declared synthetic current-frame surrogates, not actual provider/reference-history outputs."
+  ]
+}
