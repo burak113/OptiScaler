@@ -1,0 +1,60 @@
+{
+  "schema": "astra09-production-metadata-cpu-v1",
+  "command": [
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/metadata_compile_checks.py",
+    "--output",
+    "/tmp/astra09-new/metadata"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "scope": "unmodified production serializer helper regions; POD native-type adapters",
+  "windows_build": false,
+  "gpu_executed": false,
+  "quality_accepted": false,
+  "sources_sha256": {
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp": "07fe20f1acc3b6eec37efb54f688fda3886c42e24def9f4fbc418bd62156e313",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/metadata_compile_checks.py": "19d8e9ebba37acbb7229734281766467e12c4ed26578045ba7810bd159a48ed6",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/metadata_compile_test.cpp": "4d7f6045bcfe87a51b84d06c09049ddf0090c4ae62d1809c9faafdb61e621378",
+    "/workspace/scratch/29cea04d2981/OptiScaler/external/nlohmann/json.hpp": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdObservationContract.h": "3e0824e61729dbf89f5a2e6fa61438138b3937b1549926d1050ba8e03da6309c",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdSupportContract.h": "0c280107c31c3186ecb36cca5af67b2f85de6d2ac35b3379e5a8375dc976deaa",
+    "/tmp/astra09-new/metadata/production_observation_state.inc": "0dee38d0475114a114830a940ac0bfed04b3d38b1d7c80214382f3dedc021846",
+    "/tmp/astra09-new/metadata/production_copy_footprint.inc": "4ffebc531efd05368291efe8791d7c8d58bd85fc49b5b6556d26bb40f430e0db",
+    "/tmp/astra09-new/metadata/production_observation_helpers.inc": "a0eb085643c9177c67ecd2c76ea06fefd2129e4eb6e73bc6232782fb0b928040"
+  },
+  "commands": [
+    {
+      "name": "compile",
+      "arguments": [
+        "/usr/bin/g++",
+        "-std=c++20",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-I",
+        "/workspace/scratch/29cea04d2981/OptiScaler",
+        "-I",
+        "/tmp/astra09-new/metadata",
+        "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/metadata_compile_test.cpp",
+        "-o",
+        "/tmp/astra09-new/metadata/metadata_compile_test"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.050506104998931,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "execute",
+      "arguments": [
+        "/tmp/astra09-new/metadata/metadata_compile_test"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.002753541000856785,
+      "log_sha256": "75dcd747431dc1a21fcdbca724f6a48c56b746e06e73bbc493a8b0e0872dde11"
+    }
+  ],
+  "executable_sha256": "f08fec95030182f903da48324507b7b96d341e893d63025686d6f1668592352a",
+  "passed": true
+}

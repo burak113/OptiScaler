@@ -1,0 +1,100 @@
+{
+  "schema": "astra09-delivery-results-v1",
+  "base_tag": "astra-audit-20261020",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "target_branch": "sol/astra-audit-20261020",
+  "executor_scope": "fresh local Linux CPU compilation/execution and native source preparation; source reviews are not native execution",
+  "commands": [
+    {
+      "command": "python research/astra20261020/audit_round2/run_cpu.py --output /tmp/astra09",
+      "exit_code": 0,
+      "stages": 21,
+      "receipt": "evidence/existing_cpu/execution.json",
+      "receipt_sha256": "79902cf28020a16b4609ed0da26373f5cf0a51fb9bf438e20c5cf8fb0a9ecfb5"
+    },
+    {
+      "command": "python research/astra20261020/integration_round2/09-native-observability/run_checks.py --output /tmp/astra09-new",
+      "exit_code": 0,
+      "stages": 6,
+      "receipt": "evidence/new_cpu/execution.json",
+      "receipt_sha256": "aec651d0109b79bdfd6db1977b49fd09655267081a4c0413313e6ca4c0b09b59"
+    }
+  ],
+  "positive_checks": {
+    "observation_cpp": 204,
+    "support_cpp": 56,
+    "production_lifecycle_cpp": 22,
+    "production_metadata_helper_cpp": 54,
+    "offline_reader_unittests": 26
+  },
+  "negative_controls": {
+    "existing_suite": {
+      "implementations": 6,
+      "expected_exit": 1,
+      "actual_assertion_failure_required": true
+    },
+    "new_suite": {
+      "implementations": 6,
+      "names": [
+        "equality_only_authority",
+        "ignored_crop_origin",
+        "missing_high_carry",
+        "cartesian_packed_normal",
+        "current_cell_only_support",
+        "completed_fence_only_release"
+      ],
+      "expected_exit": 1,
+      "actual_assertion_failure_required": true
+    }
+  },
+  "frozen_evidence": {
+    "imported_candidate_files": 559,
+    "unchanged": true,
+    "bottle_and_foliage_chronological_BASE_probes": 30,
+    "native_policy_fixtures": 3,
+    "baseline_masks_unchanged": true
+  },
+  "native_preparation": {
+    "status": "SOURCE_PREPARED_NATIVE_PENDING",
+    "compiler_executed": false,
+    "native_executed": false,
+    "AMD_SDK_executed": false,
+    "scale_roundtrip_executed": false,
+    "quality_accepted": false,
+    "receipt": "evidence/new_cpu/gpu_prepare/review-capture-execution.json"
+  },
+  "remaining_gates": [
+    "Windows full DLL build",
+    "real WARP recorder execution and D3D12 debug layer",
+    "actual AMD SDK provider dispatch and D16/S256 plus legacy scale roundtrip",
+    "live title state restoration and anchor/recovery/flat paths",
+    "native reset/resize/late-failure/stop/restart/device-loss/queue-signal lifecycle",
+    "game visual acceptance; no quality win claimed"
+  ],
+  "native_support": {
+    "valid": false,
+    "reason_bits": 3,
+    "raw_edit_eligible": false,
+    "missing": [
+      "actual nonzero donor footprint",
+      "recalled key correspondence and publication lineage"
+    ]
+  },
+  "first_attempts": [
+    {
+      "receipt": "evidence/first_attempts/missing_git_object/execution.json",
+      "status": "failed at portable_adapters because shallow clone lacked historical Git object",
+      "resolution": "fetched exact 5d7839a930106cf8fe1ba8dbbc6750509e7f26a8; reran unchanged exact baseline"
+    },
+    {
+      "receipt": "evidence/first_attempts/source_changed_during_execution/execution.json",
+      "status": "all six child stages passed; aggregate correctly rejected reader source changes during concurrent finalization",
+      "resolution": "froze source and reran aggregate; source_unchanged_after_execution=true"
+    }
+  ],
+  "whitespace_check": {
+    "command": "git diff --cached --check -- . ':!research/astra20261020/integration_round2/09-native-observability/evidence/**'",
+    "exit_code": 0,
+    "scope": "authored source and documentation; exact execution artifacts preserve original tool whitespace"
+  }
+}

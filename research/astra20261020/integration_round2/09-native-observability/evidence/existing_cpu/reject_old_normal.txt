@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "<repo>/research/astra20261020/candidates/01-numerical-contract/mutants.py", line 40, in <module>
+    run(parser.parse_args().mutant)
+  File "<repo>/research/astra20261020/candidates/01-numerical-contract/mutants.py", line 25, in run
+    assert restored==2049,'old normalized16 payload lost code bits'
+           ^^^^^^^^^^^^^^
+AssertionError: old normalized16 payload lost code bits

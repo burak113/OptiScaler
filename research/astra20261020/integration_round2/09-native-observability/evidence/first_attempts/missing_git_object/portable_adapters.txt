@@ -1,0 +1,13 @@
+fatal: path 'OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl' exists on disk, but not in '5d7839a930106cf8fe1ba8dbbc6750509e7f26a8'
+Traceback (most recent call last):
+  File "<repo>/research/astra20261020/audit_round2/verify_adapters.py", line 63, in <module>
+    main()
+  File "<repo>/research/astra20261020/audit_round2/verify_adapters.py", line 36, in main
+    frozen = subprocess.check_output(["git", "show", BASE + ":" + relative], cwd=REPO)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', 'show', '5d7839a930106cf8fe1ba8dbbc6750509e7f26a8:OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl']' returned non-zero exit status 128.

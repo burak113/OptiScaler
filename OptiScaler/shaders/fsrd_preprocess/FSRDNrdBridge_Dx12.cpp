@@ -2173,7 +2173,10 @@ void CommitNativeTransaction(const std::shared_ptr<Service>& owner, ID3D12Graphi
             if (ready)
             {
                 NrdBridgeStagePerf::StackTimer provider(profile,NrdBridgeStagePerf::Stage::ConsumerRRDispatch);
-                ready = stage->history->rr.RecordOwned(cmd,stage->inputs,stage->parameters,stage->owned,error,profile);
+                RRNativeObservationRequest observations;
+                if (FSRDGameTraceSession::WantsNativeObservations() && FSRDGameTraceSession::WantsNrdBridgeSignal(stage->chain))
+                    observations = {stage->history->id,&FSRDGameTraceSession::RecordNativeObservationInputs};
+                ready = stage->history->rr.RecordOwned(cmd,stage->inputs,stage->parameters,stage->owned,error,profile,observations);
                 if (ready) stage->history->latestOwned = stage->owned;
             }
         }

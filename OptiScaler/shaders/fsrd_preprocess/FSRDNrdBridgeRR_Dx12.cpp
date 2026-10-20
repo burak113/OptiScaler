@@ -807,6 +807,10 @@ struct RRRecordedOutput
     ID3D12Resource *selectedSpec = nullptr, *selectedDiff = nullptr;
     uint32_t frameIndex = 0, frameSL = UINT32_MAX;
     uint64_t contextGeneration = 0, recordingId = 0;
+    uint64_t resetEpoch = 0;
+    FSRDNrdObservation::SelectionPath specularSelection = FSRDNrdObservation::SelectionPath::Unknown;
+    FSRDNrdObservation::SelectionPath diffuseSelection = FSRDNrdObservation::SelectionPath::Unknown;
+    std::weak_ptr<void> nativeObservationInputs;
     bool recoveryFallback = false, nativeCommitPrepared = false;
     bool flatAlbedoFallback = false;
     bool inputAnchorFallback = false;
@@ -837,6 +841,7 @@ struct RRWrapper::Impl
     bool lightingValidationActive = false;
     std::string lightingValidationError, loggedLightingValidationError;
     uint64_t generation = 0;
+    uint64_t resetEpoch = 0; // Monotonic actual provider-reset attempt, frozen per recording.
     uint32_t nextFrame = 0;
     bool resetPending = true, historyValid = false;
     bool motionStabilityReady = false; // First enabled frame starts low; updated only after a successful recording.
@@ -1213,14 +1218,15 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
 
 bool RRWrapper::RecordOwned(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
                             const FrameParameters& frame, RRRecordedOutputLease& output, std::string& error,
-                            NrdBridgeStagePerf::Sample* profiling)
+                            NrdBridgeStagePerf::Sample* profiling, const RRNativeObservationRequest& observations)
 {
-    return RecordOwnedImpl(list,input,frame,output,error,profiling,true);
+    return RecordOwnedImpl(list,input,frame,output,error,profiling,true,observations);
 }
 
 bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const ConvertedResources& sourceInput,
                                 const FrameParameters& frame, RRRecordedOutputLease& output, std::string& error,
-                                NrdBridgeStagePerf::Sample* profiling, bool prepareNativeCommit)
+                                NrdBridgeStagePerf::Sample* profiling, bool prepareNativeCommit,
+                                const RRNativeObservationRequest& observations)
 {
     error.clear(); output.reset();
     auto input = sourceInput;
@@ -1324,6 +1330,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         }
     }
     auto* committedSpec = lease->slot->spec.Get(); auto* committedDiff = lease->slot->diff.Get();
+    auto selectionPath = FSRDNrdObservation::SelectionPath::RawRR;
     bool recoveryFallback = false;
     const bool requestRecovery = recoverySkipReason == uint32_t(LobeRecoveryFallbackReason::None);
     if (requestRecovery)
@@ -1352,6 +1359,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         if (prepared)
         {
             committedSpec = lease->recovery.specular; committedDiff = lease->recovery.diffuse;
+            selectionPath = FSRDNrdObservation::SelectionPath::LobeRecovery;
             lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
             impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
         }
@@ -1447,12 +1455,16 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     if (flatPrepared)
     {
         committedSpec = lease->flatAlbedo.specular; committedDiff = lease->flatAlbedo.diffuse;
+        selectionPath = FSRDNrdObservation::SelectionPath::FlatAlbedo;
         lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
     }
     // Allocate the public opaque owner before any provider commands can be recorded.
     auto recorded = MakeOwnedShared<RRRecordedOutput>();
     recorded->wrapper = impl_; recorded->lease = lease; recorded->source = list;
     recorded->selectedSpec = committedSpec; recorded->selectedDiff = committedDiff;
+    recorded->specularSelection = recorded->diffuseSelection = selectionPath;
+    if (reset) ++impl_->resetEpoch;
+    recorded->resetEpoch = impl_->resetEpoch;
     recorded->frameIndex = frame.frameIndex; recorded->frameSL = frame.streamlineFrame;
     recorded->contextGeneration = lease->context->generation; recorded->recoveryFallback = recoveryFallback;
     recorded->nativeCommitPrepared = prepareNativeCommit;
@@ -1468,6 +1480,10 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     recorded->nativeRecording = nativeRecording; recorded->recordingId = nativeRecording->id;
     // Leased before recording: the guard and every recovery reader see initialized physical copies.
     if (lease->inputAnchor.owner) impl_->inputAnchor.RecordInputs(list,lease->inputAnchor);
+    if (observations.record && observations.domain)
+        recorded->nativeObservationInputs = observations.record(device.Get(),list,sourceInput,input,
+            observations.domain,recorded->recordingId,recorded->contextGeneration,recorded->resetEpoch,
+            recorded->frameIndex,recorded->frameSL,reset);
     // Post-turn colour filter: full weight on a fast turn or RR reset, fading over turnColourFrames recorded frames.
     // Post-turn brightness correction: gain 1/(1+bias), the bias scaled by the turn's peak speed (full at 20 deg/frame)
     // and fading over turnBrightnessFrames. A reset without a fast turn restarts the colour fade only.
@@ -1679,6 +1695,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.frameSL = output->frameSL; result.frameIndex = output->frameIndex;
     result.width = lease->context->width; result.height = lease->context->height;
     result.contextGeneration = output->contextGeneration;
+    result.resetEpoch = output->resetEpoch;
+    result.specularSelection = output->specularSelection; result.diffuseSelection = output->diffuseSelection;
+    result.nativeObservationInputs = output->nativeObservationInputs;
     result.outputCommitted = output->phase.load(std::memory_order_acquire) == RRRecordedOutput::Committed;
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
@@ -1688,6 +1707,7 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.providerPhysicalSpec = lease->inputAnchor.owner ? lease->inputAnchor.specular : lease->inputs[0].Get();
     result.providerPhysicalDiff = lease->inputAnchor.owner ? lease->inputAnchor.diffuse : lease->inputs[1].Get();
     result.postMotionAnchorGain = lease->inputAnchor.active ? lease->inputAnchor.gain : nullptr;
+    result.postMotionAnchorSums = lease->inputAnchor.active ? lease->inputAnchor.diagnosticSums : nullptr;
     result.postMotionAnchorActive = lease->inputAnchor.active;
     result.postMotionAnchorFallback = output->inputAnchorFallback;
     result.postMotionAnchorError = output->inputAnchorError;

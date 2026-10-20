@@ -1,0 +1,28 @@
+FAIL far +3 donor contaminates pure recipient
+FAIL tiny positive donor cannot be dropped
+FAIL foreign recalled bilinear donor rejected
+FAIL unobserved tap is not assumed zero
+FAIL +/-1 stencil cannot replace actual +/-3
+FAIL NaN donor weight rejected
+FAIL negative donor weight rejected
+FAIL empty support does not certify a correction
+FAIL corrupt deserialized normal cannot bypass finite check
+FAIL current tag cannot certify missing key
+FAIL ideal sampler fractions are not observed fractions
+FAIL stale recalled epoch rejected
+FAIL recorded or uncompleted key cannot be published
+FAIL unrelated completion fence cannot publish key
+FAIL device-removal fence sentinel cannot publish support
+FAIL sentinel submission cannot publish support
+FAIL invalidated key rejected
+FAIL overwritten physical slot generation rejected
+FAIL future or same-frame key cannot be recalled
+FAIL unused native ring sentinel rejected
+FAIL out-of-domain history is not edge-clamped into evidence
+FAIL zeroing a real key tap cannot manufacture pure support
+FAIL wrong original key sample origin rejected
+FAIL moving crop/grid phase mismatch rejected
+FAIL unobserved frame veto remains explicit
+FAIL wrong current donor frame rejected
+FAIL weaker cell certificate cannot bypass estimator policy
+support_contract: 56 checks, 27 failures; mutant=1

@@ -1,0 +1,3 @@
+compile: PASS (exit 0)
+production_state: PASS (exit 0)
+reject_broken_release: PASS (exit 1)

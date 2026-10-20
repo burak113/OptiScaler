@@ -1,0 +1,574 @@
+{
+  "schema": "astra09-sha256-manifest-v1",
+  "base_tag": "astra-audit-20261020",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "hash_algorithm": "SHA-256",
+  "scope": "complete changed/new files relative to base, excluding only this self-referential manifest",
+  "files": [
+    {
+      "path": "OptiScaler/OptiScaler.vcxproj",
+      "bytes": 82952,
+      "sha256": "3658be31cc3a9ab65abaf98f295b8dfa4262cc3bd10b85e8b129a514e5defbab"
+    },
+    {
+      "path": "OptiScaler/OptiScaler.vcxproj.filters",
+      "bytes": 86019,
+      "sha256": "9480d892f88feec6b7584fbf7e94600be71eda4328bc45c528fe66cc363057bd"
+    },
+    {
+      "path": "OptiScaler/menu/menu_common.cpp",
+      "bytes": 459436,
+      "sha256": "acea55f0c0b56a5edb0d60afacbb014962280f29a441e9af10f6cbce017557ac"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp",
+      "bytes": 196307,
+      "sha256": "07fe20f1acc3b6eec37efb54f688fda3886c42e24def9f4fbc418bd62156e313"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.h",
+      "bytes": 11838,
+      "sha256": "7646d02b6d136a79340d33f411f22b64db3bb8a67209da87cb9a26da937436e9"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+      "bytes": 114176,
+      "sha256": "0833aa3d9974ee925dc31256e30545b0fd97bc7ed564cea5dce5162fc4f2a48e"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h",
+      "bytes": 19808,
+      "sha256": "e8727e472a3dd854fa1e044d0e4df0aab72fbe92670bdda075103f582ac9c64b"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+      "bytes": 256231,
+      "sha256": "02aa98acac89d7f44ba94059761293586b46974873fdfa82b6108d9d7c35207e"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdObservationContract.h",
+      "bytes": 18384,
+      "sha256": "3e0824e61729dbf89f5a2e6fa61438138b3937b1549926d1050ba8e03da6309c"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h",
+      "bytes": 22081,
+      "sha256": "3f9993dc7c5f7285160ac40eb3b471eca49df8de4762c591830dc513fc2e5917"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdSupportContract.h",
+      "bytes": 18244,
+      "sha256": "0c280107c31c3186ecb36cca5af67b2f85de6d2ac35b3379e5a8375dc976deaa"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/HOST_CAPTURE.md",
+      "bytes": 11079,
+      "sha256": "530420b00eb9d0f11e2747c5a22734400524f5f9c4217cd4fc7874871b0419c2"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/README.md",
+      "bytes": 5895,
+      "sha256": "7a9c879e15c3cf4510caea4f075d5ec68a550cf97b609fa442cb8c039d3875b3"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/RESULTS.json",
+      "bytes": 3797,
+      "sha256": "060c151a12e3909220db34807598447c8557b3ea8cc169d4c9f514584de2c0eb"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/01-numerical-contract.txt",
+      "bytes": 20667,
+      "sha256": "ed79435979715d057147a7e1c922e6cfd97177a55e962d30e08e29b6d7251536"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/02-anchor-estimator.txt",
+      "bytes": 2307,
+      "sha256": "0e67f794b34c0d50f7ea72770b10f3b6d914cce56647a941085eae10339112f0"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/03-native-colour.txt",
+      "bytes": 4015,
+      "sha256": "ba2b622214cdd3d0fa7f8e5a46fb87520c9c437e43b79f953f10b474d486ba35"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/04-geometry-transport.txt",
+      "bytes": 9674,
+      "sha256": "fdf28a48b24f8605a00bd3d08a596e84b9838ae2a3f055198fb14eb97ddad0bd"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/05-glass-nzr.txt",
+      "bytes": 5606,
+      "sha256": "3f9d4b0820675ca00584d34f36dca2c885c9e11448bfd99704520bb2f70ce128"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/06-moving-bottle.txt",
+      "bytes": 5910,
+      "sha256": "912e9fb8a4f37e1597907c7a503715cdc20446ca269a57a7da00a6cdb6e6da22"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/07-foliage-guides.txt",
+      "bytes": 5647,
+      "sha256": "b6d3edc9462ae8dd5cb9c83d8d0e039f5cef6fae7974bcea60eaa20d0e6a24ea"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/anchor_independent.txt",
+      "bytes": 2051,
+      "sha256": "057981a64568cc1f512986200f59f7021a418db266d50de9d8ce8682068b1d95"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/execution.json",
+      "bytes": 9811,
+      "sha256": "79902cf28020a16b4609ed0da26373f5cf0a51fb9bf438e20c5cf8fb0a9ecfb5"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/four_baselines.txt",
+      "bytes": 5509,
+      "sha256": "6dcc1f8a74db1fa4bbe6081d7bc0991a75d4a61337a6f3066944121337ba0f4d"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/frozen_package.txt",
+      "bytes": 66,
+      "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/glass_audit-holdout.txt",
+      "bytes": 5949,
+      "sha256": "8793aac1e4ac70b9e38351c1269429764ca2ea4033749aa8b925a097754f0cd2"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/glass_bundle_utf8.txt",
+      "bytes": 156,
+      "sha256": "f52a9e3ab82e762b47bd8ae421c96dafe263ac77b574a504532d83df8437c5bc"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/glass_measurements.txt",
+      "bytes": 6628,
+      "sha256": "92cfd2f4563f5eccbc4d564c01816dbcd65dde83ae532d048418704573db0a44"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/glass_mutation-alpha.txt",
+      "bytes": 1939,
+      "sha256": "e21222d83def45efd5d8037b145012e8bfc458a132bd78a02e50c65b2aa877f0"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/numerical_adversary_controls.txt",
+      "bytes": 1072,
+      "sha256": "cc100608aed41e250006b8e40dfc28ca0177014f1f9d76d4c306cf76168ddbfe"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/portable_adapters.txt",
+      "bytes": 2072,
+      "sha256": "adb754f4d5e1bc172bbd72c81351c578cd0b1c053fec090503fdc251c742e351"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/reject_missing_high.txt",
+      "bytes": 452,
+      "sha256": "88b9a1517d77c130dabecc2dc36fb59383efdbaba9364567106828cd725a03c4"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/reject_nearest.txt",
+      "bytes": 1291,
+      "sha256": "e7176961ac8c97d827a5dffa23f92b394880b81d98f7fef34515a924e1bb41ed"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/reject_old_normal.txt",
+      "bytes": 426,
+      "sha256": "dc6b8a2b601cc455beaec92e87be9e1cd0738ca0bc19a52f74c6e8f0e3647fd5"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/reject_premature_rounding.txt",
+      "bytes": 1322,
+      "sha256": "749fe3f6a370878db3993de297d841311c2beccc5c81ffc60d15eb9072933ebe"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/existing_cpu/reject_wrong_uv.txt",
+      "bytes": 1309,
+      "sha256": "8080c17687dfca2f91e82f46f935588ac04c49342bafe59b3508d4e7331e4e3b"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/01-numerical-contract.txt",
+      "bytes": 20667,
+      "sha256": "f28556bd353e313cc985f05eb2ab7834d18ca4fe99b661fc0afbf9f8158bac6d"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/02-anchor-estimator.txt",
+      "bytes": 2307,
+      "sha256": "f3a23746ec16dc0d1ed7214dc1bd3773e3f1cf933cce3de9910e7391a7ea741a"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/03-native-colour.txt",
+      "bytes": 4015,
+      "sha256": "15f09ab4c3eeb4d0be9b811581125bcf3741ab182d37f38fb82adf036f6747cd"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/04-geometry-transport.txt",
+      "bytes": 9674,
+      "sha256": "1fb13dd8e0d7663f2f470c9a264015d990f884bb7d6a238c383acfe070bc777f"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/05-glass-nzr.txt",
+      "bytes": 5606,
+      "sha256": "5a14375d05f1996813b6a441d6dde061680b5c4b9ae38238466fbfbdb298b846"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/06-moving-bottle.txt",
+      "bytes": 5910,
+      "sha256": "037858a6809865673d0fbd2a27f8286987afe84bcab7de9788ab6dc75ba741d1"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/07-foliage-guides.txt",
+      "bytes": 5647,
+      "sha256": "294920a708ba90d66809dbf54d967b26bb79dc3073e33ce02f83079c0af24c5b"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/anchor_independent.txt",
+      "bytes": 2051,
+      "sha256": "0bf9ad8c5c27e331dc0e9467a9bf5069b2978dde8f2296360c73fe977c5a0922"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/execution.json",
+      "bytes": 5556,
+      "sha256": "3eacee57d2e278136cc004437815f7273635b0eb1bdb5e40623c67821cd24f2e"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/four_baselines.txt",
+      "bytes": 5509,
+      "sha256": "bde41d1f386cb647e57d686445194fbdb1d3bc5a78fcbff572a2f64d9e60dffd"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/frozen_package.txt",
+      "bytes": 66,
+      "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/missing_git_object/portable_adapters.txt",
+      "bytes": 1201,
+      "sha256": "e35ee85aeaa270c987c4f4f7c0d5f429cd81ee29bca96b9635cd633d3ce02bc7"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/execution.json",
+      "bytes": 7579,
+      "sha256": "7606d3046d8e19a53c64e3f295b326c255440bf8fa6421ec590405313e0d97ab"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/gpu_prepare.log",
+      "bytes": 675,
+      "sha256": "dc2f3b1806795d137b6ada01444cad1755bbb42a986e7215292f3a6f26e97766"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/lifecycle.log",
+      "bytes": 92,
+      "sha256": "d4c198f9975704cf808a0f9b1154ac9aa4221a46ce25ebf931f72fb5cf7c231a"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/metadata.log",
+      "bytes": 22,
+      "sha256": "9fa50137f39e9701c1891fff5fafc773ad2f5bb39fb6dde313077ad25b89dd55"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/observation.log",
+      "bytes": 164,
+      "sha256": "fd3e5d9c80e336ffae9190bd96177623704aa1577c1dde34411b85998a147e14"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/reader.log",
+      "bytes": 3161,
+      "sha256": "ceb9a8b854d24bd28e46eceff72e371cd684d3ec845e5e69fedb57f3bd9d67a1"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/first_attempts/source_changed_during_execution/support.log",
+      "bytes": 112,
+      "sha256": "8d6c636e97687f88ef472adf82de484b38ac6ced461a06a59a19d3ca2f20fe89"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/execution.json",
+      "bytes": 7577,
+      "sha256": "aec651d0109b79bdfd6db1977b49fd09655267081a4c0413313e6ca4c0b09b59"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare.log",
+      "bytes": 675,
+      "sha256": "dc2f3b1806795d137b6ada01444cad1755bbb42a986e7215292f3a6f26e97766"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/bridge_trace.cpp",
+      "bytes": 42832,
+      "sha256": "98d8fdd864ebc4c2bc31881c7b2850e5c20315f1cb4e9545fdd8f39dfed9f5fc"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/prepared-source-manifest.json",
+      "bytes": 3412,
+      "sha256": "e7d8e1517d4ab66cfb17ade42ba6510aa6f69da2d21f7af67f16e2559d2455ed"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/review-capture-execution.json",
+      "bytes": 675,
+      "sha256": "dc2f3b1806795d137b6ada01444cad1755bbb42a986e7215292f3a6f26e97766"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/stubs/Util.h",
+      "bytes": 155,
+      "sha256": "97ee6cb5df00646c77b4d83d7b0d8085c2c79cbe958db3691f9dcf3ee84d5573"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/stubs/fsrd_game_trace_controls.inc",
+      "bytes": 1145,
+      "sha256": "5ba88ae25f28779728558728bf7f44011deeb4721df19a06be07241e369c814b"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/stubs/fsrd_game_trace_sr_controls.inc",
+      "bytes": 1153,
+      "sha256": "c797f7ec35567e124ac0afe0134e8c74d2fc04539bc4ae5e47c40d52f165905a"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/gpu_prepare/stubs/pch.h",
+      "bytes": 73,
+      "sha256": "c36f6235f355edf648ea465e5e760fb5ab1c7701a4b42c8c52870d8e56f4b56a"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/lifecycle.log",
+      "bytes": 92,
+      "sha256": "d4c198f9975704cf808a0f9b1154ac9aa4221a46ce25ebf931f72fb5cf7c231a"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/lifecycle/compile.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/lifecycle/execution.json",
+      "bytes": 1966,
+      "sha256": "3f64f6dbc17b76972d7d84371a4568d010604d66aa5e023b6bf3dd45f3145434"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/lifecycle/production_state.txt",
+      "bytes": 53,
+      "sha256": "bc8555b17591a7d7c60e635bba836c211cdef83d0aeed06dc7f5cd4de3a3df43"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/lifecycle/reject_broken_release.txt",
+      "bytes": 472,
+      "sha256": "7483b80cd1a1504d803add4e75d2cb9d4a2478100774d9ca495f5345286ca838"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata.log",
+      "bytes": 22,
+      "sha256": "9fa50137f39e9701c1891fff5fafc773ad2f5bb39fb6dde313077ad25b89dd55"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/execute.log",
+      "bytes": 21,
+      "sha256": "75dcd747431dc1a21fcdbca724f6a48c56b746e06e73bbc493a8b0e0872dde11"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/metadata_execution.json",
+      "bytes": 3191,
+      "sha256": "ba67b7b0ad92e2e90edfcae4c664c699c382710419ebddd0460f9c758bbbd8ff"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/production_copy_footprint.inc",
+      "bytes": 584,
+      "sha256": "4ffebc531efd05368291efe8791d7c8d58bd85fc49b5b6556d26bb40f430e0db"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/production_observation_helpers.inc",
+      "bytes": 12030,
+      "sha256": "a0eb085643c9177c67ecd2c76ea06fefd2129e4eb6e73bc6232782fb0b928040"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/metadata/production_observation_state.inc",
+      "bytes": 651,
+      "sha256": "0dee38d0475114a114830a940ac0bfed04b3d38b1d7c80214382f3dedc021846"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation.log",
+      "bytes": 164,
+      "sha256": "fd3e5d9c80e336ffae9190bd96177623704aa1577c1dde34411b85998a147e14"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/compile.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/contracts_and_frozen_probes.txt",
+      "bytes": 40,
+      "sha256": "ce66bae721a4a1f74ef7a5243f69da86cc8a286c34bf99cd7dcb214e549e6a57"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/observation_execution.json",
+      "bytes": 11346,
+      "sha256": "2bef49acbe2600d977568b529a208b520db989d53cf73bd90ff9f71aef88fbec"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/observation_frozen_cases.h",
+      "bytes": 9316,
+      "sha256": "9757ae9f66a546d683e36a3bdfa2c2c30d8def2555b742615a9ebcf550f579bf"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/reject_broken_authority.txt",
+      "bytes": 3172,
+      "sha256": "c4e5a1c8c522334adc01a9a08a4a29aeb2e8b07fecea7eaf267fa0b43737dd8f"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/reject_broken_carry.txt",
+      "bytes": 90,
+      "sha256": "6a91b496e4f0aafad25371985d3d4a2d6df87f67ca123a41ae93b96933345c3c"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/reject_broken_normal.txt",
+      "bytes": 1952,
+      "sha256": "bba05203b7d5e6e8f53233a75cd6d9d93e1942649b3fd67b3f9c032522944764"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/observation/reject_broken_origin.txt",
+      "bytes": 523,
+      "sha256": "319ae410fcd03b20d9e7bbede75b535795536fba9ad0273be7de12400c406b7f"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/reader.log",
+      "bytes": 3161,
+      "sha256": "96494566ea5d9935a8762c47db220bb6f5053570d4a00e3f5417b94964a0243c"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/reader/observation_capture_reader_execution.json",
+      "bytes": 970,
+      "sha256": "0e549326f09af673d4151d505290df8cbb1000f7d5ff3b018bddbbc10950fc82"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/reader/observation_capture_reader_tests.txt",
+      "bytes": 3161,
+      "sha256": "96494566ea5d9935a8762c47db220bb6f5053570d4a00e3f5417b94964a0243c"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/support.log",
+      "bytes": 112,
+      "sha256": "8d6c636e97687f88ef472adf82de484b38ac6ced461a06a59a19d3ca2f20fe89"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/support/compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/support/reject_current_cell_only.log",
+      "bytes": 1322,
+      "sha256": "68a23a0b935dd4cac7e9328383af35675508100c24d68177556c1b79e657d4ee"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/support/support.log",
+      "bytes": 50,
+      "sha256": "c2d331be6ec3f283c5687de444194996575a26482e5faba89471a784fb4c9e27"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/evidence/new_cpu/support/support_execution.json",
+      "bytes": 4768,
+      "sha256": "faf2f5f2ad653323f601571aaa1fae3caada297ed339c605444dadb140345738"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/metadata_compile_checks.py",
+      "bytes": 3722,
+      "sha256": "19d8e9ebba37acbb7229734281766467e12c4ed26578045ba7810bd159a48ed6"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/metadata_compile_test.cpp",
+      "bytes": 8588,
+      "sha256": "4d7f6045bcfe87a51b84d06c09049ddf0090c4ae62d1809c9faafdb61e621378"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_ABI.md",
+      "bytes": 10573,
+      "sha256": "dd25782a5ac257cf32b44c298d36a955d989d4f46e69f4d4ccfa6afdb140044e"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_capture_reader.md",
+      "bytes": 4309,
+      "sha256": "fe0a87d716e0a2bd65201e9baffacf9f793aa4f331c588894e7a8a40ccae24d7"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_capture_reader.py",
+      "bytes": 26096,
+      "sha256": "131e92dad0a0a4bd5515ceb34da853a23f07bd6f16f2043d53b831e0184ca956"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_capture_reader_tests.py",
+      "bytes": 17832,
+      "sha256": "a260e77cde253041a355782fc6724eb2949e987f5405737cf5331f95f8d9b3dc"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_checks.py",
+      "bytes": 8415,
+      "sha256": "8633bc75de1fb6956830e1334148d0d7faa1be2b9e3fe14d09024cfda7846537"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/observation_tests.cpp",
+      "bytes": 15182,
+      "sha256": "e70ebd0ae0c6538fcb89e4769743e9a2b211dd9ad9bb2bdb32b5104aac30fb0c"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_baseline.json",
+      "bytes": 11565,
+      "sha256": "f8d19ac14af2c17b4a811f915fecb7ee1fc139ad2192fda711a73c606d188f94"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_capture_gpu.cpp",
+      "bytes": 8957,
+      "sha256": "860bd9159e15e720e365fcc1b092b06558298b13b6ed0484ea5360b2f9bdc4a9"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_lifecycle_test.cpp",
+      "bytes": 4187,
+      "sha256": "2c157dd2b4e2b37b6e556d8e74d795ecbe7d935bd7787d7ad62b1b1018deb0ae"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_notes.md",
+      "bytes": 8733,
+      "sha256": "1be18b8d89f78ade17d71b1740706747980c734381b9032967bb0a33b722ac78"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_run_capture_gpu.py",
+      "bytes": 13418,
+      "sha256": "81f23ab5932f973262f4e974412e6c1877069791874ae782bbd1817e67e7d3e0"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_run_lifecycle.py",
+      "bytes": 3405,
+      "sha256": "f04d2043e18068b91702e797cc44f09bd25c9683665f649a50b3c18c717d6d92"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_support_host.md",
+      "bytes": 9010,
+      "sha256": "f712dc096295ed3d9981c30e6eafd625019d6ff91726a436bc61dd6c11712e23"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/review_windows_recipe.md",
+      "bytes": 4492,
+      "sha256": "becf275c171f5d08d1bc86a37b3691db97323e5499c4db9fe70c88a8ceb68346"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/run_checks.py",
+      "bytes": 3510,
+      "sha256": "a651f870b43844f60812bef2b45811925207d0b6e9adc9c7896580d4b000ddec"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/support_ABI.md",
+      "bytes": 10942,
+      "sha256": "d2b3c1dcafb764ca002d5bb69baeb2148e6c9edd62f7ca9546bc85f5c26a6d20"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/support_contract_test.cpp",
+      "bytes": 12562,
+      "sha256": "f31ba3e95c87f28c28507b0a3eec52d3c51d279f7dcadfd873ddbd3e41ce6945"
+    },
+    {
+      "path": "research/astra20261020/integration_round2/09-native-observability/support_run_checks.py",
+      "bytes": 5881,
+      "sha256": "6a2a9041de0225d515bf9f5ba13449d9861ee226b946aeff35e8a32e787c45e0"
+    }
+  ]
+}

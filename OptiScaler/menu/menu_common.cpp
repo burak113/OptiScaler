@@ -3962,12 +3962,16 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             static char outputRoot[1024] {};
             static bool initialCenter = true, folderOpenFailed = false;
             static bool fullContextReference = false, bridgeResetCapture = false;
+            static bool nativeObservations = false;
             static int bridgeSignalChoice = 1; // User-facing default B exposes actual checkerboard operands.
             if (capture.active && capture.nrdBridge) bridgeSignalChoice = int(capture.bridgeSignal);
             ImGui::BeginDisabled(capture.active);
             if (bridgeTrace)
             {
                 ImGui::Combo("Bridge signal chain##GameTrace", &bridgeSignalChoice, "A - Recon raw signals\0" "B - PrePass / checkerboard raw signals\0");
+                ImGui::Checkbox("Native observations (exact pre-scale words)##GameTrace", &nativeObservations);
+                if (nativeObservations)
+                    ImGui::TextWrapped("Adds original source words and selection provenance to this recording. Unknown geometry support stays unknown. Additional copies and readback memory are used only during capture.");
                 ImGui::Checkbox("Full inputs from RR history reset (64 frames)##GameTrace", &bridgeResetCapture);
                 ImGui::TextWrapped("This explicit option requests one RR history reset after the destination and delay are ready, then records 64 full render frames beginning at an actual SDK RESET. Ordinary recording preserves current history.");
             }
@@ -4044,6 +4048,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     FSRDGameTraceSession::Request::CapturePath::Legacy;
                 request.bridgeSignal = bridgeTrace ? uint32_t(std::clamp(bridgeSignalChoice, 0, 1)) : 0u;
                 request.bridgeWaitForReset = bridgeTrace && bridgeResetCapture;
+                request.nativeObservations = bridgeTrace && nativeObservations;
                 request.fullContextReference = !bridgeTrace && fullContextReference;
                 request.particleLayerDiagnostics = !bridgeTrace && particleDiagnostics;
                 request.srMode = bridgeTrace || srMode == 0 ? FSRDGameTraceSession::SrMode::Off :

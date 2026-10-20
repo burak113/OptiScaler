@@ -1,0 +1,19 @@
+test_alpha_payload_bits_and_physical_lobes (test_estimator.EstimatorContract.test_alpha_payload_bits_and_physical_lobes) ... ok
+test_bad_input_and_metadata_never_make_a_diagnostic_nan (test_estimator.EstimatorContract.test_bad_input_and_metadata_never_make_a_diagnostic_nan) ... ok
+test_center_and_unique_support_not_clamped_tap_count (test_estimator.EstimatorContract.test_center_and_unique_support_not_clamped_tap_count) ... ok
+test_grid_identity_does_not_prove_pixel_identity (test_estimator.EstimatorContract.test_grid_identity_does_not_prove_pixel_identity) ... ok
+test_identity_off_reset_and_nonbrightening (test_estimator.EstimatorContract.test_identity_off_reset_and_nonbrightening) ... ok
+test_light_excess_twins_and_bidirectional_tradeoff (test_estimator.EstimatorContract.test_light_excess_twins_and_bidirectional_tradeoff) ... ok
+test_physical_scale_darkness_and_cap_are_not_rescaled (test_estimator.EstimatorContract.test_physical_scale_darkness_and_cap_are_not_rescaled) ... ok
+test_production_abstention_is_exact_and_input_is_immutable (test_estimator.EstimatorContract.test_production_abstention_is_exact_and_input_is_immutable) ... ok
+test_rounding_interval_contains_random_prestore_atomic_ratios (test_estimator.EstimatorContract.test_rounding_interval_contains_random_prestore_atomic_ratios) ... ok
+test_strict_frame_guard_uses_entire_interval (test_estimator.EstimatorContract.test_strict_frame_guard_uses_entire_interval) ... ok
+test_moving_crop_light_background_denominator_excludes_all_original_foreground (test_measurement_contract.MeasurementContract.test_moving_crop_light_background_denominator_excludes_all_original_foreground) ... ok
+test_one_sided_energy_identity_and_fixed_mask_not_gain_mask (test_measurement_contract.MeasurementContract.test_one_sided_energy_identity_and_fixed_mask_not_gain_mask) ... ok
+test_sparse_capture_frames_are_not_temporal_adjacent_samples (test_measurement_contract.MeasurementContract.test_sparse_capture_frames_are_not_temporal_adjacent_samples) ... ok
+test_step_area_and_latency_are_relative_to_step_not_total_brightness (test_measurement_contract.MeasurementContract.test_step_area_and_latency_are_relative_to_step_not_total_brightness) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.092s
+
+OK

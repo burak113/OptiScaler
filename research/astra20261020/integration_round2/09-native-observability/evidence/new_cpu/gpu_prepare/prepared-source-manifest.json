@@ -1,0 +1,28 @@
+{
+  "source_hashes": {
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_game_trace_bridge.py": "13c431722763a959ad944e58675b409a429162942953dc13a0aee50ac3a15379",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/shader_tools/tests/fsrd_nrd_game_trace_bridge.cpp": "6c4a7e59442c94c8b8af8bc06a6eb580c03ed57a4e3964f0f5dd644667d29afd",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp": "07fe20f1acc3b6eec37efb54f688fda3886c42e24def9f4fbc418bd62156e313",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.h": "7646d02b6d136a79340d33f411f22b64db3bb8a67209da87cb9a26da937436e9",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h": "4a66843a00dd6170cb68af32535565ac57f7f40135b2d1a1bbb9406cdb736662",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "e8727e472a3dd854fa1e044d0e4df0aab72fbe92670bdda075103f582ac9c64b",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h": "e4442cfeba6046fad088edfb3807d72c16ace687b130c13753bf2826fd110e90",
+    "/tmp/astra09-new/gpu_prepare/bridge_trace.cpp": "98d8fdd864ebc4c2bc31881c7b2850e5c20315f1cb4e9545fdd8f39dfed9f5fc",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/review_run_capture_gpu.py": "81f23ab5932f973262f4e974412e6c1877069791874ae782bbd1817e67e7d3e0",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/review_capture_gpu.cpp": "860bd9159e15e720e365fcc1b092b06558298b13b6ed0484ea5360b2f9bdc4a9",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/observation_capture_reader.py": "131e92dad0a0a4bd5515ceb34da853a23f07bd6f16f2043d53b831e0184ca956",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/shader_tools/tests/test_fsrd_game_trace_capture.py": "61c4ce41fde3f36f831dd84c085231ef1285d85a3e87ccb83d7761a92c0db674",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/shader_tools/fsrd_toolchain.py": "442a270566c3834ce6ab2b47b69ade71c03f36be89684601ba3e3b10342b48ca",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdObservationContract.h": "3e0824e61729dbf89f5a2e6fa61438138b3937b1549926d1050ba8e03da6309c",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/FSRDNrdSupportContract.h": "0c280107c31c3186ecb36cca5af67b2f85de6d2ac35b3379e5a8375dc976deaa",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h": "8953ddd57b7f75a05347a0b238456098ed2205e04b6e136dbc03d38a197881cf",
+    "/workspace/scratch/29cea04d2981/OptiScaler/OptiScaler/shaders/fsrd_preprocess/RRTraceFenceState.h": "90790694e488295a94d0e7eabf4ce828ccf9bf2a3d9e0a18dbc214fdcd3252b0"
+  },
+  "scope": "job09_real_production_recorder_copy_fence_Map_publication; controlled_provider_output_selection_scale_adapters",
+  "compiler_executed": false,
+  "native_executed": false,
+  "AMD_SDK_executed": false,
+  "status": "SOURCE_PREPARED",
+  "scale_roundtrip_executed": false,
+  "quality_accepted": false
+}

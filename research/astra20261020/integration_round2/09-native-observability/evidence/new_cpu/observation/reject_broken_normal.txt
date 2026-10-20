@@ -1,0 +1,32 @@
+{"checks":204,"failures":31,"mutant":"normal"}
+FAIL: octahedral fold uses native convention
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder
+FAIL: original packed normal agrees with frozen job07 decoder

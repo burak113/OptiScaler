@@ -1,0 +1,141 @@
+{
+  "scope": "Linux/portable C++ support contracts and read-only frozen CPU fixtures; no GPU or Windows DLL build",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "numpy": "2.3.5",
+  "source_sha256": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdSupportContract.h": "0c280107c31c3186ecb36cca5af67b2f85de6d2ac35b3379e5a8375dc976deaa",
+    "research/astra20261020/integration_round2/09-native-observability/support_contract_test.cpp": "f31ba3e95c87f28c28507b0a3eec52d3c51d279f7dcadfd873ddbd3e41ce6945",
+    "research/astra20261020/integration_round2/09-native-observability/support_run_checks.py": "6a2a9041de0225d515bf9f5ba13449d9861ee226b946aeff35e8a32e787c45e0"
+  },
+  "runs": [
+    {
+      "name": "compile",
+      "command": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-I",
+        "/workspace/scratch/29cea04d2981/OptiScaler",
+        "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/support_contract_test.cpp",
+        "-o",
+        "/tmp/astra09-new/support/support_contract_test"
+      ],
+      "status": 0,
+      "expected_status": 0,
+      "elapsed_seconds": 0.6696148459996039,
+      "log": "compile.log",
+      "passed": true
+    },
+    {
+      "name": "support",
+      "command": [
+        "/tmp/astra09-new/support/support_contract_test"
+      ],
+      "status": 0,
+      "expected_status": 0,
+      "elapsed_seconds": 0.0021408270004030783,
+      "log": "support.log",
+      "passed": true
+    },
+    {
+      "name": "reject_current_cell_only",
+      "command": [
+        "/tmp/astra09-new/support/support_contract_test",
+        "--mutant-current-cell-only"
+      ],
+      "status": 1,
+      "expected_status": 1,
+      "elapsed_seconds": 0.0016788409993750975,
+      "log": "reject_current_cell_only.log",
+      "passed": true,
+      "meaning": "expected rejection of deliberately broken implementation"
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/22f9ca14.npz",
+      "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+      "frames": [
+        41,
+        44,
+        52
+      ],
+      "baseline_mask_count": 9649,
+      "baseline_mask_sha256": "18ff00bbeb13270fada396f5575e22fb4d08cce22443735137b53d985fce632e",
+      "changed_centres_without_own_recall": 395,
+      "native_support": "invalid: full donor and recalled-key provenance unavailable",
+      "per_frame": [
+        {
+          "frame": 41,
+          "baseline_mask_count": 2591,
+          "changed_centres_without_own_recall": 138
+        },
+        {
+          "frame": 44,
+          "baseline_mask_count": 3199,
+          "changed_centres_without_own_recall": 191
+        },
+        {
+          "frame": 52,
+          "baseline_mask_count": 3859,
+          "changed_centres_without_own_recall": 66
+        }
+      ]
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/2405579e.npz",
+      "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+      "frames": [
+        92
+      ],
+      "baseline_mask_count": 641,
+      "baseline_mask_sha256": "2521981d6004c05fba1e0870caf50aa7d801b8eff48e069103c0325e312c78ec",
+      "changed_centres_without_own_recall": 138,
+      "native_support": "invalid: full donor and recalled-key provenance unavailable",
+      "per_frame": [
+        {
+          "frame": 92,
+          "baseline_mask_count": 641,
+          "changed_centres_without_own_recall": 138
+        }
+      ]
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/87ee1fba.npz",
+      "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+      "frames": [
+        41,
+        44,
+        60
+      ],
+      "baseline_mask_count": 7719,
+      "baseline_mask_sha256": "2c8f11bf61ee2a89f4d5821426b9cb824f128f709d1878449c20b675fdf45b35",
+      "changed_centres_without_own_recall": 379,
+      "native_support": "invalid: full donor and recalled-key provenance unavailable",
+      "per_frame": [
+        {
+          "frame": 41,
+          "baseline_mask_count": 1490,
+          "changed_centres_without_own_recall": 146
+        },
+        {
+          "frame": 44,
+          "baseline_mask_count": 2458,
+          "changed_centres_without_own_recall": 128
+        },
+        {
+          "frame": 60,
+          "baseline_mask_count": 3771,
+          "changed_centres_without_own_recall": 105
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "executable_sha256": "0d636d25789e05daf6129e0cb0049e3c60d8d4e1080f17292dd0f2a54a01986a"
+}

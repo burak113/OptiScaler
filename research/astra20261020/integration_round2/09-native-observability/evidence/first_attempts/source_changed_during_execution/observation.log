@@ -1,0 +1,6 @@
+compile PASS 0
+contracts_and_frozen_probes PASS 0
+reject_broken_authority PASS 1
+reject_broken_origin PASS 1
+reject_broken_carry PASS 1
+reject_broken_normal PASS 1
