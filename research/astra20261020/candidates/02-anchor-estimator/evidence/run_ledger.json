@@ -1,0 +1,134 @@
+{
+  "schema": "anchor02.cpu_execution.v1",
+  "started_utc": "2026-10-20T18:13:50.551251+00:00",
+  "finished_utc": "2026-10-20T18:14:19.525906+00:00",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "matplotlib": "3.10.8",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "freeze": {
+    "verified_files": 11,
+    "receipt_sha256": "c8b0398be315aedb779c8415f88cdafc692b03614278f6967ae231240e791d28"
+  },
+  "runs": [
+    {
+      "name": "package_integrity_before",
+      "command": "python -B research/astra20261020/validate_package.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.6851469479988737,
+      "log": "evidence/checks/package_integrity_before.txt",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "untouched_package_cpu",
+      "command": "python -B research/astra20261020/run_cpu.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 5.7878328890001285,
+      "log": "evidence/checks/untouched_package_cpu.txt",
+      "log_sha256": "eda636fe81989011e44dd5e9b3a68cb0e36ce41edeb763c4204ff1bff86a7baa",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "candidate_and_measurement_tests",
+      "command": "python -B -m unittest discover -s research/astra20261020/candidates/02-anchor-estimator/tests -v",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.24704251000002841,
+      "log": "evidence/checks/candidate_and_measurement_tests.txt",
+      "log_sha256": "4da2a46d821089c91a733610f7968792f5037989eed031770bcde412979cf496",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "independent_audit_tests",
+      "command": "python -B -m unittest discover -s research/astra20261020/candidates/02-anchor-estimator/reviewer -p test_independent_audit.py -v",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.25996013499934634,
+      "log": "evidence/checks/independent_audit_tests.txt",
+      "log_sha256": "b7de0b11b89722352dfcb8a48175c1f5cb843576a2ff0e169541c10c4ccf6e5f",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "known_bad_controls",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/reviewer/independent_controls.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.3774876679999579,
+      "log": "evidence/checks/known_bad_controls.txt",
+      "log_sha256": "837b826df87093247e0e02a0e4c12feea7d84d2cf42703c66c6023fae67dae55",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "mechanism_investigation",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/mechanism/investigate.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.4664677809996647,
+      "log": "evidence/checks/mechanism_investigation.txt",
+      "log_sha256": "25c713e4bd271386a6c35f1fbecd67fe1d47a05c44f2cada60ddb47d7caf88a5",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "data_inventory",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/mechanism/inventory.py --include-bottle",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 1.047889112998746,
+      "log": "evidence/checks/data_inventory.txt",
+      "log_sha256": "4e9f06a73033778cca9fdb6f9d59cea99262f299c191ee10240b45f09e3d78b2",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "full_experiments",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/experiments.py --include-holdout",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 14.985484475999328,
+      "log": "evidence/checks/full_experiments.txt",
+      "log_sha256": "e21ebfd0fec8ff2cd4bfda2a8a817b5a2deadd7c7276af297f5bcde00d0f3b82",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "independent_holdout_reproduction",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/reviewer/reproduce_holdout.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 1.040999817998454,
+      "log": "evidence/checks/independent_holdout_reproduction.txt",
+      "log_sha256": "2d51a29afb97c9f8b37da4ec9d80121037b940fb0db61ef4ab224d85430c2a37",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "visual_panels",
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/plot_results.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 4.408335844998874,
+      "log": "evidence/checks/visual_panels.txt",
+      "log_sha256": "2d1ed913daedbb815453ffc326edd40054914aa7ba3438c62212d8ef9d6c6fae",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    },
+    {
+      "name": "package_integrity_after",
+      "command": "python -B research/astra20261020/validate_package.py",
+      "cwd": "repository root",
+      "exit_code": 0,
+      "elapsed_seconds": 0.6755207469996094,
+      "log": "evidence/checks/package_integrity_after.txt",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+      "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+    }
+  ],
+  "result_gates": {
+    "production_abstention_verified": true,
+    "active_diagnostic_rejected": true,
+    "matched_excess_dose_error": 4.6534063505299095e-08,
+    "native_holdout_temporal_replay": false,
+    "gpu_executed": false
+  },
+  "gpu_executed": false,
+  "success": true
+}

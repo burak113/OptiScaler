@@ -1,0 +1,24 @@
+{
+  "schema": "anchor02.freeze.v1",
+  "frozen_utc": "2026-10-20T18:09:57.852605+00:00",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "heldout_arrays_unopened_before_freeze": [
+    "portable/anchor/fixtures/native_policy/2405579e.npz",
+    "portable/anchor/fixtures/combined/2405579e.npz"
+  ],
+  "caveat": "Historical manifest summaries were visible; untouched baseline calibration could check all archives. No candidate tuning used held-out arrays. Development and validation diagnostics only were run.",
+  "files": {
+    "estimator.py": "c5eeeb8c04df35732cdf0025065d544edae668e62bcedadf887b32b5199233fe",
+    "EXPERIMENT_PROTOCOL.json": "87652b89d540b3cd76e27dfe7054c4db28a78b3638530d76951c1571c989c2a2",
+    "metrics.py": "635ef8111e04905a0167f37661be6ad7983dd4f0c86e3c2f1938a603f6d8e87a",
+    "experiments.py": "63f2d73a261eb976cceadf88581fec72ddf3c402fe5487e27a4776582d44c961",
+    "adapter/ESTIMATOR_SPEC.md": "869ef2efdd0fdfa5da24da75cd9b170243c69fe24e4175b2ffadefe6f2b06793",
+    "adapter/AnchorDiagnostic.pseudo.hlsl": "2411b44e9912062387b9fd9bbe982e3cbaa9b6fb85429d1d3ec26227f50f4a96",
+    "tests/test_estimator.py": "875d251e8e16a73e8b5c9adfacb3f829691fea21abbb53aa3a508f4e1fd290c2",
+    "tests/test_measurement_contract.py": "923b73ecedfbda161e12e0ac5c2b9bca89c40227b0d5014187ef00a7df439726",
+    "reviewer/PREREGISTRATION.md": "0de694837a53d1a9dff766fad3781394a0c1e3764bd76ee16c85983b510005ce",
+    "reviewer/independent_controls.py": "f948b9171cc7ef84505f1989e1002083586a0fbc08c07da0ef8a3c1dc7b8d6b5",
+    "reviewer/test_independent_audit.py": "6e1d42e54111bdb08124bfebe7a4363fc63ba7fcba38f3a0bba170c43e34a123"
+  },
+  "executor": "root coordinator, Linux CPU"
+}

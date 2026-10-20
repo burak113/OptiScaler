@@ -1,0 +1,685 @@
+{
+  "schema": "astra20261020.return.v1",
+  "task_id": "02-anchor-estimator",
+  "candidate_version": "anchor-diagnostic-v1",
+  "recommendation": "keep_as_research",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "branch": "astra/02-anchor-estimator",
+  "pr_base": "sol/26-integration",
+  "source_revision": {
+    "git_commit": null,
+    "source_fingerprint_sha256": "46918cc80f1c107ad209beeda8fbc5b0d11fef32a04c41826df2f2968a91f20f",
+    "fingerprint_framing": "sorted candidate .py/.hlsl relative UTF-8 path + NUL + hex SHA256 + newline",
+    "sources": {
+      "adapter/AnchorDiagnostic.pseudo.hlsl": "2411b44e9912062387b9fd9bbe982e3cbaa9b6fb85429d1d3ec26227f50f4a96",
+      "estimator.py": "c5eeeb8c04df35732cdf0025065d544edae668e62bcedadf887b32b5199233fe",
+      "experiments.py": "63f2d73a261eb976cceadf88581fec72ddf3c402fe5487e27a4776582d44c961",
+      "finalize_result.py": "477a9663b07f0643d1dac14e70f49d7d30ba077bb7084fdf8d410ef1b69b0953",
+      "mechanism/inventory.py": "dea316319c937bb3283653e0006abfa158272ea2d4e607cb33cea11f3f5b7288",
+      "mechanism/investigate.py": "09c40f838c3d0949a381d594ba54882faf50e77d3cfbc226a4ed3f2d76c15fcd",
+      "metrics.py": "635ef8111e04905a0167f37661be6ad7983dd4f0c86e3c2f1938a603f6d8e87a",
+      "plot_results.py": "95c02ddc94134270c4b007225beb695cc4c6c440ef4b7867e3ebbd1b60ae8165",
+      "reviewer/independent_controls.py": "f948b9171cc7ef84505f1989e1002083586a0fbc08c07da0ef8a3c1dc7b8d6b5",
+      "reviewer/reproduce_holdout.py": "a70e9c614e5713c274309bf32c7a9c475cc947d3416a0c265cff5d9185c0075c",
+      "reviewer/test_independent_audit.py": "6e1d42e54111bdb08124bfebe7a4363fc63ba7fcba38f3a0bba170c43e34a123",
+      "run_checks.py": "c320beb14566864fa6f4cdb4559af1df8fc8fbe0f69c654e0a37b5ae9ecaea1f",
+      "tests/test_estimator.py": "875d251e8e16a73e8b5c9adfacb3f829691fea21abbb53aa3a508f4e1fd290c2",
+      "tests/test_measurement_contract.py": "923b73ecedfbda161e12e0ac5c2b9bca89c40227b0d5014187ef00a7df439726"
+    },
+    "frozen_before_holdout": {
+      "schema": "anchor02.freeze.v1",
+      "frozen_utc": "2026-10-20T18:09:57.852605+00:00",
+      "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+      "heldout_arrays_unopened_before_freeze": [
+        "portable/anchor/fixtures/native_policy/2405579e.npz",
+        "portable/anchor/fixtures/combined/2405579e.npz"
+      ],
+      "caveat": "Historical manifest summaries were visible; untouched baseline calibration could check all archives. No candidate tuning used held-out arrays. Development and validation diagnostics only were run.",
+      "files": {
+        "estimator.py": "c5eeeb8c04df35732cdf0025065d544edae668e62bcedadf887b32b5199233fe",
+        "EXPERIMENT_PROTOCOL.json": "87652b89d540b3cd76e27dfe7054c4db28a78b3638530d76951c1571c989c2a2",
+        "metrics.py": "635ef8111e04905a0167f37661be6ad7983dd4f0c86e3c2f1938a603f6d8e87a",
+        "experiments.py": "63f2d73a261eb976cceadf88581fec72ddf3c402fe5487e27a4776582d44c961",
+        "adapter/ESTIMATOR_SPEC.md": "869ef2efdd0fdfa5da24da75cd9b170243c69fe24e4175b2ffadefe6f2b06793",
+        "adapter/AnchorDiagnostic.pseudo.hlsl": "2411b44e9912062387b9fd9bbe982e3cbaa9b6fb85429d1d3ec26227f50f4a96",
+        "tests/test_estimator.py": "875d251e8e16a73e8b5c9adfacb3f829691fea21abbb53aa3a508f4e1fd290c2",
+        "tests/test_measurement_contract.py": "923b73ecedfbda161e12e0ac5c2b9bca89c40227b0d5014187ef00a7df439726",
+        "reviewer/PREREGISTRATION.md": "0de694837a53d1a9dff766fad3781394a0c1e3764bd76ee16c85983b510005ce",
+        "reviewer/independent_controls.py": "f948b9171cc7ef84505f1989e1002083586a0fbc08c07da0ef8a3c1dc7b8d6b5",
+        "reviewer/test_independent_audit.py": "6e1d42e54111bdb08124bfebe7a4363fc63ba7fcba38f3a0bba170c43e34a123"
+      },
+      "executor": "root coordinator, Linux CPU"
+    },
+    "note": "Source commit identifies the actual preceding code/evidence revision. The final delivery revision may add only RESULT/manifest metadata; its head is returned with the PR. Null before publication never invents a commit."
+  },
+  "changed_paths": [
+    "research/astra20261020/candidates/02-anchor-estimator/BLOCKED_DATA_REQUEST.json",
+    "research/astra20261020/candidates/02-anchor-estimator/EXPERIMENT_PROTOCOL.json",
+    "research/astra20261020/candidates/02-anchor-estimator/GPU_REQUEST.json",
+    "research/astra20261020/candidates/02-anchor-estimator/PROTOCOL_NOTES.md",
+    "research/astra20261020/candidates/02-anchor-estimator/README.md",
+    "research/astra20261020/candidates/02-anchor-estimator/REPORT.md",
+    "research/astra20261020/candidates/02-anchor-estimator/RESULT.json",
+    "research/astra20261020/candidates/02-anchor-estimator/SHA256SUMS.json",
+    "research/astra20261020/candidates/02-anchor-estimator/adapter/AnchorDiagnostic.pseudo.hlsl",
+    "research/astra20261020/candidates/02-anchor-estimator/adapter/ESTIMATOR_SPEC.md",
+    "research/astra20261020/candidates/02-anchor-estimator/adapter/EVALUATION_AUDIT.md",
+    "research/astra20261020/candidates/02-anchor-estimator/estimator.py",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/FROZEN_SOURCE.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/baseline/run_cpu.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/baseline/runs.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/baseline/validate_package.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/captured_results.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/candidate_and_measurement_tests.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/data_inventory.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/full_experiments.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/independent_audit_tests.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/independent_holdout_reproduction.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/known_bad_controls.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/mechanism_investigation.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/package_integrity_after.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/package_integrity_before.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/untouched_package_cpu.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/checks/visual_panels.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/figures/gain_trajectories.png",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/figures/light_response_trajectories.png",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/figures/matched_dose_tradeoffs.png",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/figures/native_fixed_fields.png",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/fixed_mask_fields.npz",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/physical_scale_results.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/run_ledger.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/synthetic_results.json",
+    "research/astra20261020/candidates/02-anchor-estimator/evidence/visual_qa.json",
+    "research/astra20261020/candidates/02-anchor-estimator/experiments.py",
+    "research/astra20261020/candidates/02-anchor-estimator/finalize_result.py",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/INVENTORY.md",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/MECHANISM.md",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/data_inventory.json",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/inventory.py",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/investigate.py",
+    "research/astra20261020/candidates/02-anchor-estimator/mechanism/results.json",
+    "research/astra20261020/candidates/02-anchor-estimator/metrics.py",
+    "research/astra20261020/candidates/02-anchor-estimator/plot_results.py",
+    "research/astra20261020/candidates/02-anchor-estimator/requirements.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/PREREGISTRATION.md",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/REVIEW.md",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/audit_receipt.json",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/holdout_reproduction.json",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/independent_controls.py",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/initial_audit.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/post_fix_audit.txt",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/preregistered_control_results.json",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/reproduce_holdout.py",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/test_independent_audit.py",
+    "research/astra20261020/candidates/02-anchor-estimator/run_checks.py",
+    "research/astra20261020/candidates/02-anchor-estimator/tests/test_estimator.py",
+    "research/astra20261020/candidates/02-anchor-estimator/tests/test_measurement_contract.py"
+  ],
+  "production_changed_paths": [],
+  "baseline_reference_changed_paths": [],
+  "dependencies": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "matplotlib": "3.10.8",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "installer_run": false,
+    "dependency_note": "Exact required NumPy was already installed; figures used available Matplotlib3.10.8."
+  },
+  "seeds": {
+    "synthetic_root": [
+      2026102001,
+      2026102002,
+      2026102003,
+      2026102004,
+      2026102005,
+      2026102006,
+      2026102007,
+      2026102008
+    ],
+    "reviewer_preregistered": [
+      20261020,
+      20261021,
+      20261022
+    ],
+    "reviewer_independent": [
+      271828,
+      314159
+    ],
+    "other_seed_provenance": "mechanism/results.json and source files record additional deterministic generator seeds"
+  },
+  "cpu_execution": {
+    "initial_untouched_baseline": [
+      {
+        "command": "python research/astra20261020/validate_package.py",
+        "exit_code": 0,
+        "elapsed_seconds": 0.6544262850002269,
+        "output": "validate_package.txt",
+        "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+        "executor": "implementation subagent, Linux CPU"
+      },
+      {
+        "command": "python research/astra20261020/run_cpu.py",
+        "exit_code": 0,
+        "elapsed_seconds": 5.795199379999758,
+        "output": "run_cpu.txt",
+        "sha256": "957368e3ddd44e9cde7614749847bfaf96d4b1401f959b9484e6dee3190146b8",
+        "executor": "implementation subagent, Linux CPU"
+      }
+    ],
+    "final_reproduction": [
+      {
+        "name": "package_integrity_before",
+        "command": "python -B research/astra20261020/validate_package.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.6851469479988737,
+        "log": "evidence/checks/package_integrity_before.txt",
+        "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "untouched_package_cpu",
+        "command": "python -B research/astra20261020/run_cpu.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 5.7878328890001285,
+        "log": "evidence/checks/untouched_package_cpu.txt",
+        "log_sha256": "eda636fe81989011e44dd5e9b3a68cb0e36ce41edeb763c4204ff1bff86a7baa",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "candidate_and_measurement_tests",
+        "command": "python -B -m unittest discover -s research/astra20261020/candidates/02-anchor-estimator/tests -v",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.24704251000002841,
+        "log": "evidence/checks/candidate_and_measurement_tests.txt",
+        "log_sha256": "4da2a46d821089c91a733610f7968792f5037989eed031770bcde412979cf496",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "independent_audit_tests",
+        "command": "python -B -m unittest discover -s research/astra20261020/candidates/02-anchor-estimator/reviewer -p test_independent_audit.py -v",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.25996013499934634,
+        "log": "evidence/checks/independent_audit_tests.txt",
+        "log_sha256": "b7de0b11b89722352dfcb8a48175c1f5cb843576a2ff0e169541c10c4ccf6e5f",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "known_bad_controls",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/reviewer/independent_controls.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.3774876679999579,
+        "log": "evidence/checks/known_bad_controls.txt",
+        "log_sha256": "837b826df87093247e0e02a0e4c12feea7d84d2cf42703c66c6023fae67dae55",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "mechanism_investigation",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/mechanism/investigate.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.4664677809996647,
+        "log": "evidence/checks/mechanism_investigation.txt",
+        "log_sha256": "25c713e4bd271386a6c35f1fbecd67fe1d47a05c44f2cada60ddb47d7caf88a5",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "data_inventory",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/mechanism/inventory.py --include-bottle",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 1.047889112998746,
+        "log": "evidence/checks/data_inventory.txt",
+        "log_sha256": "4e9f06a73033778cca9fdb6f9d59cea99262f299c191ee10240b45f09e3d78b2",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "full_experiments",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/experiments.py --include-holdout",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 14.985484475999328,
+        "log": "evidence/checks/full_experiments.txt",
+        "log_sha256": "e21ebfd0fec8ff2cd4bfda2a8a817b5a2deadd7c7276af297f5bcde00d0f3b82",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "independent_holdout_reproduction",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/reviewer/reproduce_holdout.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 1.040999817998454,
+        "log": "evidence/checks/independent_holdout_reproduction.txt",
+        "log_sha256": "2d51a29afb97c9f8b37da4ec9d80121037b940fb0db61ef4ab224d85430c2a37",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "visual_panels",
+        "command": "python -B research/astra20261020/candidates/02-anchor-estimator/plot_results.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 4.408335844998874,
+        "log": "evidence/checks/visual_panels.txt",
+        "log_sha256": "2d1ed913daedbb815453ffc326edd40054914aa7ba3438c62212d8ef9d6c6fae",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      },
+      {
+        "name": "package_integrity_after",
+        "command": "python -B research/astra20261020/validate_package.py",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "elapsed_seconds": 0.6755207469996094,
+        "log": "evidence/checks/package_integrity_after.txt",
+        "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+        "executor": "root coordinator, Linux CPU; independent reviewer source reproduced where labeled"
+      }
+    ],
+    "visual_qa_rerun": {
+      "command": "python -B research/astra20261020/candidates/02-anchor-estimator/plot_results.py",
+      "exit_code": 0,
+      "elapsed_seconds": 3.4989503279994096,
+      "executor": "root coordinator, Linux CPU",
+      "reason": "Visual inspection found overlapping label on the narrow held-out field and an omitted identity legend; labels repaired, no data, metric, threshold or crop changed.",
+      "stdout": "{\n  \"matplotlib\": \"3.10.8\",\n  \"figures\": [\n    \"gain_trajectories.png\",\n    \"light_response_trajectories.png\",\n    \"matched_dose_tradeoffs.png\",\n    \"native_fixed_fields.png\"\n  ]\n}\n",
+      "plot_source_sha256": "95c02ddc94134270c4b007225beb695cc4c6c440ef4b7867e3ebbd1b60ae8165",
+      "figures": {
+        "gain_trajectories.png": "13cd61ebfa145bd94e043e0c98bb3a0c91eab7bf323dd2c7277ba23316d7492f",
+        "light_response_trajectories.png": "4e7716fe887cb46cad7c63b9f343ec2bb76e2529e2e3ef039aa5112f13f7a2b1",
+        "matched_dose_tradeoffs.png": "3ae5764cbac48760152086731ad0d4f6a9a3a4d8ce285ceac234a560afa4a21e",
+        "native_fixed_fields.png": "d0cbc0d9f9c6492d1a52086e574d46b92eb1bb777a38de6f69f725c64360d763"
+      }
+    },
+    "unit_tests": 26,
+    "original_portable_suites": 4,
+    "all_final_exit_codes_zero": true,
+    "initial_development_failures": "reviewer/REVIEW.md records defensive API defects reproduced live and corrected before source freeze; no pre-fix source hash or failing-run log was retained. reviewer/initial_audit.txt and post_fix_audit.txt contain passing reruns. The mechanism report discloses its corrected initial syntax error."
+  },
+  "fixture_hashes": {
+    "portable/anchor/fixtures/combined/22f9ca14.npz": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+    "portable/anchor/fixtures/combined/2405579e.npz": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+    "portable/anchor/fixtures/combined/87ee1fba.npz": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+    "portable/anchor/fixtures/native_policy/22f9ca14.npz": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+    "portable/anchor/fixtures/native_policy/2405579e.npz": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+    "portable/anchor/fixtures/native_policy/87ee1fba.npz": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+    "portable/colour/fixtures/soft2_gpu_87ee63.npz": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+    "fixtures/clips/bottle_track7.npz": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+    "fixtures/clips/facade16.npz": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+    "fixtures/clips/foliage23.npz": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+    "fixtures/glass/glass_crop.npz": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d"
+  },
+  "result_hashes": {
+    "BLOCKED_DATA_REQUEST.json": "9bd282df085e2e7bf0a40b31b02bbc85bb9a6c69be882892d6d0c577922cd778",
+    "GPU_REQUEST.json": "c3d4c8c99d871b59cd1b6e3de17b0afe603ba46c80317d155eadec0f3fc71f46",
+    "REPORT.md": "c0e37046416a1ec2847eb7ad7c6bdaa4bf8ab2cd90393644c70b7d579348c3e8",
+    "evidence/captured_results.json": "d50b107ba335278579292d508b914deb52d3999b30b682511e34d0eee8704257",
+    "evidence/figures/gain_trajectories.png": "13cd61ebfa145bd94e043e0c98bb3a0c91eab7bf323dd2c7277ba23316d7492f",
+    "evidence/figures/light_response_trajectories.png": "4e7716fe887cb46cad7c63b9f343ec2bb76e2529e2e3ef039aa5112f13f7a2b1",
+    "evidence/figures/matched_dose_tradeoffs.png": "3ae5764cbac48760152086731ad0d4f6a9a3a4d8ce285ceac234a560afa4a21e",
+    "evidence/figures/native_fixed_fields.png": "d0cbc0d9f9c6492d1a52086e574d46b92eb1bb777a38de6f69f725c64360d763",
+    "evidence/fixed_mask_fields.npz": "493f2a217de35623dcfb8c6b03c204520f70be9544dc872b9af5b6edbe7e83e1",
+    "evidence/physical_scale_results.json": "a301b3bea16d2a0be1db99474a845883904243409dd8ec095bccb187ba68b2a3",
+    "evidence/run_ledger.json": "9e9fd4a9886a0ca73cf178da35ea835a0cc7b20d1b76a220e462c01fdaf37396",
+    "evidence/synthetic_results.json": "1a59053d79f704061c824fbadb7b4d8a020d6c043c12aab05773dc8331b977a0",
+    "mechanism/results.json": "3f865f2c58acd7904ff2805fb134fd183f5ddd967fb1c858c0f1b1973c108000",
+    "reviewer/REVIEW.md": "6953e4a71e72d2b7f1f10f2a2f5dc409e6f9f1a932c8fd8f42fc373c6f31139e",
+    "reviewer/holdout_reproduction.json": "866c381eb30cf6a0be73943d3b38820a74550a75def0083bd79483603e0b761f",
+    "reviewer/preregistered_control_results.json": "be76b56c25dcbc42d33ffbdb2cffa184bc2e29e06c372d015926cb27d68ef26b"
+  },
+  "measurements": {
+    "calibration_dose": 0.05051897233257407,
+    "matched_strengths": {
+      "baseline": 0.9753298759460449,
+      "provisional_diagnostic": 1.0
+    },
+    "matched_dose_residual": 4.6534063505299095e-08,
+    "matched_excess_calibration_null_doses": {
+      "exact_identity": {
+        "baseline": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        },
+        "provisional_diagnostic": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        }
+      },
+      "stationary_independent": {
+        "baseline": {
+          "mean": 0.029633645254621015,
+          "min": 0.028889056102897343,
+          "max": 0.03048149828360524,
+          "seeds": 8
+        },
+        "provisional_diagnostic": {
+          "mean": 0.0023017231508622856,
+          "min": 0.002090795670745375,
+          "max": 0.002424006620717971,
+          "seeds": 8
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 8
+        }
+      },
+      "spatial_correlated": {
+        "baseline": {
+          "mean": 0.033117749621412576,
+          "min": 0.030436943250610114,
+          "max": 0.036001878817594646,
+          "seeds": 8
+        },
+        "provisional_diagnostic": {
+          "mean": 0.008105967466244349,
+          "min": 0.007009524061169681,
+          "max": 0.010935884994259347,
+          "seeds": 8
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 8
+        }
+      },
+      "temporal_correlated": {
+        "baseline": {
+          "mean": 0.029613536486968815,
+          "min": 0.0283093666635416,
+          "max": 0.03085790005982395,
+          "seeds": 8
+        },
+        "provisional_diagnostic": {
+          "mean": 0.002203383087655596,
+          "min": 0.0017615633511724584,
+          "max": 0.002795235655586202,
+          "seeds": 8
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 8
+        }
+      },
+      "heavy_tail_bursts": {
+        "baseline": {
+          "mean": 0.02096290081210791,
+          "min": 0.019360843786365437,
+          "max": 0.021788998529550525,
+          "seeds": 8
+        },
+        "provisional_diagnostic": {
+          "mean": 0.0017137453190884284,
+          "min": 0.001603127800193372,
+          "max": 0.0020346011583245297,
+          "seeds": 8
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 8
+        }
+      },
+      "equal_energy_antithetic": {
+        "baseline": {
+          "mean": 0.03184677055105567,
+          "min": 0.03184677055105567,
+          "max": 0.03184677055105567,
+          "seeds": 1
+        },
+        "provisional_diagnostic": {
+          "mean": 0.048141995018037655,
+          "min": 0.048141995018037655,
+          "max": 0.048141995018037655,
+          "seeds": 1
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        }
+      },
+      "sparse_support": {
+        "baseline": {
+          "mean": 0.02802171039057566,
+          "min": 0.026924135673928967,
+          "max": 0.028680889860199642,
+          "seeds": 8
+        },
+        "provisional_diagnostic": {
+          "mean": 1.3541887558932286e-05,
+          "min": 4.14337012509674e-06,
+          "max": 2.8941241076586173e-05,
+          "seeds": 8
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 8
+        }
+      },
+      "unbalanced_valid_masks": {
+        "baseline": {
+          "mean": 0.05652364101085275,
+          "min": 0.05652364101085275,
+          "max": 0.05652364101085275,
+          "seeds": 1
+        },
+        "provisional_diagnostic": {
+          "mean": 0.05052277826533552,
+          "min": 0.05052277826533552,
+          "max": 0.05052277826533552,
+          "seeds": 1
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        }
+      },
+      "new_view": {
+        "baseline": {
+          "mean": 0.0812292463809739,
+          "min": 0.0812292463809739,
+          "max": 0.0812292463809739,
+          "seeds": 1
+        },
+        "provisional_diagnostic": {
+          "mean": 0.07500518035954278,
+          "min": 0.07500518035954278,
+          "max": 0.07500518035954278,
+          "seeds": 1
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        }
+      },
+      "camera_cut_reset": {
+        "baseline": {
+          "mean": 0.07526322918733991,
+          "min": 0.07526322918733991,
+          "max": 0.07526322918733991,
+          "seeds": 1
+        },
+        "provisional_diagnostic": {
+          "mean": 0.07644641845687833,
+          "min": 0.07644641845687833,
+          "max": 0.07644641845687833,
+          "seeds": 1
+        },
+        "causal_abstainer": {
+          "mean": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "seeds": 1
+        }
+      }
+    },
+    "genuine_light_response": [
+      {
+        "factor": 1.1,
+        "response_area22": {
+          "baseline": 0.03631882659521363,
+          "provisional_diagnostic": 0.028422496026872343,
+          "causal_abstainer": 0.9999403058039377
+        }
+      },
+      {
+        "factor": 1.25,
+        "response_area22": {
+          "baseline": 0.30976561052403856,
+          "provisional_diagnostic": 0.2972131776233047,
+          "causal_abstainer": 1.000020582649374
+        }
+      },
+      {
+        "factor": 1.4,
+        "response_area22": {
+          "baseline": 0.516835603438284,
+          "provisional_diagnostic": 0.5070915760683858,
+          "causal_abstainer": 1.0000140320454052
+        }
+      }
+    ],
+    "native_captured_comparisons": {
+      "native_policy/22f9ca14": {
+        "frames": [
+          41,
+          44,
+          52
+        ],
+        "role": "development",
+        "dose": {
+          "baseline_cpu": 0.05690386389530055,
+          "historical_stored_gpu_gain": 0.05703580844930941,
+          "provisional_diagnostic": 0.004162082478977816,
+          "causal_abstainer": 0.0
+        },
+        "base_mask_samples": 9649
+      },
+      "native_policy/87ee1fba": {
+        "frames": [
+          41,
+          44,
+          60
+        ],
+        "role": "validation",
+        "dose": {
+          "baseline_cpu": 0.03560099487249017,
+          "historical_stored_gpu_gain": 0.03566473086118191,
+          "provisional_diagnostic": 0.0010734793225397944,
+          "causal_abstainer": 0.0
+        },
+        "base_mask_samples": 7719
+      },
+      "native_policy/2405579e": {
+        "frames": [
+          92
+        ],
+        "role": "holdout",
+        "dose": {
+          "baseline_cpu": 0.05372433637608718,
+          "historical_stored_gpu_gain": 0.05377132272080531,
+          "provisional_diagnostic": 0.0010668264508791453,
+          "causal_abstainer": 0.0
+        },
+        "base_mask_samples": 641
+      }
+    },
+    "moving_object_bilinear_cpu_proxy": {
+      "baseline": {
+        "scope": "ideal CPU bilinear, not D3D sampler parity or corrected transport",
+        "dynamic_base_pixels": 71680,
+        "dynamic_changed_pixels": 14080,
+        "dynamic_relative_energy_loss": 0.004976599557059151,
+        "minimum_gain_on_dynamic_pixels": 0.8981952667236328
+      },
+      "provisional_diagnostic": {
+        "scope": "ideal CPU bilinear, not D3D sampler parity or corrected transport",
+        "dynamic_base_pixels": 71680,
+        "dynamic_changed_pixels": 14080,
+        "dynamic_relative_energy_loss": 0.004976599557059151,
+        "minimum_gain_on_dynamic_pixels": 0.8981952667236328
+      },
+      "causal_abstainer": {
+        "scope": "ideal CPU bilinear, not D3D sampler parity or corrected transport",
+        "dynamic_base_pixels": 71680,
+        "dynamic_changed_pixels": 0,
+        "dynamic_relative_energy_loss": 0.0,
+        "minimum_gain_on_dynamic_pixels": 1.0
+      }
+    },
+    "deployable_correction_dose": 0.0,
+    "deployable_abstain_fraction": 1.0,
+    "positive_dose_efficacy_of_deployable_output": null,
+    "fresh_rr_quality": null,
+    "final_game_quality": null,
+    "gpu_ms": null,
+    "resident_gpu_memory_bytes": null
+  },
+  "rejected_hypotheses": [
+    "Global frame ratio >=1 guarantees that local one-sided darkening is harmless.",
+    "Median/MAD of current/recalled ratios identifies real illumination versus excess.",
+    "Typical paired log change necessarily has the same sign as frame energy change.",
+    "Static centre plus neighborhood recall guarantees unsupported-cell identity.",
+    "Identity at dynamic gain-grid centres guarantees full-resolution pixel identity."
+  ],
+  "supported_mechanisms": [
+    "For nonnegative inputs and gain<=1, fixed-mask energy drift equals minus correction dose.",
+    "Four bilinear taps leave a 75%-zero/25%-four sampling distribution for a uniformly located 64-unit spike in an8x8 cell.",
+    "Identical observed tensors can require different desired outputs under true light versus input excess.",
+    "The robust diagnostic trades away most captured apparent correction and fails a matched-dose correlated null."
+  ],
+  "unresolved_risks": [
+    "No independent same-pose physical illumination witness or converged truth is present.",
+    "Native raw pre-store sums and six-slice keys are absent; only already recalled observations are tested.",
+    "Native fixture has seven sparse snapshots, including one held-out snapshot; no native temporal efficacy claim.",
+    "Half conversion/sampler fractions and new shader branch parity need actual local validation.",
+    "No HLSL build, Windows host build, D3D lifetime execution, fresh AMD RR, performance, VRAM or gameplay measurement.",
+    "Shared D+S scalar is not a validated independent per-lobe estimator; bilinear transport remains job04."
+  ],
+  "gpu_executed": false,
+  "hlsl_compiled": false,
+  "production_adapter_applied": false,
+  "acceptance_status": {
+    "research_reproducibility": "pass",
+    "independent_falsifier_suite": "pass: rejects known bad controls",
+    "provisional_as_active_correction": "reject",
+    "causal_discrimination": "unidentifiable with provided observations",
+    "production_recommendation": "Anchor OFF; preserve protected preset",
+    "local_gpu_game_gate": "pending independent observation and actual native/RR acceptance",
+    "decision": "keep_as_research"
+  },
+  "actual_executors": {
+    "baseline_before_changes": "implementation subagent, Linux CPU",
+    "mechanism_and_inventory": "mechanism subagent; reproduced by root coordinator on Linux CPU",
+    "independent_controls_and_holdout": "skeptical reviewer, separate tuning boundary; reproduced by root coordinator on Linux CPU",
+    "full_experiments_and_visual_QA": "root coordinator, Linux CPU",
+    "historical_gpu_fields": "handoff owner's prior local capture, never newly executed here"
+  }
+}

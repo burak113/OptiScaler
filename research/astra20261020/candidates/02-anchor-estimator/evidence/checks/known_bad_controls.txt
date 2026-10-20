@@ -1,0 +1,20 @@
+{
+  "known_bad_rejected": true,
+  "mutant_rejected": true,
+  "analytic_null_loss": 0.19999999999999996,
+  "antithetic_native_dose": [
+    0.007031249999999999,
+    0.007031249999999999
+  ],
+  "real_light_responses": {
+    "0.5": 1.0,
+    "0.7142857142857143": 1.0,
+    "0.8": 1.0,
+    "0.9090909090909091": 1.0,
+    "1.1": 0.0009765625000013314,
+    "1.25": -0.0009765625,
+    "1.4": 0.29931640624999983,
+    "2.0": 1.0
+  },
+  "output": "candidates/02-anchor-estimator/reviewer/preregistered_control_results.json"
+}
