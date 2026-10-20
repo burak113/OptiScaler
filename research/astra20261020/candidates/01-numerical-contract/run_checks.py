@@ -6,6 +6,7 @@ the explicitly selected --output directory.
 """
 from pathlib import Path
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -22,6 +23,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,default=HERE/'evidence')
     args=parser.parse_args();args.output=args.output.resolve();args.output.mkdir(parents=True,exist_ok=True)
+    source_revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
+    api_lines=''.join(p.relative_to(HERE).as_posix()+'\0'+hashlib.sha256(p.read_bytes()).hexdigest()+'\n'
+                      for p in sorted((HERE/'numerical_contract').glob('*.py')))
+    api_sha256=hashlib.sha256(api_lines.encode()).hexdigest()
     env=dict(os.environ,PYTHONDONTWRITEBYTECODE='1',PYTHONPATH=str(HERE),OMP_NUM_THREADS='2',
              OPENBLAS_NUM_THREADS='2',MKL_NUM_THREADS='2')
     jobs=[('package',['python','-B','research/astra20261020/validate_package.py'],0),
@@ -49,6 +54,7 @@ def main():
         output_label=args.output.relative_to(REPO).as_posix() if args.output.is_relative_to(REPO) else str(args.output)
         display=[(output_label if v==str(args.output) else v) for v in command]
         record={'name':name,'command':display,'working_directory':'repository root',
+                'source_revision':source_revision,'api_aggregate_sha256':api_sha256,
                 'exit_code':result.returncode,'expected_exit_code':expected,
                 'elapsed_seconds':elapsed,'executor':'root local Linux CPU',
                 'log':name+'.log','passed':result.returncode==expected}

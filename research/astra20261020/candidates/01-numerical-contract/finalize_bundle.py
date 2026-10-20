@@ -50,6 +50,15 @@ def blocked_requests(calibration):
     native=[{'capture':r['capture'],'frame':r['frame'],'grid_extent_xy':r['grid_shape'][::-1],
              'fixed_mask_sha256':r['fixed_mask_sha256']} for r in calibration['anchor']['frames']
             if r['group']=='native_policy']
+    manifest_path=REPO/'research/astra20261020/portable/anchor/fixtures/manifest.json'
+    manifest=json.loads(manifest_path.read_text())
+    native_group=next(g for g in manifest['groups'] if g['id']=='native_policy')
+    captures={c['capture']:c for c in native_group['captures']}
+    for row in native:
+        capture=captures[row['capture']]
+        row.update(capture_uuid=capture['capture_uuid'],original_render_extent_xy=capture['render'],
+                   crop_origin_render_xy=capture['roi'][:2],replay_roi_extent_xy=capture['roi'][2:],
+                   extent_authority='frozen anchor manifest, not inferred from floor-divided grid')
     common_provenance=['source capture UUID and original provider frame index',
         'tag/source/CSO/embedded-header/compiler executable and DLL hashes',
         'GPU PCI/vendor/device identifiers, driver, API, resource formats and mip',
@@ -81,7 +90,7 @@ def blocked_requests(calibration):
              'Residuals remain: request only the affected source intermediate next; retain numerical uncertainty.'],
          'completed_without_it':'Exhaustive storage contract, admissible non-identifiability witnesses, verified foliage recovery and all CPU calibration.'},
         {'id':'D2-historical-colour-sampler-gates',
-         'missing_observable':'Actual sampled RGBA history, expected-depth float32 and uint validity at the historical GPU disagreement locations, plus the exact historical C8 harness identity.',
+         'missing_observable':'Actual GPU sampled RGBA history, expected-depth float32 and uint validity at the nine CPU-profile distinguishing probe locations, plus the full GPU gate map if needed and exact historical C8 harness identity.',
          'why_current_data_cannot_identify':'The frozen NPZ expected fields are CPU outputs; the historical GPU JSON reports count9 without the raw gate map. Equal count under a fraction8 model does not prove the same GPU decisions.',
          'hypotheses_distinguished':['The recorded device snaps fractions as the selected8bit profile near these depth thresholds.',
              'Different coordinate/staging/rounding behavior produces a different set of gates.'],
@@ -92,6 +101,7 @@ def blocked_requests(calibration):
          'historical_harness_note':'These identities are requested. Do not label the current production B4 shader as the old C8 experiment.',
          'render_extent_xy':[1505,847],'crop_origin_render_xy':[496,167],'crop_extent_xy':[512,512],
          'history_grid_extent_xy':[64,64],'requested_grid_yx':gates,
+         'probe_coordinate_authority':'CPU observed-fraction8 versus frozen-model differences; these are NOT known historical GPU disagreement locations.',
          'input':'Exact published prev_history/Stats/Motion bytes; export the actual GPU UV and all four tapped coordinates/texels to resolve footprint differences.',
          'output_formats':{'sampled_history':'RGBA binary32,16bytes per grid cell',
                            'expected_depth':'binary32,4bytes','validity':'uint32,4bytes','uv':'float2,8bytes'},
@@ -112,8 +122,10 @@ def blocked_requests(calibration):
          'format':'8 little-endian uint32 words,32bytes per frame',
          'word_layout':['current_low','current_high','recalled_low','recalled_high','count','padding0','padding1','padding2'],
          'units':'Current/recalled integer totals scaled by65536; each included physical level clamped[0,16]. Count is a raw integer.',
-         'render_extent_xy':None,'allocation_extent_xy':None,'crop_origin_render_xy':None,
-         'extent_note':'Request the actual original constants/extents. A stored floor-divided grid cannot identify the original odd full extent.',
+         'original_render_extent_xy':[1505,847],'actual_submitted_resource_allocation_extent_xy':None,
+         'extent_note':'Each frame entry supplies manifest-reported original render/crop/replay ROI. Actual submitted resource descriptors and cbuffer bytes remain requested. The128x847 ROI has a16x105 grid; do not replace its height by105*8.',
+         'known_provenance':{'manifest_sha256':sha(manifest_path),
+                             'historical_harness_identity':native_group['harness_identity']},
          'local_extraction':'Prefer archived original atomics. If rerunning, use the original local ring/key inputs and constants; a sum recomputed from the supplied FP16 grids is not this observation.',
          'core_payload_bytes':224,'maximum_useful_payload_bytes':4096,
          'payload_scope':'224 core bytes plus exact relevant cbuffer/control data; provenance JSON separate. Return unavailable if original inputs are absent.',
@@ -128,7 +140,11 @@ def final_result(source_revision,draft):
     records=read_json('evidence/run_records.json') if (HERE/'evidence/run_records.json').exists() else []
     if not draft and (len(records)!=16 or not all(r['passed'] for r in records)):
         raise ValueError('final receipt requires all16 acceptance commands at their expected exit codes')
+    if not draft and any(r.get('source_revision')!=source_revision for r in records):
+        raise ValueError('every final command receipt must identify the requested source revision')
     api=api_manifest();write_json('API_MANIFEST.json',api)
+    if not draft and any(r.get('api_aggregate_sha256')!=api['aggregate_sha256'] for r in records):
+        raise ValueError('current library bytes do not match the tested API identity')
     write_json('BLOCKED_DATA_REQUEST.json',blocked_requests(calibration))
     log=(HERE/'evidence/candidate_tests.log').read_text() if (HERE/'evidence/candidate_tests.log').exists() else ''
     count_match=re.search(r'Ran (\d+) tests in ([0-9.]+)s',log)
@@ -212,7 +228,9 @@ def main():
     parser.add_argument('--source-revision')
     parser.add_argument('--draft',action='store_true')
     args=parser.parse_args()
-    revision=args.source_revision or subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
+    records=read_json('evidence/run_records.json') if (HERE/'evidence/run_records.json').exists() else []
+    recorded_revision=records[0].get('source_revision') if records and not args.draft else None
+    revision=args.source_revision or recorded_revision or subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
     if not re.fullmatch('[0-9a-f]{40}',revision):
         raise ValueError('source revision must be a concrete full commit SHA')
     result=final_result(revision,args.draft)
