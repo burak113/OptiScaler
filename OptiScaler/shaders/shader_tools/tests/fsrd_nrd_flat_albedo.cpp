@@ -422,10 +422,10 @@ void postFlickChecks(Host& host)
         for (uint32_t x = 0; x < W; ++x)
         {
             const size_t p = size_t(y) * W + x;
-            const float level = 0.02f + 0.01f * std::sin(x / 37.0f) * std::cos(y / 29.0f);
+            const float level = 0.4f + 0.02f * std::sin(x / 37.0f) * std::cos(y / 29.0f);
             colorData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(level);
-            colorData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(level * 0.9f);
-            colorData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(level * 0.8f);
+            colorData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(level * 0.99f);
+            colorData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(level * 0.98f);
             colorData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(1.0f);
             motionData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(1.0f);
         }
@@ -546,10 +546,10 @@ void postFlickChecks(Host& host)
         std::vector<uint16_t> keyData(size_t(HW) * HH * 4, 0), keyAuxData(size_t(HW) * HH * 2, 0);
         for (size_t p = 0; p < size_t(HW) * HH; ++p)
         {
-            keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.02f);
-            keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.018f);
-            keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.016f);
-            keyData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(0.02f);
+            keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.4f);
+            keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.396f);
+            keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.392f);
+            keyData[p * 4 + 3] = PackedVector::XMConvertFloatToHalf(0.4f);
             keyAuxData[p * 2 + 0] = PackedVector::XMConvertFloatToHalf(10.0f);
             keyAuxData[p * 2 + 1] = PackedVector::XMConvertFloatToHalf(1.0f);
         }
@@ -557,9 +557,9 @@ void postFlickChecks(Host& host)
             for (int dx = -1; dx <= 1; ++dx)
             {
                 const size_t p = size_t(int(spikeY) + dy) * HW + size_t(int(spikeX) + dx);
-                keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.52f);
-                keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.51f);
-                keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.50f);
+                keyData[p * 4 + 0] = PackedVector::XMConvertFloatToHalf(0.9f);
+                keyData[p * 4 + 1] = PackedVector::XMConvertFloatToHalf(0.89f);
+                keyData[p * 4 + 2] = PackedVector::XMConvertFloatToHalf(0.88f);
             }
         upload(host, dummy, key[parity].Get(), binary(keyData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         upload(host, dummy, keyAux[parity].Get(), binary(keyAuxData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -596,10 +596,42 @@ void postFlickChecks(Host& host)
             }
         std::cout << "post-flick recall spike at " << bestX << "," << bestY << " deviation " << best
                   << " (expected " << expectedX << "," << expectedY << ", shift " << shiftPixels << " px)" << std::endl;
-        need(best > 0.2f, "post-flick: the recalled band shows up in the output");
-        need(std::abs(float(bestX) - expectedX) <= 2.0f && std::abs(float(bestY) - expectedY) <= 2.0f,
+        // The spike's band difference is 0.5 per channel, well past the clamp (0.25 of the ~0.4 wide level): the
+        // clamp bounds the applied difference in LUMINANCE, so the three-channel sum the readback measures comes out
+        // at roughly 3 * 0.25 * 0.4 * blend ~ 0.29. The position assertion is the reprojection test (the plateau's
+        // argmax can sit anywhere inside the 6x6 spike, so the tolerance is three pixels and the discriminating
+        // assertion is the "not sampled in place" one, 37 px away).
+        const float clampedPeak = 3.0f * PostFlickMath::kBandDeltaClamp * 0.4f;
+        need(best > 0.06f, "post-flick: the recalled band shows up in the output");
+        need(best > 0.5f * clampedPeak && best < 1.5f * clampedPeak,
+            "post-flick: the band-difference clamp bounds the recalled band to the measured ceiling");
+        need(std::abs(float(bestX) - expectedX) <= 3.0f && std::abs(float(bestY) - expectedY) <= 3.0f,
             "post-flick: the recalled spike lands at the reprojected pixel");
         need(std::abs(float(bestX) - spikeFullX) > 5.0f, "post-flick: the recall is reprojected, not sampled in place");
+        // Control: the same frame with the clamp disabled must show the full correction, so the ceiling above is
+        // provably the clamp's doing and not the scene's.
+        PostFlickMath::Outputs unclamped;
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(moved), descForm(projection), descForm(identity), unclamped);
+        need(!unclamped.Refresh, "post-flick: the unclamped control keeps the keyframe it was given");
+        unclamped.Apply[34] = 1.0f;
+        frame(unclamped);
+        auto unclampedReadback = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        host.submit();
+        const auto unclampedData = packed(unclampedReadback, W, H, 8);
+        host.reset();
+        float unclampedPeak = -1.0f;
+        for (uint32_t y = 0; y < H; ++y)
+            for (uint32_t x = 0; x < W; ++x)
+            {
+                const uint8_t* p = unclampedData.data() + (size_t(y) * W + x) * 8;
+                const uint8_t* q = reinterpret_cast<const uint8_t*>(colorData.data()) + (size_t(y) * W + x) * 8;
+                const float deviation = std::abs(halfAt(p, 0) - halfAt(q, 0)) + std::abs(halfAt(p, 1) - halfAt(q, 1)) +
+                    std::abs(halfAt(p, 2) - halfAt(q, 2));
+                unclampedPeak = std::max(unclampedPeak, deviation);
+            }
+        std::cout << "post-flick band clamp: peak " << best << " clamped, " << unclampedPeak
+                  << " unclamped (ceiling ~" << clampedPeak << ")" << std::endl;
+        need(unclampedPeak > 1.0f, "post-flick: with the clamp off the same spike is not bounded");
         // C2) the depth tolerance has power: a keyframe depth 2 % off must be rejected at the shipped 1 % and
         // accepted at the old 3 %, so the 3 % -> 1 % change is visible in a test rather than only in the numbers
         // (SA14 measured that the fixture had no power over the tolerance at all before this).

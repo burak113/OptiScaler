@@ -20,7 +20,7 @@ cbuffer CB_PostFlickApply : register(b0)
     float4 Projection;   // current P00, P11, P02, P12
     float4 Extra;        // x current P32, y keyframe P32, z depth tolerance, w age max
     float4 Ratio;        // x low, y high
-    uint HistoryValid; float Strength, Reserved1, Reserved2;
+    uint HistoryValid; float Strength, BandClamp, Reserved2;
 }
 float4 SampleHalf(Texture2D<float4> source, float2 q, int2 half)
 {
@@ -80,7 +80,12 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     const float4 curBand = SampleHalf(InCur, float2(float(p.x) + 0.5f, float(p.y) + 0.5f), half);
     const float ratio = clamp(curBand.a / max(key.a, 1e-6f), Ratio.x, Ratio.y);
     const float blend = saturate(1.0f - aux.x / max(Extra.w, 1.0f)) * (valid ? 1.0f : 0.0f) * saturate(Strength);
-    float3 result = cur + blend * (key.rgb * ratio - curBand.rgb);
+    const float3 bandDelta = key.rgb * ratio - curBand.rgb;
+    // Bound how far the recalled band may move the output: a different surface at the same depth can pass the depth
+    // test, and this keeps its error to a fraction of the local wide level (see kBandDeltaClamp).
+    const float bandLum = dot(bandDelta, float3(0.2126f, 0.7152f, 0.0722f));
+    const float bandScale = min(1.0f, BandClamp * curBand.a / max(abs(bandLum), 1e-6f));
+    float3 result = cur + (blend * bandScale) * bandDelta;
     if (!all(isfinite(result))) result = cur;
     OutColor[p] = float4(SanitizeRadiance(result), InColor[p].a);
 }

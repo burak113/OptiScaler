@@ -38,6 +38,12 @@ namespace PostFlickMath
     // moving silhouettes and as an object's band replaced by the background's), so the correction is switched off
     // instead of applied: 0512's worst family sits at 68-71 degrees, the working regime at 1-16 degrees.
     inline constexpr float kMaxKeyAngleDegrees = 20.0f;
+    // The recalled band can be a different surface at the same depth (2405 f53-64: a key 1.5x brighter 53-64 frames
+    // old on a static scene, window blotch p90 +7 %, 18-37 % of pixels above 25 % of the frame level). Clamping the
+    // applied band difference to this fraction of the current wide level removes that harm (blotch p90 +7 % -> +0 %,
+    // in-strip +9 % -> -5 %, applied energy -48 %) at ~2 points of the 22f9 benefit (SA20 measured 0.25; the milder
+    // knee is 0.35/0.40). 0 disables the clamp, >= 1 restores the unclamped behaviour.
+    inline constexpr float kBandDeltaClamp = 0.25f;
 
     struct KeyState
     {
@@ -164,6 +170,7 @@ namespace PostFlickMath
         const float keyDegrees = std::acos(std::clamp(keyCosine, -1.0f, 1.0f)) * 57.2957795f;
         const float strengthLimit = (std::isfinite(keyDegrees) && keyDegrees <= kMaxKeyAngleDegrees) ? 1.0f : 0.0f;
         constants[33] = std::clamp(strength, 0.0f, 1.0f) * strengthLimit;
+        constants[34] = kBandDeltaClamp;
         return settled;
     }
 }
