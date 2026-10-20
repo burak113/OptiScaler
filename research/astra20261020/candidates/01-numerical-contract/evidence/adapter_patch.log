@@ -1,0 +1,9 @@
+{
+  "base_source_identity_verified": true,
+  "clean_copy_patch_check_exit_code": 0,
+  "clean_copy_patch_apply_exit_code": 0,
+  "patched_bytes_match_candidate_hlsl": true,
+  "production_source_unchanged": true,
+  "dxc_compiled": false,
+  "gpu_executed": false
+}

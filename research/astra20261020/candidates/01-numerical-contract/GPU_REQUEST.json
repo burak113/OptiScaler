@@ -1,0 +1,5001 @@
+{
+  "schema": "fsrd.numerical-contract.gpu-request.v1",
+  "task_id": "01-numerical-contract",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_baseline_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "contract_version": "0.1.0",
+  "gpu_executed": false,
+  "status": "Awaiting local Windows D3D12 compilation and explicit microcase harness extension.",
+  "recommendation_until_completed": "keep_as_research",
+  "scope": "Numerical storage, sampling, guide packing, finite-history predicate and counter microcases. No new denoising policy, performance or game-image improvement is asserted.",
+  "execution_boundary": {
+    "requested_executor": "Local Windows owner with a real D3D12 hardware adapter and the repository toolchain.",
+    "cloud_execution": "CPU/NumPy calculations and archived GPU tensor comparisons only; no DXC or GPU invocation.",
+    "default_enable_authorized": false,
+    "install_into_game": false,
+    "integration_owner": "job 08",
+    "microcase_host_executable": null,
+    "microcase_host_build_command": null,
+    "microcase_host_run_command": null,
+    "host_command_status": "Requested: extend a local host to implement the recipes below, return source/build/run argv and hashes. No executable consuming this request is shipped.",
+    "existing_host_scaffolds": [
+      {
+        "path": "OptiScaler/shaders/shader_tools/tests/fsrd_colour_track.cpp",
+        "use": "Reuse typed texture creation, upload/readback, root binding, fence and debug checks.",
+        "limitation": "Its current main requires one argument but does not parse this request; passing GPU_REQUEST.json does not run these new cases."
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/tests/fsrd_post_motion_anchor.cpp",
+        "use": "Reuse standalone Anchor typed array bindings, pass order and D3D12 host scaffolding.",
+        "limitation": "Its existing cases are not the generated native multiple-wrap or archived Gain witness requests."
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/tests/fsrd_native_post_motion_anchor.cpp",
+        "use": "Existing native provider-input/host ownership checks can complement descriptor/lifetime verification.",
+        "limitation": "Mock provider execution is not AMD RR or final game quality."
+      }
+    ],
+    "diagnostic_source_status": "Exact requested operations and bindings are specified per case. A local companion shader/host must be assembled, hashed, compiled and returned before its output is accepted."
+  },
+  "input_bundle": {
+    "generated": true,
+    "capture_frames": null,
+    "description": "Deterministic analytic inputs, not additional independent captured frames.",
+    "generator": {
+      "path": "research/astra20261020/candidates/01-numerical-contract/gpu_inputs.py",
+      "bytes": 6472,
+      "sha256": "e65f88887a8cdfdfd7d3e42597c5d82b58716fd4dcdb40c3701d7404dfe2d9cf"
+    },
+    "metadata": {
+      "path": "research/astra20261020/candidates/01-numerical-contract/evidence/gpu_microcases.json",
+      "bytes": 6253,
+      "sha256": "23e306013dc44afcf76d7f6297da7ebb03d0e60163cfb34f8ed12d65e89764c3"
+    },
+    "npz": {
+      "path": "research/astra20261020/candidates/01-numerical-contract/evidence/gpu_microcases.npz",
+      "bytes": 29922,
+      "sha256": "ffb662a4887ba625d576683494f67a4f5a75ee2b52ff8c0573998ff6dd31da2b"
+    },
+    "npz_load_allow_pickle": false,
+    "logical_arrays": {
+      "depth_texture": {
+        "shape": [
+          1,
+          2
+        ],
+        "dtype": "<f2",
+        "raw_sha256": "9b5e24e43b9a4da7e0075bf9c2df5bc0ac995e27d3365f3aa4985d1c27770b2a"
+      },
+      "phase_uv": {
+        "shape": [
+          4097,
+          2
+        ],
+        "dtype": "<f4",
+        "raw_sha256": "6f0ca95f80101e92ee2fd44e375ecf2c8a0dc070d726fc0d11a42f8e1762a57c"
+      },
+      "phase": {
+        "shape": [
+          4097
+        ],
+        "dtype": "<f8",
+        "raw_sha256": "818e307fee696baa22036a579eca9d38ff1f2044191369306fdf580c56dc5697"
+      },
+      "storage_input_f32_words": {
+        "shape": [
+          22
+        ],
+        "dtype": "<u4",
+        "raw_sha256": "8f668321ecf4a31405583e446eff5cd1fb7d244c742829cd2e503523507b0127"
+      },
+      "expected_rne_half_bits": {
+        "shape": [
+          22
+        ],
+        "dtype": "<u2",
+        "raw_sha256": "7af8211002a4a946ba771e02ef569d0646f3cdb1caa575827029ca46f7e041fa"
+      },
+      "expected_rtz_half_bits": {
+        "shape": [
+          22
+        ],
+        "dtype": "<u2",
+        "raw_sha256": "063e5d793b42a603fcca7b2b7ab70a8d0ec9ce013ecb56ea4b78e7169dae9578"
+      },
+      "normal_payloads": {
+        "shape": [
+          2048
+        ],
+        "dtype": "<f4",
+        "raw_sha256": "4b5d38108a9fe57896cb94b2895a194533356f24e9d5e33a5bbac5d0636c2b49"
+      },
+      "normal_payload_half_bits": {
+        "shape": [
+          2048
+        ],
+        "dtype": "<u2",
+        "raw_sha256": "75ea304686b6585dc0a896d73307d59477f730e7d74675adf78e8ef25fdea944"
+      },
+      "phase_sample_ideal": {
+        "shape": [
+          4097
+        ],
+        "dtype": "<f8",
+        "raw_sha256": "05c3fca2b9fbf31091fb450ff8fb63b8578470d5180f3244d75ab17f13581b38"
+      },
+      "phase_sample_source": {
+        "shape": [
+          4097
+        ],
+        "dtype": "<f4",
+        "raw_sha256": "a9c5b76b9d9b086a1f6b5164ce16a7390f49402260c1a7e7277986e74df38c27"
+      },
+      "phase_sample_observed": {
+        "shape": [
+          4097
+        ],
+        "dtype": "<f4",
+        "raw_sha256": "03ba70e3813688672870d702f360d71b273e924d6067cff9e8ab9b7cbbac89fe"
+      },
+      "phase_gate_ideal": {
+        "shape": [
+          4097
+        ],
+        "dtype": "|b1",
+        "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+      },
+      "phase_gate_source": {
+        "shape": [
+          4097
+        ],
+        "dtype": "|b1",
+        "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+      },
+      "phase_gate_observed": {
+        "shape": [
+          4097
+        ],
+        "dtype": "|b1",
+        "raw_sha256": "c530fecc4267bee05a729351b25833c6d49c57722c2d756cf4443e119e79603b"
+      },
+      "guard_current_motion_history_half_bits": {
+        "shape": [
+          9,
+          3
+        ],
+        "dtype": "<u2",
+        "raw_sha256": "27d53fbb8bc05d19e1a6ffc369d31e0b18b3eebe698a525798d7b4c70838b610"
+      }
+    },
+    "raw_array_hash_convention": "SHA256 of C-order little-endian logical bytes, independent of NPZ archive compression metadata.",
+    "generate_argv": [
+      "python",
+      "research/astra20261020/candidates/01-numerical-contract/gpu_inputs.py"
+    ],
+    "export_raw_binary_argv": [
+      "python",
+      "-B",
+      "-c",
+      "from pathlib import Path; import numpy as np; src=Path('research/astra20261020/candidates/01-numerical-contract/evidence/gpu_microcases.npz'); out=Path('gpu-local/inputs'); out.mkdir(parents=True,exist_ok=True); z=np.load(src,allow_pickle=False); [(out/(k+'.bin')).write_bytes(z[k].tobytes(order='C')) for k in z.files]; z.close()"
+    ],
+    "export_status": "This is an exact local preprocessing command, not a GPU test invocation.",
+    "all_nonfinite_transport": "Raw uint32/uint16 payload bits in binary/hex; output JSON must not contain NaN/Infinity tokens."
+  },
+  "provenance": {
+    "tagged_source_artifacts": [
+      {
+        "name": "FSRDColourTrackStats",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats.hlsl",
+          "bytes": 4821,
+          "sha256": "1b7363322e0d1ad0682497ab5fc8e8e28eb72cf83b9d79266761b97b9627972f"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats_Shader.cso",
+          "bytes": 4456,
+          "sha256": "a1e62eca74ceefee7c89bf44928f360b89c539e87e266c6ffd7ee633d76bbe53"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats_Shader.h",
+          "bytes": 53026,
+          "sha256": "6247e2649842ec3d58628db63e821eb9dfc43a4cf3422d91480230a5d24ab0e0"
+        },
+        "embedded_cso_sha256": "a1e62eca74ceefee7c89bf44928f360b89c539e87e266c6ffd7ee633d76bbe53",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDColourTrackTrack",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl",
+          "bytes": 5983,
+          "sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack_Shader.cso",
+          "bytes": 15092,
+          "sha256": "6f0ef8ab0329833d567fc1e1f0217ec266507f6436cfec382f2631df18f8597f"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack_Shader.h",
+          "bytes": 216865,
+          "sha256": "3eea5afdda17719790b7f5639ec467b0cf97f98d3deed2a7e4ecef7f9cf56651"
+        },
+        "embedded_cso_sha256": "6f0ef8ab0329833d567fc1e1f0217ec266507f6436cfec382f2631df18f8597f",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDColourTrackApply",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply.hlsl",
+          "bytes": 2376,
+          "sha256": "3dbcb220ad1a62b01d787b319171a10b47aa5f99f0e1f481efe1c1ff75ffea22"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply_Shader.cso",
+          "bytes": 2912,
+          "sha256": "cb18daf686193806e4d01d33550233d216841e6d9a7ecdb59249446b5cd9ff38"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply_Shader.h",
+          "bytes": 28567,
+          "sha256": "42f2e61f72dcace52a7600d0df3c1d98400249e6906c6978b5e14f21d8856db4"
+        },
+        "embedded_cso_sha256": "cb18daf686193806e4d01d33550233d216841e6d9a7ecdb59249446b5cd9ff38",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDPostMotionAnchorStatsRecall",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall.hlsl",
+          "bytes": 11843,
+          "sha256": "6e3f6870208f137c1b70a95636cfe4705cd88a43d7b4bacfd3dd380ac7ec4f25"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall_Shader.cso",
+          "bytes": 6660,
+          "sha256": "ea806fa83aba7f78934ecfc264af293bce501d79328ea1f9a544b9e8f40d6312"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall_Shader.h",
+          "bytes": 83999,
+          "sha256": "9d3e089f1808c0f3562976426b9de8a505181c9c32e53692514071b0b4d44109"
+        },
+        "embedded_cso_sha256": "ea806fa83aba7f78934ecfc264af293bce501d79328ea1f9a544b9e8f40d6312",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDPostMotionAnchorGain",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain.hlsl",
+          "bytes": 7372,
+          "sha256": "67e146abb173b7ca9b0231a5dd647d120777d534d2f89ef933b9d339fdacf332"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain_Shader.cso",
+          "bytes": 4512,
+          "sha256": "687d33ccc0d6dda57fe2c2e1117d0cb14dea5d14c52ce382c14baa033b42186c"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain_Shader.h",
+          "bytes": 53105,
+          "sha256": "9f23614b32166f0a593874aca57aff827ce60791aec5aac56578ef742f2afda0"
+        },
+        "embedded_cso_sha256": "687d33ccc0d6dda57fe2c2e1117d0cb14dea5d14c52ce382c14baa033b42186c",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDPostMotionAnchorApply",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply.hlsl",
+          "bytes": 2140,
+          "sha256": "1465cc5e562840f1c3d948c7704e05594b1a211126eabe42385b9242dc5d3367"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.cso",
+          "bytes": 3004,
+          "sha256": "00c34308549ebcec4147c32a40c01850017cc2372f61221845c059fae1ccb3a7"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.h",
+          "bytes": 30389,
+          "sha256": "b29249666155b6bd671e68d0027f3dcca75a1cffa614357d97df02ad62298b45"
+        },
+        "embedded_cso_sha256": "00c34308549ebcec4147c32a40c01850017cc2372f61221845c059fae1ccb3a7",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDNrdPostMotionAnchorStatsRecall",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+          "bytes": 7218,
+          "sha256": "3919621a20a901a1e2acb3ce595a2021cf7080cb01fcd186db2545be34353c9b"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso",
+          "bytes": 10440,
+          "sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h",
+          "bytes": 114118,
+          "sha256": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce"
+        },
+        "embedded_cso_sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      },
+      {
+        "name": "FSRDNrdPostMotionAnchorGain",
+        "source": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain.hlsl",
+          "bytes": 4296,
+          "sha256": "4fafde87681078af742ca161d74ccb132eb1341785ad77b9094ee83aced18d04"
+        },
+        "cso": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso",
+          "bytes": 7424,
+          "sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c"
+        },
+        "header": {
+          "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h",
+          "bytes": 76251,
+          "sha256": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c"
+        },
+        "embedded_cso_sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "embedded_matches_cso": true,
+        "source_line_endings": "LF"
+      }
+    ],
+    "tagged_related_sources": [
+      {
+        "path": "OptiScaler/shaders/fsrd_preprocess/FSRDColourTrackConstants.h",
+        "bytes": 2541,
+        "sha256": "e4d5a6fab55a9783547667f217623252d4c145935b1cff072b23679a7d4e7c80"
+      },
+      {
+        "path": "OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h",
+        "bytes": 15761,
+        "sha256": "1ddbc267bfee93fe120c1efd56d483ca975888555acd166c0a5d0947a31d4894"
+      },
+      {
+        "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h",
+        "bytes": 21896,
+        "sha256": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419"
+      },
+      {
+        "path": "OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp",
+        "bytes": 240424,
+        "sha256": "af00895bb5e747bdc8d31734f30c28be06356609b7eef1125b9187bfc076e75b"
+      },
+      {
+        "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDFlatDetailCommon.hlsli",
+        "bytes": 1266,
+        "sha256": "df76d05b84395e746a0bcb5b07d95523ea674c4ca9757c5123069addb70edf37"
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "bytes": 17490,
+        "sha256": "bc0876bc52026d005d108146d529ab08b4c3a22d34058ff10fab634930cb5c6c"
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/tests/test_fsrd_shader_artifact_contract.py",
+        "bytes": 9534,
+        "sha256": "6a1ca595153ae010346059dd77490dab63594736a2dcd2e7345d2dc714721a6f"
+      }
+    ],
+    "tagged_compiler_files": [
+      {
+        "path": "OptiScaler/shaders/shader_tools/dxc.exe",
+        "bytes": 1126984,
+        "sha256": "b9cff94181248e080804b385da8964b6319fd07760721baa9053a891cf7a727f",
+        "execution": "not executed; Windows binary in Linux environment"
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/dxcompiler.dll",
+        "bytes": 17951808,
+        "sha256": "b86a738ece4c05dbe2d9bbb29668a2ccb28a0740773c9b027cdc61e8d07b4d75",
+        "execution": "not executed; Windows binary in Linux environment"
+      },
+      {
+        "path": "OptiScaler/shaders/shader_tools/dxil.dll",
+        "bytes": 1503304,
+        "sha256": "058f2f52a680c38b223a5615b7df969def21f77e577562e5099d971dede992de",
+        "execution": "not executed; Windows binary in Linux environment"
+      }
+    ],
+    "fresh_compile_executed_here": false,
+    "compiler_version_stdout": null,
+    "actual_dxc_executable_sha256": null,
+    "actual_dxcompiler_sha256": null,
+    "actual_dxil_sha256": null,
+    "actual_host_source_revision": null,
+    "actual_host_executable_sha256": null,
+    "adapter_proposal": {
+      "source_path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl",
+      "base_source_sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944",
+      "proposed_source_sha256": "63667381b5080354a1b65c5ddb210d1b214eada8e36e400b8eb29c9f69ec629c",
+      "patch_sha256": "c5b5251dd36582cd686cd52038a23bc5c77a6eabd1de9b3be5792f91f3afb15b",
+      "source_line_endings": "LF",
+      "production_changed": false,
+      "dxc_compiled": false,
+      "gpu_executed": false
+    },
+    "actual_candidate_cso_sha256": null,
+    "actual_candidate_header_sha256": null,
+    "actual_diagnostic_hlsl_sha256": null,
+    "actual_diagnostic_cso_sha256": null,
+    "device": {
+      "description": null,
+      "vendor_id": null,
+      "device_id": null,
+      "subsystem_id": null,
+      "revision": null,
+      "adapter_luid": null,
+      "driver_version": null,
+      "os_build": null,
+      "d3d12_runtime_version": null,
+      "agility_sdk_version": null,
+      "shader_model": null,
+      "wave_lane_min_max": null,
+      "hardware_or_warp": null
+    },
+    "required_return": "Fill every applicable null from the actual run; mark unavailable fields with a reason. Report capture provenance separately from the newly executing device.",
+    "require_same_adapter_for_pair": true
+  },
+  "compile_contract": {
+    "production_colour_and_combined_profile": {
+      "target": "cs_6_2",
+      "entry": "CSMain",
+      "flags": [
+        "-enable-16bit-types",
+        "-O3",
+        "-Qstrip_debug",
+        "-Qstrip_reflect"
+      ]
+    },
+    "production_native_profile": {
+      "target": "cs_6_6",
+      "entry": "CSMain",
+      "flags": [
+        "-HV",
+        "2021",
+        "-O3",
+        "-enable-16bit-types"
+      ]
+    },
+    "baseline_bytecode_policy": "Run the pinned CSO and a fresh baseline-source compile first; report any byte or behavior mismatch instead of silently relabelling it.",
+    "baseline_track_dxc_argv": [
+      "OptiScaler/shaders/shader_tools/dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-enable-16bit-types",
+      "-O3",
+      "-Qstrip_debug",
+      "-Qstrip_reflect",
+      "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl",
+      "-Fo",
+      "gpu-local/FSRDColourTrackTrack.base.cso",
+      "-Fc",
+      "gpu-local/FSRDColourTrackTrack.base.asm"
+    ],
+    "candidate_track_dxc_argv": [
+      "OptiScaler/shaders/shader_tools/dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-enable-16bit-types",
+      "-O3",
+      "-Qstrip_debug",
+      "-Qstrip_reflect",
+      "-I",
+      "OptiScaler/shaders/fsrd_preprocess/precompile",
+      "research/astra20261020/candidates/01-numerical-contract/adapter/FSRDColourTrackTrack.hlsl",
+      "-Fo",
+      "gpu-local/FSRDColourTrackTrack.finite.cso",
+      "-Fc",
+      "gpu-local/FSRDColourTrackTrack.finite.asm"
+    ],
+    "native_stats_dxc_argv": [
+      "OptiScaler/shaders/shader_tools/dxc.exe",
+      "-T",
+      "cs_6_6",
+      "-HV",
+      "2021",
+      "-E",
+      "CSMain",
+      "-O3",
+      "-enable-16bit-types",
+      "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+      "-Fo",
+      "gpu-local/FSRDNrdPostMotionAnchorStatsRecall.base.cso",
+      "-Fc",
+      "gpu-local/FSRDNrdPostMotionAnchorStatsRecall.base.asm"
+    ],
+    "fresh_artifact_contract_argv": [
+      "python",
+      "OptiScaler/shaders/shader_tools/tests/test_fsrd_shader_artifact_contract.py",
+      "--shaders",
+      "FSRDColourTrackStats",
+      "--shaders",
+      "FSRDColourTrackTrack",
+      "--shaders",
+      "FSRDColourTrackApply",
+      "--shaders",
+      "FSRDPostMotionAnchorStatsRecall",
+      "--shaders",
+      "FSRDPostMotionAnchorGain",
+      "--shaders",
+      "FSRDPostMotionAnchorApply",
+      "--shaders",
+      "FSRDNrdPostMotionAnchorStatsRecall",
+      "--shaders",
+      "FSRDNrdPostMotionAnchorGain"
+    ],
+    "artifact_contract_environment": {
+      "FSRD_DXC": "OptiScaler/shaders/shader_tools/dxc.exe"
+    },
+    "artifact_contract_scope": "CPU DXC/header/CSO test; its default 13 shaders remain included and --shaders adds this task family. This command is not a GPU test.",
+    "diagnostic_profile": "Start with the same cs_6_2 or cs_6_6 production flags for the corresponding source. Any precise/no-contraction or alternate-optimization compile is a separately labelled diagnostic, never substituted for the production profile.",
+    "record_per_compile": [
+      "exact argv",
+      "working directory relative to checkout",
+      "exit code",
+      "stdout/stderr",
+      "source and include hashes",
+      "DXC/DLL hashes",
+      "CSO SHA256",
+      "DXIL listing SHA256",
+      "header embedded-array equality where a header is generated"
+    ],
+    "fast_math_gate": "The finite guard is source-level justified. Optimized DXIL and real hardware behavior for nonfinite values remain a required local gate; CPU isfinite is not proof that DXC preserved the intended comparison.",
+    "production_mutation_policy": "Build candidate source from its candidate path. Job 01 does not apply PRODUCTION.patch to shared production files."
+  },
+  "common_resource_contract": {
+    "coordinate_order": "xy extents/coordinates; host/NumPy arrays are H,W,channel; half/word buffers little-endian.",
+    "allocation_vs_active": "Normalized texture sampling uses that SRV resource allocation extent from GetDimensions. Motion UV-to-pixel scaling uses original active full-render Size.xy. These are distinct quantities.",
+    "grid_rule": "Colour B4: max(1,floor(active_dimension/4)); Anchor B8: max(1,floor(active_dimension/8)).",
+    "crop_rule": "Synthetic full allocation is explicitly known. For any optional real crop, report original render size and each crop origin; unavailable positive-weight off-crop taps are unsupported, never synthesized by clamping the crop.",
+    "sampler": {
+      "register": "s0",
+      "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+      "address_u": "CLAMP",
+      "address_v": "CLAMP",
+      "address_w": "CLAMP",
+      "lod": 0,
+      "mip_count": 1
+    },
+    "hardware_sampler_vs_model": "Ideal mathematical, explicit float32 source-shaped, and observed-device 8-bit-fraction models are different hypotheses. Fraction bits=8 nearest-even is a recorded-device approximation, not a universal D3D contract.",
+    "typed_conversion_scope": "Record each actual resource format and conversion boundary. RTZ typed store, RNE half arithmetic/cast and f32tof16 are separately measured; do not infer one from another.",
+    "subresources": "Only mip0, sample count1; array slice integer identity must be recorded.",
+    "format_support": "Query SRV sampling/filtering and UAV typed-store support for each requested DXGI format on the actual adapter. A rejected format is a capability result, not an emulated pass.",
+    "upload": "Preserve input payload bits through raw upload. Record tight input stride and actual placed-footprint row pitch, slice pitch and total bytes.",
+    "dispatch": "Production entry points use numthreads(8,8,1); Dispatch(ceil(gridW/8),ceil(gridH/8),1). Padding threads must not write outside the active output grid.",
+    "custom_diagnostic_dispatch": "For one-dimensional arrays use uint i=dispatch.x, numthreads(8,8,1), Dispatch(ceil(N/8),1,1), and return if dispatch.y!=0 or i>=N. Every local shader/root binding must be returned; these are requested operations, not compiled artifacts."
+  },
+  "common_startup_and_lifetime": {
+    "synthetic_history": "Each microcase is a fresh independent experiment. A/B receives identical initialized bytes; do not recycle output from the previous row or relabel repeated inputs as new captured frames.",
+    "required_order": [
+      "Create debug-enabled device and record hardware identity before PSOs.",
+      "Create correctly typed resources and separate immutable inputs for every A/B branch; zero unused cbuffer padding.",
+      "Upload initial bytes, transition COPY_DEST to NON_PIXEL_SHADER_RESOURCE for SRVs; transition destinations to UAV.",
+      "Clear the entire requested counter/output range and record an ordered barrier before shader writes.",
+      "Set root signature, descriptor heap and CBV; record pass dispatches in stated order.",
+      "Insert UAV ordering barriers between dependent UAV writes/readers, and explicit UAV-to-SRV/COPY_SOURCE transitions where required.",
+      "Copy to readback resources with GetCopyableFootprints; submit; wait for the exact fence before mapping.",
+      "Retain upload resources, descriptor heaps, PSOs, CBVs and readbacks until their last GPU fence completes.",
+      "Strip row padding only according to the returned footprint and hash the logical payload."
+    ],
+    "debug_acceptance": "No D3D12 debug errors or warnings, resource-state errors, descriptor-format mismatch, invalid array slices or GPU validation messages. Return the complete log, including empty-log evidence.",
+    "fixed_population": "Freeze case IDs and all input-index masks before dispatch. Report all rows/cells and every changed branch; no candidate-derived exclusion or tolerance-based sample selection."
+  },
+  "cases": [
+    {
+      "id": "storage_22_payloads",
+      "priority": "required",
+      "passes": [
+        "requested minimal typed-UAV store diagnostic",
+        "requested separate SanitizeRadiance diagnostic"
+      ],
+      "capture_id": null,
+      "frame_range": null,
+      "sequence": "One dispatch per operation profile, 22 independent input indices; no temporal state.",
+      "input": {
+        "array": "storage_input_f32_words",
+        "shape": [
+          22
+        ],
+        "dtype": "<u4",
+        "format": "StructuredBuffer<uint>, DXGI_FORMAT_UNKNOWN, StructureByteStride=4, NumElements=22; reconstruct with asfloat.",
+        "raw_words_hex": [
+          "00000000",
+          "80000000",
+          "33000000",
+          "b3000000",
+          "33800000",
+          "b3800000",
+          "387fe000",
+          "38800000",
+          "3f801000",
+          "bf801000",
+          "3f803000",
+          "bf803000",
+          "477fdc00",
+          "c77fdc00",
+          "477fe000",
+          "477ff000",
+          "c77ff000",
+          "501502f9",
+          "d01502f9",
+          "7f800000",
+          "ff800000",
+          "7fc00000"
+        ],
+        "register": "t0"
+      },
+      "resource_bindings": [
+        {
+          "register": "u0",
+          "role": "typed-half store",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            22,
+            1
+          ],
+          "active_extent_xy": [
+            22,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            22,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 176,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "OutHalf[int2(i,0)]=asfloat(InputWords[i]).xxxx; zero y/z/w only in a separately named lane test."
+        },
+        {
+          "register": "u1",
+          "role": "pre-store exact float32 witness",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R32G32B32A32_FLOAT",
+          "allocation_extent_xy": [
+            22,
+            1
+          ],
+          "active_extent_xy": [
+            22,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            22,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 352,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Store asfloat(InputWords[i]) directly in each lane."
+        }
+      ],
+      "operation_profiles": [
+        {
+          "id": "typed_store_direct",
+          "requested_hlsl_expression": "float x=asfloat(InputWords[i]); OutHalf[int2(i,0)]=float4(x,x,x,x);",
+          "reference": "Both expected_rtz_half_bits and expected_rne_half_bits are supplied; classify the actual boundary.",
+          "output_binding": "u0 RWTexture2D<float4> over the R16G16B16A16_FLOAT texture; u1 RWTexture2D<float4> over the R32G32B32A32_FLOAT pre-store witness."
+        },
+        {
+          "id": "explicit_f32tof16",
+          "requested_hlsl_expression": "uint bits=f32tof16(asfloat(InputWords[i])); OutWords.Store(4*i,bits);",
+          "reference": "Separate operation; do not claim its conversion matches typed UAV stores without this observation.",
+          "output_binding": {
+            "register": "u0",
+            "role": "OutWords",
+            "dimension": "RWByteAddressBuffer",
+            "resource_bytes": 88,
+            "view_format": "DXGI_FORMAT_R32_TYPELESS",
+            "raw_view": true,
+            "num_elements": 22,
+            "separate_pso": "This profile uses its own root/resource binding; it does not bind a raw buffer as the half-texture view."
+          }
+        },
+        {
+          "id": "sanitize_then_typed_store",
+          "requested_hlsl_expression": "float x=asfloat(InputWords[i]); float3 s=SanitizeRadiance(float3(x,x,x)); OutHalf[int2(i,0)]=float4(s,x);",
+          "source": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDFlatDetailCommon.hlsli",
+          "reference": "RGB source semantics: finite clamp [0,65500], nonfinite becomes 0; alpha in this diagnostic is deliberately raw and is not a production colour alpha policy.",
+          "output_binding": "u0 RWTexture2D<float4> over the R16G16B16A16_FLOAT texture; u1 R32G32B32A32_FLOAT witness of the post-sanitize value before the typed store."
+        }
+      ],
+      "requested_readback": [
+        "all 22 raw input words",
+        "pre-store float32 words",
+        "all R16 RGBA output words",
+        "f32tof16 uint32 words",
+        "per-value class/sign/subnormal handling and selected rounding profile"
+      ],
+      "expected": {
+        "rtz_half_words": [
+          0,
+          32768,
+          0,
+          32768,
+          1,
+          32769,
+          1023,
+          1024,
+          15360,
+          48128,
+          15361,
+          48129,
+          31742,
+          64510,
+          31743,
+          31743,
+          64511,
+          31743,
+          64511,
+          31744,
+          64512,
+          32256
+        ],
+        "rne_half_words": [
+          0,
+          32768,
+          0,
+          32768,
+          1,
+          32769,
+          1024,
+          1024,
+          15360,
+          48128,
+          15362,
+          48130,
+          31743,
+          64511,
+          31743,
+          31744,
+          64512,
+          31744,
+          64512,
+          31744,
+          64512,
+          32256
+        ],
+        "finite_tolerance_half_steps": 0,
+        "signed_zero": "Direct store should preserve the requested sign according to the selected documented conversion; report both raw zero payloads.",
+        "nonfinite": "Use classification and actual raw bits; a CPU NaN payload is not a required universal GPU NaN payload.",
+        "boundary_authority": "D3D11.3 functional specification section 3.2.2 constrains float-format conversion; explicit intrinsics/compiler arithmetic may have different stated rules. Match the real source operation."
+      },
+      "falsifiers": [
+        "A finite result outside both declared supported conversion profiles rejects a claim that either profile is exact for this operation.",
+        "Conflating sanitize-before-store with raw typed store fails the negative/infinite RGB cases.",
+        "A prematurely inserted half cast must disagree with the staging case below."
+      ],
+      "maximum_useful_readback_bytes": 4096
+    },
+    {
+      "id": "actual_stats_store_staging",
+      "priority": "required",
+      "pass": "FSRDColourTrackStats.CSMain",
+      "source_artifact": "FSRDColourTrackStats",
+      "capture_id": null,
+      "frame_range": null,
+      "sequence": "Fresh 4x4 inputs; run the same unchanged compiled shader into R16 outputs and into diagnostic R32 outputs, then read each output through integer Load in a later ordered dispatch.",
+      "input_resources": [
+        {
+          "register": "t0",
+          "role": "current colour",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            4,
+            4
+          ],
+          "active_extent_xy": [
+            4,
+            4
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            4,
+            4
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 32,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "pattern": "Each 2x2 quadrant is constant RGB term in row-major quadrant order. Alpha=1.",
+            "terms": [
+              1.0,
+              0.00048828125,
+              0.00048828125,
+              0.00048828125
+            ]
+          }
+        },
+        {
+          "register": "t1",
+          "role": "target colour",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            4,
+            4
+          ],
+          "active_extent_xy": [
+            4,
+            4
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            4,
+            4
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 32,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Same four quadrant RGB values; alpha=1."
+        },
+        {
+          "register": "t2",
+          "role": "canonical motion",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            4,
+            4
+          ],
+          "active_extent_xy": [
+            4,
+            4
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            4,
+            4
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 32,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "register": "t3",
+          "role": "linear depth",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            4,
+            4
+          ],
+          "active_extent_xy": [
+            4,
+            4
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            4,
+            4
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 16,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": 1
+        },
+        {
+          "register": "t4",
+          "role": "octahedral normal",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+          "allocation_extent_xy": [
+            4,
+            4
+          ],
+          "active_extent_xy": [
+            4,
+            4
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            4,
+            4
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 16,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "packed_uint32": 0,
+            "decoded_xy": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "cbuffer": {
+        "register": "b0",
+        "logical_bytes": 16,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              4,
+              4,
+              1,
+              1
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00008040000080400000803f0000803f",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "output_variants": [
+        {
+          "id": "production_r16",
+          "u0": {
+            "register": "u0",
+            "role": "OutStats",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 8,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Shader output"
+          },
+          "u1": {
+            "register": "u1",
+            "role": "OutTarget",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 8,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Shader output"
+          },
+          "u2": {
+            "register": "u2",
+            "role": "OutMotion",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 8,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Shader output"
+          }
+        },
+        {
+          "id": "diagnostic_r32",
+          "u0": {
+            "register": "u0",
+            "role": "OutStats float witness",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R32G32B32A32_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 16,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Identical source and CSO; only diagnostic output view/resource format differs."
+          },
+          "u1": {
+            "register": "u1",
+            "role": "OutTarget",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 8,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Shader output"
+          },
+          "u2": {
+            "register": "u2",
+            "role": "OutMotion",
+            "dimension": "Texture2D",
+            "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+            "allocation_extent_xy": [
+              1,
+              1
+            ],
+            "active_extent_xy": [
+              1,
+              1
+            ],
+            "active_origin_xy": [
+              0,
+              0
+            ],
+            "crop_origin_xy": [
+              0,
+              0
+            ],
+            "observed_crop_extent_xy": [
+              1,
+              1
+            ],
+            "array_slices": 1,
+            "mip_levels": 1,
+            "sample_count": 1,
+            "logical_row_stride_bytes": 8,
+            "upload_readback_row_pitch_bytes": null,
+            "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+            "recipe": "Shader output"
+          }
+        }
+      ],
+      "exact_cpu_prediction": {
+        "terms": [
+          1.0,
+          0.00048828125,
+          0.00048828125,
+          0.00048828125
+        ],
+        "entire_formula": "(a+b+c+d)*0.25",
+        "f32_without_store": 0.2503662109375,
+        "f64_without_store": 0.2503662109375,
+        "actual_boundary_rtz_model": 0.250244140625,
+        "fixed_threshold": 0.25030517578125,
+        "f32_without_store_decision": true,
+        "f64_without_store_decision": true,
+        "with_boundary_store_decision": false,
+        "scope": "analytic CPU staging counterexample; no whole-estimator float64 or GPU claim"
+      },
+      "later_readback_expression": "float x=StoredStats.Load(int3(0,0,0)).x; output asuint(x) and uint(x > 0.25030517578125f).",
+      "expected_intermediates": {
+        "float32_mean": 0.2503662109375,
+        "rtz_half_bits": 13313,
+        "rtz_mean": 0.250244140625,
+        "rne_half_bits": 13314,
+        "rne_mean": 0.25048828125,
+        "premature_per_add_half_result": 0.25,
+        "premature_per_add_half_bits": 13312,
+        "comparison_threshold": 0.25030517578125,
+        "decision_float32": true,
+        "decision_rtz_store_then_load": false,
+        "decision_rne_store_then_load": true
+      },
+      "tolerance": {
+        "float32_arithmetic_witness_abs": 0,
+        "finite_typed_output_half_steps": 0,
+        "reason": "All terms and sums are exact binary fractions at this scale; only the declared output conversion separates these outcomes."
+      },
+      "falsifiers": [
+        "A float64 version of the complete same four-term formula does not change the no-store decision; it cannot substitute for the actual store boundary.",
+        "If actual typed store matches neither RNE nor RTZ payload, reject the selected storage explanation and return the raw witness.",
+        "Omitting the boundary or rounding after every add must fail their corresponding known intermediate or decision assertion."
+      ],
+      "maximum_useful_readback_bytes": 4096
+    },
+    {
+      "id": "sampler_phase_4097",
+      "priority": "required",
+      "passes": [
+        "requested Load/point/linear sampler diagnostic",
+        "requested source history predicate diagnostic"
+      ],
+      "capture_id": null,
+      "frame_range": null,
+      "frame_index_semantics": "4097 subpixel query indices, not 4097 captured frames.",
+      "input_resources": [
+        {
+          "register": "t0",
+          "role": "history depth",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16_FLOAT",
+          "allocation_extent_xy": [
+            2,
+            1
+          ],
+          "active_extent_xy": [
+            2,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            2,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 4,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "npz_array": "depth_texture",
+            "half_bits": [
+              15360,
+              15424
+            ]
+          }
+        },
+        {
+          "register": "t1",
+          "role": "query UV",
+          "dimension": "StructuredBuffer<float2>",
+          "element_stride_bytes": 8,
+          "num_elements": 4097,
+          "npz_array": "phase_uv"
+        }
+      ],
+      "output_resources": [
+        {
+          "register": "u0",
+          "role": "diagnostic records",
+          "dimension": "RWStructuredBuffer<uint4>",
+          "element_stride_bytes": 16,
+          "num_elements": 4097,
+          "lanes": [
+            "asuint(sampled_history_depth)",
+            "asuint(expected_depth)",
+            "asuint(tolerance)",
+            "predicate_bit plus operation identifier in higher bits"
+          ]
+        }
+      ],
+      "sampler_variants": [
+        {
+          "register": "s0",
+          "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+          "address_u": "CLAMP",
+          "address_v": "CLAMP",
+          "address_w": "CLAMP",
+          "lod": 0,
+          "mip_count": 1
+        },
+        {
+          "register": "s1",
+          "filter": "D3D12_FILTER_MIN_MAG_MIP_POINT",
+          "address_u": "CLAMP",
+          "address_v": "CLAMP",
+          "address_w": "CLAMP",
+          "lod": 0
+        }
+      ],
+      "constants": {
+        "current_depth_float32": 1,
+        "motion_depth_float32": 0,
+        "relative_depth_tolerance_float32": 0.02,
+        "history_enabled": true
+      },
+      "queries": {
+        "phase_formula": "j/4096, j=0..4096 inclusive",
+        "uv_formula": "float32(((phase+0.5)/2,0.5))",
+        "uv_values_source": "Use the supplied phase_uv bytes; do not recompute them with a different host expression."
+      },
+      "operation_expressions": {
+        "linear": "float history=History.SampleLevel(LinearClamp,QueryUV[j],0);",
+        "point_negative_control": "float history=History.SampleLevel(PointClamp,QueryUV[j],0);",
+        "source_predicate": "float expected=1.0f+0.0f; bool valid=all(uv>=0.0f)&&all(uv<=1.0f)&&abs(history)>1e-9f&&abs(history-expected)<=0.02f*max(abs(expected),1e-3f);",
+        "integer_load_control": "At phases j=0 and j=4096, compare SampleLevel at exact texel centres with History.Load(int3(j/4096,0,0))."
+      },
+      "expected_model_arrays": [
+        "phase_sample_ideal",
+        "phase_sample_source",
+        "phase_sample_observed",
+        "phase_gate_ideal",
+        "phase_gate_source",
+        "phase_gate_observed"
+      ],
+      "cpu_precommitted_counts": {
+        "samples": 4097,
+        "depth_texels": [
+          [
+            1.0,
+            1.0625
+          ]
+        ],
+        "current_depth": 1,
+        "motion_depth": 0,
+        "threshold": 0.02,
+        "changed_source_vs_ideal": 0,
+        "changed_observed_vs_ideal": 7,
+        "nearest_mutant_changed_vs_ideal": 737,
+        "interpretation": "analytic affine depth plane sampled at fixed phases; no image-quality score"
+      },
+      "expected_tolerance": {
+        "exact_centre_and_point_load_values": [
+          1,
+          1.0625
+        ],
+        "constant_field_identity_abs": 0,
+        "documented_api_finite_sample_interval": [
+          1,
+          1.0625
+        ],
+        "observed_8bit_fraction_profile": "float32 UV-to-texel, quantize fraction to nearest-even 1/256, then source float32 lerp. Exact matched profile is a hypothesis to measure on this device.",
+        "phase_coordinate_uncertainty_texels": 0.00390625,
+        "api_precision_caveat": "D3D documents at least eight coordinate fraction bits and separate filtering-precision rules. The min/max interval is conservative and does not assert arbitrary shader lerp overflow/rounding is valid hardware filtering.",
+        "branch_mismatch_tolerance_for_claimed_exact_profile": 0,
+        "interpretation": "A device may satisfy the API while not matching the selected 8-bit profile. Record that outcome as a falsified emulation assumption, not an invented API violation."
+      },
+      "falsifiers": [
+        "A point sampler must fail the linear phase response and the stored fixed decision comparison; its known CPU control changes 737 decisions.",
+        "Any reported exact model must reproduce each sampled-depth bit and each validity bit independently; an output-only error threshold is insufficient.",
+        "A source-float32 integer-load path has no interpolation phase uncertainty; remaining differences there implicate arithmetic or data instead."
+      ],
+      "fixed_mask": "All 4097 query indices, including threshold-near samples and both endpoint centres.",
+      "maximum_useful_readback_bytes": 262144
+    },
+    {
+      "id": "sampler_extents_edges_and_crop",
+      "priority": "required",
+      "passes": [
+        "requested Load/point/linear diagnostic",
+        "actual FSRDColourTrackStats allocation-shape check"
+      ],
+      "capture_id": null,
+      "frame_range": null,
+      "procedural_texture": {
+        "register": "t0",
+        "role": "coordinate plane",
+        "dimension": "Texture2D",
+        "format": "DXGI_FORMAT_R32_FLOAT",
+        "allocation_extent_xy": [
+          17,
+          11
+        ],
+        "active_extent_xy": [
+          13,
+          7
+        ],
+        "active_origin_xy": [
+          0,
+          0
+        ],
+        "crop_origin_xy": [
+          0,
+          0
+        ],
+        "observed_crop_extent_xy": [
+          17,
+          11
+        ],
+        "array_slices": 1,
+        "mip_levels": 1,
+        "sample_count": 1,
+        "logical_row_stride_bytes": 68,
+        "upload_readback_row_pitch_bytes": null,
+        "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+        "recipe": "T[y,x]=float32(x+10*y), all physical allocation texels known."
+      },
+      "query_table": [
+        {
+          "texel_xy": [
+            3,
+            2
+          ],
+          "uv_numerator_xy": [
+            3.5,
+            2.5
+          ],
+          "uv_denominator_xy": [
+            17,
+            11
+          ],
+          "ideal_value": 23
+        },
+        {
+          "texel_xy": [
+            3.25,
+            2.5
+          ],
+          "uv_numerator_xy": [
+            3.75,
+            3
+          ],
+          "uv_denominator_xy": [
+            17,
+            11
+          ],
+          "ideal_value": 28.25
+        },
+        {
+          "texel_xy": [
+            0,
+            0
+          ],
+          "ideal_value": 0
+        },
+        {
+          "texel_xy": [
+            16,
+            10
+          ],
+          "ideal_value": 116
+        },
+        {
+          "texel_xy": [
+            -1,
+            -1
+          ],
+          "integer_load_zero": 0,
+          "explicit_clamp_load": 0
+        },
+        {
+          "texel_xy": [
+            17,
+            11
+          ],
+          "integer_load_zero": 0,
+          "explicit_clamp_load": 116
+        }
+      ],
+      "additional_extents": [
+        [
+          1,
+          1
+        ],
+        [
+          3,
+          5
+        ]
+      ],
+      "additional_operations": [
+        "Integer Load at each corner and all immediately adjacent out-of-allocation indices, including negative x/y.",
+        "Point and linear at exact centres, UV 0 and 1 edges, just outside each edge, and all four corners.",
+        "Constant field -3.25 must remain -3.25 under point and linear allocation clamp.",
+        "Translate both query and field by an integer offset within complete supported interior and compare results.",
+        "R32_FLOAT [+max_f32,-max_f32] at midpoint: request raw hardware output; a source separable lerp may overflow b-a and is explicitly not an exact hardware emulator."
+      ],
+      "crop_support_intervention": {
+        "full_allocation_xy": [
+          9,
+          7
+        ],
+        "known_full_plane": "T[y,x]=float32(x+100*y)",
+        "observed_crop_origin_xy": [
+          3,
+          2
+        ],
+        "observed_crop_extent_xy": [
+          3,
+          3
+        ],
+        "queries": [
+          {
+            "full_texel_xy": [
+              5,
+              4
+            ],
+            "expected_value": 405,
+            "support": true,
+            "reason": "Missing adjacent tap has exact zero weight at the final observed centre."
+          },
+          {
+            "full_texel_xy": [
+              5.2,
+              3
+            ],
+            "expected_observed_crop_support": false,
+            "reason": "A positive-weight neighbor at x=6 is not in the crop."
+          }
+        ],
+        "handling": "The GPU full plane is procedural and fully known; crop-support validity is a separate observation-domain mask. Do not create a 3x3 clamped GPU texture and label its edge value as evidence about missing source texels.",
+        "fraction_quantization": "A tiny positive phase may snap to zero under an explicitly selected observed profile; use that profile\u2019s actual positive-weight support, without silently changing modes."
+      },
+      "actual_stats_case": {
+        "active_extent_xy": [
+          13,
+          7
+        ],
+        "output_grid_xy": [
+          3,
+          1
+        ],
+        "allocation_extents": {
+          "InColor": [
+            17,
+            11
+          ],
+          "InTarget": [
+            13,
+            7
+          ],
+          "InMotion": [
+            17,
+            11
+          ],
+          "InDepth": [
+            17,
+            11
+          ],
+          "InNormals": [
+            17,
+            11
+          ]
+        },
+        "formats": {
+          "InColor": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "InTarget": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "InMotion": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "InDepth": "DXGI_FORMAT_R32_FLOAT",
+          "InNormals": "DXGI_FORMAT_R10G10B10A2_UNORM",
+          "OutStats": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "OutTarget": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "OutMotion": "DXGI_FORMAT_R16G16B16A16_FLOAT"
+        },
+        "initialization": "InColor and InTarget RGB use x+10*y at their own actual coordinates; alpha1. InDepth1. InNormals packed word0. InMotion=(0.25,-0.5,0.125,0). All padding allocation data is initialized.",
+        "cbuffer": {
+          "register": "b0",
+          "logical_bytes": 16,
+          "cbv_allocation_bytes": 256,
+          "endianness": "little",
+          "fields": [
+            {
+              "name": "Size",
+              "offset_bytes": 0,
+              "scalar_type": "float32",
+              "values": [
+                13,
+                7,
+                3,
+                1
+              ]
+            }
+          ],
+          "logical_bytes_hex": "000050410000e040000040400000803f",
+          "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+        },
+        "expected_stats_rgb_by_cell_x": [
+          16.5,
+          20.5,
+          24.5
+        ],
+        "expected_motion_all_cells": [
+          3.25,
+          -3.5,
+          0.125,
+          1
+        ],
+        "dispatch_xyz": [
+          1,
+          1,
+          1
+        ],
+        "unknown_sample_support": 0,
+        "value_authority": "These are analytic values and the selected observed8-bit sampler prediction. At arbitrary allocation dimensions, compare the actual hardware sample/store profile separately; do not turn source-float32 or higher-precision sampling last-bit differences into an API violation."
+      },
+      "coordinate_profiles": [
+        "texel_to_uv divide versus reciprocal_multiply is recorded per actual pass; Colour Apply divides while Anchor Apply uses host reciprocal.",
+        "B4 cell taps use offsets 1,3: all 16 full texels carry weight 1/16.",
+        "B8 cell taps use offsets 2,6: axes {1,2,5,6}, 16 selected full texels carry weight 1/16; do not replace with 64-texel averaging."
+      ],
+      "tolerance": {
+        "exact_integer_and_binary_fraction_cases_abs": 0,
+        "arbitrary_normalized_phase": "Compare named float32/observed profiles and the documented finite tap envelope; no universal exact interpolation claim.",
+        "support_mask_mismatch_count": 0,
+        "exact_case_scope": "Zero absolute tolerance applies to integer Loads and exactly representable, exactly addressed sample points. Arbitrary normalized-UV queries use the named model comparison/envelope stated separately."
+      },
+      "negative_mutants": [
+        "Normalize allocation coordinates by active13x7 instead of actual17x11: this must fail the plane/Stats values.",
+        "Normalize motion by the crop dimensions instead of original render Size.xy: this must fail the motion scaling check.",
+        "Clamp the observed crop as if it were the full allocation: this must falsely mark the 5.2,3 query and be rejected.",
+        "Use nearest sampling: this must fail the noninteger plane query."
+      ],
+      "maximum_useful_readback_bytes": 65536
+    },
+    {
+      "id": "normal11_store_closure",
+      "priority": "required",
+      "pass": "FSRDColourTrackStats.CSMain plus requested source UnpackNormal/OctahedralDecode diagnostics",
+      "capture_id": null,
+      "frame_range": null,
+      "extent_xy": [
+        256,
+        128
+      ],
+      "output_grid_xy": [
+        64,
+        32
+      ],
+      "grid_index_meaning": "x=qx 0..63, y=qy 0..31; expected payload=32*x+y.",
+      "resources": [
+        {
+          "register": "t0",
+          "role": "colour",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            256,
+            128
+          ],
+          "active_extent_xy": [
+            256,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            256,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 2048,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "register": "t1",
+          "role": "target",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            256,
+            128
+          ],
+          "active_extent_xy": [
+            256,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            256,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 2048,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "register": "t2",
+          "role": "motion",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            256,
+            128
+          ],
+          "active_extent_xy": [
+            256,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            256,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 2048,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "register": "t3",
+          "role": "linear depth",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            256,
+            128
+          ],
+          "active_extent_xy": [
+            256,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            256,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 1024,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": 1
+        },
+        {
+          "register": "t4",
+          "role": "octahedral normal",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+          "allocation_extent_xy": [
+            256,
+            128
+          ],
+          "active_extent_xy": [
+            256,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            256,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 1024,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "pattern": "Each 4x4 cell is constant. Choose r10=round_nearest(qx*1023/63), g10=round_nearest(qy*1023/31), b10=0,a2=0. Upload the uint32 word r10 | (g10<<10).",
+            "source_domain": "The existing production-oriented Colour harness uses R10G10B10A2_UNORM; record actual decoded UV in the diagnostic."
+          }
+        },
+        {
+          "register": "u0",
+          "role": "OutStats",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            32
+          ],
+          "active_extent_xy": [
+            64,
+            32
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            32
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Shader output"
+        },
+        {
+          "register": "u1",
+          "role": "OutTarget normal payload in alpha",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            32
+          ],
+          "active_extent_xy": [
+            64,
+            32
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            32
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Shader output"
+        },
+        {
+          "register": "u2",
+          "role": "OutMotion",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            32
+          ],
+          "active_extent_xy": [
+            64,
+            32
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            32
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Shader output"
+        }
+      ],
+      "cbuffer": {
+        "register": "b0",
+        "logical_bytes": 16,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              256,
+              128,
+              64,
+              32
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00008043000000430000804200000042",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "dispatch_xyz": [
+        8,
+        4,
+        1
+      ],
+      "direct_payload_boundary_control": {
+        "input_array": "normal_payloads",
+        "expected_half_array": "normal_payload_half_bits",
+        "expression": "OutHalf[p].a = float(32*qx+qy);",
+        "purpose": "Separate exact integer representability from UNORM decode/packing behavior.",
+        "mapping": "The supplied arrays are indexed by code, not a naive C-order reshape of the qx/qy grid: expected_half[y,x] = normal_payload_half_bits[32*x+y]. A linear direct-store diagnostic may instead write code i at (i,0) for i=0..2047."
+      },
+      "unpack_expression": "float qx=floor(packed/32.0f); float2 uv=float2(qx,packed-qx*32.0f)/float2(63.0f,31.0f);",
+      "decode_source": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPreprocessCommon.hlsli",
+      "decode_boundary_queries": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0.5,
+          0.5
+        ],
+        [
+          0.5,
+          0
+        ],
+        [
+          0.5,
+          1
+        ],
+        [
+          0,
+          0.5
+        ],
+        [
+          1,
+          0.5
+        ],
+        [
+          0.25,
+          0.25
+        ],
+        [
+          0.25,
+          0.75
+        ],
+        [
+          0.75,
+          0.25
+        ],
+        [
+          0.75,
+          0.75
+        ]
+      ],
+      "degenerate_encode_probe": {
+        "normal_xyz": [
+          0,
+          0,
+          0
+        ],
+        "expected_contract_status": "unsupported",
+        "hardware_output": null,
+        "interpretation": "Record raw GPU output if probed, but never assign a valid fabricated face normal or claim a guaranteed divide-by-zero result."
+      },
+      "expected": {
+        "payload_closure_exact_count": 2048,
+        "payload_mismatch_tolerance": 0,
+        "finite_decoded_normal_required": true,
+        "decode_normalization_abs_diagnostic_threshold": 2e-06,
+        "decode_threshold_authority": "Predeclared CPU-to-local comparison threshold for ordinary unit vectors; it is not a claimed universal normalize/rsqrt bit guarantee. Report deviations and actual instruction lowering.",
+        "separate_metrics": [
+          "payload integer equality",
+          "decoded UV component error",
+          "normal angular error in degrees",
+          "normal length error",
+          "guide decision changes on a fixed domain"
+        ]
+      },
+      "legacy_negative_control": {
+        "pack": "floor(saturate(uv)*255+0.5); packed=(qx*256+qy)/65535; store to one half.",
+        "unpack": "q=floor(stored*65535+0.5); uv=float2(floor(q/256),q-floor(q/256)*256)/255;",
+        "failure_required": "At least one original 8+8 code loses information after the half store; enumerate collisions separately from normals that happen to decode similarly."
+      },
+      "maximum_useful_readback_bytes": 131072
+    },
+    {
+      "id": "actual_b4_track_finite_guard_ab",
+      "priority": "required",
+      "pass": "FSRDColourTrackTrack.CSMain",
+      "capture_id": null,
+      "frame_range": null,
+      "full_active_extent_xy": [
+        4,
+        4
+      ],
+      "field_allocation_extent_xy": [
+        1,
+        1
+      ],
+      "crop_origin_xy": [
+        0,
+        0
+      ],
+      "row_count": 9,
+      "input_array": "guard_current_motion_history_half_bits",
+      "columns": [
+        "current_depth",
+        "motion_depth_delta",
+        "history_depth"
+      ],
+      "row_roles": [
+        "positive_infinite_expected",
+        "negative_infinite_expected",
+        "infinite_motion",
+        "finite_inclusive_positive",
+        "finite_inclusive_negative",
+        "finite_match",
+        "finite_mismatch",
+        "nan_expected",
+        "zero_history_sentinel"
+      ],
+      "half_words_by_row": [
+        [
+          31744,
+          0,
+          15360
+        ],
+        [
+          64512,
+          0,
+          48128
+        ],
+        [
+          15360,
+          31744,
+          15360
+        ],
+        [
+          21056,
+          0,
+          21088
+        ],
+        [
+          53824,
+          0,
+          53856
+        ],
+        [
+          15360,
+          0,
+          15360
+        ],
+        [
+          15360,
+          0,
+          16384
+        ],
+        [
+          32256,
+          0,
+          15360
+        ],
+        [
+          15360,
+          0,
+          0
+        ]
+      ],
+      "source_shaped_expected_validity": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "adapter_shaped_expected_validity": [
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "resources": [
+        {
+          "register": "t0",
+          "role": "InStats",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "rgb": [
+              0.25,
+              0.5,
+              1
+            ],
+            "alpha": "guard row current_depth raw half word"
+          }
+        },
+        {
+          "register": "t1",
+          "role": "InTarget",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            0.5,
+            0.25,
+            1,
+            0
+          ]
+        },
+        {
+          "register": "t2",
+          "role": "InMotion",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "xy": [
+              0,
+              0
+            ],
+            "z": "guard row motion_depth_delta raw half word",
+            "w": 1
+          }
+        },
+        {
+          "register": "t3",
+          "role": "InPrev",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "rgb": [
+              1,
+              0.5,
+              0.25
+            ],
+            "alpha": "guard row history_depth raw half word"
+          }
+        },
+        {
+          "register": "u0",
+          "role": "OutGain",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison every byte before dispatch; use separate resource per baseline/candidate/restart control."
+        },
+        {
+          "register": "u1",
+          "role": "OutHist",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1,
+            1
+          ],
+          "active_extent_xy": [
+            1,
+            1
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1,
+            1
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison every byte before dispatch; use separate resource per baseline/candidate/restart control."
+        }
+      ],
+      "cbuffer_history_on": {
+        "register": "b0",
+        "logical_bytes": 48,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              4,
+              4,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "Params",
+            "offset_bytes": 16,
+            "scalar_type": "float32",
+            "values": [
+              0.25,
+              0.02,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "Params2",
+            "offset_bytes": 32,
+            "scalar_type": "float32",
+            "values": [
+              2,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00008040000080400000803f0000803f0000803e0ad7a33c0000803f0000803f00000040000000000000000000000000",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "cbuffer_history_off_control": {
+        "register": "b0",
+        "logical_bytes": 48,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              4,
+              4,
+              1,
+              1
+            ]
+          },
+          {
+            "name": "Params",
+            "offset_bytes": 16,
+            "scalar_type": "float32",
+            "values": [
+              0.25,
+              0.02,
+              1,
+              0
+            ]
+          },
+          {
+            "name": "Params2",
+            "offset_bytes": 32,
+            "scalar_type": "float32",
+            "values": [
+              2,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00008040000080400000803f0000803f0000803e0ad7a33c0000803f0000000000000040000000000000000000000000",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "dispatch_xyz": [
+        1,
+        1,
+        1
+      ],
+      "baseline_candidate_pair": {
+        "baseline": "Pinned actual B4 Track CSO, plus separately checked fresh source compile.",
+        "candidate_source": "research/astra20261020/candidates/01-numerical-contract/adapter/FSRDColourTrackTrack.hlsl",
+        "patch": "research/astra20261020/candidates/01-numerical-contract/adapter/PRODUCTION.patch",
+        "candidate_hlsl_delta": "isfinite(history.a) && isfinite(expected) && original_relative_comparison",
+        "independent_restart_reference": "Fresh baseline and candidate dispatch with identical row input and Params.w=0; each uses independent initialized outputs."
+      },
+      "sequence": [
+        "For each row upload exact input bytes and fresh output poison; no Stats prepass is needed because this case injects actual typed Track inputs.",
+        "Run pinned baseline, fresh-source baseline, candidate and history-off restart with identical input bytes and appropriate cbuffer.",
+        "Fence and return uninstrumented OutHist and OutGain bytes from each branch.",
+        "Run a separate diagnostic exposing sampled history.a, centre.a, motion.z, expected, lhs, rhs, viewport, sentinel, finite and old/new validity bits.",
+        "Do not infer uninstrumented optimized-shader behavior solely from the diagnostic predicate."
+      ],
+      "additional_invariance_rows": [
+        {
+          "name": "inactive_history_poison",
+          "based_on_row": 5,
+          "Params.w": 0,
+          "poison": "Change all InPrev words and all InMotion words to representable +/-Inf/NaN/large values; these reads are unused.",
+          "expected": "Output RGBA bytes identical to the same history-off dispatch with finite unused inputs."
+        },
+        {
+          "name": "viewport_exit_positive",
+          "based_on_row": 5,
+          "motion_xy_full_pixels": [
+            4,
+            0
+          ],
+          "expected_uv": [
+            1.5,
+            0.5
+          ],
+          "expected_valid": false
+        },
+        {
+          "name": "viewport_exit_negative",
+          "based_on_row": 5,
+          "motion_xy_full_pixels": [
+            -4,
+            0
+          ],
+          "expected_uv": [
+            -0.5,
+            0.5
+          ],
+          "expected_valid": false
+        },
+        {
+          "name": "inclusive_viewport_edge",
+          "based_on_row": 5,
+          "motion_xy_full_pixels": [
+            -2,
+            0
+          ],
+          "expected_uv": [
+            0,
+            0.5
+          ],
+          "expected_valid": true
+        }
+      ],
+      "finite_preservation_census": {
+        "required_followup_if_smoke_passes": "Run all 63,488 finite half words as current depth with motion probes 0,+2^-10,-2^-10,+65504; history=current, zero motion.xy, UV(.5,.5).",
+        "comparisons": 253952,
+        "source_adapter_changed_decision_tolerance": 0,
+        "generation": "Enumerate uint16 0..65535 excluding exponent31; inject actual half words. Do not include finite float32 operands unreachable from production R16 resources.",
+        "expected_active_scope": "These are synthetic independent cells/dispatches, not temporal captures; a batched diagnostic requires explicit source-equivalent indexing and separate raw Track smoke outputs."
+      },
+      "overflow_scope": {
+        "actual_inf": "The first three rows carry representable half infinity and expose Inf<=Inf at source level.",
+        "finite_half_plus_finite_half": "Cannot overflow float32 (maximum absolute sum131008).",
+        "optional_f32_arithmetic_only": "F32_MAX+F32_MAX may overflow in a standalone guard arithmetic test; label this unreachable from two finite production half inputs."
+      },
+      "tolerance": {
+        "finite_branch_changed_count": 0,
+        "finite_uninstrumented_half_output_differences": 0,
+        "invalid_rows_0_to_2_hist_rgb": "Candidate must equal the independent restart control; baseline source-shaped acceptance is the falsifier to observe locally.",
+        "nan_alpha": "Return raw words and classification; NaN payload choice alone does not establish a finite-path discrepancy.",
+        "rationale": "One-ULP output tolerances cannot hide a changed history-validity branch; this patch proposes only rejection of nonfinite depth."
+      },
+      "reject_adapter_if": [
+        "The optimized candidate still accepts invalid expected infinity or propagates its history where the restart control does not.",
+        "Any finite decision changes, inclusive 2% boundary changes, viewport handling changes or history-off unused-resource changes.",
+        "The fresh baseline does not match the pinned baseline and the discrepancy is left unexplained.",
+        "DXC/D3D provenance or raw uninstrumented outputs are missing."
+      ],
+      "maximum_useful_readback_bytes": 524288
+    },
+    {
+      "id": "inactive_authority_and_lobe_alpha",
+      "priority": "required",
+      "passes": [
+        "FSRDColourTrackApply.CSMain",
+        "FSRDPostMotionAnchorApply.CSMain"
+      ],
+      "capture_id": null,
+      "frame_range": null,
+      "full_extent_xy": [
+        4,
+        4
+      ],
+      "field_extent_xy": [
+        1,
+        1
+      ],
+      "colour_bindings": {
+        "t0": {
+          "role": "Gain",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            1,
+            1
+          ]
+        },
+        "t1": {
+          "role": "Target",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            4,
+            4
+          ]
+        },
+        "u0": {
+          "role": "Color in place",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            4,
+            4
+          ]
+        }
+      },
+      "colour_input": "Each Color pixel raw half RGBA=(0.25,0.5,1,-0). Target.a=0 everywhere; other target lanes arbitrary.",
+      "colour_off_variants": "Gain=(1,1,1,1), then gain NaN/Inf payloads, unchanged Target.a=0. Compare all original Color RGBA bytes exactly.",
+      "colour_active_control": "Target.a=1, gain=(1,1,1,1). Colour Apply sets alpha to1 on this active path; do not apply Anchor alpha expectations to it.",
+      "anchor_bindings": {
+        "t0": {
+          "role": "Gain",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            1,
+            1
+          ]
+        },
+        "u0": {
+          "role": "Diffuse in place",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            4,
+            4
+          ]
+        },
+        "u1": {
+          "role": "Specular in place",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "extent_xy": [
+            4,
+            4
+          ]
+        }
+      },
+      "anchor_inputs": {
+        "diffuse_rgba": [
+          2,
+          4,
+          8,
+          0.25
+        ],
+        "specular_rgba": [
+          16,
+          32,
+          64,
+          0.75
+        ],
+        "gain_rgba": [
+          0.5,
+          0,
+          0,
+          0
+        ]
+      },
+      "anchor_expected": {
+        "diffuse_rgba": [
+          1,
+          2,
+          4,
+          0.25
+        ],
+        "specular_rgba": [
+          8,
+          16,
+          32,
+          0.75
+        ]
+      },
+      "cbuffer": {
+        "register": "b0",
+        "logical_bytes": 16,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              4,
+              4,
+              0.25,
+              0.25
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00008040000080400000803e0000803e",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "ordering": "Use separate initialized Color, Diffuse and Specular UAVs per test; never bind one resource as simultaneous SRV/UAV of the same subresource.",
+      "tolerance": {
+        "inactive_colour_rgba_bit_differences": 0,
+        "anchor_alpha_bit_differences": 0,
+        "binary_fraction_rgb_abs": 0
+      },
+      "falsifiers": [
+        "Reading or sanitizing poisoned Gain while Colour authority is inactive must fail unchanged-byte identity.",
+        "Cross-lobe mixing or overwriting either Anchor alpha must fail independent lobe/alpha checks."
+      ],
+      "maximum_useful_readback_bytes": 4096
+    },
+    {
+      "id": "native_counter_1_wraps",
+      "priority": "required",
+      "pass": "FSRDNrdPostMotionAnchorStatsRecall.CSMain",
+      "capture_id": null,
+      "frame_range": null,
+      "policy": "native physical D/S, cap16, fixed16.16; never use combined 1/1024 layout here.",
+      "resources": [
+        {
+          "register": "t0",
+          "role": "InDiffuse physical linear",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            520,
+            512
+          ],
+          "active_extent_xy": [
+            520,
+            512
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            520,
+            512
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 4160,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            32,
+            32,
+            32,
+            0.25
+          ]
+        },
+        {
+          "register": "t1",
+          "role": "InSpecular physical linear",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            520,
+            512
+          ],
+          "active_extent_xy": [
+            520,
+            512
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            520,
+            512
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 4160,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            32,
+            32,
+            32,
+            0.75
+          ]
+        },
+        {
+          "register": "t2",
+          "role": "InDepth",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            520,
+            512
+          ],
+          "active_extent_xy": [
+            520,
+            512
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            520,
+            512
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 2080,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": 1
+        },
+        {
+          "register": "t3",
+          "role": "InMotion canonical UV",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            520,
+            512
+          ],
+          "active_extent_xy": [
+            520,
+            512
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            520,
+            512
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 4160,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "register": "t4",
+          "role": "InKeyLevel physical",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            65,
+            64
+          ],
+          "active_extent_xy": [
+            65,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            65,
+            64
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 520,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "all_slices_constant": [
+              64,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "register": "t5",
+          "role": "InKeyDepth",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            65,
+            64
+          ],
+          "active_extent_xy": [
+            65,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            65,
+            64
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 260,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "all_slices_constant": 1
+          }
+        },
+        {
+          "register": "u0",
+          "role": "OutStats",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            65,
+            64
+          ],
+          "active_extent_xy": [
+            65,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            65,
+            64
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 520,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison before each fresh dispatch."
+        },
+        {
+          "register": "u1",
+          "role": "OutRecalled",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            65,
+            64
+          ],
+          "active_extent_xy": [
+            65,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            65,
+            64
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 520,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison before each fresh dispatch."
+        },
+        {
+          "register": "u2",
+          "role": "OutSums emulated uint64 16.16",
+          "dimension": "Buffer",
+          "resource_bytes": 32,
+          "view_format": "DXGI_FORMAT_R32_TYPELESS",
+          "raw_view": true,
+          "num_elements": 8,
+          "recipe": "Poison all32 bytes then clear all32 bytes; raw uint32[8] view."
+        }
+      ],
+      "cbuffer": {
+        "register": "b0",
+        "logical_bytes": 864,
+        "cbv_allocation_bytes": 1024,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              520,
+              512,
+              65,
+              64
+            ]
+          },
+          {
+            "name": "Projection",
+            "offset_bytes": 16,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Extra",
+            "offset_bytes": 32,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              0.02,
+              1,
+              0
+            ]
+          },
+          {
+            "name": "Params",
+            "offset_bytes": 48,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              0.25,
+              0.15,
+              6
+            ]
+          },
+          {
+            "name": "PrevRel",
+            "offset_bytes": 64,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "name": "ProjRow",
+            "offset_bytes": 128,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "name": "KeySlice",
+            "offset_bytes": 192,
+            "scalar_type": "uint32",
+            "values": [
+              [
+                0,
+                6,
+                6,
+                6
+              ],
+              [
+                6,
+                6,
+                6,
+                6
+              ]
+            ]
+          },
+          {
+            "name": "KeyRel",
+            "offset_bytes": 224,
+            "scalar_type": "float32",
+            "values": [
+              [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          {
+            "name": "SlotExtra",
+            "offset_bytes": 736,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "logical_bytes_hex": "000002440000004400008242000080420000803f0000803f00000000000000000000803f0ad7a33c0000803f000000000000803f0000803e9a99193e0000c0400000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000000000000000000000000000803f0000000000000000060000000600000006000000060000000600000006000000060000000000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000000000000000000000000000803f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000803f0000803f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "dispatch_xyz": [
+        9,
+        8,
+        1
+      ],
+      "geometry": "Controlled projection has clip=(view.x,view.y,view.z,view.z), P32=1, identity previous view. Source centre+0.5 versus edge projection produces residual(0.5,0.5), safely within its 4-pixel static threshold. Only ring slot0 is valid.",
+      "fixed_mask": {
+        "construction": "All grid cells before shader execution. No image-derived validity recomputation.",
+        "expected_count": 4160
+      },
+      "sequence": [
+        "Initialize every physical allocation texel and all six ring slices as listed.",
+        "Poison complete OutSums with 0xa5 bytes; perform the actual full32-byte reset; copy reset witness after ordered completion.",
+        "Execute one StatsRecall dispatch, add a UAV barrier, then copy OutSums/Stats/Recalled; do not clear inside a Gain dispatch or race a read.",
+        "Repeat once from freshly poisoned-and-reset buffers to verify reset independence; repeated cases do not count as captured frames."
+      ],
+      "expected": {
+        "physical_level_before_cap": 64,
+        "per_cell_increment": 1048576,
+        "count": 4160,
+        "low_word_wraps": 1,
+        "words_u32": [
+          67108864,
+          1,
+          67108864,
+          1,
+          4160,
+          0,
+          0,
+          0
+        ],
+        "full32_bytes_hex": "0000000401000000000000040100000040100000000000000000000000000000",
+        "after_reset32_bytes_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "Stats": "level approximately64 after source luma arithmetic, depth1, static1, w0; exact sum is protected by the physical cap16.",
+        "Recalled": [
+          64,
+          1,
+          0,
+          1
+        ]
+      },
+      "tolerance": {
+        "counter_word_differences": 0,
+        "reset_byte_differences": 0,
+        "static_valid_count_difference": 0,
+        "recorded_recalled_half_bits_difference": 0,
+        "Stats_level": "Return exact raw bits and pre-store witness if materially different; a small luma arithmetic difference above cap16 cannot justify a wrong integer sum."
+      },
+      "negative_mutants": [
+        "Discard high words when reconstructing totals: reconstructed physical sum must fail.",
+        "Clear only12 or20 bytes after poisoning: full32-byte reset must fail.",
+        "Use combined 1/1024 scaling/layout in the native path: expected words must fail."
+      ],
+      "maximum_useful_readback_bytes": 133376,
+      "logical_texture_and_counter_bytes": 7820832,
+      "memory_scope": "Procedural standalone resources only, excluding D3D allocation alignment, heaps, upload/readback and driver memory. Not a game-memory measurement."
+    },
+    {
+      "id": "native_counter_4_wraps",
+      "priority": "required",
+      "pass": "FSRDNrdPostMotionAnchorStatsRecall.CSMain",
+      "capture_id": null,
+      "frame_range": null,
+      "policy": "native physical D/S, cap16, fixed16.16; never use combined 1/1024 layout here.",
+      "resources": [
+        {
+          "register": "t0",
+          "role": "InDiffuse physical linear",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1032,
+            1024
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8256,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            32,
+            32,
+            32,
+            0.25
+          ]
+        },
+        {
+          "register": "t1",
+          "role": "InSpecular physical linear",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1032,
+            1024
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8256,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            32,
+            32,
+            32,
+            0.75
+          ]
+        },
+        {
+          "register": "t2",
+          "role": "InDepth",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1032,
+            1024
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 4128,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": 1
+        },
+        {
+          "register": "t3",
+          "role": "InMotion canonical UV",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_extent_xy": [
+            1032,
+            1024
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            1032,
+            1024
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 8256,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "register": "t4",
+          "role": "InKeyLevel physical",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            129,
+            128
+          ],
+          "active_extent_xy": [
+            129,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            129,
+            128
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 1032,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "all_slices_constant": [
+              64,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "register": "t5",
+          "role": "InKeyDepth",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            129,
+            128
+          ],
+          "active_extent_xy": [
+            129,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            129,
+            128
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 516,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "all_slices_constant": 1
+          }
+        },
+        {
+          "register": "u0",
+          "role": "OutStats",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            129,
+            128
+          ],
+          "active_extent_xy": [
+            129,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            129,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 1032,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison before each fresh dispatch."
+        },
+        {
+          "register": "u1",
+          "role": "OutRecalled",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            129,
+            128
+          ],
+          "active_extent_xy": [
+            129,
+            128
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            129,
+            128
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 1032,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Poison before each fresh dispatch."
+        },
+        {
+          "register": "u2",
+          "role": "OutSums emulated uint64 16.16",
+          "dimension": "Buffer",
+          "resource_bytes": 32,
+          "view_format": "DXGI_FORMAT_R32_TYPELESS",
+          "raw_view": true,
+          "num_elements": 8,
+          "recipe": "Poison all32 bytes then clear all32 bytes; raw uint32[8] view."
+        }
+      ],
+      "cbuffer": {
+        "register": "b0",
+        "logical_bytes": 864,
+        "cbv_allocation_bytes": 1024,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              1032,
+              1024,
+              129,
+              128
+            ]
+          },
+          {
+            "name": "Projection",
+            "offset_bytes": 16,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Extra",
+            "offset_bytes": 32,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              0.02,
+              1,
+              0
+            ]
+          },
+          {
+            "name": "Params",
+            "offset_bytes": 48,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              0.25,
+              0.15,
+              6
+            ]
+          },
+          {
+            "name": "PrevRel",
+            "offset_bytes": 64,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "name": "ProjRow",
+            "offset_bytes": 128,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "name": "KeySlice",
+            "offset_bytes": 192,
+            "scalar_type": "uint32",
+            "values": [
+              [
+                0,
+                6,
+                6,
+                6
+              ],
+              [
+                6,
+                6,
+                6,
+                6
+              ]
+            ]
+          },
+          {
+            "name": "KeyRel",
+            "offset_bytes": 224,
+            "scalar_type": "float32",
+            "values": [
+              [
+                [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  1,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  1,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          {
+            "name": "SlotExtra",
+            "offset_bytes": 736,
+            "scalar_type": "float32",
+            "values": [
+              [
+                1,
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "logical_bytes_hex": "000081440000804400000143000000430000803f0000803f00000000000000000000803f0ad7a33c0000803f000000000000803f0000803e9a99193e0000c0400000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000000000000000000000000000803f0000000000000000060000000600000006000000060000000600000006000000060000000000803f000000000000000000000000000000000000803f000000000000000000000000000000000000803f0000000000000000000000000000803f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000803f0000803f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "dispatch_xyz": [
+        17,
+        16,
+        1
+      ],
+      "geometry": "Controlled projection has clip=(view.x,view.y,view.z,view.z), P32=1, identity previous view. Source centre+0.5 versus edge projection produces residual(0.5,0.5), safely within its 4-pixel static threshold. Only ring slot0 is valid.",
+      "fixed_mask": {
+        "construction": "All grid cells before shader execution. No image-derived validity recomputation.",
+        "expected_count": 16512
+      },
+      "sequence": [
+        "Initialize every physical allocation texel and all six ring slices as listed.",
+        "Poison complete OutSums with 0xa5 bytes; perform the actual full32-byte reset; copy reset witness after ordered completion.",
+        "Execute one StatsRecall dispatch, add a UAV barrier, then copy OutSums/Stats/Recalled; do not clear inside a Gain dispatch or race a read.",
+        "Repeat once from freshly poisoned-and-reset buffers to verify reset independence; repeated cases do not count as captured frames."
+      ],
+      "expected": {
+        "physical_level_before_cap": 64,
+        "per_cell_increment": 1048576,
+        "count": 16512,
+        "low_word_wraps": 4,
+        "words_u32": [
+          134217728,
+          4,
+          134217728,
+          4,
+          16512,
+          0,
+          0,
+          0
+        ],
+        "full32_bytes_hex": "0000000804000000000000080400000080400000000000000000000000000000",
+        "after_reset32_bytes_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "Stats": "level approximately64 after source luma arithmetic, depth1, static1, w0; exact sum is protected by the physical cap16.",
+        "Recalled": [
+          64,
+          1,
+          0,
+          1
+        ]
+      },
+      "tolerance": {
+        "counter_word_differences": 0,
+        "reset_byte_differences": 0,
+        "static_valid_count_difference": 0,
+        "recorded_recalled_half_bits_difference": 0,
+        "Stats_level": "Return exact raw bits and pre-store witness if materially different; a small luma arithmetic difference above cap16 cannot justify a wrong integer sum."
+      },
+      "negative_mutants": [
+        "Discard high words when reconstructing totals: reconstructed physical sum must fail.",
+        "Clear only12 or20 bytes after poisoning: full32-byte reset must fail.",
+        "Use combined 1/1024 scaling/layout in the native path: expected words must fail."
+      ],
+      "maximum_useful_readback_bytes": 528640,
+      "logical_texture_and_counter_bytes": 31042592,
+      "memory_scope": "Procedural standalone resources only, excluding D3D allocation alignment, heaps, upload/readback and driver memory. Not a game-memory measurement."
+    },
+    {
+      "id": "optional_combined_gain_prestore_residual",
+      "priority": "optional_after_required_microcases",
+      "pass": "FSRDPostMotionAnchorGain.CSMain",
+      "purpose": "Distinguish remaining float32 arithmetic/exp2/reciprocal lowering from typed output storage at one retained recorded-GPU discrepancy; no new filter or relaxed acceptance threshold.",
+      "fixture": {
+        "path": "research/astra20261020/portable/anchor/fixtures/combined/87ee1fba.npz",
+        "bytes": 1103676,
+        "sha256": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4"
+      },
+      "witness": {
+        "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+        "capture_short": "87ee1fba",
+        "frame": 18,
+        "npz_frame_index": 6,
+        "grid_extent_xy": [
+          64,
+          64
+        ],
+        "grid_xy": [
+          5,
+          27
+        ],
+        "age_k": 0,
+        "exact_combined_counters_u32": [
+          50552,
+          53192,
+          2518,
+          0
+        ],
+        "frame_ratio_source_float32": 1.0522234439849854,
+        "recorded_gain_half_bits": 15359,
+        "recorded_gain": 0.99951171875,
+        "cpu_dxil_exp2_unstored_gain": 1.0,
+        "cpu_rtz_gain": 1.0,
+        "recorded_rtz_f32_preimage_inclusive": [
+          0.99951171875,
+          0.9999999403953552
+        ],
+        "numerator_cpu": 0.036468505859375,
+        "denominator_cpu": 0.036468505859375,
+        "coverage_cpu": 1.0,
+        "tap_order": "dy then dx, -1 through +1; step 3; allocation clamp",
+        "taps": [
+          {
+            "grid_xy": [
+              2,
+              24
+            ],
+            "stats_half_bits": [
+              8704,
+              21475,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              5,
+              24
+            ],
+            "stats_half_bits": [
+              9135,
+              21517,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              8,
+              24
+            ],
+            "stats_half_bits": [
+              7038,
+              21871,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              2,
+              27
+            ],
+            "stats_half_bits": [
+              8119,
+              20707,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              5,
+              27
+            ],
+            "stats_half_bits": [
+              6174,
+              21175,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              8,
+              27
+            ],
+            "stats_half_bits": [
+              7382,
+              21565,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              2,
+              30
+            ],
+            "stats_half_bits": [
+              10505,
+              18829,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              5,
+              30
+            ],
+            "stats_half_bits": [
+              10691,
+              18858,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              0,
+              0,
+              0,
+              15360
+            ]
+          },
+          {
+            "grid_xy": [
+              8,
+              30
+            ],
+            "stats_half_bits": [
+              10411,
+              18878,
+              15360,
+              0
+            ],
+            "recalled_half_bits": [
+              10411,
+              15360,
+              0,
+              15360
+            ]
+          }
+        ],
+        "captured_shader_cso_sha256": "687d33ccc0d6dda57fe2c2e1117d0cb14dea5d14c52ce382c14baa033b42186c",
+        "captured_cbuffer_bytes_hex": null,
+        "captured_gpu_device_and_driver": null,
+        "provenance_status": "The grid, age and counters are packaged observations. Original capture compiler/device/cbuffer-byte identity is requested, not inferred from the current tag.",
+        "captured_shader_cso_authority": {
+          "kind": "manifest-reported historical combined Gain CSO",
+          "manifest_path": "research/astra20261020/portable/anchor/fixtures/manifest.json",
+          "manifest_sha256": "b2fb52b660f3775947755d7e5b3a1b5fe1d700d25698eb09c6093c69135def80",
+          "json_key": "source_files.FSRDPostMotionAnchorGain_CSO.sha256",
+          "relation_to_tag": "Reported historical digest equals the inventoried tagged Gain CSO digest. The newly executing local CSO must still be hashed independently."
+        }
+      },
+      "source_readback_scope": "One stored Stats/Recalled grid frame injected directly into Gain; no camera/key recall replay is implied.",
+      "full_shader_extent_xy": [
+        512,
+        512
+      ],
+      "grid_allocation_extent_xy": [
+        64,
+        64
+      ],
+      "crop_origin_xy": [
+        0,
+        0
+      ],
+      "crop_note": "These are the replay shader\u2019s full ROI coordinates. Original game capture ROI origin and active render provenance are separate and must be returned; do not infer them from the grid.",
+      "original_capture_full_render_extent_xy": [
+        1505,
+        847
+      ],
+      "original_capture_roi_origin_xy": [
+        496,
+        167
+      ],
+      "original_capture_dimensions_status": "Recorded in portable/anchor/fixtures/manifest.json for capture87ee1fba. The manifest also reports the historical Gain CSO digest. Actual original submitted cbuffer bytes, compiler binary identity and GPU device/driver remain unavailable/requested.",
+      "resources": [
+        {
+          "register": "t0",
+          "role": "InStats",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            64
+          ],
+          "active_extent_xy": [
+            64,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            64
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "npz": "stats",
+            "frame": 18
+          }
+        },
+        {
+          "register": "t1",
+          "role": "InRecalled",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            64
+          ],
+          "active_extent_xy": [
+            64,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            64
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": {
+            "npz": "recalled",
+            "frame": 18
+          }
+        },
+        {
+          "register": "u0",
+          "role": "OutGain",
+          "dimension": "Texture2D",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            64
+          ],
+          "active_extent_xy": [
+            64,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            64
+          ],
+          "array_slices": 1,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Uninstrumented shader output"
+        },
+        {
+          "register": "u1",
+          "role": "OutKeyLevel",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            64
+          ],
+          "active_extent_xy": [
+            64,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            64
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 512,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Initialize all slices to zero; refresh=false."
+        },
+        {
+          "register": "u2",
+          "role": "OutKeyDepth",
+          "dimension": "Texture2DArray",
+          "format": "DXGI_FORMAT_R32_FLOAT",
+          "allocation_extent_xy": [
+            64,
+            64
+          ],
+          "active_extent_xy": [
+            64,
+            64
+          ],
+          "active_origin_xy": [
+            0,
+            0
+          ],
+          "crop_origin_xy": [
+            0,
+            0
+          ],
+          "observed_crop_extent_xy": [
+            64,
+            64
+          ],
+          "array_slices": 6,
+          "mip_levels": 1,
+          "sample_count": 1,
+          "logical_row_stride_bytes": 256,
+          "upload_readback_row_pitch_bytes": null,
+          "row_pitch_status": "Requested from GetCopyableFootprints; never assume tightly packed GPU rows.",
+          "recipe": "Initialize all slices to zero; refresh=false."
+        },
+        {
+          "register": "u3",
+          "role": "Sums in combined layout",
+          "dimension": "Buffer",
+          "resource_bytes": 32,
+          "view_format": "DXGI_FORMAT_R32_TYPELESS",
+          "raw_view": true,
+          "num_elements": 8,
+          "recipe": {
+            "first_four_words": [
+              50552,
+              53192,
+              2518,
+              0
+            ],
+            "remaining_words": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "meaning": "u32 current/recalled/count at0/4/8, scale1/1024; do not replace with native layout."
+          }
+        }
+      ],
+      "replay_cbuffer": {
+        "register": "b0",
+        "logical_bytes": 80,
+        "cbv_allocation_bytes": 256,
+        "endianness": "little",
+        "fields": [
+          {
+            "name": "Size",
+            "offset_bytes": 0,
+            "scalar_type": "float32",
+            "values": [
+              512,
+              512,
+              64,
+              64
+            ]
+          },
+          {
+            "name": "Params",
+            "offset_bytes": 16,
+            "scalar_type": "float32",
+            "values": [
+              0.18,
+              10,
+              0.05,
+              0.3
+            ]
+          },
+          {
+            "name": "Params2",
+            "offset_bytes": 32,
+            "scalar_type": "float32",
+            "values": [
+              1,
+              0.15,
+              3,
+              2.7
+            ]
+          },
+          {
+            "name": "Params3",
+            "offset_bytes": 48,
+            "scalar_type": "float32",
+            "values": [
+              1.8,
+              0.3,
+              0.8,
+              0
+            ]
+          },
+          {
+            "name": "Params4",
+            "offset_bytes": 64,
+            "scalar_type": "float32",
+            "values": [
+              0,
+              0,
+              6,
+              0
+            ]
+          }
+        ],
+        "logical_bytes_hex": "00000044000000440000804200008042ec51383e00002041cdcc4c3d9a99993e0000803f9a99193e00004040cdcc2c406666e63f9a99993ecdcc4c3f0000000000000000000000000000c04000000000",
+        "cbv_padding": "Zero every padding byte; bind a 256-byte-aligned GPU virtual address."
+      },
+      "replay_cbuffer_authority": "Exact byte recipe for the proposed tagged-source replay using the packaged age and documented portable model parameters. It is not asserted to be the original captured cbuffer until the original bytes are returned.",
+      "dispatch_xyz": [
+        8,
+        8,
+        1
+      ],
+      "comparison_pairs": [
+        "Pinned CSO versus fresh tagged source compile with the same inputs.",
+        "Uninstrumented R16 output versus the same CSO with diagnostic R32 OutGain binding, if the device supports that typed store.",
+        "Separate instrumented copy returning numerator, denominator, coverage, measured ratio, frame ratio, exp argument/result, model excess, cap, reject flags and final pre-store gain words."
+      ],
+      "readback": [
+        "Full R16G16B16A16_FLOAT Gain grid for a fixed4096-cell population: compare .x to the archived scalar Gain; source .y/.z/.w are zero and must be reported separately.",
+        "R32 pre-store gain words at requested grid_xy and, if convenient, the full small grid.",
+        "Exact32-byte counters and80-byte cbuffer actually submitted.",
+        "All 9 integer-load tap coordinates and raw half lanes for the witness.",
+        "DXIL operations and raw intermediate words from the separately hashed diagnostic."
+      ],
+      "expected_cpu_calibration": {
+        "combined_residual_cells_after_rtz": 17,
+        "combined_population": 416720,
+        "combined_frames": 133,
+        "combined_max_abs": 0.00048828125,
+        "combined_max_half_steps": 1,
+        "identity_classification_disagreements": 13,
+        "native_residual_cells_after_rtz": 0,
+        "native_population": 26256,
+        "native_frames": 7,
+        "authority": "CPU replay of archived GPU fields; native exact atomics remain absent. These are not newly executed GPU measurements."
+      },
+      "tolerance": {
+        "archived_exact_reproduction_half_steps": 0,
+        "prestore": "Test membership in the recorded payload\u2019s RTZ float32 preimage only when RTZ is independently established for this device/boundary.",
+        "remaining_single_half_steps": "Report all residual cells as unresolved. Do not widen a one-step tolerance to erase an identity/branch mismatch."
+      },
+      "competing_outcomes": [
+        "Matching R32 pre-store value but different R16 payload isolates the output conversion boundary.",
+        "Differing pre-store value with identical input bytes and cbuffer implicates code generation/arithmetic; return the first differing operand.",
+        "The manifest-reported historical CSO matches the tagged CSO digest. If the locally executing CSO/constants differ from that declared baseline, resolve that provenance before attributing a residual to arithmetic; original cbuffer/compiler/device details remain limited."
+      ],
+      "maximum_useful_readback_bytes": 262144
+    },
+    {
+      "id": "optional_archived_c8_colour_witness",
+      "priority": "optional_if_original_harness_available",
+      "pass": null,
+      "status": "Original archived C8 modified shader/harness identity is not supplied by this request; do not substitute production B4.",
+      "capture_id": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frame_range_inclusive": [
+        63,
+        66
+      ],
+      "minimum_first_frame": 63,
+      "original_render_extent_xy": [
+        1505,
+        847
+      ],
+      "roi_origin_xy": [
+        496,
+        167
+      ],
+      "roi_extent_xy": [
+        512,
+        512
+      ],
+      "archived_c8_field_extent_xy": [
+        64,
+        64
+      ],
+      "actual_tagged_b4_field_extent_xy_for_same_roi": [
+        128,
+        128
+      ],
+      "fixture": {
+        "path": "research/astra20261020/portable/colour/fixtures/soft2_gpu_87ee63.npz",
+        "bytes": 9101728,
+        "sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2"
+      },
+      "original_c8_source_revision": null,
+      "original_c8_source_sha256": null,
+      "original_c8_cso_sha256": null,
+      "original_c8_host_command": null,
+      "startup": "Archived C8 previous history was warmed by chronological CPU frames0..62 before a GPU witness. Do not fabricate those frames or substitute zero history. Request the exact uploaded previous-history bytes and metadata for the selected actual frame.",
+      "request": "If original local harness exists, return GPU sampled-history depth float32 words and validity bits for all4096 cells, exact UV/motion/expected-depth words for the differing cells, and original shader/constant/resource identities. Start with frame63; frame66 is optional only if it separates the hypotheses.",
+      "historical_audit_limit": "The archived report describes nine changed depth gates and a matching1/256 approximation, but the packaged actual GPU validity/sampled-history maps are missing. A new CPU emulation is not those observations.",
+      "formats": {
+        "uploaded_history": "Requested actual format; expected archived harness typed-half role must be verified.",
+        "requested_sampled_history_depth": "R32_FLOAT or raw uint32 float words",
+        "requested_validity": "R32_UINT or packed documented uint32 bits"
+      },
+      "strides_and_actual_cbuffer_bytes": null,
+      "fixed_mask": "All4096 C8 grid cells before examining output; mark unsupported off-ROI history by original coordinate support without crop-clamp substitution.",
+      "expected_tolerance": {
+        "validity_mismatch_tolerance_for_exact_historical_reproduction": 0,
+        "raw_sample_match": "Report per-cell bit and absolute error for ideal/source/observed profiles; no new universal sampler guarantee."
+      },
+      "falsifier": "If the original C8 shader/history is absent, this case stays unavailable; it cannot be marked passed using the actual B4 source.",
+      "maximum_useful_readback_bytes": 262144
+    }
+  ],
+  "measurement_and_acceptance": {
+    "required_outputs_per_case": [
+      "case ID and operation profile",
+      "initial input/constant hashes",
+      "exact resource descriptors and footprints",
+      "source/CSO identities",
+      "dispatch and fence order",
+      "raw output bytes and logical hashes",
+      "all fixed-mask comparison results",
+      "negative-control result",
+      "debug log"
+    ],
+    "fixed_error_metrics": [
+      "population",
+      "unsupported count",
+      "max absolute error",
+      "p50 absolute error",
+      "p90 absolute error",
+      "p99 absolute error",
+      "signed error counts",
+      "half-word distance where meaningful",
+      "changed branch count",
+      "identity-classification changes"
+    ],
+    "tolerance_policy": "Use each predeclared exact/interval criterion above. Distinguish analytic expectations, documented API envelopes, CPU staging models, historical device observation and actual new GPU outputs. A model mismatch may remain an unresolved hardware assumption; do not retune tolerances after seeing the result.",
+    "timing": {
+      "measured_gpu_ms": null,
+      "measured_cpu_ms": null,
+      "game_fps": null,
+      "require_performance_claim": false,
+      "optional_scope": "If local timing is recorded, report only named microcase dispatch timestamps, query frequency, warmup/repetition count, synchronization and median/tails. Do not extrapolate to game frame time or compare the existing harness cost loop as this task\u2019s performance result."
+    },
+    "memory": {
+      "measured_resource_allocation_bytes": null,
+      "measured_peak_gpu_bytes": null,
+      "largest_procedural_counter_case_logical_bytes": 31042592,
+      "scope": "Exact logical synthetic texture/buffer sizes only. Return actual aligned allocation/upload/readback sizes separately if measured; no game-memory claim."
+    },
+    "visual_failure_criteria": {
+      "microcase_visual_test": "not_applicable",
+      "game_images_evaluated": false,
+      "later_job08_gate": "Before any visual improvement or production enablement claim: same capture/frame sequence, crop, exposure and original support; no new grain, sparkles, flicker, colour drift, ghost history, geometry leakage or lost structure. This request provides no game-image acceptance."
+    },
+    "acceptance": "Required microcases, finite-domain invariance, negative controls, fresh source/bytecode provenance and clean D3D lifetime/debug evidence are necessary for a local numerical acceptance. They do not establish game quality, AMD RR behavior, shipped defaults or performance.",
+    "return_manifest": "Return a JSON report with gpu_executed:true only for actual executed cases, null plus reasons for unavailable cases, and SHA256 of source/binaries/raw readbacks. Do not include credentials or unrelated captures.",
+    "maximum_useful_raw_return_budget_bytes": 3145728,
+    "payload_budget_note": "All large source textures are procedural; return compact diagnostic grids/counters and metadata. If instrumenting every finite-domain census row exceeds the budget, return exact aggregate counts plus hashes and only mismatching raw records."
+  },
+  "primary_sources": [
+    {
+      "url": "https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-to-load",
+      "scope": "Integer nonfiltered Load and true resource out-of-bounds behavior."
+    },
+    {
+      "url": "https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm",
+      "sections": [
+        "3.2.2",
+        "7.18.7",
+        "7.18.8",
+        "7.18.9",
+        "7.18.16"
+      ],
+      "scope": "Float-format conversion, normalized sampling coordinates, minimum coordinate fractional precision, addressing and separate floating filtering invariants. Eight-bit fraction emulation is not elevated to a universal hardware result."
+    }
+  ],
+  "unresolved_hardware_assumptions": [
+    {
+      "id": "typed_store_conversion",
+      "value": null,
+      "status": "Requested per direct typed store/source boundary, including subnormal/nonfinite behavior."
+    },
+    {
+      "id": "sampler_fraction_and_filter_arithmetic",
+      "value": null,
+      "status": "Requested; at least8 fraction bits does not prescribe the selected8-bit nearest-even model exactly."
+    },
+    {
+      "id": "dxc_finite_predicate_under_optimization",
+      "value": null,
+      "status": "Requested actual optimized source/candidate A/B and DXIL."
+    },
+    {
+      "id": "fma_reassociation_division_exp2",
+      "value": null,
+      "status": "Requested source/CSO/pre-store witnesses; CPU float32 staging is one model."
+    },
+    {
+      "id": "archived_c8_exact_device_and_harness",
+      "value": null,
+      "status": "Unavailable until original local provenance and uploaded history are provided."
+    },
+    {
+      "id": "native_archived_exact_pre_store_atomics",
+      "value": null,
+      "status": "Not exported; synthetic known-input sums test the implementation, not recover absent capture atomics."
+    }
+  ],
+  "sampling_component_version": "1.0.0",
+  "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786"
+}
