@@ -1,0 +1,35 @@
+{"checks":204,"failures":34,"mutant":"authority"}
+FAIL: equal words cannot manufacture unknown selection authority
+FAIL: identity-valued recovery remains protected
+FAIL: identity-valued flat recovery remains protected
+FAIL: stale host selection witness rejected
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words
+FAIL: frozen capture missing host authority stays unknown even with identical raw/selected words

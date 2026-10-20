@@ -41,6 +41,7 @@ public:
         uint64_t bridgeDomain = 0; // Zero binds the first eligible selected-signal domain; never merges chains.
         bool bridgeWaitForReset = false; // Only a dedicated explicit USER reset request sets this.
         uint32_t bridgeSignal = 0; // 0=A Recon, 1=B PrePass. API default A preserves older callers.
+        bool nativeObservations = false; // Transient opt-in; exact pre-scale words and provenance sidecar.
     };
     struct Status
     {
@@ -64,6 +65,7 @@ public:
     static bool WantsFullContextReference() noexcept;
     static bool WantsParticleLayerDiagnostics() noexcept;
     static bool IsNrdBridgeCaptureActive() noexcept; // Atomic OFF gate, before metadata/native work.
+    static bool WantsNativeObservations() noexcept; // Additional default-off atomic gate.
     static bool WantsNrdBridgeSignal(uint32_t index) noexcept; // Filter BEFORE owner claim/reset/native work; 0=A, 1=B.
     static bool TakeNrdBridgeHistoryResetRequest(uint64_t domain = 0) noexcept;
 
@@ -140,6 +142,13 @@ public:
         BridgeControlStatusObserver statusObserver = nullptr; // Called post-fence, outside trace locks, nonzero only.
     };
     using BridgeFrameToken = std::shared_ptr<void>;
+    // Called only by the optional RR callback after recording retention, before
+    // any scale/restore can alter half words. Uses this session's bounded ledger
+    // and fence; RecordBridgeOwned adopts it without another copy or fence.
+    static std::weak_ptr<void> RecordNativeObservationInputs(ID3D12Device*, ID3D12GraphicsCommandList*,
+        const NrdBridge::ConvertedResources& original, const NrdBridge::ConvertedResources& effective,
+        uint64_t domain, uint64_t recordingId, uint64_t contextGeneration, uint64_t resetEpoch,
+        uint32_t frameIndex, uint32_t frameSL, bool actualReset) noexcept;
     // Caller owns the input/output leases, same-recording admission and injection
     // serialization. Call ONLY after motion is finalized and RecordOwned succeeds.
     // No reset/history mutation. The whole-frame budget is checked before copies.

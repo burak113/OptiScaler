@@ -215,6 +215,7 @@ class NativePostMotionAnchor
     {
         std::shared_ptr<void> owner;
         ID3D12Resource *specular = nullptr, *diffuse = nullptr, *gain = nullptr;
+        ID3D12Resource* diagnosticSums = nullptr; // Borrowed from owner; 32 raw bytes, COMMON after RecordInputs.
         bool active = false, refresh = false;
       private:
         Recording* recording = nullptr;
@@ -282,6 +283,7 @@ class NativePostMotionAnchor
                 std::array<ID3D12Resource*,2>{c->providerDiff.Get(),c->providerSpec.Get()});
             c->pending = r; context_ = c;
             out.owner = r; out.recording = r.get(); out.active = r->active; out.refresh = r->refresh; out.gain = c->gain.Get();
+            out.diagnosticSums = r->active ? c->sums.Get() : nullptr;
             out.specular = r->active ? c->providerSpec.Get() : in.spec;
             out.diffuse = r->active ? c->providerDiff.Get() : in.diff; return true;
         }

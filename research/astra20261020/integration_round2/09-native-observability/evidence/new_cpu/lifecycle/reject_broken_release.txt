@@ -1,0 +1,7 @@
+lifetime_checks=22 result=FAIL mode=deliberately-broken-release
+ASSERTION FAILED: completed but executable command list cannot release readback
+ASSERTION FAILED: unsealed but executable early frame cannot release
+ASSERTION FAILED: ambiguous repeated submission must remain retained
+ASSERTION FAILED: failed signal cannot prove readback release
+ASSERTION FAILED: device-removal sentinel cannot prove release
+ASSERTION FAILED: unknown submission is not a safe release proof

@@ -1,0 +1,31 @@
+test_boolean_is_not_a_numeric_authority_enum (__main__.CaptureReaderTests.test_boolean_is_not_a_numeric_authority_enum) ... ok
+test_cli_will_not_write_inside_capture (__main__.CaptureReaderTests.test_cli_will_not_write_inside_capture) ... ok
+test_complete_capture (__main__.CaptureReaderTests.test_complete_capture) ... ok
+test_duplicate_json_keys_are_not_silently_accepted (__main__.CaptureReaderTests.test_duplicate_json_keys_are_not_silently_accepted) ... ok
+test_edit_permission_cannot_follow_raw_authority_without_support (__main__.CaptureReaderTests.test_edit_permission_cannot_follow_raw_authority_without_support) ... ok
+test_equality_cannot_synthesize_unknown_authority (__main__.CaptureReaderTests.test_equality_cannot_synthesize_unknown_authority) ... ok
+test_frame_json_cannot_disagree_with_manifest (__main__.CaptureReaderTests.test_frame_json_cannot_disagree_with_manifest) ... ok
+test_gpu_pitch_cannot_index_tight_disk_payload (__main__.CaptureReaderTests.test_gpu_pitch_cannot_index_tight_disk_payload) ... ok
+test_invalid_copy_footprint (__main__.CaptureReaderTests.test_invalid_copy_footprint) ... ok
+test_invalid_support_reason_cannot_disappear (__main__.CaptureReaderTests.test_invalid_support_reason_cannot_disappear) ... ok
+test_invented_support (__main__.CaptureReaderTests.test_invented_support) ... ok
+test_malformed_nested_structure_fails_closed (__main__.CaptureReaderTests.test_malformed_nested_structure_fails_closed) ... ok
+test_missing_carry_words_even_with_matching_rehashed_short_file (__main__.CaptureReaderTests.test_missing_carry_words_even_with_matching_rehashed_short_file) ... ok
+test_missing_role_must_be_explicit (__main__.CaptureReaderTests.test_missing_role_must_be_explicit) ... ok
+test_original_payload_hash_corruption (__main__.CaptureReaderTests.test_original_payload_hash_corruption) ... ok
+test_partial_prefix_accepts_raw_authority_without_edit_permission (__main__.CaptureReaderTests.test_partial_prefix_accepts_raw_authority_without_edit_permission) ... ok
+test_path_traversal_rejected_before_read (__main__.CaptureReaderTests.test_path_traversal_rejected_before_read) ... ok
+test_provider_controls_frame_mismatch_with_valid_file_hash (__main__.CaptureReaderTests.test_provider_controls_frame_mismatch_with_valid_file_hash) ... ok
+test_recovery_equal_words_remains_protected (__main__.CaptureReaderTests.test_recovery_equal_words_remains_protected) ... ok
+test_stale_sequence_epoch_even_if_each_surface_is_relabelled (__main__.CaptureReaderTests.test_stale_sequence_epoch_even_if_each_surface_is_relabelled) ... ok
+test_stale_surface_epoch (__main__.CaptureReaderTests.test_stale_surface_epoch) ... ok
+test_symlink_to_external_file_rejected (__main__.CaptureReaderTests.test_symlink_to_external_file_rejected) ... ok
+test_wrong_capture_id (__main__.CaptureReaderTests.test_wrong_capture_id) ... ok
+test_wrong_lobe (__main__.CaptureReaderTests.test_wrong_lobe) ... ok
+test_wrong_origin (__main__.CaptureReaderTests.test_wrong_origin) ... ok
+test_wrong_scale (__main__.CaptureReaderTests.test_wrong_scale) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.291s
+
+OK

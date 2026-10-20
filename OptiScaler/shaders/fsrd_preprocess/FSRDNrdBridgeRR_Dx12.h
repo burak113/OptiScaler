@@ -2,6 +2,7 @@
 #include "FSRDNrdBridge_Types.h"
 #include "FSRDRadianceScale.h"
 #include "FSRDNrdTemporalControl.h"
+#include "FSRDNrdObservationContract.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -201,6 +202,19 @@ struct RRWrapperNativeDebugOutputSnapshot
 
 struct RRRecordedOutput;
 using RRRecordedOutputLease = std::shared_ptr<const RRRecordedOutput>;
+// An optional capture-only callback. The caller supplies it only for a USER-armed
+// native observation request. No diagnostics allocation or copy occurs otherwise.
+// The callback records copies immediately, after input-anchor initialization and
+// before any radiance scaling. It must restore states and must never throw.
+struct RRNativeObservationRequest
+{
+    uint64_t domain = 0;
+    using Recorder = std::weak_ptr<void> (*)(ID3D12Device*, ID3D12GraphicsCommandList*,
+        const ConvertedResources& original, const ConvertedResources& effective,
+        uint64_t domain, uint64_t recordingId, uint64_t contextGeneration,
+        uint64_t resetEpoch, uint32_t frameIndex, uint32_t frameSL, bool actualReset) noexcept;
+    Recorder record = nullptr;
+};
 // Owned linear, demodulated RGB only. Keep owner alive through every trace/copy submission.
 struct RRRecordedOutputSnapshot
 {
@@ -209,6 +223,12 @@ struct RRRecordedOutputSnapshot
     ID3D12GraphicsCommandList* recording = nullptr;
     uint32_t frameSL = UINT32_MAX, width = 0, height = 0, frameIndex = 0;
     uint64_t contextGeneration = 0, recordingId = 0;
+    uint64_t resetEpoch = 0;
+    FSRDNrdObservation::SelectionPath specularSelection = FSRDNrdObservation::SelectionPath::Unknown;
+    FSRDNrdObservation::SelectionPath diffuseSelection = FSRDNrdObservation::SelectionPath::Unknown;
+    // The capture ledger owns this early frame. A weak link prevents a cycle
+    // when the completed observation packet retains this output's GPU lease.
+    std::weak_ptr<void> nativeObservationInputs;
     bool outputCommitted = false, recoveryActive = false, recoveryFallback = false;
     // Exact provider geometry and separate original-roughness recovery policy.
     ID3D12Resource* providerNormals = nullptr;
@@ -217,6 +237,7 @@ struct RRRecordedOutputSnapshot
     // Exact provider lighting for the user's turn-filter-OFF configuration.
     ID3D12Resource *providerPhysicalSpec = nullptr, *providerPhysicalDiff = nullptr;
     ID3D12Resource* postMotionAnchorGain = nullptr; // Optional 1/8-res trace witness, shader-readable.
+    ID3D12Resource* postMotionAnchorSums = nullptr; // Optional complete 32-byte low/high/count witness, COMMON.
     bool postMotionAnchorActive = false, postMotionAnchorFallback = false;
     std::string postMotionAnchorError;
     bool runtimeTuningValid = false;
@@ -248,14 +269,16 @@ class RRWrapper
     struct Impl;
     std::shared_ptr<Impl> impl_;
     bool RecordOwnedImpl(ID3D12GraphicsCommandList*, const ConvertedResources&, const FrameParameters&,
-                         RRRecordedOutputLease&, std::string&, NrdBridgeStagePerf::Sample*, bool prepareNativeCommit);
+                         RRRecordedOutputLease&, std::string&, NrdBridgeStagePerf::Sample*, bool prepareNativeCommit,
+                         const RRNativeObservationRequest& = {});
   public:
     RRWrapper();
     ~RRWrapper();
     bool PrepareFrame(const SLConstantsSnapshot&, bool requestedReset, FrameParameters& out, std::string& error);
     // Record only into owned RR stages. No title output/Consumer binding is consulted.
     bool RecordOwned(ID3D12GraphicsCommandList*, const ConvertedResources&, const FrameParameters&,
-                     RRRecordedOutputLease& output, std::string& error, NrdBridgeStagePerf::Sample* profiling = nullptr);
+                     RRRecordedOutputLease& output, std::string& error, NrdBridgeStagePerf::Sample* profiling = nullptr,
+                     const RRNativeObservationRequest& observations = {});
     // Same native recording/frame/generation, one successful commit; caller holds physical borrow/serialization.
     bool CommitOwned(ID3D12GraphicsCommandList*, const RRRecordedOutputLease&, ID3D12Resource* outputSpec,
                      ID3D12Resource* outputDiff, const FrameParameters&, std::string& error,

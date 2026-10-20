@@ -1,0 +1,396 @@
+{
+  "schema": "fsrd.native_observations.cpu_receipt.v1",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "numpy": "2.3.5",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "windows_host_built": false,
+  "gpu_executed": false,
+  "source_hashes": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdObservationContract.h": "3e0824e61729dbf89f5a2e6fa61438138b3937b1549926d1050ba8e03da6309c",
+    "research/astra20261020/integration_round2/09-native-observability/observation_tests.cpp": "e70ebd0ae0c6538fcb89e4769743e9a2b211dd9ad9bb2bdb32b5104aac30fb0c",
+    "research/astra20261020/integration_round2/09-native-observability/observation_checks.py": "8633bc75de1fb6956830e1334148d0d7faa1be2b9e3fe14d09024cfda7846537"
+  },
+  "frozen_source_hashes": {
+    "research/astra20261020/candidates/07-foliage-guides/src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "research/astra20261020/fixtures/clips/clip_loader.py": "d39f9dba3fa42e8a201c5f5ce48cf9fba6ec5284b4fef09f3f0aca98e3ff0ae9",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/fixed_base_masks.npz": "0a967ed660c36b82df34447b112e314aa09e08fa606530c4506f034329ab26d7",
+    "research/astra20261020/fixtures/clips/bottle_track7.npz": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+    "research/astra20261020/fixtures/clips/foliage23.npz": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd"
+  },
+  "frozen_evidence_unchanged": true,
+  "generated_cases_sha256": "9757ae9f66a546d683e36a3bdfa2c2c30d8def2555b742615a9ebcf550f579bf",
+  "fixture_inventory": [
+    {
+      "fixture": "research/astra20261020/fixtures/clips/bottle_track7.npz",
+      "frames": [
+        {
+          "frame": 180,
+          "probe_xy": [
+            63,
+            100
+          ],
+          "base_mask_count": 9275,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 181,
+          "probe_xy": [
+            81,
+            104
+          ],
+          "base_mask_count": 9430,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 182,
+          "probe_xy": [
+            53,
+            105
+          ],
+          "base_mask_count": 9560,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 183,
+          "probe_xy": [
+            99,
+            117
+          ],
+          "base_mask_count": 9864,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 184,
+          "probe_xy": [
+            21,
+            111
+          ],
+          "base_mask_count": 8730,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 185,
+          "probe_xy": [
+            51,
+            114
+          ],
+          "base_mask_count": 5479,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 186,
+          "probe_xy": [
+            38,
+            126
+          ],
+          "base_mask_count": 3114,
+          "authority": "unknown_missing_original_host_selection_witness"
+        }
+      ],
+      "chronology": "single_pass_original_order",
+      "initial_history": "unavailable"
+    },
+    {
+      "fixture": "research/astra20261020/fixtures/clips/foliage23.npz",
+      "frames": [
+        {
+          "frame": 43,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 44,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 45,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 46,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 47,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 48,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 49,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 50,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 51,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 52,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 53,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 54,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 55,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 56,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 57,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 58,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 59,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 60,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 61,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 62,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 63,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 64,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        },
+        {
+          "frame": 65,
+          "probe_xy": [
+            2,
+            32
+          ],
+          "base_mask_count": 11280,
+          "authority": "unknown_missing_original_host_selection_witness"
+        }
+      ],
+      "chronology": "single_pass_original_order",
+      "initial_history": "unavailable"
+    }
+  ],
+  "runs": [
+    {
+      "name": "compile",
+      "command": [
+        "/usr/bin/c++",
+        "-std=c++20",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O2",
+        "-DOBSERVATION_HAS_FROZEN_CASES",
+        "-I",
+        "/workspace/scratch/29cea04d2981/OptiScaler",
+        "-I",
+        "/tmp/astra09-new/observation",
+        "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/observation_tests.cpp",
+        "-o",
+        "/tmp/astra09-new/observation/observation_tests"
+      ],
+      "exit_status": 0,
+      "expected_status": 0,
+      "accepted": true,
+      "elapsed_seconds": 0.5912322259991925,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "contracts_and_frozen_probes",
+      "command": [
+        "/tmp/astra09-new/observation/observation_tests"
+      ],
+      "exit_status": 0,
+      "expected_status": 0,
+      "accepted": true,
+      "elapsed_seconds": 0.0019355370004632277,
+      "log_sha256": "ce66bae721a4a1f74ef7a5243f69da86cc8a286c34bf99cd7dcb214e549e6a57"
+    },
+    {
+      "name": "reject_broken_authority",
+      "command": [
+        "/tmp/astra09-new/observation/observation_tests",
+        "authority"
+      ],
+      "exit_status": 1,
+      "expected_status": 1,
+      "accepted": true,
+      "elapsed_seconds": 0.002449522000461002,
+      "log_sha256": "c4e5a1c8c522334adc01a9a08a4a29aeb2e8b07fecea7eaf267fa0b43737dd8f"
+    },
+    {
+      "name": "reject_broken_origin",
+      "command": [
+        "/tmp/astra09-new/observation/observation_tests",
+        "origin"
+      ],
+      "exit_status": 1,
+      "expected_status": 1,
+      "accepted": true,
+      "elapsed_seconds": 0.0017780599991965573,
+      "log_sha256": "319ae410fcd03b20d9e7bbede75b535795536fba9ad0273be7de12400c406b7f"
+    },
+    {
+      "name": "reject_broken_carry",
+      "command": [
+        "/tmp/astra09-new/observation/observation_tests",
+        "carry"
+      ],
+      "exit_status": 1,
+      "expected_status": 1,
+      "accepted": true,
+      "elapsed_seconds": 0.0013356229992496083,
+      "log_sha256": "6a91b496e4f0aafad25371985d3d4a2d6df87f67ca123a41ae93b96933345c3c"
+    },
+    {
+      "name": "reject_broken_normal",
+      "command": [
+        "/tmp/astra09-new/observation/observation_tests",
+        "normal"
+      ],
+      "exit_status": 1,
+      "expected_status": 1,
+      "accepted": true,
+      "elapsed_seconds": 0.001512059001470334,
+      "log_sha256": "bba05203b7d5e6e8f53233a75cd6d9d93e1942649b3fd67b3f9c032522944764"
+    }
+  ],
+  "passed": true
+}

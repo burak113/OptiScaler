@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "FSRDGameTraceSession.h"
 #include "FSRDGameTraceBridgeMetadata.h"
+#include "FSRDNrdSupportContract.h"
 #include "RRTraceFence.h"
 #include "RRTraceAdditiveIO.h"
 #include "../../include/fsr-rr/ffx_denoiser.h"
@@ -87,6 +88,7 @@ static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst + 1]) 
 std::atomic<bool> g_captureActive {false};
 std::atomic<bool> g_surveyActive {false};
 std::atomic<bool> g_bridgeRequested {false};
+std::atomic<bool> g_nativeObservationsRequested {false};
 std::atomic<bool> g_srRequested {false};
 std::atomic<bool> g_fullContextReferenceRequested {false};
 std::atomic<bool> g_particleLayerDiagnosticsRequested {false};
@@ -100,6 +102,7 @@ struct Session
     bool fullContextReference = false, particleLayerDiagnostics = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
     bool survey = false, bridge = false, bridgeWaitForReset = false, bridgeResetIssued = false;
+    bool nativeObservations = false;
     uint64_t bridgeDomain = 0, lastBridgeRecording = 0;
     uint32_t lastBridgeSL = UINT32_MAX, bridgeSignal = 0;
     bool initialized = false, initializing = false, closing = false;
@@ -263,6 +266,20 @@ struct Diagnostic
     Image image;
     Json metadata;
 };
+struct NativeObservationState
+{
+    FSRDNrdObservation::Stamp stamp;
+    uint64_t recordingId = 0;
+    uint32_t frameSL = UINT32_MAX, width = 0, height = 0;
+    uint32_t cropX = 0, cropY = 0, cropWidth = 0, cropHeight = 0;
+    bool actualReset = false, adopted = false;
+    // Original S/D, then after-anchor/pre-turn S/D. Only equal resources at
+    // this SAME observation time share an image. Never alias across stages.
+    std::array<size_t,4> physicalRoles {};
+    std::array<ID3D12Resource*,4> physicalSources {};
+    std::array<FSRDNrdObservation::Surface,2> raw, selected;
+    std::array<FSRDNrdObservation::SelectionWitness,2> selection;
+};
 struct Frame
 {
     std::shared_ptr<RRTraceFence::Ticket> ticket;
@@ -272,6 +289,7 @@ struct Frame
     bool bridge = false;
     FSRDGameTraceSession::BridgeIdentity bridgeIdentity {};
     std::shared_ptr<void> bridgeInputOwner, bridgeOutputOwner;
+    std::unique_ptr<NativeObservationState> observations;
     Json bridgeMetadata;
     Image bridgeControlHeader, bridgeControlStatus;
     FSRDGameTraceSession::BridgeControlStatusObserver bridgeControlStatusObserver = nullptr;
@@ -1038,6 +1056,61 @@ Image PlanBridgeFlag(ID3D12Device* device)
     image.footprintBytes = 40; image.allocationBytes = ChargedReadbackBytes(device,40);
     return image;
 }
+Image PlanBridgeValidity(ID3D12Device* device, const Session& s, ID3D12Resource* source)
+{
+    D3D12_RESOURCE_DESC desc {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Width = s.rw; desc.Height = s.rh;
+    desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1; desc.Format = DXGI_FORMAT_R8_UINT;
+    if (source) desc = source->GetDesc();
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format != DXGI_FORMAT_R8_UINT ||
+        desc.Width < s.rw || desc.Height < s.rh || desc.Width > UINT_MAX || desc.MipLevels != 1 ||
+        desc.DepthOrArraySize != 1 || desc.SampleDesc.Count != 1 || desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
+        throw std::runtime_error("NRD_BRIDGE original depth validity has incompatible extent/format");
+    Image image; image.sourceDesc = desc; image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height;
+    image.width = s.width; image.height = s.height; image.cropX = s.x; image.cropY = s.y;
+    image.format = uint32_t(desc.Format); image.bpp = image.channels = 1;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source));
+    desc.Width = image.width; desc.Height = image.height;
+    device->GetCopyableFootprints(&desc,0,1,0,&image.footprint,nullptr,nullptr,&image.footprintBytes);
+    image.allocationBytes = ChargedReadbackBytes(device,image.footprintBytes); return image;
+}
+Image PlanBridgeAnchorSums(ID3D12Device* device, ID3D12Resource* source)
+{
+    const auto desc = source->GetDesc();
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || desc.Width != 32)
+        throw std::runtime_error("Native anchor sums require all eight uint32 words");
+    Image image; image.sourceDesc = desc; image.sourceWidth = image.width = 32;
+    image.sourceHeight = image.height = image.bpp = image.channels = 1;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source));
+    image.footprint.Footprint = {DXGI_FORMAT_UNKNOWN,32,1,1,32};
+    image.footprintBytes = 32; image.allocationBytes = ChargedReadbackBytes(device,32); return image;
+}
+// Conservative admission for the complete later packet BEFORE the first early
+// copy. Alias elimination can reduce the final charge; the ledger still charges
+// only actual committed readbacks. No diagnostic failure changes RR selection.
+void PreflightNativeObservationFrame(ID3D12Device* device, Session& s, uint64_t earlyBytes, uint64_t earlyPayload)
+{
+    uint64_t bytes = earlyBytes, payload = earlyPayload + NativeControlBytes + 36;
+    for (size_t role=0; role<14; ++role)
+    {
+        const auto image = role == 13 ? PlanBridgeFlag(device) : PlanBridgeImage(device,s,role,nullptr);
+        bytes += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+    }
+    for (const size_t role : {size_t(3),size_t(4)})
+    {
+        const auto image = PlanBridgeImage(device,s,role,nullptr);
+        bytes += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+    }
+    const auto validity = PlanBridgeValidity(device,s,nullptr);
+    bytes += validity.allocationBytes; payload += uint64_t(validity.width)*validity.height;
+    D3D12_RESOURCE_DESC gain {};
+    gain.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; gain.Width = std::max(1u,s.rw/8u);
+    gain.Height = std::max(1u,s.rh/8u); gain.DepthOrArraySize = gain.MipLevels = 1;
+    gain.SampleDesc.Count = 1; gain.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    bytes += PlannedReadbackBytes(device,gain) + ChargedReadbackBytes(device,32);
+    payload += gain.Width*gain.Height*8 + 32;
+    PreflightReadback(s,bytes,bytes); PreflightPayload(s,payload);
+}
 void RecordBridgeCopy(ID3D12GraphicsCommandList* list, Frame& f, Image& image,
                       FSRDGameTraceSession::Source source, bool buffer = false)
 {
@@ -1065,6 +1138,177 @@ std::string BridgeShaderHex(const std::array<uint8_t,32>& words)
     std::string result(64,'0');
     for (size_t i=0;i<words.size();++i) { result[2*i] = hex[words[i]>>4]; result[2*i+1] = hex[words[i]&15]; }
     return result;
+}
+Json ObservationStamp(const FSRDNrdObservation::Stamp& stamp)
+{
+    return {{"stream_id",stamp.streamId},{"frame",stamp.frame},{"reset_epoch",stamp.resetEpoch},
+        {"resource_epoch",stamp.resourceEpoch},{"known",stamp.known == 1}};
+}
+const char* ObservationPathName(FSRDNrdObservation::SelectionPath path) noexcept
+{
+    using Path = FSRDNrdObservation::SelectionPath;
+    switch (path)
+    {
+    case Path::RawRR: return "raw_rr";
+    case Path::LobeRecovery: return "lobe_recovery";
+    case Path::FlatAlbedo: return "flat_albedo";
+    case Path::ProtectedNative: return "protected_native";
+    default: return "unknown";
+    }
+}
+FSRDNrdObservation::Surface ObservationSurface(const Frame& f, const Session& s, size_t slot,
+    FSRDNrdObservation::Role role, FSRDNrdObservation::Lobe lobe, float providerScale = 0)
+{
+    using namespace FSRDNrdObservation;
+    const auto& image = f.surveyImages.at(slot);
+    Surface value; value.availability = Availability::Present; value.unavailableReason = Reason::None;
+    value.role = role; value.lobe = lobe; value.stamp = f.observations->stamp;
+    value.resourceId = slot+1; // Frame-local alias ID; never a persistent GPU address.
+    auto& layout = value.layout; layout.dxgiFormat = image.format;
+    layout.allocation = {image.sourceWidth,image.sourceHeight}; layout.active = {s.rw,s.rh};
+    layout.captured = {image.width,image.height}; layout.cropOrigin = {image.cropX,image.cropY};
+    // The exported payload is tight. The actual padded D3D footprint remains
+    // alongside it as copy_footprint and must not be used to index the disk file.
+    layout.rowBytes = layout.rowPitch = uint64_t(image.width)*image.bpp;
+    layout.payloadBytes = layout.rowBytes*image.height;
+    switch (image.format)
+    {
+    case DXGI_FORMAT_R16G16B16A16_FLOAT: layout.encoding = Encoding::Rgba16FloatWords; break;
+    case DXGI_FORMAT_R10G10B10A2_UNORM: layout.encoding = Encoding::R10G10B10A2UnormWords; break;
+    case DXGI_FORMAT_R32_FLOAT: layout.encoding = Encoding::R32FloatWords; break;
+    case DXGI_FORMAT_R8_UINT: layout.encoding = Encoding::R8UintWords; break;
+    default: layout.encoding = Encoding::Unknown; break;
+    }
+    if (role == Role::AnchorSums)
+    {
+        layout.encoding = Encoding::NativeAnchorSums32;
+        layout.allocation = layout.active = layout.captured = {8,1}; layout.cropOrigin = {};
+    }
+    if (IsRadiance(role))
+    {
+        if (!std::isfinite(providerScale) || providerScale < 1 || providerScale > 4096 ||
+            std::floor(providerScale) != providerScale)
+            throw std::runtime_error("Native observation has an unknown per-lobe provider scale");
+        value.scale = {1,uint32_t(providerScale),1};
+    }
+    if (ValidateSurface(value) != Reason::None)
+        throw std::runtime_error("Native observation surface failed its portable ABI validation");
+    return value;
+}
+Json ObservationSurfaceMetadata(const FSRDNrdObservation::Surface& surface, const Frame& f, size_t slot,
+    const char* stage)
+{
+    const auto& p = surface.layout;
+    return {{"availability","present"},{"role",uint32_t(surface.role)},{"lobe",uint32_t(surface.lobe)},
+        {"stamp",ObservationStamp(surface.stamp)},{"resource_id",surface.resourceId},
+        {"image",f.surveyKeys.at(slot)},{"stage",stage},{"dxgi_format",p.dxgiFormat},{"encoding",uint32_t(p.encoding)},
+        {"allocation_extent",{p.allocation.width,p.allocation.height}},{"active_extent",{p.active.width,p.active.height}},
+        {"captured_extent",{p.captured.width,p.captured.height}},{"crop_origin",{p.cropOrigin.x,p.cropOrigin.y}},
+        {"coordinate_space","bridge_render_pixels; title_native_source_mapping_not_inferred"},
+        {"payload_layout",{{"byte_offset",p.byteOffset},{"row_pitch",p.rowPitch},{"row_bytes",p.rowBytes},{"bytes",p.payloadBytes}}},
+        {"copy_footprint",CopyFootprintMetadata(f.surveyImages.at(slot))},
+        {"native_texture_row_pitch",nullptr},{"native_texture_row_pitch_reason","D3D12 texture layout is opaque; copy footprint is separately observed"},
+        {"scale",{{"known",surface.scale.known == 1},{"provider_multiplier",surface.scale.providerMultiplier},
+            {"stored_multiplier",surface.scale.storedMultiplier}}}};
+}
+Json NativeObservationMetadata(Frame& f, const Session& s, const NrdBridge::RRRecordedOutputSnapshot& output,
+    const NrdBridge::FrameParameters& parameters, size_t originalNormalSlot, size_t originalMotionSlot,
+    size_t validitySlot, size_t anchorSumsSlot)
+{
+    using namespace FSRDNrdObservation;
+    auto& o = *f.observations;
+    Json surfaces = Json::object(), authority = Json::object();
+    const auto add = [&](const char* name, size_t slot, Role role, Lobe lobe, const char* stage, float scale = 0) {
+        auto value = ObservationSurface(f,s,slot,role,lobe,scale);
+        surfaces[name] = ObservationSurfaceMetadata(value,f,slot,stage); return value;
+    };
+    for (size_t i=0; i<2; ++i)
+    {
+        const bool specular = i == 0;
+        const auto lobe = specular ? Lobe::Specular : Lobe::Diffuse;
+        const auto scale = specular ? output.providerSpecularRadianceScale : output.providerDiffuseRadianceScale;
+        add(specular ? "physical_source_specular" : "physical_source_diffuse",o.physicalRoles[i],Role::PhysicalSource,lobe,
+            "decoded_native_physical_before_anchor_turn_filters_and_scale",scale);
+        add(specular ? "physical_pre_scale_specular" : "physical_pre_scale_diffuse",o.physicalRoles[2+i],Role::EffectivePhysical,lobe,
+            "after_anchor_before_turn_filters_and_scale; exact_early_words",scale);
+        o.raw[i] = add(specular ? "raw_rr_specular" : "raw_rr_diffuse",f.bridgeRoles[7+i],Role::RawRR,lobe,
+            "after_provider_and_inverse_radiance_scale_before_recovery",scale);
+        o.selected[i] = add(specular ? "selected_rr_specular" : "selected_rr_diffuse",f.bridgeRoles[9+i],Role::SelectedOutput,lobe,
+            "actual_selected_resource_after_optional_recovery_before_native_commit",scale);
+        o.selection[i] = {specular ? output.specularSelection : output.diffuseSelection,o.stamp,lobe,
+            o.raw[i].resourceId,o.selected[i].resourceId};
+        const auto& selection = o.selection[i];
+        authority[specular ? "specular" : "diffuse"] = {{"selection_path",ObservationPathName(selection.path)},
+            {"selection_path_value",uint32_t(selection.path)},{"selection_authority",uint32_t(SelectionAuthority(selection))},
+            {"raw_resource_id",selection.rawResourceId},{"selected_resource_id",selection.selectedResourceId},
+            {"equality_guard",uint32_t(EqualityGuard::Unknown)},{"raw_authority_valid",false},{"raw_edit_eligible",false},
+            {"equality_status","pending_protected_fence_snapshot"},
+            {"scope","whole_lobe_host_selection; recovery_outputs_protected_even_when_equal"}};
+    }
+    add("provider_normal_roughness",f.bridgeRoles[4],Role::ProviderNormalRoughness,Lobe::None,
+        "actual_RR_packed_guide_after_optional_flat_floor");
+    add("bridge_normal_before_flat",originalNormalSlot == SIZE_MAX ? f.bridgeRoles[4] : originalNormalSlot,
+        Role::ProviderNormalRoughness,Lobe::None,"converted_native_RGB_packing; category_may_have_been_cleared; not_original_title_words");
+    add("provider_depth",f.bridgeRoles[2],Role::ProviderDepth,Lobe::None,"converted_signed_linear_depth; raw_nonfinite_and_clamp_history_not_reconstructed");
+    add("provider_motion",f.bridgeRoles[3],Role::ProviderMotion,Lobe::None,"actual_finalized_provider_motion_after_optional_lighting_guard");
+    add("bridge_motion_before_lighting_guard",originalMotionSlot == SIZE_MAX ? f.bridgeRoles[3] : originalMotionSlot,
+        Role::ProviderMotion,Lobe::None,"finalized_bridge_motion_before_lighting_guard; not_original_title_MV_words");
+    if (validitySlot != SIZE_MAX)
+        add("depth_validity",validitySlot,Role::GeometryValidity,Lobe::None,"geometry_writer_original_depth_classification");
+    else surfaces["depth_validity"] = {{"availability","missing"},{"reason","conversion path did not publish validity"}};
+    if (anchorSumsSlot != SIZE_MAX)
+        add("anchor_sums",anchorSumsSlot,Role::AnchorSums,Lobe::None,"complete_native_32_byte_atomic_low_high_count_buffer_after_anchor");
+    else surfaces["anchor_sums"] = {{"availability","missing"},{"reason","no active native anchor accumulator"}};
+    const auto support = NrdBridge::SupportContract::InvalidNativeSupport(o.stamp.resetEpoch,o.stamp.frame);
+    return {{"schema","fsrd-native-observation-v1"},{"abi_version",AbiVersion},{"capture_id",s.status.captureId},
+        {"stamp",ObservationStamp(o.stamp)},
+        {"recording_id",o.recordingId},{"streamline_frame",o.frameSL},{"actual_reset",o.actualReset},
+        {"surfaces",std::move(surfaces)},{"authority",std::move(authority)},
+        {"support",{{"version",support.version},{"valid",false},{"reason_bits",support.reasons},
+            {"reasons",{"unavailable_actual_nonzero_donor_footprint","unavailable_recalled_key_correspondence"}},
+            {"scope","no_native_support_certificate; current_cell_gain_sums_and_correlation_cannot_certify_mixed_donors"}}},
+        {"motion_convention",{{"units","full_render_uv"},{"direction","previous_minus_current"},
+            {"jitter","already_encoded_no_extra_delta"},{"z","signed_previous_minus_current_depth_delta; per_pixel_path_unobserved"},
+            {"per_pixel_correspondence","unknown"}}},
+        {"provider_depth_sign_float32_bits",FSRDGameTraceBridgeMetadata::Bits(parameters.depthSign)},
+        {"alpha_policy","opaque_original_words_at_each_observed_stage; no_float_conversion_or_semantic_validation"},
+        {"unknown",{{"title_native_normal_roughness","not_captured_before_geometry_conversion; RGB_is_native_packing_but_A_may_be_cleared"},
+            {"title_raw_depth","not_captured_before_abs_clamp_and_sign_conversion"},
+            {"title_raw_motion","not_captured_before_finalization"},
+            {"title_crop_origin","GPU_native_geometry_constants_not_observed_here; zero_is_not_assumed"},
+            {"material_or_layer_identity","not_observable_from_normal_roughness_or_correlation"},
+            {"upstream_exposure_and_modulation","not_attested"}}},
+        {"capture_semantics","observations_only; no_causal_truth_or_quality_claim"}};
+}
+void CompleteNativeObservationMetadata(const Frame& f, CpuFrame& packet)
+{
+    if (!f.observations) return;
+    using namespace FSRDNrdObservation;
+    const auto& o = *f.observations;
+    const auto payloadFor = [&](size_t slot) -> const std::vector<uint8_t>* {
+        const auto filename = f.surveyKeys.at(slot)+".bin";
+        const auto it = std::find_if(packet.payloads.begin(),packet.payloads.end(),
+            [&](const CpuPayload& payload) { return payload.kind == 0 && payload.filename == filename; });
+        return it == packet.payloads.end() ? nullptr : &it->bytes;
+    };
+    for (size_t i=0; i<2; ++i)
+    {
+        const auto* raw = payloadFor(f.bridgeRoles[7+i]);
+        const auto* selected = payloadFor(f.bridgeRoles[9+i]);
+        EqualityGuard equality = EqualityGuard::Unknown;
+        if (raw && selected)
+            equality = raw->size() == selected->size() && EqualWords(raw->data(),selected->data(),raw->size()) ?
+                EqualityGuard::EqualWords : EqualityGuard::DifferentWords;
+        const auto reason = ValidateRawAuthority(o.selection[i],o.raw[i],o.selected[i],equality);
+        auto& metadata = packet.row["native_observations"]["authority"][i == 0 ? "specular" : "diffuse"];
+        metadata["equality_guard"] = uint32_t(equality);
+        metadata["equality_status"] = "original_words_compared_after_protected_fence_snapshot";
+        metadata["raw_authority_valid"] = reason == Reason::None;
+        metadata["authority_validation_reason"] = uint32_t(reason);
+        // Authority and geometric support are independent requirements. Native
+        // donor lineage remains unavailable, so this packet permits no edit.
+        metadata["raw_edit_eligible"] = false;
+    }
 }
 
 // This function is called ONLY under WithCompletedSnapshot. Storage was sized
@@ -1273,6 +1517,7 @@ struct FSRDGameTraceSession::Impl
             });
             if (!protectedCopy) return {};
             if (!copied) throw std::runtime_error("FRAME_SURVEY protected readback Map failed");
+            if (f->observations) CompleteNativeObservationMetadata(*f,*packet);
             if (f->bridge && f->bridgeControlHeader.readback)
             {
                 const auto found = std::find_if(packet->payloads.begin(),packet->payloads.end(),[](const auto& value) { return value.kind == -6; });
@@ -1712,6 +1957,9 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         s->bridge = request.capturePath == Request::CapturePath::NrdBridge;
         if (request.bridgeSignal > 1) throw std::runtime_error("NRD_BRIDGE signal selector must be A(0) or B(1)");
         s->bridgeDomain = request.bridgeDomain; s->bridgeWaitForReset = request.bridgeWaitForReset;
+        if (request.nativeObservations && !s->bridge)
+            throw std::runtime_error("Native observations require the NRD bridge capture path");
+        s->nativeObservations = request.nativeObservations;
         s->bridgeSignal = request.bridgeSignal; s->status.bridgeSignal = request.bridgeSignal;
         s->status.nrdBridge = s->bridge;
         if (request.bridgeWaitForReset && !s->bridge) throw std::runtime_error("History reset capture intent requires the NRD bridge path");
@@ -1783,6 +2031,10 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             s->manifest["domain_policy"] = "selected_signal_and_explicit_selector_or_first_eligible_domain_only; other_chains_are_not_captured_or_merged";
             s->manifest["history_replay_scope"] = "full_render_and_actual_first_SDK_RESET_and_consecutive_same_context_required; ordinary_arm_no_reset; explicit_USER_reset_intent_recorded_separately; cropped_or_hidden_prior_history_not_reconstructible";
             s->manifest["native_nrd_outputs"] = {{"captured",false},{"used_as_reference",false},{"used_as_correction",false}};
+            if (s->nativeObservations)
+                s->manifest["native_observations"] = {{"schema","fsrd-native-observation-v1"},
+                    {"requested",true},{"default_enabled",false},{"capture_only",true},
+                    {"observer_effect","extra_copy_barriers_and_bounded_readbacks_can_change_timing_and_residency"}};
         }
         if (request.fullContextReference)
         {
@@ -1792,6 +2044,7 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         }
         control.current = s;
         g_bridgeRequested.store(s->bridge,std::memory_order_release);
+        g_nativeObservationsRequested.store(s->nativeObservations,std::memory_order_release);
         g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
         if (request.particleLayerDiagnostics)
             s->manifest["particle_layer_diagnostics"] = {{"requested",true},{"scope","original_title_guides_pre_sdk_conversion"},{"particle_bypass",false}};
@@ -1837,6 +2090,8 @@ bool FSRDGameTraceSession::IsActive() noexcept
 { return g_captureActive.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::IsNrdBridgeCaptureActive() noexcept
 { return IsActive() && g_bridgeRequested.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::WantsNativeObservations() noexcept
+{ return IsNrdBridgeCaptureActive() && g_nativeObservationsRequested.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsNrdBridgeSignal(uint32_t index) noexcept
 {
     if (index > 1 || !IsNrdBridgeCaptureActive()) return false;
@@ -2010,6 +2265,93 @@ void FSRDGameTraceSession::CompleteSrFrame(ID3D12GraphicsCommandList* cmd, Sourc
     catch (const std::exception& error) { m_impl->Failure(error.what()); }
     catch (...) { m_impl->Failure("Unknown SR snapshot failure"); }
 }
+std::weak_ptr<void> FSRDGameTraceSession::RecordNativeObservationInputs(
+    ID3D12Device* device, ID3D12GraphicsCommandList* cmd, const NrdBridge::ConvertedResources& original,
+    const NrdBridge::ConvertedResources& effective, uint64_t domain, uint64_t recordingId,
+    uint64_t contextGeneration, uint64_t resetEpoch, uint32_t frameIndex, uint32_t frameSL, bool actualReset) noexcept
+{
+    if (!WantsNativeObservations()) return {}; // No locks, allocation, queries or telemetry while OFF.
+    auto& control = Global(); FrameGraveyard dead; std::shared_ptr<Frame> f;
+    std::scoped_lock lock(control.mutex);
+    const auto session = control.current;
+    try
+    {
+        if (!session || !session->bridge || !session->nativeObservations || !session->status.active ||
+            session->stop || session->closing || !session->initialized || GetTickCount64() < session->startTick ||
+            session->status.recorded >= session->status.target || (session->bridgeDomain && session->bridgeDomain != domain)) return {};
+        auto& s = *session;
+        if (s.bridgeWaitForReset && !s.bound && !actualReset) return {};
+        if (s.bound && s.lastBridgeSL == frameSL) return {};
+        if (!device || !cmd || !domain || !recordingId || !contextGeneration || !resetEpoch || frameSL == UINT32_MAX ||
+            !original.width || !original.height || original.width != effective.width || original.height != effective.height)
+            throw std::runtime_error("Native observation has incomplete recording/epoch/extent identity");
+        ComPtr<ID3D12Device> listDevice;
+        if (FAILED(cmd->GetDevice(IID_PPV_ARGS(&listDevice))) || listDevice.Get() != device)
+            throw std::runtime_error("Native observation command list device mismatch");
+        ReapReadbacks(control,dead); ResolveRegion(s,original.width,original.height);
+        f = std::make_shared<Frame>(); f->bridge = true; f->discarded = true;
+        f->owner = session; f->list = cmd; f->ordinal = s.status.recorded;
+        f->observations = std::make_unique<NativeObservationState>();
+        auto& o = *f->observations;
+        o.stamp = {domain,frameIndex,resetEpoch,contextGeneration,1};
+        o.recordingId = recordingId; o.frameSL = frameSL; o.actualReset = actualReset;
+        o.width = original.width; o.height = original.height;
+        o.cropX = s.x; o.cropY = s.y; o.cropWidth = s.width; o.cropHeight = s.height;
+        o.physicalSources = {original.spec,original.diff,effective.spec,effective.diff};
+        constexpr std::array<const char*,4> names {"native_source_specular","native_source_diffuse",
+            "physical_pre_scale_specular","physical_pre_scale_diffuse"};
+        uint64_t bytes = 0, payload = 0;
+        for (size_t role=0; role<o.physicalSources.size(); ++role)
+        {
+            auto* source = o.physicalSources[role];
+            if (!source) throw std::runtime_error("Native observation physical source is missing");
+            ComPtr<ID3D12Device> sourceDevice;
+            if (FAILED(source->GetDevice(IID_PPV_ARGS(&sourceDevice))) || sourceDevice.Get() != device)
+                throw std::runtime_error("Native observation physical source device mismatch");
+            size_t alias = role;
+            for (size_t earlier=0; earlier<role; ++earlier)
+                if (source == o.physicalSources[earlier]) { alias = earlier; break; }
+            if (alias != role) { o.physicalRoles[role] = o.physicalRoles[alias]; continue; }
+            auto image = PlanBridgeImage(device,s,role%2,source);
+            if (image.sourceDesc.MipLevels != 1)
+                throw std::runtime_error("Native observation requires the single-mip owned signal contract");
+            bytes += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+            o.physicalRoles[role] = f->surveyImages.size();
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(names[role]);
+            f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
+        }
+        PreflightNativeObservationFrame(device,s,bytes,payload);
+        f->ticket = RRTraceFence::Arm(device,cmd);
+        control.retained.push_back(f); // Orphans remain bounded/retained until real fence + Reset proof.
+        for (auto& image : f->surveyImages)
+        {
+            AllocateReadback(device,*f,image,image.footprintBytes);
+            f->ticket->Retain(image.readback.Get());
+        }
+        for (auto* source : o.physicalSources) f->ticket->Retain(source);
+        // All fallible allocation/ownership work and the whole-frame admission precede copies.
+        for (size_t role=0; role<o.physicalSources.size(); ++role)
+        {
+            const auto slot = o.physicalRoles[role];
+            if (f->bridgeCopied[slot]) continue;
+            RecordBridgeCopy(cmd,*f,f->surveyImages[slot],{o.physicalSources[role],D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
+            f->bridgeCopied[slot] = true;
+        }
+        return f;
+    }
+    catch (const std::exception& error)
+    {
+        if (f && f->ticket && !f->started) f->ticket->CancelUnrecorded();
+        if (session) { try { Stop(*session,error.what()); } catch (...) { session->stop = true; } }
+    }
+    catch (...)
+    {
+        if (f && f->ticket && !f->started) f->ticket->CancelUnrecorded();
+        if (session) { try { Stop(*session,"Native observation preparation failed"); } catch (...) { session->stop = true; } }
+    }
+    control.wake.notify_all(); return {}; // Diagnostics never reject the RR dispatch.
+}
+
 FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
     ID3D12Device* device, ID3D12GraphicsCommandList* cmd, const BridgeIdentity& identity,
     const NrdBridge::ConvertedResources& input, const std::shared_ptr<void>& inputOwner,
@@ -2075,7 +2417,37 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             output.providerPhysicalDiff ? output.providerPhysicalDiff : input.diff,input.linearDepth,output.providerMotion ? output.providerMotion : input.motion,output.providerNormals ? output.providerNormals : input.normals,
             input.specAlbedo,input.diffAlbedo,output.rawSpec,output.rawDiff,output.selectedSpec,output.selectedDiff};
         for (auto* source : sources) if (!source) throw std::runtime_error("NRD_BRIDGE trace missing owned stage");
-        auto f = std::make_shared<Frame>(); f->bridge = true; f->bridgeIdentity = identity;
+        std::shared_ptr<Frame> f;
+        if (s.nativeObservations)
+        {
+            f = std::static_pointer_cast<Frame>(output.nativeObservationInputs.lock());
+            if (!f && !s.bound) return {}; // Arm/delay can complete between early and late stages. Start next frame.
+            if (!f || !f->observations || f->observations->adopted || f->owner.lock() != impl.session ||
+                f->list != cmd || !f->ticket || f->ordinal != s.status.recorded)
+                throw std::runtime_error("Native observation early frame is missing, reused or from another session");
+            const auto& o = *f->observations;
+            const FSRDNrdObservation::Stamp expected {identity.domain,output.frameIndex,output.resetEpoch,output.contextGeneration,1};
+            if (FSRDNrdObservation::CompareStamp(o.stamp,expected) != FSRDNrdObservation::Reason::None ||
+                o.recordingId != identity.recordingId || o.frameSL != output.frameSL ||
+                o.width != input.width || o.height != input.height || o.cropX != s.x || o.cropY != s.y ||
+                o.cropWidth != s.width || o.cropHeight != s.height ||
+                o.actualReset != ((actualFlags & FFX_DENOISER_DISPATCH_RESET) != 0) ||
+                o.physicalSources[0] != input.spec || o.physicalSources[1] != input.diff ||
+                o.physicalSources[2] != sources[0] || o.physicalSources[3] != sources[1])
+                throw std::runtime_error("Native observation source/crop/reset/recording lineage mismatch");
+            const auto proof = RRTraceFence::Inspect(f->ticket);
+            if (proof.state.submitted || proof.state.detached || proof.state.invalid)
+                throw std::runtime_error("Native observation early recording is no longer open and unsubmitted");
+        }
+        else
+        {
+            f = std::make_shared<Frame>();
+            // Registration/pending-vector allocation may fail before Failure()
+            // can see this frame. Keep a ledger-only owner reapable in that case.
+            f->discarded = true;
+        }
+        const uint64_t earlyPayload = FramePayload(*f);
+        f->bridge = true; f->bridgeIdentity = identity;
         f->bridgeInputOwner = inputOwner; f->bridgeOutputOwner = output.owner; f->bridgeOwnedResources = sources;
         f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
         f->info.contextId = context; f->info.frameIndex = output.frameIndex; f->info.evaluationId = identity.recordingId;
@@ -2096,7 +2468,7 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             if (!attestation.is_object()) throw std::runtime_error("NRD_BRIDGE trace provider witness must be an object");
         }
         Json roles = Json::object();
-        uint64_t readback = 0, payload = f->constants.size()+36; // Optional native words32B + separate owned status4B reserve before copies.
+        uint64_t readback = 0, payload = earlyPayload+f->constants.size()+36; // Optional native words32B + separate owned status4B reserve before copies.
         for (size_t role=0;role<14;++role)
         {
             size_t alias = role;
@@ -2127,9 +2499,26 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back("post_motion_anchor_gain");
             f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
         }
+        size_t originalMotionSlot = SIZE_MAX, validitySlot = SIZE_MAX, anchorSumsSlot = SIZE_MAX;
+        if (s.nativeObservations)
+        {
+            const auto append = [&](Image image, const char* name) {
+                const auto slot = f->surveyImages.size();
+                readback += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+                f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(name);
+                f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false); return slot;
+            };
+            if (input.motion != sources[3])
+                originalMotionSlot = append(PlanBridgeImage(device,s,3,input.motion),"bridge_motion_before_lighting_guard");
+            if (input.validity)
+                validitySlot = append(PlanBridgeValidity(device,s,input.validity),"bridge_depth_validity");
+            if (output.postMotionAnchorSums)
+                anchorSumsSlot = append(PlanBridgeAnchorSums(device,output.postMotionAnchorSums),"post_motion_anchor_sums");
+        }
         // Includes both future encoded outputs and the optional exact GPU flag.
-        // No readback allocation or command has occurred at this point.
-        PreflightReadback(s,readback,readback); PreflightPayload(s,payload);
+        // Early native observations already passed a conservative whole-frame
+        // admission. Add only new allocations to the shared retained ledger.
+        PreflightReadback(s,f->gpuBytes+readback,readback); PreflightPayload(s,payload);
         f->bridgeMetadata = {{"identity",BridgeIdentityMetadata(identity)},{"frame_parameters",FSRDGameTraceBridgeMetadata::Frame(parameters,slConstants,slFrame,slViewport)},
             {"settings",settingsJson},{"settings_sha256",settingsHash},{"context_id",context},
             {"post_motion_anchor",{{"active",output.postMotionAnchorActive},{"fallback",output.postMotionAnchorFallback},
@@ -2159,14 +2548,27 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
         if(settings.requested.motionStability.enabled)f->bridgeMetadata["settings_lineage_sha256"]=lineageHash;
         if(settings.requested.lightingValidation)f->bridgeMetadata["lighting_validation"]={
             {"active",output.providerMotion&&output.providerMotion!=input.motion}};
+        if (s.nativeObservations)
+            f->bridgeMetadata["native_observations"] = NativeObservationMetadata(*f,s,output,parameters,
+                originalNormalSlot,originalMotionSlot,validitySlot,anchorSumsSlot);
         LARGE_INTEGER qpc {}; QueryPerformanceCounter(&qpc); f->qpc = uint64_t(qpc.QuadPart);
         f->bridgeMetadata["recording_qpc"] = f->qpc;
-        f->ticket = RRTraceFence::Arm(device,cmd);
-        impl.current = f; impl.pending.push_back(f); control.retained.push_back(f);
+        if (!f->ticket) { f->ticket = RRTraceFence::Arm(device,cmd); control.retained.push_back(f); }
+        impl.current = f; impl.pending.push_back(f);
         for (auto& image : f->surveyImages)
-        { const auto bytes = image.footprintBytes; AllocateReadback(device,*f,image,bytes); f->ticket->Retain(image.readback.Get()); }
+        {
+            if (image.readback) continue; // Adopt original early words; no duplicate allocation/copy.
+            const auto bytes = image.footprintBytes; AllocateReadback(device,*f,image,bytes); f->ticket->Retain(image.readback.Get());
+        }
         // Exclusively owned inputs/stages may be retained. Title destinations never enter this collection.
         for (auto* source : sources) f->ticket->Retain(source);
+        if (originalNormalSlot != SIZE_MAX) f->ticket->Retain(input.normals);
+        if (anchorGainSlot != SIZE_MAX) f->ticket->Retain(output.postMotionAnchorGain);
+        if (originalMotionSlot != SIZE_MAX) f->ticket->Retain(input.motion);
+        if (validitySlot != SIZE_MAX) f->ticket->Retain(input.validity);
+        if (anchorSumsSlot != SIZE_MAX) f->ticket->Retain(output.postMotionAnchorSums);
+        if (f->observations) f->observations->adopted = true;
+        f->discarded = false;
         for (size_t role=0;role<sources.size();++role)
         {
             const auto slot = f->bridgeRoles[role]; if (f->bridgeCopied[slot]) continue;
@@ -2175,16 +2577,29 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
         }
         if (originalNormalSlot != SIZE_MAX)
         {
-            f->ticket->Retain(input.normals);
             RecordBridgeCopy(cmd,*f,f->surveyImages[originalNormalSlot],{input.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
             f->bridgeCopied[originalNormalSlot] = true;
         }
         if (anchorGainSlot != SIZE_MAX)
         {
-            f->ticket->Retain(output.postMotionAnchorGain);
             RecordBridgeCopy(cmd,*f,f->surveyImages[anchorGainSlot],
                 {output.postMotionAnchorGain,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
             f->bridgeCopied[anchorGainSlot] = true;
+        }
+        if (originalMotionSlot != SIZE_MAX)
+        {
+            RecordBridgeCopy(cmd,*f,f->surveyImages[originalMotionSlot],{input.motion,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
+            f->bridgeCopied[originalMotionSlot] = true;
+        }
+        if (validitySlot != SIZE_MAX)
+        {
+            RecordBridgeCopy(cmd,*f,f->surveyImages[validitySlot],{input.validity,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
+            f->bridgeCopied[validitySlot] = true;
+        }
+        if (anchorSumsSlot != SIZE_MAX)
+        {
+            RecordBridgeCopy(cmd,*f,f->surveyImages[anchorSumsSlot],{output.postMotionAnchorSums,D3D12_RESOURCE_STATE_COMMON},true);
+            f->bridgeCopied[anchorSumsSlot] = true;
         }
         s.bridgeDomain = identity.domain; s.manifest["captured_domain"] = identity.domain;
         s.status.phase = "capturing"; impl.UpdateProgress(); control.wake.notify_all(); return f;

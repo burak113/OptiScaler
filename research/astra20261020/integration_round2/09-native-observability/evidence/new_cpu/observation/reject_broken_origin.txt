@@ -1,0 +1,8 @@
+{"checks":204,"failures":7,"mutant":"origin"}
+FAIL: moving crop offset and full render UV scale both applied
+FAIL: frozen moving crop coordinates agree with original clip loader
+FAIL: frozen moving crop coordinates agree with original clip loader
+FAIL: frozen moving crop coordinates agree with original clip loader
+FAIL: frozen moving crop coordinates agree with original clip loader
+FAIL: frozen moving crop coordinates agree with original clip loader
+FAIL: frozen moving crop coordinates agree with original clip loader

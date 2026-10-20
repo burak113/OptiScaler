@@ -991,6 +991,12 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdObservationContract.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdSupportContract.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.h" />

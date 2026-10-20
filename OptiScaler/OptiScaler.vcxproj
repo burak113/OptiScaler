@@ -352,6 +352,8 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceBridgeMetadata.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdObservationContract.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdSupportContract.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdTemporalControl.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdLightingGuard_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDRadianceScale.h" />

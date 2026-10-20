@@ -1,0 +1,24 @@
+{
+  "schema": "fsrd-native-observation-reader-tests-v1",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/observation_capture_reader_tests.py",
+    "--output",
+    "/tmp/astra09-new/reader"
+  ],
+  "python": "3.12.14",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "elapsed_seconds": 0.3029925130012998,
+  "tests_run": 26,
+  "failures": 0,
+  "errors": 0,
+  "passed": true,
+  "exit_status": 0,
+  "gpu_executed": false,
+  "fixtures": "synthetic CPU-written packets; no native GPU capture or quality acceptance",
+  "sources_sha256": {
+    "observation_capture_reader.py": "131e92dad0a0a4bd5515ceb34da853a23f07bd6f16f2043d53b831e0184ca956",
+    "observation_capture_reader_tests.py": "a260e77cde253041a355782fc6724eb2949e987f5405737cf5331f95f8d9b3dc"
+  },
+  "log": "observation_capture_reader_tests.txt"
+}

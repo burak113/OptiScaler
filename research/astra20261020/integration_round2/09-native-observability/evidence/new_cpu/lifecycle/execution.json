@@ -1,0 +1,57 @@
+{
+  "schema": "astra09-portable-lifetime-v1",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "commands": [
+    {
+      "name": "compile",
+      "argv": [
+        "/usr/bin/g++",
+        "-std=c++20",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O2",
+        "-I",
+        "/workspace/scratch/29cea04d2981/OptiScaler",
+        "/workspace/scratch/29cea04d2981/OptiScaler/research/astra20261020/integration_round2/09-native-observability/review_lifecycle_test.cpp",
+        "-o",
+        "/tmp/astra09-new/lifecycle/review_lifecycle_test"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "production_state",
+      "argv": [
+        "/tmp/astra09-new/lifecycle/review_lifecycle_test"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "passed": true,
+      "log_sha256": "bc8555b17591a7d7c60e635bba836c211cdef83d0aeed06dc7f5cd4de3a3df43"
+    },
+    {
+      "name": "reject_broken_release",
+      "argv": [
+        "/tmp/astra09-new/lifecycle/review_lifecycle_test",
+        "--broken-release"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "passed": true,
+      "log_sha256": "7483b80cd1a1504d803add4e75d2cb9d4a2478100774d9ca495f5345286ca838"
+    }
+  ],
+  "sources": {
+    "research/astra20261020/integration_round2/09-native-observability/review_lifecycle_test.cpp": "2c157dd2b4e2b37b6e556d8e74d795ecbe7d935bd7787d7ad62b1b1018deb0ae",
+    "OptiScaler/shaders/fsrd_preprocess/RRTraceFenceState.h": "90790694e488295a94d0e7eabf4ce828ccf9bf2a3d9e0a18dbc214fdcd3252b0",
+    "research/astra20261020/integration_round2/09-native-observability/review_run_lifecycle.py": "f04d2043e18068b91702e797cc44f09bd25c9683665f649a50b3c18c717d6d92"
+  },
+  "passed": true,
+  "windows_host_built": false,
+  "gpu_executed": false
+}
