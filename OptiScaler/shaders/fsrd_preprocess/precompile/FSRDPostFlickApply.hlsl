@@ -6,12 +6,16 @@
 // The keyframe band is recalled with the camera reprojection the chain already uses for its history
 // (current view-space point -> keyframe clip space) and validated against the keyframe's depth.
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 5)), DescriptorTable(UAV(u0, numDescriptors = 1))"
+// The half-resolution lookups use hardware bilinear with clamp addressing: the manual four-tap version cost about
+// sixteen texture reads per full-resolution pixel, which put the pass pair over its 0.3 ms budget at 2560x1440
+// (measured 0.42 ms); the clamp address mode reproduces the manual edge behaviour.
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 5)), DescriptorTable(UAV(u0, numDescriptors = 1)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP)"
 Texture2D<float4> InColor : register(t0);   // the composite of this frame, full resolution
 Texture2D<float2> InAux : register(t1);     // x age, y depth (half resolution)
 Texture2D<float4> InCur : register(t2);     // rgb this frame's band, a its wide level (half resolution)
 Texture2D<float4> InKey : register(t3);     // rgb keyframe band, a keyframe level (half resolution)
 Texture2D<float2> InKeyAux : register(t4);  // x keyframe depth, y 1 when the key holds a frame
+SamplerState InSampler : register(s0);      // clamp, linear: the half-resolution lookups
 RWTexture2D<float4> OutColor : register(u0);
 cbuffer CB_PostFlickApply : register(b0)
 {
@@ -22,23 +26,15 @@ cbuffer CB_PostFlickApply : register(b0)
     float4 Ratio;        // x low, y high
     uint HistoryValid; float Strength, BandClamp, Reserved2;
 }
-float4 SampleHalf(Texture2D<float4> source, float2 q, int2 half)
+// q is a full-resolution pixel coordinate; the half-resolution texture covers the same extent, so the normalized
+// coordinate is q / size and the clamp sampler handles the edges.
+float4 SampleHalf(Texture2D<float4> source, float2 q, float2 size)
 {
-    const float2 c = q * 0.5f - 0.5f;
-    const int2 b = int2(floor(c));
-    const float2 f = c - float2(b);
-    const int2 c0 = clamp(b, int2(0, 0), half - 1);
-    const int2 c1 = clamp(b + int2(1, 1), int2(0, 0), half - 1);
-    return lerp(lerp(source[c0], source[int2(c1.x, c0.y)], f.x), lerp(source[int2(c0.x, c1.y)], source[c1], f.x), f.y);
+    return source.SampleLevel(InSampler, q / size, 0.0f);
 }
-float2 SampleHalfAux(Texture2D<float2> source, float2 q, int2 half)
+float2 SampleHalfAux(Texture2D<float2> source, float2 q, float2 size)
 {
-    const float2 c = q * 0.5f - 0.5f;
-    const int2 b = int2(floor(c));
-    const float2 f = c - float2(b);
-    const int2 c0 = clamp(b, int2(0, 0), half - 1);
-    const int2 c1 = clamp(b + int2(1, 1), int2(0, 0), half - 1);
-    return lerp(lerp(source[c0], source[int2(c1.x, c0.y)], f.x), lerp(source[int2(c0.x, c1.y)], source[c1], f.x), f.y);
+    return source.SampleLevel(InSampler, q / size, 0.0f);
 }
 [RootSignature(MainRS)]
 [numthreads(8, 8, 1)]
@@ -46,7 +42,6 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
 {
     const int2 p = int2(dispatch.xy), size = int2(Size.xy);
     if (any(p >= size)) return;
-    const int2 half = int2(max(1, size.x / 2), max(1, size.y / 2));
     const float3 cur = SanitizeRadiance(InColor[p].rgb);
     const float2 aux = InAux[p >> 1];
     if (HistoryValid == 0u || !(aux.x < Extra.w))
@@ -72,12 +67,12 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     {
         const float2 kndc = clip.xy / clip.w;
         const float2 q = float2((kndc.x + 1.0f) * 0.5f * Size.x, (1.0f - kndc.y) * 0.5f * Size.y);
-        key = SampleHalf(InKey, q, half);
-        const float2 kaux = SampleHalfAux(InKeyAux, q, half);
+        key = SampleHalf(InKey, q, Size.xy);
+        const float2 kaux = SampleHalfAux(InKeyAux, q, Size.xy);
         const float expected = clip.w / Extra.y; // view z in the keyframe's frame
         valid = kaux.y > 0.0f && abs(kaux.x - abs(expected)) <= Extra.z * max(abs(expected), 1e-3f);
     }
-    const float4 curBand = SampleHalf(InCur, float2(float(p.x) + 0.5f, float(p.y) + 0.5f), half);
+    const float4 curBand = SampleHalf(InCur, float2(float(p.x) + 0.5f, float(p.y) + 0.5f), Size.xy);
     const float ratio = clamp(curBand.a / max(key.a, 1e-6f), Ratio.x, Ratio.y);
     const float blend = saturate(1.0f - aux.x / max(Extra.w, 1.0f)) * (valid ? 1.0f : 0.0f) * saturate(Strength);
     const float3 bandDelta = key.rgb * ratio - curBand.rgb;
