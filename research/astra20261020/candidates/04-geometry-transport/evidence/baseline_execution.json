@@ -1,0 +1,24 @@
+[
+  {
+    "name": "package_before",
+    "command": [
+      "python",
+      "-B",
+      "research/astra20261020/validate_package.py"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.6575311480009987,
+    "executor": "root / Linux CPU"
+  },
+  {
+    "name": "baseline_before",
+    "command": [
+      "python",
+      "-B",
+      "research/astra20261020/run_cpu.py"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 5.379380815998957,
+    "executor": "root / Linux CPU"
+  }
+]

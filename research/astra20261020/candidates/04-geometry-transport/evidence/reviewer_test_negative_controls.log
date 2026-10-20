@@ -1,0 +1,20 @@
+test_active_and_allocation_extent_are_not_same_coordinate_system (__main__.PreregisteredMutantSensitivity.test_active_and_allocation_extent_are_not_same_coordinate_system) ... ok
+test_grid_identity_does_not_imply_full_pixel_identity (__main__.PreregisteredMutantSensitivity.test_grid_identity_does_not_imply_full_pixel_identity) ... ok
+test_missing_and_double_jitter_fail_signed_phase (__main__.PreregisteredMutantSensitivity.test_missing_and_double_jitter_fail_signed_phase) ... ok
+test_native_absolute_depth_cannot_be_compared_to_signed_rh_depth (__main__.PreregisteredMutantSensitivity.test_native_absolute_depth_cannot_be_compared_to_signed_rh_depth) ... ok
+test_out_of_domain_clamp_manufactures_history (__main__.PreregisteredMutantSensitivity.test_out_of_domain_clamp_manufactures_history) ... ok
+test_reversed_mv_fails_known_translation (__main__.PreregisteredMutantSensitivity.test_reversed_mv_fails_known_translation) ... ok
+test_roi_render_scale_and_crop_origin_are_not_interchangeable (__main__.PreregisteredMutantSensitivity.test_roi_render_scale_and_crop_origin_are_not_interchangeable) ... ok
+test_transposed_column_transform_fails_rigid_location (__main__.PreregisteredMutantSensitivity.test_transposed_column_transform_fails_rigid_location) ... ok
+test_public_motion_reversal_roi_and_allocation_mutants (__main__.PublicAPIIndependentFalsifiers.test_public_motion_reversal_roi_and_allocation_mutants) ... ok
+test_public_native_abs_depth_and_extra_phase_have_separate_oracles (__main__.PublicAPIIndependentFalsifiers.test_public_native_abs_depth_and_extra_phase_have_separate_oracles) ... ok
+test_public_partial_crop_does_not_clamp_unknown_taps (__main__.PublicAPIIndependentFalsifiers.test_public_partial_crop_does_not_clamp_unknown_taps) ... ok
+test_public_projection_rejects_missing_and_double_raster_shift (__main__.PublicAPIIndependentFalsifiers.test_public_projection_rejects_missing_and_double_raster_shift) ... ok
+test_public_transposed_transform_fails_known_camera_translation (__main__.PublicAPIIndependentFalsifiers.test_public_transposed_transform_fails_known_camera_translation) ... ok
+test_reset_does_not_release_physical_inflight_slot (__main__.PublicAPIIndependentFalsifiers.test_reset_does_not_release_physical_inflight_slot) ... ok
+test_transport_unknown_mask_and_nonfinite_tolerances_fail_closed (__main__.PublicAPIIndependentFalsifiers.test_transport_unknown_mask_and_nonfinite_tolerances_fail_closed) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.036s
+
+OK

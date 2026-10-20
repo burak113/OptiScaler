@@ -219,3 +219,25 @@ the actual radiance/guide/temporal measurement footprint must be declared and
 matched; a synthetic coarse point cannot silently stand in for native Stats'
 four bilinear measurements or the gain estimator's broader donor footprint.
 The independent recommendation remains **keep as research**.
+
+## Final evidence reconciliation
+
+At executable revision `cd4207f3dc2b886ec0136a246dd2484966bdbfec`, the reviewer
+checked the final report against the emitted phase, transport, history and
+execution receipts without rerunning the broad suite. All listed execution
+source hashes match the current executable files. The latest candidate log
+contains 55 passing checks.
+
+The report accurately retains 7,680 scenes, 30,720 variant rows, 428 zero
+common-dose comparisons, 320 zero pairwise-dose comparisons, and the negative
+temporal trade-offs. Its separated footprint ablation reports 1,162,534 certified
+cells, no false/missed oracle cells within the discrete analytic domain,
+165 centre-gain disagreement cells across 18 scenes, the original 0.2 mismatch,
+and zero error for the separately matched exact-footprint experiment.
+
+The rigid correspondence, disocclusion, virtual-motion and 52-event history
+figures agree with their CPU receipts. The report clearly excludes fresh GPU,
+AMD RR, native-host, compilation, performance and gameplay claims. No materially
+incorrect conclusion was found. `../evidence/reviewer_final_signoff.json` records
+the reviewed file hashes and checks; RESULT.json was still being generated and
+was not covered by this receipt. Recommendation remains **keep as research**.

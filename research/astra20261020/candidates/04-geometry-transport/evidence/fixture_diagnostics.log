@@ -1,0 +1,87 @@
+{
+  "npz_files": 11,
+  "native_anchor": [
+    {
+      "fixture": "portable/anchor/fixtures/native_policy/22f9ca14.npz",
+      "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+      "frames": [
+        41,
+        44,
+        52
+      ],
+      "k": [
+        0,
+        2,
+        10
+      ],
+      "fixed_mask_sha256": "18ff00bbeb13270fada396f5575e22fb4d08cce22443735137b53d985fce632e",
+      "fixed_mask_count": 9649,
+      "moving_centres": 0,
+      "changed_moving_centres": 0,
+      "missing_own_recall_centres": 2639,
+      "changed_centres_without_own_recall": 395,
+      "raw_six_key_textures_available": false,
+      "full_resolution_protected_mask_available": false,
+      "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+    },
+    {
+      "fixture": "portable/anchor/fixtures/native_policy/2405579e.npz",
+      "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+      "frames": [
+        92
+      ],
+      "k": [
+        1
+      ],
+      "fixed_mask_sha256": "2521981d6004c05fba1e0870caf50aa7d801b8eff48e069103c0325e312c78ec",
+      "fixed_mask_count": 641,
+      "moving_centres": 187,
+      "changed_moving_centres": 0,
+      "missing_own_recall_centres": 1039,
+      "changed_centres_without_own_recall": 138,
+      "raw_six_key_textures_available": false,
+      "full_resolution_protected_mask_available": false,
+      "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+    },
+    {
+      "fixture": "portable/anchor/fixtures/native_policy/87ee1fba.npz",
+      "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+      "frames": [
+        41,
+        44,
+        60
+      ],
+      "k": [
+        0,
+        1,
+        17
+      ],
+      "fixed_mask_sha256": "2c8f11bf61ee2a89f4d5821426b9cb824f128f709d1878449c20b675fdf45b35",
+      "fixed_mask_count": 7719,
+      "moving_centres": 20,
+      "changed_moving_centres": 0,
+      "missing_own_recall_centres": 4569,
+      "changed_centres_without_own_recall": 379,
+      "raw_six_key_textures_available": false,
+      "full_resolution_protected_mask_available": false,
+      "scope": "recorded native-policy GPU fields; CPU readback check only, NOT fresh GPU or native bridge execution"
+    }
+  ],
+  "clips": [
+    {
+      "fixture": "bottle_track7.npz",
+      "frames": 7,
+      "history_fraction_mean": 0.7475026448567709
+    },
+    {
+      "fixture": "facade16.npz",
+      "frames": 16,
+      "history_fraction_mean": 0.9785879629629629
+    },
+    {
+      "fixture": "foliage23.npz",
+      "frames": 23,
+      "history_fraction_mean": 0.9756525213068182
+    }
+  ]
+}
