@@ -425,6 +425,10 @@ struct FSRDPreprocessor_Dx12::Impl
     // atomics and the gain pass consumes and clears them, which is what makes the reject guard frame-level (the
     // measured prototype) instead of per-cell (measured: not equivalent on 2405).
     ComPtr<ID3D12Resource> m_postMotionSums;
+    // A persistent 16-byte zero buffer: the sums are cleared by a copy before the statistics pass, so the gain
+    // pass only ever reads them (a reset inside that dispatch would race its own reads - the audit's M1).
+    ComPtr<ID3D12Resource> m_postMotionSumsReset;
+    D3D12_RESOURCE_STATES m_postMotionSumsState = D3D12_RESOURCE_STATE_COMMON;
     PostMotionAnchorMath::State m_postMotionState {};
     uint32_t m_postMotionWidth = 0, m_postMotionHeight = 0;
     bool m_postMotionWasEnabled = false, m_postMotionActive = false;
@@ -1982,6 +1986,22 @@ struct FSRDPreprocessor_Dx12::Impl
             D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_postMotionSums)),
             "Failed to create the post-motion anchor sums");
         m_postMotionSums->SetName(L"FSR_PostMotionAnchor_Sums");
+        {
+            D3D12_RESOURCE_DESC resetDesc = sumsDesc;
+            resetDesc.Flags = D3D12_RESOURCE_FLAG_NONE; // an upload-heap resource may not be UAV
+            D3D12_HEAP_PROPERTIES resetHeap { D3D12_HEAP_TYPE_UPLOAD };
+            ThrowIfFailed(m_pDev->CreateCommittedResource(&resetHeap, D3D12_HEAP_FLAG_NONE, &resetDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_postMotionSumsReset)),
+                "Failed to create the post-motion anchor sums reset");
+            m_postMotionSumsReset->SetName(L"FSR_PostMotionAnchor_SumsReset");
+            const uint32_t zeros[4] {0u, 0u, 0u, 0u};
+            void* mapped = nullptr;
+            const D3D12_RANGE empty {0, 0};
+            ThrowIfFailed(m_postMotionSumsReset->Map(0, &empty, &mapped), "Post-motion sums reset map");
+            std::memcpy(mapped, zeros, sizeof(zeros));
+            m_postMotionSumsReset->Unmap(0, nullptr);
+        }
+        m_postMotionSumsState = D3D12_RESOURCE_STATE_COMMON;
         return m_postMotionKeyLevel && m_postMotionKeyDepth && m_postMotionStats && m_postMotionRecalled &&
                m_postMotionGain && m_postMotionSums;
     }
@@ -2032,9 +2052,17 @@ struct FSRDPreprocessor_Dx12::Impl
             m_postMotionSums.Get()};
         AddBarrier(cmdList, m_postMotionStats.Get(), kSrvState, kUavState);
         AddBarrier(cmdList, m_postMotionRecalled.Get(), kSrvState, kUavState);
-        AddBarrier(cmdList, m_postMotionSums.Get(), D3D12_RESOURCE_STATE_COMMON, kUavState);
+        // Clear the frame-level sums with a copy from the persistent zero buffer: the ordering is explicit in the
+        // command list (no in-dispatch reset racing the reads) and the copy is 16 bytes.
+        AddBarrier(cmdList, m_postMotionSums.Get(), m_postMotionSumsState, D3D12_RESOURCE_STATE_COPY_DEST);
+        cmdList->CopyBufferRegion(m_postMotionSums.Get(), 0, m_postMotionSumsReset.Get(), 0, 16);
+        AddBarrier(cmdList, m_postMotionSums.Get(), D3D12_RESOURCE_STATE_COPY_DEST, kUavState);
+        m_postMotionSumsState = kUavState;
+        // The anchor's passes manage their own barriers (autoBarrierOutput = false): the sums buffer lives in the
+        // UAV state across the pair, which the automatic SRV -> UAV assumption would get wrong, and the manual
+        // transitions below are then the only ones (no duplicates).
         m_postMotionStatsRecallShader.Dispatch(cmdList, GetAsByteSpan(statsConstants), statsInputs, statsOutputs,
-            {float(cellsX), float(cellsY)});
+            {float(cellsX), float(cellsY)}, false);
         AddBarrier(cmdList, m_postMotionStats.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionRecalled.Get(), kUavState, kSrvState);
         // --- the gain field and the keyframe capture (1/8 resolution) ---
@@ -2047,7 +2075,7 @@ struct FSRDPreprocessor_Dx12::Impl
         AddBarrier(cmdList, m_postMotionKeyLevel.Get(), kSrvState, kUavState);
         AddBarrier(cmdList, m_postMotionKeyDepth.Get(), kSrvState, kUavState);
         m_postMotionGainShader.Dispatch(cmdList, GetAsByteSpan(gainConstants), gainInputs, gainOutputs,
-            {float(cellsX), float(cellsY)});
+            {float(cellsX), float(cellsY)}, false);
         AddBarrier(cmdList, m_postMotionGain.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionKeyLevel.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionKeyDepth.Get(), kUavState, kSrvState);

@@ -78,6 +78,12 @@ def off_gate():
                         'OptiScaler/shaders/shader_tools/build_fsrd_shader.py',
                         'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp',
                         'OptiScaler/menu/menu_common.cpp', 'OptiScaler/Config.cpp', 'OptiScaler/Config.h'}
+    # The anchor's OWN three shaders are allowed to change once they are tracked (the first version of this check
+    # only saw them as new files; an audit fix later edited them, which is legitimate iteration on the feature's own
+    # sources - what must never change is a shader from an earlier feature, and that is what the check still guards).
+    for anchor in ('StatsRecall', 'Gain', 'Apply'):
+        for suffix in ('.hlsl', '_Shader.cso', '_Shader.h'):
+            allowed_existing.add('OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchor' + anchor + suffix)
     offenders = [f for f in changed if 'precompile' in f and f not in allowed_existing]
     assert not offenders, f'an existing shader source or CSO changed: {offenders}'
     return dict(changed_files=changed, offenders=offenders)

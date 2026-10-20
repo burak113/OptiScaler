@@ -19,7 +19,8 @@ SamplerState InSampler : register(s0);
 RWTexture2D<float4> OutGain : register(u0);
 RWTexture2DArray<float4> OutKeyLevel : register(u1);
 RWTexture2DArray<float> OutKeyDepth : register(u2);
-RWByteAddressBuffer InOutSums : register(u3);   // frame-level sums: consumed and cleared here
+RWByteAddressBuffer InSums : register(u3);      // frame-level sums, read only (the host clears them before the
+                                                // statistics pass: a reset inside this dispatch would race the reads)
 cbuffer CB_PostMotionAnchorGain : register(b0)
 {
     float4 Size;    // full width, height, 1/8 width, 1/8 height
@@ -64,7 +65,7 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     // prototype's guard (the per-cell version could not reproduce it: on 2405 the local excesses sit below the
     // threshold while the frame-level one does not). A frame whose measured excess is far above the band is a real
     // lighting change, not the post-motion excess: the whole frame keeps gain 1.
-    const uint frameLevel = InOutSums.Load(0u), frameRecalled = InOutSums.Load(4u), frameCount = InOutSums.Load(8u);
+    const uint frameLevel = InSums.Load(0u), frameRecalled = InSums.Load(4u), frameCount = InSums.Load(8u);
     const float cells = max(Size.z * Size.w, 1.0f);
     const bool frameMeasured = frameLevel > 0u && frameCount > 0u;
     const float frameRatio = frameMeasured ? min(float(frameRecalled) / float(frameLevel), 4.0f) : 1.0f;
@@ -74,7 +75,6 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
         (1.0f - frameRatio) > max(Params3.x * modelExcess, Params3.y))
     {
         OutGain[p] = float4(1.0f, 0.0f, 0.0f, 0.0f);
-        InOutSums.Store(0u, 0u); InOutSums.Store(4u, 0u); InOutSums.Store(8u, 0u);
         return;
     }
     // The fallback is the frame-level measured ratio (the prototype's shape) where the frame has a usable
@@ -99,7 +99,4 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     gain = max(gain, 1.0f - cap);
     gain = 1.0f + saturate(Params2.x) * (gain - 1.0f);
     OutGain[p] = float4(gain, 0.0f, 0.0f, 0.0f);
-    // Consume and clear: the next frame's statistics pass starts from zeros, so no separate clear dispatch (or
-    // reset copy) is needed and no cell can see a stale sum.
-    InOutSums.Store(0u, 0u); InOutSums.Store(4u, 0u); InOutSums.Store(8u, 0u);
 }

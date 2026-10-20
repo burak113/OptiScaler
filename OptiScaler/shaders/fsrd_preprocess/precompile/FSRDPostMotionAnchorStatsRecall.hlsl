@@ -41,20 +41,27 @@ static const float3 kLuma = float3(0.2126f, 0.7152f, 0.0722f);
 // A bilinear tap on the boundary between a 2x2 group returns that group's mean, so four of them reproduce the
 // 16-texel box mean the colour-track statistics also build (the tap offset is i*4 + 2, not i*4 + 0.5: see
 // FSRDColourTrackStats.hlsl for the sparse-tap bug that construction exists to avoid).
-float4 BoxCell(int2 cell, float2 full)
+// The cell keeps the composite level, the mean depth and BOTH motion components: the static-geometry test compares
+// the motion field against the camera-only displacement in full-resolution pixels, so dropping the y component
+// (an earlier version of this shader did) makes the test fail exactly during a flick, when the displacement is
+// mostly vertical - the measurement then dies on the frames the anchor exists for.
+struct Cell { float level; float depth; float2 motion; };
+Cell BoxCell(int2 cell, float2 full)
 {
     const float2 base = float2(cell) * 8.0f;
-    float4 sum = 0.0f;
+    Cell sum;
+    sum.level = 0.0f; sum.depth = 0.0f; sum.motion = float2(0.0f, 0.0f);
     [unroll] for (int j = 0; j < 2; ++j)
         [unroll] for (int i = 0; i < 2; ++i)
         {
             const float2 uv = (base + float2(i * 4 + 2.0f, j * 4 + 2.0f)) / full;
-            sum.x += dot(InDiffuse.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma);
-            sum.y += dot(InSpecular.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma);
-            sum.z += InDepth.SampleLevel(InSampler, uv, 0.0f);
-            sum.w += InMotion.SampleLevel(InSampler, uv, 0.0f).x;
+            sum.level += dot(InDiffuse.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma) +
+                         dot(InSpecular.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma);
+            sum.depth += InDepth.SampleLevel(InSampler, uv, 0.0f);
+            sum.motion += InMotion.SampleLevel(InSampler, uv, 0.0f).xy;
         }
-    return sum * 0.25f;
+    sum.level *= 0.25f; sum.depth *= 0.25f; sum.motion *= 0.25f;
+    return sum;
 }
 // View space position of a full-resolution pixel at linear depth z, in the engine's projection convention
 // (P32 turns view z into the clip w - the same reconstruction FSRDPostFlickApply.hlsl uses).
@@ -103,13 +110,12 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
         OutRecalled[p] = 0.0f;
         return;
     }
-    const float4 box = BoxCell(p, full);
-    const float level = box.x + box.y;
-    const float depth = box.z;
+    const Cell cell = BoxCell(p, full);
+    const float level = cell.level;
+    const float depth = cell.depth;
     const float2 centre = float2(p) * 8.0f + 4.0f;
     const float z = abs(depth) * (Extra.x < 0.0f ? -1.0f : 1.0f);
-    const float2 motionUv = float2(box.w, 0.0f);
-    const float staticCell = StaticCell(centre, z, motionUv, full);
+    const float staticCell = StaticCell(centre, z, cell.motion, full);
     OutStats[p] = float4(level, depth, staticCell, 0.0f);
     float recalled = 0.0f, valid = 0.0f, slice = 0.0f;
     const int2 gridSize = grid;
@@ -141,13 +147,16 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     }
     OutRecalled[p] = float4(recalled, valid, slice, staticCell);
     // The frame-level sums the gain pass's guard needs (the prototype's frame-level reject and fallback, which a
-    // per-cell measurement cannot reproduce - measured on 2405). Fixed point 1/1024 with a 16.0 ceiling per cell,
-    // so the worst case (a whole 1440p frame at the ceiling) stays far inside uint32.
-    if (staticCell > 0.5f)
+    // per-cell measurement cannot reproduce - measured on 2405). BOTH sides accumulate over the SAME set - the
+    // static cells that also recalled a keyframe level - because a ratio of two different sets is the true ratio
+    // times the recall coverage (rho), and rho < 0.75 then rejects a frame whose real excess is well inside the
+    // band: the audit (SA15) measured exactly that on 87ee f41-46 and 22f9 f41-43, the frames that create the
+    // trail. Fixed point 1/1024 with a 16.0 ceiling per cell, so the worst case (a whole 1440p frame at the
+    // ceiling) stays far inside uint32.
+    if (staticCell > 0.5f && valid > 0.5f)
     {
-        const uint cellLevel = uint(min(level, 16.0f) * 1024.0f);
-        OutSums.InterlockedAdd(0u, cellLevel);
-        if (valid > 0.5f) OutSums.InterlockedAdd(4u, uint(min(recalled, 16.0f) * 1024.0f));
+        OutSums.InterlockedAdd(0u, uint(min(level, 16.0f) * 1024.0f));
+        OutSums.InterlockedAdd(4u, uint(min(recalled, 16.0f) * 1024.0f));
         OutSums.InterlockedAdd(8u, 1u);
     }
 }

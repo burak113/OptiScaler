@@ -360,7 +360,7 @@ namespace
                   ID3D12Resource* diffuse, ID3D12Resource* specular, ID3D12Resource* depth,
                   ID3D12Resource* motion, ID3D12Resource* keyLevel, ID3D12Resource* keyDepth,
                   ID3D12Resource* stats, ID3D12Resource* recalled, ID3D12Resource* gain,
-                  ID3D12Resource* sums,
+                  ID3D12Resource* sums, ID3D12Resource* sumsReset,
                   uint32_t width, uint32_t height, const StatsRecallConstants& statsConstants,
                   const GainConstants& gainConstants, const ApplyConstants& applyConstants, bool dispatchApply = true)
     {
@@ -372,7 +372,11 @@ namespace
         auto& heap = heaps.emplace_back(host, 32);
         barrier(host.list.Get(), stats, kRead, kWrite);
         barrier(host.list.Get(), recalled, kRead, kWrite);
-        barrier(host.list.Get(), sums, D3D12_RESOURCE_STATE_COMMON, kWrite);
+        // The production ordering: the sums are cleared by a 16-byte copy from the zero buffer before the
+        // statistics pass accumulates, so the gain pass only ever reads them (no in-dispatch reset race).
+        barrier(host.list.Get(), sums, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+        host.list->CopyBufferRegion(sums, 0, sumsReset, 0, 16);
+        barrier(host.list.Get(), sums, D3D12_RESOURCE_STATE_COPY_DEST, kWrite);
         // The ring is read (SRV) by the statistics pass and written (UAV) by the gain pass: one texture may not be
         // both in a single dispatch, which is why the capture lives in the second pass.
         const Binding statsIn[] {{diffuse, kColour}, {specular, kColour}, {depth, kDepthFormat}, {motion, kColour},
@@ -423,6 +427,7 @@ namespace
         static constexpr uint32_t kWidth = 64, kHeight = 64;
         Host& host; Scene& scene;
         ComPtr<ID3D12Resource> diffuse, specular, depth, motion, keyLevel, keyDepth, stats, recalled, gain, sums;
+        ComPtr<ID3D12Resource> sumsReset;
         Scene16(Host& host_, Scene& scene_) : host(host_), scene(scene_)
         {
             diffuse = makeTexture(host.device.Get(), kWidth, kHeight, kColour, L"anchor diffuse");
@@ -443,6 +448,18 @@ namespace
             hr(host.device->CreateCommittedResource(&sumsHeap, D3D12_HEAP_FLAG_NONE, &sumsDesc,
                 D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&sums)));
             sums->SetName(L"anchor sums");
+            D3D12_RESOURCE_DESC resetDesc = sumsDesc;
+            resetDesc.Flags = D3D12_RESOURCE_FLAG_NONE; // an upload-heap resource may not be UAV
+            D3D12_HEAP_PROPERTIES resetHeap { D3D12_HEAP_TYPE_UPLOAD };
+            hr(host.device->CreateCommittedResource(&resetHeap, D3D12_HEAP_FLAG_NONE, &resetDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&sumsReset)));
+            sumsReset->SetName(L"anchor sums reset");
+            const uint32_t zeros[4] {0u, 0u, 0u, 0u};
+            void* mapped = nullptr;
+            const D3D12_RANGE empty {0, 0};
+            hr(sumsReset->Map(0, &empty, &mapped));
+            std::memcpy(mapped, zeros, sizeof(zeros));
+            sumsReset->Unmap(0, nullptr);
         }
         // Fills every ring slice with one level and depth, so a recall can land on any slice.
         void fillMemory(float level, float depthValue)
@@ -585,7 +602,7 @@ namespace
             buildConstants(view, projection, previous, Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
             const auto run = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                        s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
-                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), Scene16::kWidth, Scene16::kHeight,
+                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight,
                                        stats, gain, apply, false);
             // Cells alternate between 1.5 and 12.0 in 8x8 blocks: the box mean of a cell must be exactly its block
             // value, never the sparse 3.0/20.0 a four-texel sample would give.
@@ -604,7 +621,7 @@ namespace
             buildConstants(view, projection, previous, Scene16::kWidth, Scene16::kHeight, stats, gain, apply, 4u, 1.0f);
             const auto run = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                        s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
-                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), Scene16::kWidth, Scene16::kHeight,
+                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight,
                                        stats, gain, apply);
             debugDump(host, pipelines, constants, scene, s, view, projection, previous);
             const float remembered = halfAt(run.recalled, 0, 0), valid = halfAt(run.recalled, 0, 1);
@@ -622,25 +639,43 @@ namespace
             const auto rejected = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                             s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
                                             s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
-                                            Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
+                                            s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
             const float rejectedGain = halfAt(rejected.gain, 0, 0);
             std::cout << "anchor reject: gain " << rejectedGain << std::endl;
             need(std::abs(rejectedGain - 1.0f) < 2e-3f, "an excess far above the band keeps gain 1");
 
-            // The frame-level decision, in the order that also proves the sums are cleared: the 2x memory above
-            // rejected the whole frame, and this frame's own measurement (8/10 = a 0.2 excess, under the 0.30
-            // threshold) must correct normally - a stale frame-level sum would keep rejecting it.
+            // The frame-level decision, in the order that also proves the sums are cleared. A memory at HALF the
+            // current input is an excess of 0.5, far above the 0.30 threshold: the frame-level guard must reject it
+            // outright (gain 1), where the per-cell path alone would have corrected to the band cap (0.803) - so
+            // this check can only pass through the frame-level path. The next frame's memory is 0.85x (an excess of
+            // 0.15, under the threshold): its own measurement must give exactly 0.85, which a stale frame-level sum
+            // (0.5) would turn back into a rejection.
             s.fillFrame(10.0f, 0.0f, 10.0f);
-            s.fillMemory(8.0f, 10.0f);
+            s.fillMemory(5.0f, 10.0f);
             buildConstants(view, projection, previous, Scene16::kWidth, Scene16::kHeight, stats, gain, apply, 2u, 1.0f);
-            const auto afterReject = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
-                                               s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
-                                               s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
-                                               Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
-            const float afterRejectGain = halfAt(afterReject.gain, 0, 0);
-            std::cout << "anchor frame-level guard: gain after a rejected frame " << afterRejectGain << std::endl;
-            need(std::abs(afterRejectGain - 0.8f) < 5e-3f,
-                 "the frame-level sums are cleared: the next frame corrects on its own measurement");
+            const auto overThreshold = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
+                                                 s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
+                                                 s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
+                                                 s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight, stats, gain,
+                                                 apply);
+            const float overGain = halfAt(overThreshold.gain, 0, 0);
+            std::cout << "anchor frame-level reject (0.5x memory, excess 0.5): gain " << overGain << std::endl;
+            need(std::abs(overGain - 1.0f) < 2e-3f,
+                 "an excess over the threshold rejects the whole frame (the per-cell path would correct to 0.803)");
+
+            s.fillFrame(10.0f, 0.0f, 10.0f);
+            s.fillMemory(8.5f, 10.0f);
+            buildConstants(view, projection, previous, Scene16::kWidth, Scene16::kHeight, stats, gain, apply, 2u, 1.0f);
+            const auto underThreshold = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
+                                                  s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
+                                                  s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
+                                                  s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight, stats, gain,
+                                                  apply);
+            const float underGain = halfAt(underThreshold.gain, 0, 0);
+            std::cout << "anchor frame-level accept (0.85x memory, excess 0.15): gain " << underGain
+                      << " (the sums were cleared: a stale 0.5 would reject to 1)" << std::endl;
+            need(std::abs(underGain - 0.85f) < 5e-3f,
+                 "an excess under the threshold corrects by its own measurement, so the frame-level sums are cleared");
 
             // A memory DARKER than the current input is the post-motion case (the current input is the
             // excessive one): the gain pulls the input down toward the settled memory, bounded by the band cap.
@@ -650,7 +685,7 @@ namespace
             const auto corrected = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                              s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
                                              s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
-                                             Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
+                                             s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
             const float correctedGain = halfAt(corrected.gain, 0, 0);
             const float applied = halfAt(corrected.diffuse, 0, 0);
             const float capAtTwo = kBandA * std::exp(-2.0f / kBandTau) + kCapExtra;
@@ -669,7 +704,7 @@ namespace
             const auto brighter = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                             s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
                                             s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(),
-                                            Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
+                                            s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight, stats, gain, apply);
             const float brighterGain = halfAt(brighter.gain, 0, 0);
             std::cout << "anchor no-brighten: gain " << brighterGain << std::endl;
             need(std::abs(brighterGain - 1.0f) < 2e-3f, "a brighter memory never brightens the input");
@@ -683,7 +718,7 @@ namespace
             buildConstants(view, projection, previous, Scene16::kWidth, Scene16::kHeight, stats, gain, apply, 2u, 0.0f);
             const auto run = runAnchor(host, pipelines, constants, scene, s.diffuse.Get(), s.specular.Get(),
                                        s.depth.Get(), s.motion.Get(), s.keyLevel.Get(), s.keyDepth.Get(),
-                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), Scene16::kWidth, Scene16::kHeight,
+                                       s.stats.Get(), s.recalled.Get(), s.gain.Get(), s.sums.Get(), s.sumsReset.Get(), Scene16::kWidth, Scene16::kHeight,
                                        stats, gain, apply);
             const float unchanged = halfAt(run.diffuse, 0, 0), gain0 = halfAt(run.gain, 0, 0);
             std::cout << "anchor strength 0: gain " << gain0 << " applied " << unchanged << std::endl;
