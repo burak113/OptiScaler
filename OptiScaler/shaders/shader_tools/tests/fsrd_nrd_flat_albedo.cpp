@@ -258,6 +258,19 @@ void postFlickChecks(Host& host)
             "post-flick: the first frame refreshes the keyframe and reports no history");
         PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(turned), descForm(projection), descForm(identity), outputs);
         need(!outputs.Refresh, "post-flick: a turning camera never refreshes the keyframe");
+        // Rotation in every axis, not just pitch: CP77 is Z-up, so the `turned` matrix above is a pitch, which even
+        // a transposed load sees. A 30 degree yaw between two horizontal cameras is invisible to the transposed
+        // load (it read the world-up axis in camera coordinates) and was measured as a pitch-only detector on the
+        // 2405/0512 captures, so this assertion is the regression test for that bug.
+        const DirectX::XMFLOAT4X4 horizontal = matrix({-1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1});
+        const DirectX::XMFLOAT4X4 yawed = matrix({-0.8660254f,-0.5f,0,0, 0,0,1,0, -0.5f,0.8660254f,0,0, 0,0,0,1});
+        PostFlickMath::KeyState yawState;
+        PostFlickMath::Outputs yawOutputs;
+        PostFlickMath::BuildFrame(yawState, W, H, true, 1.0f, descForm(horizontal), descForm(projection),
+            descForm(horizontal), yawOutputs);
+        need(!PostFlickMath::BuildFrame(yawState, W, H, true, 1.0f, descForm(yawed), descForm(projection),
+                descForm(horizontal), yawOutputs),
+            "post-flick: a 30 degree yaw counts as camera motion, not only pitch");
         for (uint32_t i = 0; i + 1 < PostFlickMath::kSettledFramesNeeded; ++i)
         {
             PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
