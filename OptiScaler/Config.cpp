@@ -214,6 +214,8 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeStabilityRamp.reset();
     FfxDenoiserNrdBridgeTurnColour.reset();
     FfxDenoiserPostFlickFix.reset();
+    FfxDenoiserPostMotionAnchor.reset();
+    FfxDenoiserPostMotionAnchorStrength.reset();
     FfxDenoiserPostFlickStrength.reset();
     FfxDenoiserColourTrack.reset();
     FfxDenoiserColourTrackStrength.reset();
@@ -591,6 +593,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeStabilityRamp.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityRampUp"));
             FfxDenoiserNrdBridgeTurnColour.set_from_config(readBool("FSR-RR", "NrdBridgeTurnColourFilter"));
         FfxDenoiserPostFlickFix.set_from_config(readBool("FSR-RR", "PostFlickFix"));
+        FfxDenoiserPostMotionAnchor.set_from_config(readBool("FSR-RR", "PostMotionAnchor"));
+        FfxDenoiserPostMotionAnchorStrength.set_from_config(readFloat("FSR-RR", "PostMotionAnchorStrength"));
         FfxDenoiserPostFlickStrength.set_from_config(readFloat("FSR-RR", "PostFlickStrength"));
         FfxDenoiserColourTrack.set_from_config(readBool("FSR-RR", "ColourTrack"));
         FfxDenoiserColourTrackStrength.set_from_config(readFloat("FSR-RR", "ColourTrackStrength"));
@@ -1624,6 +1628,8 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeStabilityRampUp", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityRamp.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFilter", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnColour.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostFlickFix", GetBoolValue(Instance()->FfxDenoiserPostFlickFix.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "PostMotionAnchor", GetBoolValue(Instance()->FfxDenoiserPostMotionAnchor.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "PostMotionAnchorStrength", GetFloatValue(Instance()->FfxDenoiserPostMotionAnchorStrength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostFlickStrength", GetFloatValue(Instance()->FfxDenoiserPostFlickStrength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "ColourTrack", GetBoolValue(Instance()->FfxDenoiserColourTrack.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "ColourTrackStrength", GetFloatValue(Instance()->FfxDenoiserColourTrackStrength.value_for_config()).c_str());

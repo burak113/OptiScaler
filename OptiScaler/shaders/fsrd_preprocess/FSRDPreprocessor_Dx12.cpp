@@ -46,6 +46,10 @@
 #include "precompile/FSRDColourTrackStats_Shader.h"
 #include "precompile/FSRDColourTrackTrack_Shader.h"
 #include "precompile/FSRDColourTrackApply_Shader.h"
+#include "FSRDPostMotionAnchorConstants.h"
+#include "precompile/FSRDPostMotionAnchorStatsRecall_Shader.h"
+#include "precompile/FSRDPostMotionAnchorGain_Shader.h"
+#include "precompile/FSRDPostMotionAnchorApply_Shader.h"
 #include "precompile/FSRDFlatTemporal_Shader.h"
 #include "precompile/FSRDFlatTemporalLP_Shader.h"
 #include "precompile/FSRDFlatTemporalStore_Shader.h"
@@ -410,6 +414,20 @@ struct FSRDPreprocessor_Dx12::Impl
     std::array<ComPtr<ID3D12Resource>, 2> m_colourTrackHistory;
     uint32_t m_colourTrackHistoryIndex = 0;
     uint32_t m_colourTrackWidth = 0, m_colourTrackHeight = 0;
+    // Post-motion level anchor (task 25 T3 ii), default off: a luminance-only gain on RR's input during the
+    // post-motion window, measured against a ring of settled keyframes of the input's own level. The memory is the
+    // input BEFORE the gain, so the anchor's own corrections cannot pollute the reference. Two 1/8-resolution
+    // passes (statistics + recall, then the gain field) and a full-resolution in-place apply on the two signals.
+    ComputeState m_postMotionStatsRecallShader, m_postMotionGainShader, m_postMotionApplyShader;
+    ComPtr<ID3D12Resource> m_postMotionKeyLevel, m_postMotionKeyDepth; // 8-slice ring, 1/8 resolution
+    ComPtr<ID3D12Resource> m_postMotionStats, m_postMotionRecalled, m_postMotionGain;
+    // 16 bytes of frame-level fixed-point sums (num, den, count, spare): the statistics pass accumulates them with
+    // atomics and the gain pass consumes and clears them, which is what makes the reject guard frame-level (the
+    // measured prototype) instead of per-cell (measured: not equivalent on 2405).
+    ComPtr<ID3D12Resource> m_postMotionSums;
+    PostMotionAnchorMath::State m_postMotionState {};
+    uint32_t m_postMotionWidth = 0, m_postMotionHeight = 0;
+    bool m_postMotionWasEnabled = false, m_postMotionActive = false;
     bool m_colourTrackValid = false, m_colourTrackWasEnabled = false;
     // True on the frame whose composite the tracking passes have corrected in place; the composition clears it.
     bool m_colourTrackActive = false;
@@ -1392,6 +1410,13 @@ struct FSRDPreprocessor_Dx12::Impl
         for (auto& resource : m_colourTrackHistory) resource.Reset();
         m_colourTrackHistoryIndex = 0; m_colourTrackWidth = 0; m_colourTrackHeight = 0;
         m_colourTrackValid = false; m_colourTrackWasEnabled = false; m_colourTrackActive = false;
+        // The anchor's ring and fields are size bound: drop them so EnsurePostMotionAnchor rebuilds them at the
+        // new extent (a size change is a context rebuild, not a toggle), and restart the ring state.
+        m_postMotionKeyLevel.Reset(); m_postMotionKeyDepth.Reset();
+        m_postMotionStats.Reset(); m_postMotionRecalled.Reset(); m_postMotionGain.Reset();
+        m_postMotionWidth = 0; m_postMotionHeight = 0;
+        m_postMotionWasEnabled = false; m_postMotionActive = false;
+        m_postMotionState = PostMotionAnchorMath::State {};
         for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
             for (auto& resource : *set) resource.Reset();
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
@@ -1906,6 +1931,138 @@ struct FSRDPreprocessor_Dx12::Impl
         m_colourTrackHistoryIndex ^= 1u;
         m_colourTrackValid = true;
         m_colourTrackActive = true;
+    }
+
+    // --- Post-motion level anchor (task 25 T3 ii) ---------------------------------------------------------
+    // True when this frame may carry the anchor: the option is on, the frame is a real image and the extent is
+    // usable. Every pass, barrier and write is gated on the same decision, so the off path can never allocate,
+    // bind or dispatch anything.
+    bool PostMotionAnchorFrame(const ConversionDesc& desc) const
+    {
+        if (!desc.PostMotionAnchor) return false;
+        if ((desc.Flags & (uint32_t(ConvFlags::Debug))) != 0u) return false;
+        const uint32_t width = uint32_t(desc.RenderSize.x), height = uint32_t(desc.RenderSize.y);
+        if (!width || !height) return false;
+        return m_postMotionWidth == 0 || (m_postMotionWidth == width && m_postMotionHeight == height);
+    }
+    bool EnsurePostMotionAnchor(uint32_t width, uint32_t height)
+    {
+        if (m_postMotionStatsRecallShader.m_pso && m_postMotionKeyLevel) return true;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_postMotionStatsRecallShader.m_pso)
+        {
+            m_postMotionStatsRecallShader.Initialize(m_pDev, GetAsByteSpan(FSRDPostMotionAnchorStatsRecall_cso),
+                sizeof(PostMotionAnchorMath::StatsRecallConstants), 6, 3,
+                L"FSRD_PostMotionAnchor_StatsRecall_Constants");
+            m_postMotionGainShader.Initialize(m_pDev, GetAsByteSpan(FSRDPostMotionAnchorGain_cso),
+                sizeof(PostMotionAnchorMath::GainConstants), 2, 4, L"FSRD_PostMotionAnchor_Gain_Constants");
+            m_postMotionApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDPostMotionAnchorApply_cso),
+                sizeof(PostMotionAnchorMath::ApplyConstants), 1, 2, L"FSRD_PostMotionAnchor_Apply_Constants");
+        }
+        const uint32_t cellsX = std::max(1u, width / 8u), cellsY = std::max(1u, height / 8u);
+        m_postMotionKeyLevel = CreateTexture2DArraySlice(m_pDev, cellsX, cellsY, PostMotionAnchorMath::kRingSize,
+            DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_PostMotionAnchor_KeyLevel", kSrvState);
+        m_postMotionKeyDepth = CreateTexture2DArraySlice(m_pDev, cellsX, cellsY, PostMotionAnchorMath::kRingSize,
+            DXGI_FORMAT_R32_FLOAT, L"FSR_PostMotionAnchor_KeyDepth", kSrvState);
+        m_postMotionStats = CreateTexture2D(m_pDev, cellsX, cellsY, DXGI_FORMAT_R16G16B16A16_FLOAT,
+            L"FSR_PostMotionAnchor_Stats", kSrvState);
+        m_postMotionRecalled = CreateTexture2D(m_pDev, cellsX, cellsY, DXGI_FORMAT_R16G16B16A16_FLOAT,
+            L"FSR_PostMotionAnchor_Recalled", kSrvState);
+        m_postMotionGain = CreateTexture2D(m_pDev, cellsX, cellsY, DXGI_FORMAT_R16G16B16A16_FLOAT,
+            L"FSR_PostMotionAnchor_Gain", kSrvState);
+        D3D12_RESOURCE_DESC sumsDesc {};
+        sumsDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        sumsDesc.Width = 16; sumsDesc.Height = 1; sumsDesc.DepthOrArraySize = 1; sumsDesc.MipLevels = 1;
+        sumsDesc.SampleDesc.Count = 1; sumsDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        sumsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES sumsHeap { D3D12_HEAP_TYPE_DEFAULT };
+        // Buffers are effectively created in COMMON (the debug layer ignores any other initial state for a buffer);
+        // the first barrier promotes COMMON -> UAV for the statistics pass.
+        ThrowIfFailed(m_pDev->CreateCommittedResource(&sumsHeap, D3D12_HEAP_FLAG_NONE, &sumsDesc,
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_postMotionSums)),
+            "Failed to create the post-motion anchor sums");
+        m_postMotionSums->SetName(L"FSR_PostMotionAnchor_Sums");
+        return m_postMotionKeyLevel && m_postMotionKeyDepth && m_postMotionStats && m_postMotionRecalled &&
+               m_postMotionGain && m_postMotionSums;
+    }
+    // The whole anchor: the host-side state machine decides whether this frame is inside the post-motion window,
+    // whether a keyframe is due and in which priority order the ring is recalled; the passes measure and apply.
+    void DispatchPostMotionAnchor(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        m_postMotionActive = false;
+        if (!desc.PostMotionAnchor)
+        {
+            m_postMotionWasEnabled = false;
+            return;
+        }
+        if ((desc.Flags & (uint32_t(ConvFlags::Debug))) != 0u) return;
+        const uint32_t width = uint32_t(desc.RenderSize.x), height = uint32_t(desc.RenderSize.y);
+        if (!width || !height) return;
+        if (m_postMotionWidth && (m_postMotionWidth != width || m_postMotionHeight != height))
+        {
+            m_postMotionKeyLevel.Reset(); m_postMotionKeyDepth.Reset();
+            m_postMotionStats.Reset(); m_postMotionRecalled.Reset(); m_postMotionGain.Reset();
+            m_postMotionWidth = 0; m_postMotionHeight = 0; m_postMotionWasEnabled = false;
+            m_postMotionState = PostMotionAnchorMath::State {};
+        }
+        if (!EnsurePostMotionAnchor(width, height)) return;
+        m_postMotionWidth = width; m_postMotionHeight = height;
+        // The conversion desc carries the transpose of the inverse view/projection and the previous view; the
+        // anchor needs the forward matrices, which is exactly how the post-flick fix fills the same three.
+        DirectX::XMFLOAT4X4 view {}, projection {}, previousView {};
+        PostFlickMath::FillFromConversion(view, projection, previousView,
+            {desc.InvViewMatrix, desc.InvProjMatrix, desc.PrevViewMatrix});
+        PostMotionAnchorMath::StatsRecallConstants statsConstants {};
+        PostMotionAnchorMath::GainConstants gainConstants {};
+        const bool active = PostMotionAnchorMath::BuildFrame(m_postMotionState, view, projection, previousView,
+            true, desc.PostMotionAnchorStrength, statsConstants, gainConstants);
+        m_postMotionWasEnabled = true;
+        if (!active) return;
+        PostMotionAnchorMath::ApplyConstants applyConstants {};
+        PostMotionAnchorMath::SetSize(statsConstants, gainConstants, applyConstants, width, height);
+        auto& signals = m_out.Resources.Signals;
+        const uint32_t cellsX = std::max(1u, width / 8u), cellsY = std::max(1u, height / 8u);
+        // --- statistics and recall (1/8 resolution) ---
+        ID3D12Resource* statsInputs[] {signals.DirectDiffuse.Get(), signals.IndirectSpecular.Get(),
+            m_LinearDepth.Get(), m_out.Resources.Motion.Get(), m_postMotionKeyLevel.Get(),
+            m_postMotionKeyDepth.Get()};
+        // The ring is an SRV here and a UAV in the gain pass: one texture may not be both in one dispatch (the
+        // fixture's debug layer rejects it), which is why the keyframe capture lives in the gain pass.
+        ID3D12Resource* statsOutputs[] {m_postMotionStats.Get(), m_postMotionRecalled.Get(),
+            m_postMotionSums.Get()};
+        AddBarrier(cmdList, m_postMotionStats.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_postMotionRecalled.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_postMotionSums.Get(), D3D12_RESOURCE_STATE_COMMON, kUavState);
+        m_postMotionStatsRecallShader.Dispatch(cmdList, GetAsByteSpan(statsConstants), statsInputs, statsOutputs,
+            {float(cellsX), float(cellsY)});
+        AddBarrier(cmdList, m_postMotionStats.Get(), kUavState, kSrvState);
+        AddBarrier(cmdList, m_postMotionRecalled.Get(), kUavState, kSrvState);
+        // --- the gain field and the keyframe capture (1/8 resolution) ---
+        // The sums stay in the UAV state for the gain pass (it reads them through their own UAV and clears them):
+        // an SRV and a UAV of one resource may not share a dispatch, which the fixture's debug layer rejects.
+        ID3D12Resource* gainInputs[] {m_postMotionStats.Get(), m_postMotionRecalled.Get()};
+        ID3D12Resource* gainOutputs[] {m_postMotionGain.Get(), m_postMotionKeyLevel.Get(),
+            m_postMotionKeyDepth.Get(), m_postMotionSums.Get()};
+        AddBarrier(cmdList, m_postMotionGain.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_postMotionKeyLevel.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_postMotionKeyDepth.Get(), kSrvState, kUavState);
+        m_postMotionGainShader.Dispatch(cmdList, GetAsByteSpan(gainConstants), gainInputs, gainOutputs,
+            {float(cellsX), float(cellsY)});
+        AddBarrier(cmdList, m_postMotionGain.Get(), kUavState, kSrvState);
+        AddBarrier(cmdList, m_postMotionKeyLevel.Get(), kUavState, kSrvState);
+        AddBarrier(cmdList, m_postMotionKeyDepth.Get(), kUavState, kSrvState);
+        // --- apply (full resolution, in place on RR's input signals) ---
+        // The signals are the bridge's denoiser inputs: shader-readable when the packing left them, and returned to
+        // that state so the provider dispatch sees exactly what it always saw, scaled by the anchored level.
+        AddBarrier(cmdList, signals.DirectDiffuse.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, signals.IndirectSpecular.Get(), kSrvState, kUavState);
+        ID3D12Resource* applyInputs[] {m_postMotionGain.Get()};
+        ID3D12Resource* applyOutputs[] {signals.DirectDiffuse.Get(), signals.IndirectSpecular.Get()};
+        m_postMotionApplyShader.Dispatch(cmdList, GetAsByteSpan(applyConstants), applyInputs, applyOutputs,
+            {float(width), float(height)});
+        AddBarrier(cmdList, signals.DirectDiffuse.Get(), kUavState, kSrvState);
+        AddBarrier(cmdList, signals.IndirectSpecular.Get(), kUavState, kSrvState);
+        m_postMotionActive = true;
     }
 
     void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -3060,6 +3217,30 @@ struct FSRDPreprocessor_Dx12::Impl
         catch (...) { m_gameTrace.Abort("Game trace source metadata unavailable."); }
     }
 
+    // The post-motion anchor's keyframe ring is a texture array (the recall pass indexes the slice), which the
+    // shared CreateTexture2D helper cannot build.
+    static ComPtr<ID3D12Resource> CreateTexture2DArraySlice(ID3D12Device* pDev, UINT width, UINT height, UINT slices,
+        DXGI_FORMAT format, LPCWSTR name, D3D12_RESOURCE_STATES initialState)
+    {
+        ScopedSkipHeapCapture skipHeapCapture {};
+        D3D12_RESOURCE_DESC desc = {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Width = width;
+        desc.Height = height;
+        desc.DepthOrArraySize = UINT16(slices);
+        desc.MipLevels = 1;
+        desc.Format = format;
+        desc.SampleDesc.Count = 1;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_DEFAULT };
+        ComPtr<ID3D12Resource> resource;
+        ThrowIfFailed(pDev->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &desc, initialState, nullptr,
+            IID_PPV_ARGS(&resource)), "Failed to create internal texture array");
+        resource->SetName(name);
+        return resource;
+    }
+
     bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         m_research.SetTimings(m_stageTimings);
@@ -3165,6 +3346,11 @@ struct FSRDPreprocessor_Dx12::Impl
             DispatchPackingShader(cmdList, desc, conversionPipeline);
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Conversion);
+
+        // Post-motion level anchor (task 25 T3 ii, default off): the luminance gain rides on RR's input signals
+        // after the packing wrote them and before the bridge scales and feeds them to the provider. Off: the call
+        // returns before any allocation, barrier or dispatch.
+        DispatchPostMotionAnchor(cmdList, desc);
 
         // Diagnostic: read back the RR-facing linear depth, motion and normals while
         // their state is still the one this code set. The denoiser dispatch below

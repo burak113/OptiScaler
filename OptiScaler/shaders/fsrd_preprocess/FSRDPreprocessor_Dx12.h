@@ -290,6 +290,15 @@ class FSRDPreprocessor_Dx12
         bool DisplayResolutionMotion = false;
         bool SpecularHitDistanceFromCombinedAlpha = false;
 
+        // Post-motion level anchor (task 25 T3 ii, default off): after fast camera motion the game's input is
+        // +15-25 % brighter for ~15 frames and RR holds that level for a second or more (the bright trail). Two
+        // 1/8-resolution passes measure a luminance-only gain against a ring of settled keyframes of the input's
+        // OWN level (captured before the gain, so the anchor never pollutes its own reference) and one
+        // full-resolution pass applies it in place to the two RR input signals. Nothing is allocated, bound or
+        // dispatched while the option is off.
+        bool PostMotionAnchor = false;
+        float PostMotionAnchorStrength = 1.0f;
+
     };
 
     /**

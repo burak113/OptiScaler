@@ -70,6 +70,8 @@ KEYS = {
     'FfxDenoiserColourTrackStrength': ('ColourTrackStrength', 'Float'),
     'FfxDenoiserColourTrackEmaWeight': ('ColourTrackEmaWeight', 'Float'),
     'FfxDenoiserColourTrackRadius': ('ColourTrackRadius', 'Float'),
+    'FfxDenoiserPostMotionAnchor': ('PostMotionAnchor', 'Bool'),
+    'FfxDenoiserPostMotionAnchorStrength': ('PostMotionAnchorStrength', 'Float'),
     'FfxDenoiserNrdBridgeNativeDebugView': ('NrdBridgeNativeDebugView', 'Int'),
     'FfxDenoiserNrdBridgeNativeDebugViewport': ('NrdBridgeNativeDebugViewport', 'Int'),
 }
@@ -715,6 +717,24 @@ int main(){try{
  need(!cfg.FfxDenoiserColourTrack.value_or_default()&&cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f&&
       cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.25f&&cfg.FfxDenoiserColourTrackRadius.value_or_default()==16.0f,
  "Full reset restores the colour tracking defaults");
+ // Post-motion level anchor (task 25 T3 ii): the checkbox and its strength slider drive the stored values, the
+ // keys persist, and the full reset restores the measured default (the strength is the user's dial because the
+ // amplitude calibration is capture dependent).
+ cfg.load("[FSR-RR]\n");
+ need(!cfg.FfxDenoiserPostMotionAnchor.value_or_default()&&cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,
+ "Post-motion anchor defaults OFF with the measured strength");
+ ImGui::frame();ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.4f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,"Post-motion anchor slider is inert while OFF");
+ ImGui::frame();ImGui::bools["Post-motion level anchor (experimental)##NrdBridge"]=true;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostMotionAnchor.value_or_default(),"Post-motion anchor checkbox drives the stored option");
+ ImGui::frame();ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.6f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,"Post-motion anchor slider writes the stored value");
+ saved=cfg.save();reload.load(saved);
+ need(reload.FfxDenoiserPostMotionAnchor.value_or_default()&&reload.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,
+ "Post-motion anchor settings survive production INI save and reload");
+ cfg.ResetFfxDenoiserSettings();
+ need(!cfg.FfxDenoiserPostMotionAnchor.value_or_default()&&cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,
+ "Full reset restores the post-motion anchor defaults");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''

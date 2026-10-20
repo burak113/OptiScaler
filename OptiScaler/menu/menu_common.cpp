@@ -3361,6 +3361,34 @@ static bool DrawNrdBridgeTurnColour(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Frames until the game's excess is gone and the correction is fully off. Default 12.");
     ImGui::EndDisabled();
+    bool postMotionAnchor = config->FfxDenoiserPostMotionAnchor.value_or_default();
+    if (ImGui::Checkbox("Post-motion level anchor (experimental)##NrdBridge", &postMotionAnchor))
+    {
+        config->FfxDenoiserPostMotionAnchor = postMotionAnchor;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("After fast camera motion the game's input is 15-25 % brighter for ~15 frames and RR, with "
+                          "D16, holds that level for a second or more: the bright trail. Pixels that saw a settled frame "
+                          "(a ring of 8 keyframes of the input's own level, sampled while the camera is still) have their "
+                          "input luminance scaled so it matches that settled level during the 25 frames after the motion; "
+                          "the same factor goes on R, G and B, so the chroma and the noise stay RR's. The correction is "
+                          "bounded by the measured post-motion band, never brightens, and a change far above the band (a "
+                          "light switched on, a flash) is not corrected at all. Two 1/8-resolution passes and one "
+                          "full-resolution apply, only while the option is on. Measured: 87ee f60 out/in 1.073 -> 0.985, "
+                          "22f9 f52 1.167 -> 1.032, blotch and fine noise improve, chroma untouched. Default off.");
+    ImGui::BeginDisabled(!postMotionAnchor);
+    float postMotionStrength = config->FfxDenoiserPostMotionAnchorStrength.value_or_default();
+    if (ImGui::SliderFloat("Post-motion anchor strength##NrdBridge", &postMotionStrength, 0.0f, 1.5f, "%.2f"))
+    {
+        config->FfxDenoiserPostMotionAnchorStrength = postMotionStrength;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Fraction of the measured correction. The amplitude calibration is capture dependent (the "
+                          "measured excess is 0.4-0.8x the true input excess), so 1.0 is the measured dose and the dial "
+                          "is the user's; the band cap bounds every value. Default 1.0.");
+    ImGui::EndDisabled();
     bool postFlick = config->FfxDenoiserPostFlickFix.value_or_default();
     if (ImGui::Checkbox("Post-flick blotch fix (experimental)##NrdBridge", &postFlick))
     {

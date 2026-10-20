@@ -583,6 +583,11 @@ class Config
     // Post-flick blotch fix (task 24 T2 c, experimental): after a flick the composite takes its low-frequency band
     // from the last settled frame before it, level matched. Default off; nothing is allocated or dispatched while off.
     CustomOptional<bool> FfxDenoiserPostFlickFix {false};
+    // Post-motion level anchor (task 25 T3 ii, default off): a luminance-only gain on RR's input during the
+    // post-motion window, measured from a ring of settled keyframes of the input's own level. The strength is
+    // mandatory because the measured amplitude calibration is capture dependent (0 = off, 1 = the measured dose).
+    CustomOptional<bool> FfxDenoiserPostMotionAnchor {false};
+    CustomOptional<float> FfxDenoiserPostMotionAnchorStrength {1.0f};
     CustomOptional<float> FfxDenoiserPostFlickStrength {1.0f};
     // Post-RR colour tracking (task 25 T2, experimental): RR's chroma lags a smooth global change by ~60 frames
     // under the user's D16 settings, so after a flick the composite keeps the pre-flick colour for a second or
