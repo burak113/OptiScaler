@@ -1,0 +1,12 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "command": "python -B compare.py --quality-gate",
+  "cwd": "research/astra20261020/portable/colour",
+  "exit_code": 1,
+  "expected_exit_code": 1,
+  "elapsed_seconds": 2.57493690299998,
+  "gpu_executed": false,
+  "stdout_sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "candidate_results_viewed": false
+}

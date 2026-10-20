@@ -1,0 +1,453 @@
+{
+  "schema": "fsrd.job06.source_audit.v1",
+  "executor": "mechanism_subagent",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "frozen_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "gpu_executed": false,
+  "production_modified": false,
+  "source_files": [
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+      "sha256": "eed671b1c2b5f57599ea1f2b1da695e050ed0ead0a5827c41e19c5eed634f56f",
+      "bytes": 255922,
+      "lines": 3967,
+      "inspected_line_spans": [
+        [
+          1778,
+          1828
+        ],
+        [
+          2100,
+          2189
+        ],
+        [
+          2240,
+          2293
+        ]
+      ],
+      "claim": "Native geometry, exact owned late decode/RecordOwned, same-transaction CommitOwned; internal spec,diff versus title diff,spec order.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+      "sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "bytes": 112637,
+      "lines": 1878,
+      "inspected_line_spans": [
+        [
+          1136,
+          1208
+        ],
+        [
+          1297,
+          1457
+        ],
+        [
+          1511,
+          1649
+        ],
+        [
+          1676,
+          1712
+        ]
+      ],
+      "claim": "Frame convention/reset validation, private input and lobe graph preparation, DD then IS ABI order, G3 substitution, scale restore before trace/recovery, raw/selected resource publication.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdLightingGuard_Dx12.h",
+      "sha256": "b49831511028d59996006247992a93df33e46d884bd01e930eb504c65a4d86f6",
+      "bytes": 11542,
+      "lines": 175,
+      "inspected_line_spans": [
+        [
+          62,
+          175
+        ]
+      ],
+      "claim": "Read-only source-light statistics and separately owned provider motion; gap/reset state and publication barriers.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdLightingGuard_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDRadianceScale_Dx12.h",
+      "sha256": "a4d6e938ee8ef643f42f15a29afb6a0301e0bb832894e1a7c496bc997d8f9bfd",
+      "bytes": 10598,
+      "lines": 180,
+      "inspected_line_spans": [
+        [
+          46,
+          97
+        ],
+        [
+          142,
+          179
+        ]
+      ],
+      "claim": "Per-descriptor diffuse/specular factors and scoped restore of input/output RGB.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDRadianceScale_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h",
+      "sha256": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+      "bytes": 41263,
+      "lines": 641,
+      "inspected_line_spans": [
+        [
+          120,
+          123
+        ],
+        [
+          298,
+          341
+        ],
+        [
+          410,
+          527
+        ],
+        [
+          605,
+          633
+        ]
+      ],
+      "claim": "Reflection History active under TemporalOFF, per-lobe graph and virtual-hit constants, frame-contiguous history and output graph.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp",
+      "sha256": "aedd87a2ef04eefad5ccf6490241ee4689ee9470e7659a8ba3dbdea65f7418cf",
+      "bytes": 168584,
+      "lines": 2604,
+      "inspected_line_spans": [
+        [
+          979,
+          982
+        ],
+        [
+          1263,
+          1265
+        ],
+        [
+          1775,
+          1791
+        ],
+        [
+          2016,
+          2190
+        ],
+        [
+          2302,
+          2379
+        ]
+      ],
+      "claim": "Named actual stage resources, 46-word provider controls ABI, owned/committed capture lineage and fence lifecycle.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h",
+      "sha256": "4a66843a00dd6170cb68af32535565ac57f7f40135b2d1a1bbb9406cdb736662",
+      "bytes": 9490,
+      "lines": 140,
+      "inspected_line_spans": [
+        [
+          25,
+          96
+        ],
+        [
+          123,
+          138
+        ]
+      ],
+      "claim": "Camera matrix conventions, complete settings provenance, unverified material modulation/upstream exposure and native-domain role semantics.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdRawDecode.hlsl",
+      "sha256": "98927ab2db9acfbec939d1f137509a7ddbd579dc714997c77110b89fa2a3a3e8",
+      "bytes": 1879,
+      "lines": 36,
+      "inspected_line_spans": [
+        [
+          14,
+          35
+        ]
+      ],
+      "claim": "Inverse native encoding and preserved finite alpha with explicit half rounding.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdRawDecode.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdRawPrePassDecode.hlsl",
+      "sha256": "1b83c724eadb84579b36681153d07608115dd38f3d655202e42f2d60e470a04b",
+      "bytes": 7056,
+      "lines": 129,
+      "inspected_line_spans": [
+        [
+          31,
+          129
+        ]
+      ],
+      "claim": "Checkerboard neighbour fill preserves traced pixels; untraced alpha is reconstructed, not measured current hit.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdRawPrePassDecode.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdSignalEncoding.hlsli",
+      "sha256": "d2218297bae0cbec1444e20db6ef5b0c07f0134c0d2bf16001e79c3353b68c12",
+      "bytes": 1957,
+      "lines": 42,
+      "inspected_line_spans": [
+        [
+          27,
+          40
+        ]
+      ],
+      "claim": "YCoCg encoding and excluded Consumer factor64/exposure.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdSignalEncoding.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometry.hlsl",
+      "sha256": "b9a4e1a9a73699aade525ab656662e6047970b45c12b29b830b6f9506edc5068",
+      "bytes": 5071,
+      "lines": 102,
+      "inspected_line_spans": [
+        [
+          60,
+          102
+        ]
+      ],
+      "claim": "Signed RR Z, positive native ViewZ, validity classification and material guides.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeGeometry.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMotion.hlsl",
+      "sha256": "2cb501da80999b5116d8ac2a68d39fdaf8404fc6d44fef7782f1b81f1190e3da",
+      "bytes": 2739,
+      "lines": 66,
+      "inspected_line_spans": [
+        [
+          43,
+          66
+        ]
+      ],
+      "claim": "Native/current-surface depth prediction and fallback without using previous visible occluder by default.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgeMotion.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMotionCommon.hlsli",
+      "sha256": "62b9da58fae48cc82045572c52735679642b9bc0babeba64fc48ada6b51447f7",
+      "bytes": 8029,
+      "lines": 136,
+      "inspected_line_spans": [
+        [
+          6,
+          61
+        ],
+        [
+          74,
+          134
+        ]
+      ],
+      "claim": "Surface UV scale+jitter contract; depth-delta provenance independent from RG and specular hit distance.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdMotionCommon.hlsli"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuard.hlsl",
+      "sha256": "6034055a7e723a96d33d13f6416ba838b83de2d5e2534c9a55e191f93325cbd3",
+      "bytes": 5023,
+      "lines": 90,
+      "inspected_line_spans": [
+        [
+          1,
+          90
+        ]
+      ],
+      "claim": "Input-light event statistics, empirical rather than independent-sigma interpretation.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuard.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuardApply.hlsl",
+      "sha256": "a2503b0afe06c4a0a0728356103734a597a080aa8a0860f8403bc684f7ec973d",
+      "bytes": 3169,
+      "lines": 60,
+      "inspected_line_spans": [
+        [
+          1,
+          60
+        ]
+      ],
+      "claim": "G3 preserves RG/A and may replace B only with signed finite sentinel.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdLightingGuardApply.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDRadianceScale.hlsl",
+      "sha256": "b8d05dd2bcf45d800412a47f342d202316dbdc87e26ad72599e8ea382defc56a",
+      "bytes": 1233,
+      "lines": 35,
+      "inspected_line_spans": [
+        [
+          16,
+          35
+        ]
+      ],
+      "claim": "Only RGB scaled; alpha retained.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDRadianceScale.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHistory.hlsl",
+      "sha256": "0ea5b045d0539e50d8e5a1b0dba0598ec1f63963e5079afd89d6c2c58285fd5b",
+      "bytes": 6760,
+      "lines": 140,
+      "inspected_line_spans": [
+        [
+          1,
+          140
+        ]
+      ],
+      "claim": "Static-planar virtual ray extension, no surface-MV resource, median positive hit and temporal moment support.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHistory.hlsl"
+    },
+    {
+      "path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit.hlsl",
+      "sha256": "f3f77a816de5749ed142a09a0c71311f315b8cb0ba61005a026e02277a78c975",
+      "bytes": 1434,
+      "lines": 30,
+      "inspected_line_spans": [
+        [
+          21,
+          30
+        ]
+      ],
+      "claim": "Selected staged RGB encoded while preserving title-owned destination alpha.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit.hlsl"
+    },
+    {
+      "path": "OptiScaler/upscalers/fsr31/FSRDRRInterop.h",
+      "sha256": "21416889ef369d1ee60af188a4dc87ce16620f8a70df0a73e119cb65adf156a5",
+      "bytes": 4119,
+      "lines": 103,
+      "inspected_line_spans": [
+        [
+          11,
+          17
+        ]
+      ],
+      "claim": "GetRRMatrix transposes bridge column-vector row-major matrices for provider dispatch words.",
+      "immutable_url": "https://github.com/burak113/OptiScaler/blob/5d7839a930106cf8fe1ba8dbbc6750509e7f26a8/OptiScaler/upscalers/fsr31/FSRDRRInterop.h"
+    }
+  ],
+  "references": [
+    {
+      "path": "research/astra20261020/START_HERE.md",
+      "sha256": "5571dbd8f05fb1cab3cc86714a4be39754f6172630c1d3fac92c6380137b1787",
+      "bytes": 4775
+    },
+    {
+      "path": "research/astra20261020/COMMON_PROTOCOL.md",
+      "sha256": "5525899e189bb21981602a1b39dd5da3d0ca6c1b0d6a72cc5e633d408851364d",
+      "bytes": 4138
+    },
+    {
+      "path": "research/astra20261020/RETURN_PROTOCOL.md",
+      "sha256": "3fa5a198e60402680cda5dff2b38540e115e489340a91d80f204b25904bd3550",
+      "bytes": 2678
+    },
+    {
+      "path": "research/astra20261020/FINDINGS.md",
+      "sha256": "783cee18bc7f4db5f2b330e7fa2511e28d317c94e9be9dfdb5d88e6f615d980d",
+      "bytes": 5747
+    },
+    {
+      "path": "research/astra20261020/DATA_CONTRACT.md",
+      "sha256": "9777f2350bf194deb2c565945a6bdd80a4a2bf9f11a4c25a18da07bdf716c9dc",
+      "bytes": 2530
+    },
+    {
+      "path": "research/astra20261020/prompts/06-moving-bottle.md",
+      "sha256": "e4f4a5cab8cae51e9513ecffa769b1083cbfb1fddeb4d844b989a5063756108f",
+      "bytes": 13288
+    },
+    {
+      "path": "research/astra20261020/prompts/04-geometry-transport.md",
+      "sha256": "d3022f5eb209293fc8346651a8e618ce85896a134a77234f4662913a584541e9",
+      "bytes": 12932
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/clip_loader.py",
+      "sha256": "d39f9dba3fa42e8a201c5f5ce48cf9fba6ec5284b4fef09f3f0aca98e3ff0ae9",
+      "bytes": 2611
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/bottle_track7.json",
+      "sha256": "cb81c8fc1fabc973b79b97a324407597127fd23c7dcff4db74ca804d02a3ff39",
+      "bytes": 43037
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/foliage23.json",
+      "sha256": "cfc567a4adf9d35597bfa384f7ff01fc185dac6ee4fd5f4e4fdfeb7951652568",
+      "bytes": 122247
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/facade16.json",
+      "sha256": "a8099b44c712bab359bfb0cf320c6c5f07014178c62e4896ed69ef9ce2b771fc",
+      "bytes": 87601
+    },
+    {
+      "path": "research/astra20261020/fixtures/glass/manifest.json",
+      "sha256": "7bbdb9ec78569580adc65f434132c81a357afbf9d0db41032335c71f474d6e41",
+      "bytes": 39179
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/README.md",
+      "sha256": "29bfc3c9b69df122da8ca42f7d6fbf1bf1933e66edada0962cb85865a833f1bb",
+      "bytes": 2265
+    },
+    {
+      "path": "research/astra20261020/portable/colour/README.md",
+      "sha256": "8e6f346b43b83c7e1a36a3b5a2bc6b59b021ce9aa1614276885bb2dc142c8519",
+      "bytes": 7000
+    }
+  ],
+  "fixture_spot_check": {
+    "method": "numpy.load(..., allow_pickle=False); compare FP16 uint16 words; moving mask from packaged test_clips.speed_mask",
+    "scope": "bottle_track7 frames180..186, baseline speed >12 render pixels with 5x5 erosion",
+    "mask_counts": [
+      9275,
+      9430,
+      9560,
+      9864,
+      8730,
+      5479,
+      3114
+    ],
+    "mask_pixels_total": 55452,
+    "raw_selected_moving_mask_diffuse_differing_half_words": 0,
+    "raw_selected_moving_mask_specular_differing_half_words": 0,
+    "raw_selected_entire_crop_diffuse_differing_half_words": 0,
+    "raw_selected_entire_crop_specular_differing_half_words_by_frame": [
+      210,
+      144,
+      90,
+      0,
+      12,
+      0,
+      0
+    ],
+    "input_motion_B_abs_ge_65504_count": 0,
+    "interpretation": "Read-only independent spot check; main candidate evidence generator must reproduce. Equality limited to fixed moving support, not all specular pixels."
+  },
+  "not_observed": [
+    "AMD RR execution",
+    "Windows/native build",
+    "GPU timings or memory",
+    "same-pose converged truth",
+    "final game output",
+    "unseen pre-fixture temporal state",
+    "full per-frame capture settings and raw native checkerboard/control header in clip export"
+  ],
+  "compatibility": {
+    "coordinate_authority": "research/astra20261020/fixtures/clips/clip_loader.py",
+    "contract": "fsrd.support_coordinates.v1",
+    "job04_revision": null,
+    "cross_job_coordination_claimed": false,
+    "future_requirement": "Use an actual committed job04 API only after matching crop/origin/jitter/sign/invalid-history invariants."
+  }
+}

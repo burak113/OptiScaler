@@ -1,0 +1,29 @@
+{
+  "executor": "independent skeptical reviewer",
+  "before_fix": true,
+  "findings": [
+    {
+      "id": "R1",
+      "type": "invalid_policy_does_not_fail_closed",
+      "infinite_plane_tolerance_certifies_mixed_cell": true,
+      "negative_minimum_weight_nan_pixels": 64,
+      "expected": "Reject invalid Policy values before certification and reconstruction"
+    },
+    {
+      "id": "R2",
+      "type": "reset_loses_inflight_physical_slot_ownership",
+      "old_slot": 0,
+      "new_slot": 0,
+      "old_submission_fence": 1,
+      "completed_fence": 0,
+      "expected": "Do not reuse same physical slot while old write is in flight, regardless of logical epoch"
+    },
+    {
+      "id": "R3",
+      "type": "known_mask_and_threshold_fail_open",
+      "nan_known_mask_produced_valid_sample": true,
+      "infinite_depth_tolerance_accepts_1_vs_100": true,
+      "expected": "Reject nonboolean observation masks and nonfinite tolerances"
+    }
+  ]
+}

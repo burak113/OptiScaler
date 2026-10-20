@@ -1,0 +1,1058 @@
+{
+  "schema": "fsrd.astra.result.v1",
+  "task_id": "06-moving-bottle",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "annotated_tag_object": "1f18416f5b99a0f78e147f362ac436ce2116ed22",
+  "audited_production_baseline": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "branch": "astra/06-moving-bottle",
+  "pr_target": "sol/26-integration",
+  "source_revision": "242ed7f7bd80e6430db5a6a390c79b79a3f300e6",
+  "source_revision_scope": "Published source/evidence commit. Its Git tree fb06fd67ffe5171b54db178f704184ac531e9c65 is identical to locally verified source commit 5e6cae34f3d28a4b6f1cf9d7a0b314d7211d574b. The delivery commit only adds result/hash metadata, exact previously ignored review logs and their whitespace attribute. Export logger path/trailing-whitespace normalization is recorded and does not change assertions or measurements.",
+  "changed_paths": [
+    "research/astra20261020/candidates/06-moving-bottle/.gitattributes",
+    "research/astra20261020/candidates/06-moving-bottle/BLOCKED_DATA_REQUEST.json",
+    "research/astra20261020/candidates/06-moving-bottle/GPU_REQUEST.json",
+    "research/astra20261020/candidates/06-moving-bottle/README.md",
+    "research/astra20261020/candidates/06-moving-bottle/REPORT.md",
+    "research/astra20261020/candidates/06-moving-bottle/RESULT.json",
+    "research/astra20261020/candidates/06-moving-bottle/SHA256SUMS",
+    "research/astra20261020/candidates/06-moving-bottle/adapter/ADAPTER_SPEC.md",
+    "research/astra20261020/candidates/06-moving-bottle/analysis/MECHANISMS.md",
+    "research/astra20261020/candidates/06-moving-bottle/analysis/SOURCE_AUDIT.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_cpu.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_cpu_final.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_runs.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_labels_revealed.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_01.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_02.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_03.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_04.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_05.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_06.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_07.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_08.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_09.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_10.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_11.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_12.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_13.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/case_14.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/blind_public/manifest.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/candidate_tests.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/cpu_runs.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/fixed_base_masks.npz",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/inventory.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/inventory_run.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/mutant_ignore_crop.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation_after.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation_final.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/preservation.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/preservation_run.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/recorded_analysis.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/recorded_analysis_run.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/synthetic_experiments_run.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/synthetic_results.json",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visual_render_run.txt",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f180.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f181.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f182.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f183.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f184.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f185.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/bottle_f186.png",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/index.html",
+    "research/astra20261020/candidates/06-moving-bottle/evidence/visuals/visual_manifest.json",
+    "research/astra20261020/candidates/06-moving-bottle/inventory.py",
+    "research/astra20261020/candidates/06-moving-bottle/preservation.py",
+    "research/astra20261020/candidates/06-moving-bottle/recorded_analysis.py",
+    "research/astra20261020/candidates/06-moving-bottle/render_evidence.py",
+    "research/astra20261020/candidates/06-moving-bottle/requirements.txt",
+    "research/astra20261020/candidates/06-moving-bottle/review/AUDIT_RUNS.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/AUDIT_VERDICT.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/BLIND_PREDICTIONS.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/BLIND_PREDICTIONS.sha256",
+    "research/astra20261020/candidates/06-moving-bottle/review/BLIND_SCORE.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/KNOWN_BAD.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/KNOWN_BAD.md",
+    "research/astra20261020/candidates/06-moving-bottle/review/REVIEW.md",
+    "research/astra20261020/candidates/06-moving-bottle/review/REVIEW_PLAN.md",
+    "research/astra20261020/candidates/06-moving-bottle/review/analyze_blind.py",
+    "research/astra20261020/candidates/06-moving-bottle/review/baseline_stage_scope.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/blind_measurements.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/crop_mutation.log",
+    "research/astra20261020/candidates/06-moving-bottle/review/final_metadata_contracts.log",
+    "research/astra20261020/candidates/06-moving-bottle/review/independent_contracts.log",
+    "research/astra20261020/candidates/06-moving-bottle/review/known_bad_soft2.stderr.txt",
+    "research/astra20261020/candidates/06-moving-bottle/review/known_bad_soft2.stdout.json",
+    "research/astra20261020/candidates/06-moving-bottle/review/post_audit_candidate_suite.log",
+    "research/astra20261020/candidates/06-moving-bottle/review/reproduce_secondary_controls.py",
+    "research/astra20261020/candidates/06-moving-bottle/review/score_blind.py",
+    "research/astra20261020/candidates/06-moving-bottle/review/secondary_controls.json",
+    "research/astra20261020/candidates/06-moving-bottle/run.py",
+    "research/astra20261020/candidates/06-moving-bottle/support_tracer.py",
+    "research/astra20261020/candidates/06-moving-bottle/synthetic_experiments.py",
+    "research/astra20261020/candidates/06-moving-bottle/synthetic_scenes.py",
+    "research/astra20261020/candidates/06-moving-bottle/tests/test_recorded.py",
+    "research/astra20261020/candidates/06-moving-bottle/tests/test_review_contracts.py",
+    "research/astra20261020/candidates/06-moving-bottle/tests/test_synthetic.py",
+    "research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py"
+  ],
+  "production_paths_changed": [],
+  "dependency_versions": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "required_numpy": "2.3.5",
+    "dependency_installation": "Required pinned version was preinstalled; no installation claimed",
+    "platform": "Linux x86_64"
+  },
+  "candidate": {
+    "name": "diagnostic support tracer with identity/abstention",
+    "recommendation": "keep_as_research",
+    "default_off": true,
+    "production_image_fix": false,
+    "new_hlsl": false,
+    "adapter": "adapter/ADAPTER_SPEC.md",
+    "coordinate_reference": "../../fixtures/clips/clip_loader.py",
+    "coordinate_contract": "fsrd.support_coordinates.v1",
+    "runtime_image_changes": false,
+    "frame_latency": 0,
+    "gpu_time_ms": null,
+    "state": "Offline adjacent-observation comparison; no feedback into provider or NZR. First frame/gap/explicit reset or domain break invalidates comparison. No provider reset is issued.",
+    "missing_data_behavior": "Unknown support stays invalid; real-capture causal classification abstains; selected arrays remain bit-identical."
+  },
+  "seeds_and_frozen_design": {
+    "train": {
+      "frames": 24,
+      "width": 80,
+      "height": 56,
+      "trajectory": "straight",
+      "noise_family": "gaussian",
+      "camera": "static",
+      "rotating": true,
+      "moving_crop": true,
+      "thin": false,
+      "light_step": 1.0,
+      "hit_distance": 2.0,
+      "opaque": false
+    },
+    "holdout": {
+      "frames": 24,
+      "width": 80,
+      "height": 56,
+      "trajectory": "curved_reentry",
+      "noise_family": "salt_poisson",
+      "camera": "moving",
+      "rotating": true,
+      "moving_crop": true,
+      "thin": false,
+      "light_step": 1.0,
+      "hit_distance": 2.0,
+      "opaque": false
+    },
+    "train_seeds": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107
+    ],
+    "holdout_seeds": [
+      900,
+      901,
+      902,
+      903,
+      904,
+      905,
+      906,
+      907
+    ],
+    "thresholds": [
+      0.1,
+      0.25,
+      0.5
+    ],
+    "diagnostic_thresholds": {
+      "geometry_px": 0.45,
+      "source_offsupport_fraction": 0.12,
+      "stage_tail_excess": 0.08,
+      "sparse_coverage": 0.65
+    }
+  },
+  "cpu_commands": {
+    "initial_baseline": {
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "executor": "Linux CPU, root agent",
+      "runs": [
+        {
+          "command": "python -B research/astra20261020/validate_package.py",
+          "exit_code": 0,
+          "elapsed_seconds": 0.5692896239997935,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation.txt",
+          "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+        },
+        {
+          "command": "python -B research/astra20261020/run_cpu.py",
+          "exit_code": 0,
+          "elapsed_seconds": 5.5025850029996946,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_cpu.txt",
+          "sha256": "55c65116763d5e9d8ba80237042c5e5d35a2e993087864b1938b3a931e4bbd64"
+        }
+      ]
+    },
+    "final_full_run": {
+      "schema": "astra.job06.cpu_run.v1",
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "platform": "Linux x86_64",
+      "gpu_executed": false,
+      "baseline_skipped": false,
+      "runs": [
+        {
+          "label": "package_validation_final",
+          "command": "python -B research/astra20261020/validate_package.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 0.6188301160000265,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation_final.txt",
+          "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "baseline_cpu_final",
+          "command": "python -B research/astra20261020/run_cpu.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 5.9883949390005,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_cpu_final.txt",
+          "log_sha256": "c13a014acc720da7fa40ff465230e1d2a27ae5d45d5a10f8c63d1617c4eb9293",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "candidate_tests",
+          "command": "python -B -m unittest discover -s research/astra20261020/candidates/06-moving-bottle/tests -v",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 2.354529091000586,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/candidate_tests.txt",
+          "log_sha256": "2ecb83cdd619e9a0cbface248bb47467c16a1519d3c8d1caf360f2c124b4e77f",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "mutant_ignore_crop",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py --mutate-ignore-crop",
+          "exit_code": 1,
+          "expected_exit_code": 1,
+          "expectation_met": true,
+          "elapsed_seconds": 0.16450058800000988,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/mutant_ignore_crop.txt",
+          "log_sha256": "b0c46310ba8369086ec6f62ce7d58adbfa3687f2a85a2d31c91f612d30238477",
+          "executor": "root CPU runner, Linux",
+          "pre_runtime_path_sanitization_sha256": "9e73025efc64b9c2e82005e999571ca1f425f9d2e078665c2df74ebf026d447b",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged",
+          "pre_trailing_whitespace_sanitization_sha256": "d1e980c01ac7727240d799ed18f8669dc7208a286aafef08a95760d06b77c4c8"
+        },
+        {
+          "label": "synthetic_experiments_run",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/synthetic_experiments.py --output research/astra20261020/candidates/06-moving-bottle/evidence/synthetic_results.json",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 23.91278340900135,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/synthetic_experiments_run.txt",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "recorded_analysis_run",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/recorded_analysis.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 3.4265605969994795,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/recorded_analysis_run.txt",
+          "log_sha256": "df33cf7b3c2135b91b1a47885a3d579bd9777117a4aa62f37c11e49b2823d796",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "preservation_run",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/preservation.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 0.7263927530002547,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/preservation_run.txt",
+          "log_sha256": "762a6a17ad825f58516484a2447a924f80f9a46e34eeb60907cdb6a1f4dab2df",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "inventory_run",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/inventory.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 1.0037400199998956,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/inventory_run.txt",
+          "log_sha256": "a441b0f77ed41487a528acf4fc3886785cac4e7c408649b7c6db91227b70c913",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "visual_render_run",
+          "command": "python -B research/astra20261020/candidates/06-moving-bottle/render_evidence.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 0.6521631060004438,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/visual_render_run.txt",
+          "log_sha256": "c6d0b4469b35295f9910eedde45271931149bc0d2e52498826603fa485474a9f",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        },
+        {
+          "label": "package_validation_after",
+          "command": "python -B research/astra20261020/validate_package.py",
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "expectation_met": true,
+          "elapsed_seconds": 0.5522710189998179,
+          "log": "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation_after.txt",
+          "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+          "executor": "root CPU runner, Linux",
+          "log_path_sanitization": "Repository absolute prefix removed; NumPy install prefix replaced by <numpy>; trailing whitespace stripped; metrics, exit status and assertions unchanged"
+        }
+      ],
+      "passed": true,
+      "elapsed_seconds": 39.40016563800236
+    },
+    "independent_review": [
+      {
+        "name": "independent_contracts",
+        "command": "python -B -m unittest discover -s research/astra20261020/candidates/06-moving-bottle/tests -p test_review_contracts.py -v",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "elapsed_seconds": 0.12744111699976202,
+        "log_sha256": "1605e3befe8f38f6d8c991ba72ffb57f8aaa1bdb7ba3cd18d3ccc5bf588c5260",
+        "executor": "independent_skeptical_reviewer"
+      },
+      {
+        "name": "post_audit_candidate_suite",
+        "command": "python -B -m unittest discover -s research/astra20261020/candidates/06-moving-bottle/tests -v",
+        "cwd": "repository root",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "elapsed_seconds": 2.279881890000979,
+        "log_sha256": "d35d68dd24ca4385582b9d8e30cc53b0610d61b5c5df421ac06789dc4ff9950a",
+        "executor": "independent_skeptical_reviewer"
+      },
+      {
+        "name": "crop_mutation",
+        "command": "python -B research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py --mutate-ignore-crop",
+        "cwd": "repository root",
+        "exit_code": 1,
+        "expected_exit_code": 1,
+        "elapsed_seconds": 0.20727726000041002,
+        "log_sha256": "90af9adcb84010729900084cac0ffd9db62619cf8017dae9c750093605f64dae",
+        "executor": "independent_skeptical_reviewer",
+        "raw_log_sha256": "90cc45a0d7d16cbf3c5b1e1f1e01edf5fcf32219bb2dcea91515b9e67c3873ad",
+        "log_sanitization": "Only machine-specific repository/runtime path prefixes replaced with repository-relative or <site-packages> paths; all assertions, numeric values and exit codes retained."
+      },
+      {
+        "name": "final_metadata_contracts",
+        "command": "python -B -m unittest test_recorded.RecordedContracts.test_explicit_reset_break_invalidates_comparison_only test_recorded.RecordedContracts.test_fractional_render_extent_is_not_silently_truncated -v",
+        "cwd": "research/astra20261020/candidates/06-moving-bottle/tests",
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "elapsed_seconds": 0.3598884900002304,
+        "log_sha256": "8f38f00a57e7695d11d7e9850ce43638d42d13720155f6ff8354c56de0f14a09",
+        "executor": "independent_skeptical_reviewer"
+      }
+    ],
+    "known_bad_before_candidate": {
+      "executor": "independent_skeptical_reviewer",
+      "command": "python -B compare.py --quality-gate",
+      "cwd": "research/astra20261020/portable/colour",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 2.57493690299998,
+      "gpu_executed": false,
+      "stdout_sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidate_results_viewed": false
+    }
+  },
+  "exact_entry_point": "python -B research/astra20261020/candidates/06-moving-bottle/run.py",
+  "independent_reproduction_commands": [
+    "python -B research/astra20261020/candidates/06-moving-bottle/review/analyze_blind.py",
+    "python -B research/astra20261020/candidates/06-moving-bottle/review/score_blind.py"
+  ],
+  "verification": {
+    "frozen_files_validated": 91,
+    "safe_npz_arrays_validated": 141,
+    "frozen_cpu_suites_passed": 4,
+    "candidate_unittests_passed": 41,
+    "deliberate_crop_mutant_exit_code": 1,
+    "deliberate_crop_mutant_assertion_failures": 2,
+    "independent_contract_tests": 6,
+    "synthetic_condition_seed_runs": 144,
+    "synthetic_frames_per_run": 24,
+    "synthetic_class_matches": 144,
+    "number_of_new_gpu_runs": 0
+  },
+  "measured_comparisons": {
+    "recorded_bottle_scope": {
+      "frames": [
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186
+      ],
+      "render_extent": [
+        1505,
+        847
+      ],
+      "crop_extent": [
+        128,
+        256
+      ],
+      "mask": {
+        "definition": "BASE original motion speed >12 full-render pixels/frame, eroded by 2 pixels; bottle PLUS hand/arm, not object truth",
+        "sha256": "c0996ec8bdda8668ad0e28fc028cb28ac9c8df878817a895aa6a343c88398913",
+        "pixels_per_frame": [
+          9275,
+          9430,
+          9560,
+          9864,
+          8730,
+          5479,
+          3114
+        ],
+        "total_pixels": 55452,
+        "thresholds_native_luma": [
+          0.0,
+          0.0001,
+          0.001,
+          0.01
+        ],
+        "exposure": {
+          "diffuse": 46.81387767914756,
+          "specular": 38.803166579332526
+        },
+        "exposure_definition": ".8 / p99 of all BASE selected-RR luma pixels across supplied sequence, fixed for every stage/frame",
+        "candidate_dependent_mask": false,
+        "frame_looping": false
+      },
+      "raw_selected": {
+        "diffuse": {
+          "full_crop": {
+            "compared_words": 917504,
+            "different_words": 0,
+            "different_rgb_words": 0,
+            "different_alpha_words": 0
+          },
+          "fixed_mask": {
+            "compared_words": 221808,
+            "different_words": 0,
+            "different_rgb_words": 0,
+            "different_alpha_words": 0
+          }
+        },
+        "specular": {
+          "full_crop": {
+            "compared_words": 917504,
+            "different_words": 456,
+            "different_rgb_words": 456,
+            "different_alpha_words": 0
+          },
+          "fixed_mask": {
+            "compared_words": 221808,
+            "different_words": 0,
+            "different_rgb_words": 0,
+            "different_alpha_words": 0
+          }
+        }
+      },
+      "input_zero_rgb_fraction_weighted": {
+        "diffuse": 0.27553559835533437,
+        "specular": 0.2070258962706485
+      },
+      "motion_common_support": {
+        "original_1x": {
+          "normal_angle_deg": {
+            "count": 44828,
+            "mean": 23.817187746599128,
+            "p50": 20.560284550631003,
+            "p90": 30.88890810192515,
+            "max": 158.38236655712015
+          },
+          "relative_depth_error": {
+            "count": 44828,
+            "mean": 0.07831614461691452,
+            "p50": 0.06224190291044544,
+            "p90": 0.09484871621576023,
+            "max": 1.0
+          },
+          "specular_luma_symmetric_error": {
+            "count": 44828,
+            "mean": 0.7830895739316552,
+            "p50": 0.9404829416427998,
+            "p90": 1.0,
+            "max": 1.0
+          }
+        },
+        "mv_1.5x": {
+          "normal_angle_deg": {
+            "count": 44828,
+            "mean": 52.218574056981424,
+            "p50": 46.24456835928808,
+            "p90": 99.18576331094519,
+            "max": 169.86046178133947
+          },
+          "relative_depth_error": {
+            "count": 44828,
+            "mean": 0.6201140609037806,
+            "p50": 0.7000074443936793,
+            "p90": 1.0,
+            "max": 1.0
+          },
+          "specular_luma_symmetric_error": {
+            "count": 44828,
+            "mean": 0.7948723926551694,
+            "p50": 0.9530994332940865,
+            "p90": 1.0,
+            "max": 1.0
+          }
+        }
+      },
+      "real_silhouette_lag_px": null,
+      "real_true_shape_iou": null,
+      "real_physical_disocclusion_leakage": null,
+      "scope_warning": "Fixed mask includes hand/arm. No independently labelled shape or converged truth; zeros are not geometry absence."
+    },
+    "identity_preservation": {
+      "compared_bytes": 23822336,
+      "changed_bytes": 0,
+      "scope": "CPU diagnostic copy identity on stored tensors; no native runtime shader/host execution"
+    },
+    "synthetic_evidence": "evidence/synthetic_results.json",
+    "synthetic_aggregate_results": [
+      {
+        "split": "train",
+        "cause": "clean",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "source_delay",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "mv_bias",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "jitter_error",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "sparse_source",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "virtual_mismatch",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "provider_tail",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "selected_tail",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "train",
+        "cause": "exposure_only",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "clean",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "source_delay",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "mv_bias",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "jitter_error",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "sparse_source",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "virtual_mismatch",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "provider_tail",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "selected_tail",
+        "correct": 8,
+        "total": 8
+      },
+      {
+        "split": "holdout",
+        "cause": "exposure_only",
+        "correct": 8,
+        "total": 8
+      }
+    ],
+    "level_only_counterexample": {
+      "clean": {
+        "shape_iou": {
+          "mean": 0.5114707748683314,
+          "ci95": [
+            0.5002906012079231,
+            0.5222379203110656
+          ],
+          "independent_seeds": 8
+        },
+        "level_matched_shape_iou": {
+          "mean": 0.5128152292270254,
+          "ci95": [
+            0.5004471263270369,
+            0.5245572280787278
+          ],
+          "independent_seeds": 8
+        },
+        "occupancy_lag_px": {
+          "mean": 0.028912625190434384,
+          "ci95": [
+            0.009513644270226837,
+            0.04946995237420315
+          ],
+          "independent_seeds": 8
+        },
+        "level_matched_occupancy_lag_px": {
+          "mean": 0.029967198857725974,
+          "ci95": [
+            0.007852733376937922,
+            0.054124926675220786
+          ],
+          "independent_seeds": 8
+        },
+        "level_ratio": {
+          "mean": 1.0297951757776895,
+          "ci95": [
+            1.0082163730950038,
+            1.0561426849092956
+          ],
+          "independent_seeds": 8
+        },
+        "tail_behind_energy": {
+          "mean": 0.16143167513551798,
+          "ci95": [
+            0.1594676955428164,
+            0.16354687716540445
+          ],
+          "independent_seeds": 8
+        },
+        "tail_ahead_energy": {
+          "mean": 0.13397370792412222,
+          "ci95": [
+            0.13312476551726024,
+            0.1347837849642979
+          ],
+          "independent_seeds": 8
+        },
+        "signed_tail_energy": {
+          "mean": 0.02745796721139577,
+          "ci95": [
+            0.025599459895896157,
+            0.02946805528999922
+          ],
+          "independent_seeds": 8
+        },
+        "offsupport_energy": {
+          "mean": 0.32469776776313597,
+          "ci95": [
+            0.32203168497369394,
+            0.32729226283200114
+          ],
+          "independent_seeds": 8
+        },
+        "disocclusion_leakage": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "independent_seeds": 8
+        },
+        "grain_gradient_error": {
+          "mean": 0.6829707373136257,
+          "ci95": [
+            0.6545962586967766,
+            0.7235146724841086
+          ],
+          "independent_seeds": 8
+        },
+        "sparkle_p99_absolute_error": {
+          "mean": 0.1599999964237213,
+          "ci95": [
+            0.1599999964237213,
+            0.1599999964237213
+          ],
+          "independent_seeds": 8
+        },
+        "temporal_flicker_residual_rms": {
+          "mean": 0.08018151655868536,
+          "ci95": [
+            0.07792167013034323,
+            0.08294931051875536
+          ],
+          "independent_seeds": 8
+        }
+      },
+      "exposure_only": {
+        "shape_iou": {
+          "mean": 0.6585125312288191,
+          "ci95": [
+            0.6459420983551646,
+            0.6705002901022551
+          ],
+          "independent_seeds": 8
+        },
+        "level_matched_shape_iou": {
+          "mean": 0.5128152292270254,
+          "ci95": [
+            0.5004471263270369,
+            0.5245572280787278
+          ],
+          "independent_seeds": 8
+        },
+        "occupancy_lag_px": {
+          "mean": 0.01878661924911075,
+          "ci95": [
+            -0.01835185899597927,
+            0.05280333995780823
+          ],
+          "independent_seeds": 8
+        },
+        "level_matched_occupancy_lag_px": {
+          "mean": 0.029967198857725974,
+          "ci95": [
+            0.007852733376937922,
+            0.054124926675220786
+          ],
+          "independent_seeds": 8
+        },
+        "level_ratio": {
+          "mean": 0.669366844756607,
+          "ci95": [
+            0.6553406236016531,
+            0.6864927249310427
+          ],
+          "independent_seeds": 8
+        },
+        "tail_behind_energy": {
+          "mean": 0.10493058549618522,
+          "ci95": [
+            0.10365399879455582,
+            0.10630546679158681
+          ],
+          "independent_seeds": 8
+        },
+        "tail_ahead_energy": {
+          "mean": 0.08708290737048677,
+          "ci95": [
+            0.08653109483618715,
+            0.08760945740695357
+          ],
+          "independent_seeds": 8
+        },
+        "signed_tail_energy": {
+          "mean": 0.017847678125698433,
+          "ci95": [
+            0.01663964841198892,
+            0.0191542353441178
+          ],
+          "independent_seeds": 8
+        },
+        "offsupport_energy": {
+          "mean": 0.21105354230256076,
+          "ci95": [
+            0.2093205885622619,
+            0.21273996406369453
+          ],
+          "independent_seeds": 8
+        },
+        "disocclusion_leakage": {
+          "mean": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "independent_seeds": 8
+        },
+        "grain_gradient_error": {
+          "mean": 0.44393096734072124,
+          "ci95": [
+            0.42548755624986184,
+            0.47028452465427595
+          ],
+          "independent_seeds": 8
+        },
+        "sparkle_p99_absolute_error": {
+          "mean": 0.19350001402199268,
+          "ci95": [
+            0.19200001657009125,
+            0.19650000892579556
+          ],
+          "independent_seeds": 8
+        },
+        "temporal_flicker_residual_rms": {
+          "mean": 0.0711395098015748,
+          "ci95": [
+            0.07017347110739969,
+            0.07218582083327679
+          ],
+          "independent_seeds": 8
+        }
+      }
+    },
+    "independent_blind": {
+      "public_cases": 14,
+      "identified_or_qualified_consistent": 10,
+      "appropriate_abstentions": 4,
+      "incorrect_broad_class_claims": 0,
+      "heldout_identified_cases": 5,
+      "equivalent_pair_not_independent": true,
+      "prediction_sha256": "89285b452a6d77d81c27f8a4d9b16afb64dc94fbba9d26a9f6f3173e301f9406",
+      "revealed_key_sha256": "5c69f858b3364f9d2ae4d3215d6d902ac05708a93b76e373f3e81fd682d881a0",
+      "executor": "independent_skeptical_reviewer",
+      "scope": "Conditional broad observable classes and explicit abstentions, not physical game-cause success rate."
+    }
+  },
+  "rejected_hypotheses": [
+    {
+      "claim": "Selected NZR adds an observable bottle-tail difference on every measured moving-mask pixel in these seven frames",
+      "disposition": "rejected_in_measured_scope",
+      "evidence": "0 different words in both lobes across443616 masked FP16 word comparisons; full-crop specular differs outside mask",
+      "not_rejected": "Unseen earlier history or a different region/frame can differ."
+    },
+    {
+      "claim": "An arbitrary1.5x surface MV correction is justified by this clip",
+      "disposition": "unsupported_and_opposed_by_geometry_proxy",
+      "evidence": "On fixed44828 common observations, mean normal disagreement23.8172deg versus52.2186deg and depth residual0.078316 versus0.620114",
+      "not_rejected": "Not every possible surface-motion defect is eliminated."
+    },
+    {
+      "claim": "Darker output or better raw threshold IoU demonstrates shape repair",
+      "disposition": "falsified_by_analytic_counterexample",
+      "evidence": "0.65x scaling improves raw specular IoU but leaves level-matched IoU/lag exactly unchanged."
+    },
+    {
+      "claim": "Dark current samples authorize rejection of all history",
+      "disposition": "not_identifiable_without_independent_support",
+      "evidence": "Sparse correct-motion control and equal-observation pair; physical source support absent in real clip."
+    }
+  ],
+  "unresolved_risks": [
+    "Real source support fidelity versus legitimate stochastic sparse samples",
+    "Unseen provider/NZR prehistory and exact per-frame source/settings lineage",
+    "True surface/object and reflected-feature correspondence",
+    "Actual Consumer remodulation, upstream exposure and final same-frame display",
+    "Partial crop boundaries, rotations and mixed pixels limit real geometry self-alignment",
+    "Synthetic classifier requires oracle support absent in game data; confidence intervals are seed-stratified only",
+    "No full chronological water capture or actual native integration execution",
+    "CPU sampler is not exact D3D hardware sampler parity"
+  ],
+  "gpu_executed": false,
+  "amd_rr_executed": false,
+  "native_build_executed": false,
+  "game_observation_executed": false,
+  "performance": {
+    "cpu_final_runner_seconds": 39.40016563800236,
+    "cpu_copy_latency_ms": null,
+    "native_gpu_overhead_ms": null,
+    "resident_vram_bytes": null,
+    "scope": "CPU research execution time only; no native performance claim"
+  },
+  "acceptance_status": {
+    "read_only_diagnostics": "validated_on_available_cpu_and_analytic_evidence",
+    "production_image_fix": "not_accepted",
+    "real_bottle_cause": "unresolved_with_precise_data_request",
+    "recommendation": "keep_as_research",
+    "remaining_gate": "GPU_REQUEST.json",
+    "blocked_data_request": "BLOCKED_DATA_REQUEST.json"
+  },
+  "fixture_hashes": {
+    "portable/anchor/fixtures/combined/22f9ca14.npz": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+    "portable/anchor/fixtures/combined/2405579e.npz": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+    "portable/anchor/fixtures/combined/87ee1fba.npz": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+    "portable/anchor/fixtures/native_policy/22f9ca14.npz": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+    "portable/anchor/fixtures/native_policy/2405579e.npz": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+    "portable/anchor/fixtures/native_policy/87ee1fba.npz": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+    "portable/colour/fixtures/soft2_gpu_87ee63.npz": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+    "fixtures/clips/bottle_track7.npz": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+    "fixtures/clips/facade16.npz": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+    "fixtures/clips/foliage23.npz": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+    "fixtures/glass/glass_crop.npz": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d"
+  },
+  "frozen_package_manifest_sha256": "5bd277f2e3b1c4c3b6adcf22effab4bf6abb07822c5c7838fb79b11cade909c7",
+  "source_file_hashes": {
+    "inventory.py": "1cd96a4fa8f61f8f1a6e60b14ae9d3322b054ebda048b70c4b3b14aa8ad434ea",
+    "preservation.py": "682d01d9a87bf5f3c2ad9edb86ac2bf567d014bc3a0f805407b4f52b42cee5f5",
+    "recorded_analysis.py": "d75e9922986d3a24b90ae705ef20792a0a468d5627c868e812c3e387418b08ef",
+    "render_evidence.py": "d85a0eed819cc7022d36e950becc9b9662c5d6080020a745973afda7d8a75408",
+    "review/analyze_blind.py": "587d7be2f6344a63c24f400cff048295cb15c10d617f93c41f5424b842b1d6ef",
+    "review/reproduce_secondary_controls.py": "405f709a91cc2472c72e7382a1016315cdff14926e8c2c14fe82af9cbe691688",
+    "review/score_blind.py": "fb35bd964b50e1bed4b78d5717dc39d1b6be2567666c1f6f0be745711fa8b272",
+    "run.py": "46d058d5d86481ebe4d3f2c006efbd05ec947c15d4bf119629530e531e870588",
+    "support_tracer.py": "b6a7db386f857e7ae52ba406b305b03f7e416ae15b2db66cde9ba702c373218b",
+    "synthetic_experiments.py": "15e90877e0a9d16f74c5ab162426d4eef47e5d6e772d471ca8e58e43034f2e85",
+    "synthetic_scenes.py": "44e454749699dfa033a3abd2de701541ff744966276b6be05cbe872e21fe8fb5",
+    "tests/test_recorded.py": "375edde6117265a735031a2e949cc0f3ec4b4d58f95e5888ec88e4e1633d015f",
+    "tests/test_review_contracts.py": "c4487c3648ded836cc70d74e90a90067d764e151fb81f7b49d7276e12054f88d",
+    "tests/test_synthetic.py": "d4e2abff8384e267bd4709a26a1502e969df7be553a671678568e2d1e6ec94a3",
+    "tests/test_tracer.py": "231bf0d4940551ad7dc28df87c462d52a93306075be1a0edb71e6a84b06974d0"
+  },
+  "result_and_evidence_hashes": {
+    ".gitattributes": "81d4dfb557e6fd4593013c66aa906e523001026c4dfd702a7faab51f080f003e",
+    "BLOCKED_DATA_REQUEST.json": "7328086a50be6bfa80a148a3b2d131ec2fb65a97dcd9f92cb4a0034b0d03b4e9",
+    "GPU_REQUEST.json": "538616d09e86d2b2f120b01f18dd919aa8e0e23cb0a55ad99dc567410e01c1c2",
+    "README.md": "f1203875ad7d717a9f6b34ff839a2f8d031888d86eba763fd3c3707fc34c2c3d",
+    "REPORT.md": "20ac5de6253cd9e7750ff0f6cd8f2fcf34f39e5d435be735ec9276a57ae54370",
+    "adapter/ADAPTER_SPEC.md": "924ef4b245f85433cf3d0275098561f6a13e29b70bf47ad4e45112cfb9e25308",
+    "analysis/MECHANISMS.md": "d43743713ff648f8757009ac8b226f4a73318783bb88c0fd047ed3db8042ca6a",
+    "analysis/SOURCE_AUDIT.json": "cb57e6b0079f047405942e621544c8d68308d4e6851a22105669806bc842baa1",
+    "evidence/baseline_cpu.txt": "55c65116763d5e9d8ba80237042c5e5d35a2e993087864b1938b3a931e4bbd64",
+    "evidence/baseline_cpu_final.txt": "c13a014acc720da7fa40ff465230e1d2a27ae5d45d5a10f8c63d1617c4eb9293",
+    "evidence/baseline_runs.json": "f0bd80672748919f01fdfbe63fd8a11a6a1a4bc85c2a977709ca997e47ccb433",
+    "evidence/blind_labels_revealed.json": "5c69f858b3364f9d2ae4d3215d6d902ac05708a93b76e373f3e81fd682d881a0",
+    "evidence/blind_public/case_01.npz": "e9ab4e891b2f0cc62acd61bebb89ef0d87760ff7f407d80ffc8bc4fe55a1204e",
+    "evidence/blind_public/case_02.npz": "6cccf224b68ac56c26e0ec760283db20908e3f670bbd4682eeff23f8ee38334b",
+    "evidence/blind_public/case_03.npz": "7c837ce1349f6f1a0dd748d1867f027693d93aaa8f6d95411f7a4d88aec00a0c",
+    "evidence/blind_public/case_04.npz": "56cba1909f112387a13db1989b315c2270b809bff89f87381b49be5f9e4adc97",
+    "evidence/blind_public/case_05.npz": "31c0ede9316fc060529d28ca00ffe3e87cddf8718ed53728bacdf4f2448ae570",
+    "evidence/blind_public/case_06.npz": "b49c9b0896f759c17efffef5d4f8a0b0f4e99b41c350ad7058ae465d0fe65b17",
+    "evidence/blind_public/case_07.npz": "2a128a92135613588d9a94dea81380c3e087993830bb6cd9d58868726613dd83",
+    "evidence/blind_public/case_08.npz": "38daf82cb76496e9f1500161da9dc254b177b0ce7437671f84d33482c5f2d925",
+    "evidence/blind_public/case_09.npz": "f15d0b9bd7e1cbde04a6a5f0bcd646d364289514eb7567a7dd202b2852c7054c",
+    "evidence/blind_public/case_10.npz": "d50b91cce1425425f7b9a329a61c92e62952c0bc597563b5f1953dcb3185f3c9",
+    "evidence/blind_public/case_11.npz": "7d422488ad06625c418a68427629396fd4c87a7d3f355bbede1f7c17fa50f6bd",
+    "evidence/blind_public/case_12.npz": "97d387abd018c745b4cdb51bf666a606956c449957901fbafdc7f09fbc6d7b44",
+    "evidence/blind_public/case_13.npz": "c0473080fca7bb15907296d5e36986a5b6e2627d49737a419e29150e274d60bf",
+    "evidence/blind_public/case_14.npz": "c0473080fca7bb15907296d5e36986a5b6e2627d49737a419e29150e274d60bf",
+    "evidence/blind_public/manifest.json": "c3a245421bcb2c91a47f6fd2896d34cbbf1e499ed08775c77171d006e95bced0",
+    "evidence/candidate_tests.txt": "2ecb83cdd619e9a0cbface248bb47467c16a1519d3c8d1caf360f2c124b4e77f",
+    "evidence/cpu_runs.json": "55f2969041b27d4798f80108dde5085e5414eacbeb5f4bdcdd719ff0f472fd56",
+    "evidence/fixed_base_masks.npz": "0a967ed660c36b82df34447b112e314aa09e08fa606530c4506f034329ab26d7",
+    "evidence/inventory.json": "61a682395386e0d557b9a8ab92a50090102cd77eec60d6e63aeb2c537c3f79e5",
+    "evidence/inventory_run.txt": "a441b0f77ed41487a528acf4fc3886785cac4e7c408649b7c6db91227b70c913",
+    "evidence/mutant_ignore_crop.txt": "b0c46310ba8369086ec6f62ce7d58adbfa3687f2a85a2d31c91f612d30238477",
+    "evidence/package_validation.txt": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/package_validation_after.txt": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/package_validation_final.txt": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/preservation.json": "5a062f457881a226e0bbfda07c382d2c760428f10e00bbbce23148d9d990d104",
+    "evidence/preservation_run.txt": "762a6a17ad825f58516484a2447a924f80f9a46e34eeb60907cdb6a1f4dab2df",
+    "evidence/recorded_analysis.json": "049a738ba4806f192dd9f96292f6da0b8ec054ef8dc5bd4b09e02c2b4b1b6622",
+    "evidence/recorded_analysis_run.txt": "df33cf7b3c2135b91b1a47885a3d579bd9777117a4aa62f37c11e49b2823d796",
+    "evidence/synthetic_experiments_run.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/synthetic_results.json": "0384453e12b6c063ba914a8ccbebcdd0b6adee7bdbd2d043be3a1dcd80664fc6",
+    "evidence/visual_render_run.txt": "c6d0b4469b35295f9910eedde45271931149bc0d2e52498826603fa485474a9f",
+    "evidence/visuals/bottle_f180.png": "512256589517291c7e55fc864d09008b644ba6724034d0d437332103609eb7f2",
+    "evidence/visuals/bottle_f181.png": "2afa3af62e4a7c07e3f4bf8e8b5cde4d5e3d41ba0d72052e74a549ae7bec678b",
+    "evidence/visuals/bottle_f182.png": "108ae0cedbaa1e7a41763624916040b8d08cd12c34090952adce3fd8437a9d17",
+    "evidence/visuals/bottle_f183.png": "fec98a0e543f794d51eb8364348a9d396cc864f8da3cf73dbf78fca4216823aa",
+    "evidence/visuals/bottle_f184.png": "4f1d0061b133b4d33d0db57a21bedfc13f4173120841a52a88d3992a855e15f8",
+    "evidence/visuals/bottle_f185.png": "f97e09d4972afde3b148e87579ac5051b6046a5fda83ab83d8d3596373f17038",
+    "evidence/visuals/bottle_f186.png": "8abbace60bd9dbfd52a881e5cfeec58052d83c79de6337effc6443e9d4da670e",
+    "evidence/visuals/index.html": "84874272ef7356ff9dcb7ff28f407be3a648b662a75c5c0c42075df3f54b8196",
+    "evidence/visuals/visual_manifest.json": "d52988b33e16fc72ec3c90ac32a7da74d9c68f57ba8b7ce0b0ec0b1ff2ca9a1b",
+    "requirements.txt": "7bd6b8946940b79948c548c8048e545684b91c8edc9444d8dfc0c8f76a97c0a7",
+    "review/AUDIT_RUNS.json": "2a29cd8bbb5470d61ed87836630b10154da00432e5f111e23320db170fc8eb24",
+    "review/AUDIT_VERDICT.json": "8cfa7df20a5e7c23d31c0381de185abcaa9c748928ffc4d98aaa958dfc0b92e8",
+    "review/BLIND_PREDICTIONS.json": "89285b452a6d77d81c27f8a4d9b16afb64dc94fbba9d26a9f6f3173e301f9406",
+    "review/BLIND_PREDICTIONS.sha256": "9874b138c95d97996a0a6b8dfa0288078a7af86288743640544f4ff4880e9d28",
+    "review/BLIND_SCORE.json": "38c65f3d6bfefa6625245e1dd6053a47add41b9cc2b1ad37e205a307a5e48cfe",
+    "review/KNOWN_BAD.json": "1bbaec8ab2128c3d3f2fd2bc2b1935ce247c39990a17091c0bd77d54c2349417",
+    "review/KNOWN_BAD.md": "5e1defc4a5c7bf2da966f180787e33b74db1c2d091fee4e333d520e74b1b4ae6",
+    "review/REVIEW.md": "22f24df94ec95f1cc784df0f0d62d157b742348b063f734225778c4cd6d04471",
+    "review/REVIEW_PLAN.md": "e9edd57744de6a2538062d1197c2e6782a9bf5f1eaaa4e9e049a95759363a5c2",
+    "review/baseline_stage_scope.json": "ccb2c406330d619b4d9c3ab234ec6552b6e0b6ba97fe55e9e09879249c608258",
+    "review/blind_measurements.json": "471dbcbeead1e954eb6fc0e10b2c6bda1d1b018414229fd2241719679948cdcc",
+    "review/crop_mutation.log": "90af9adcb84010729900084cac0ffd9db62619cf8017dae9c750093605f64dae",
+    "review/final_metadata_contracts.log": "8f38f00a57e7695d11d7e9850ce43638d42d13720155f6ff8354c56de0f14a09",
+    "review/independent_contracts.log": "1605e3befe8f38f6d8c991ba72ffb57f8aaa1bdb7ba3cd18d3ccc5bf588c5260",
+    "review/known_bad_soft2.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "review/known_bad_soft2.stdout.json": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+    "review/post_audit_candidate_suite.log": "d35d68dd24ca4385582b9d8e30cc53b0610d61b5c5df421ac06789dc4ff9950a",
+    "review/secondary_controls.json": "a787518b7fa5b54661d40ec3626c986f90801859fda0afa343ea2ca41b9bd85f"
+  },
+  "hash_policy": "RESULT.json does not hash itself or SHA256SUMS; SHA256SUMS covers delivered task files except itself. No manifest self-hashes.",
+  "attribution": {
+    "orchestration_and_recorded_measurements": "root agent, Linux CPU",
+    "native_mechanism_audit": "mechanism subagent",
+    "synthetic_implementation": "implementation subagent",
+    "blind_review_and_independent_checks": "skeptical_review subagent",
+    "historical_gpu_data": "original package authors/local owner, not rerun here"
+  }
+}

@@ -1,0 +1,6 @@
+{"clip": "bottle_track7", "lobe": "diffuse", "zero_rgb_fraction": 0.23396955217633927, "top1_energy": 0.3655856145830884, "eligible_rgba_equal_fraction": 1.0}
+{"clip": "bottle_track7", "lobe": "specular", "zero_rgb_fraction": 0.20741925920758927, "top1_energy": 0.34303232681634044, "eligible_rgba_equal_fraction": 0.9993373325892857}
+{"clip": "foliage23", "lobe": "diffuse", "zero_rgb_fraction": 0.35656561367753625, "top1_energy": 0.32990110770488434, "eligible_rgba_equal_fraction": 1.0}
+{"clip": "foliage23", "lobe": "specular", "zero_rgb_fraction": 0.378761180932971, "top1_energy": 0.5334298397544422, "eligible_rgba_equal_fraction": 0.998138870018116}
+{"clip": "facade16", "lobe": "diffuse", "zero_rgb_fraction": 0.1450873480902778, "top1_energy": 0.23567224424216227, "eligible_rgba_equal_fraction": 0.9926079644097222}
+{"clip": "facade16", "lobe": "specular", "zero_rgb_fraction": 0.1519436306423611, "top1_energy": 0.30674519755337254, "eligible_rgba_equal_fraction": 0.9926079644097222}

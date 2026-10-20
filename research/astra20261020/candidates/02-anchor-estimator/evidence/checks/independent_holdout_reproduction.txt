@@ -1,0 +1,48 @@
+{
+  "freeze_verified": 11,
+  "heldout": {
+    "native_policy": {
+      "old_dose": 0.05372433637608718,
+      "provisional_diagnostic_dose": 0.0010668264508791453,
+      "deployed_dose": 0.0
+    },
+    "combined": {
+      "old_dose": 0.030021193189135306,
+      "provisional_diagnostic_dose": 0.0013164934275166798,
+      "deployed_dose": 0.0
+    }
+  },
+  "synthetic": {
+    "shared_component": "preregistered synthetic data generator only; scalar metrics computed independently",
+    "positive_calibration_target_dose": 0.05051897233257407,
+    "baseline_matched_strength": 0.9753299951553345,
+    "baseline_matched_dose": 0.050518980517866095,
+    "diagnostic_strength": 1.0,
+    "absolute_dose_residual": 8.185292027507174e-09,
+    "antithetic_null_baseline_loss": 0.03184677055105567,
+    "antithetic_null_diagnostic_loss": 0.048141995018037655,
+    "diagnostic_rejected_as_active_correction": true,
+    "light_response_areas_22_frames": [
+      {
+        "step": 1.1,
+        "baseline_response_area": 0.03631882659521362,
+        "provisional_diagnostic_response_area": 0.028422496026872347,
+        "deployed_abstainer_response_area": 0.999940305803938
+      },
+      {
+        "step": 1.25,
+        "baseline_response_area": 0.3097656105240385,
+        "provisional_diagnostic_response_area": 0.29721317762330457,
+        "deployed_abstainer_response_area": 1.0000205826493735
+      },
+      {
+        "step": 1.4,
+        "baseline_response_area": 0.5168356034382839,
+        "provisional_diagnostic_response_area": 0.5070915760683856,
+        "deployed_abstainer_response_area": 1.0000140320454043
+      }
+    ],
+    "deployed_dose": 0.0,
+    "deployed_positive_dose_comparison": null
+  }
+}

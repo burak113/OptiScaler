@@ -1,0 +1,256 @@
+{
+  "schema": "fsrd.numerical-gpu-microcases.v1",
+  "gpu_executed": false,
+  "arithmetic_staging": {
+    "terms": [
+      1.0,
+      0.00048828125,
+      0.00048828125,
+      0.00048828125
+    ],
+    "entire_formula": "(a+b+c+d)*0.25",
+    "f32_without_store": 0.2503662109375,
+    "f64_without_store": 0.2503662109375,
+    "actual_boundary_rtz_model": 0.250244140625,
+    "fixed_threshold": 0.25030517578125,
+    "f32_without_store_decision": true,
+    "f64_without_store_decision": true,
+    "with_boundary_store_decision": false,
+    "scope": "analytic CPU staging counterexample; no whole-estimator float64 or GPU claim"
+  },
+  "phase_sweep": {
+    "samples": 4097,
+    "depth_texels": [
+      [
+        1.0,
+        1.0625
+      ]
+    ],
+    "current_depth": 1,
+    "motion_depth": 0,
+    "threshold": 0.02,
+    "changed_source_vs_ideal": 0,
+    "changed_observed_vs_ideal": 7,
+    "nearest_mutant_changed_vs_ideal": 737,
+    "interpretation": "analytic affine depth plane sampled at fixed phases; no image-quality score"
+  },
+  "sum_cases": [
+    {
+      "grid_xy": [
+        65,
+        64
+      ],
+      "full_extent_xy": [
+        520,
+        512
+      ],
+      "diffuse_rgb_constant": 32,
+      "specular_rgb_constant": 32,
+      "key_level_constant": 64,
+      "linear_depth_constant": 1,
+      "motion_uv": [
+        0,
+        0
+      ],
+      "expected_count": 4160,
+      "expected_increment": 1048576,
+      "expected_words": [
+        67108864,
+        1,
+        67108864,
+        1,
+        4160,
+        0,
+        0,
+        0
+      ],
+      "expected_32_bytes_hex": "0000000401000000000000040100000040100000000000000000000000000000",
+      "low_word_wraps": 1
+    },
+    {
+      "grid_xy": [
+        129,
+        128
+      ],
+      "full_extent_xy": [
+        1032,
+        1024
+      ],
+      "diffuse_rgb_constant": 32,
+      "specular_rgb_constant": 32,
+      "key_level_constant": 64,
+      "linear_depth_constant": 1,
+      "motion_uv": [
+        0,
+        0
+      ],
+      "expected_count": 16512,
+      "expected_increment": 1048576,
+      "expected_words": [
+        134217728,
+        4,
+        134217728,
+        4,
+        16512,
+        0,
+        0,
+        0
+      ],
+      "expected_32_bytes_hex": "0000000804000000000000080400000080400000000000000000000000000000",
+      "low_word_wraps": 4
+    }
+  ],
+  "reset_expected_32_bytes_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+  "finite_guard": {
+    "columns": [
+      "current_depth",
+      "motion_depth_delta",
+      "history_depth"
+    ],
+    "row_roles": [
+      "positive_infinite_expected",
+      "negative_infinite_expected",
+      "infinite_motion",
+      "finite_inclusive_positive",
+      "finite_inclusive_negative",
+      "finite_match",
+      "finite_mismatch",
+      "nan_expected",
+      "zero_history_sentinel"
+    ],
+    "source_expected_validity": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "adapter_expected_validity": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "note": "Inf is an actual representable FP16 payload. Two finite FP16 operands cannot overflow a float32 sum; that case is not claimed here."
+  },
+  "storage_expected_authority": "Two selected CPU rounding profiles. Nonfinite payload bits are model-only; actual GPU behavior must be recorded.",
+  "arrays": {
+    "depth_texture": {
+      "shape": [
+        1,
+        2
+      ],
+      "dtype": "<f2",
+      "raw_sha256": "9b5e24e43b9a4da7e0075bf9c2df5bc0ac995e27d3365f3aa4985d1c27770b2a"
+    },
+    "phase_uv": {
+      "shape": [
+        4097,
+        2
+      ],
+      "dtype": "<f4",
+      "raw_sha256": "6f0ca95f80101e92ee2fd44e375ecf2c8a0dc070d726fc0d11a42f8e1762a57c"
+    },
+    "phase": {
+      "shape": [
+        4097
+      ],
+      "dtype": "<f8",
+      "raw_sha256": "818e307fee696baa22036a579eca9d38ff1f2044191369306fdf580c56dc5697"
+    },
+    "storage_input_f32_words": {
+      "shape": [
+        22
+      ],
+      "dtype": "<u4",
+      "raw_sha256": "8f668321ecf4a31405583e446eff5cd1fb7d244c742829cd2e503523507b0127"
+    },
+    "expected_rne_half_bits": {
+      "shape": [
+        22
+      ],
+      "dtype": "<u2",
+      "raw_sha256": "7af8211002a4a946ba771e02ef569d0646f3cdb1caa575827029ca46f7e041fa"
+    },
+    "expected_rtz_half_bits": {
+      "shape": [
+        22
+      ],
+      "dtype": "<u2",
+      "raw_sha256": "063e5d793b42a603fcca7b2b7ab70a8d0ec9ce013ecb56ea4b78e7169dae9578"
+    },
+    "normal_payloads": {
+      "shape": [
+        2048
+      ],
+      "dtype": "<f4",
+      "raw_sha256": "4b5d38108a9fe57896cb94b2895a194533356f24e9d5e33a5bbac5d0636c2b49"
+    },
+    "normal_payload_half_bits": {
+      "shape": [
+        2048
+      ],
+      "dtype": "<u2",
+      "raw_sha256": "75ea304686b6585dc0a896d73307d59477f730e7d74675adf78e8ef25fdea944"
+    },
+    "phase_sample_ideal": {
+      "shape": [
+        4097
+      ],
+      "dtype": "<f8",
+      "raw_sha256": "05c3fca2b9fbf31091fb450ff8fb63b8578470d5180f3244d75ab17f13581b38"
+    },
+    "phase_sample_source": {
+      "shape": [
+        4097
+      ],
+      "dtype": "<f4",
+      "raw_sha256": "a9c5b76b9d9b086a1f6b5164ce16a7390f49402260c1a7e7277986e74df38c27"
+    },
+    "phase_sample_observed": {
+      "shape": [
+        4097
+      ],
+      "dtype": "<f4",
+      "raw_sha256": "03ba70e3813688672870d702f360d71b273e924d6067cff9e8ab9b7cbbac89fe"
+    },
+    "phase_gate_ideal": {
+      "shape": [
+        4097
+      ],
+      "dtype": "|b1",
+      "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+    },
+    "phase_gate_source": {
+      "shape": [
+        4097
+      ],
+      "dtype": "|b1",
+      "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+    },
+    "phase_gate_observed": {
+      "shape": [
+        4097
+      ],
+      "dtype": "|b1",
+      "raw_sha256": "c530fecc4267bee05a729351b25833c6d49c57722c2d756cf4443e119e79603b"
+    },
+    "guard_current_motion_history_half_bits": {
+      "shape": [
+        9,
+        3
+      ],
+      "dtype": "<u2",
+      "raw_sha256": "27d53fbb8bc05d19e1a6ffc369d31e0b18b3eebe698a525798d7b4c70838b610"
+    }
+  }
+}

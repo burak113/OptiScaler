@@ -1,0 +1,17 @@
+{
+  "schema": "native-colour-observed-protocol-v1",
+  "frozen_before_candidate_clip_scores": true,
+  "candidate_config": "native_colour.Config defaults, enabled explicitly true; log and linear differ only by representation",
+  "frame_order": "original frame_indices, once, no looping, no pre-window candidate state",
+  "sources": ["bottle_track7", "foliage23", "facade16"],
+  "lobe_domain": "diffuse and specular physical linear RGB independently, before unknown final game remodulation",
+  "baseline_masks": "inventory.frozen_support computed from original arrays only, plus a fixed 3px crop halo for quality metrics",
+  "denominator": "max(original raw RR Rec709 luminance,1e-6) per lobe/frame; no candidate-dependent masks or denominators",
+  "temporal_pairs": "origin-aware full-render-UV ideal CPU bilinear; require all previous subset samples, finite bounds, matching original depth within2%, original normal dot>=0.9; frame0 excluded",
+  "target_proxy": "current-frame input low-band chroma is an observation/proxy, not converged truth",
+  "metrics": ["origin-aware temporal chroma-HF p50/p90/p99/max", "correction-injected chroma-HF p99", "input-proxy low-band chroma distance", "luma error in selected lobe physical domain", "spatial detail-energy ratio", "eligible/protected word preservation and coverage"],
+  "controls": ["captured selected unchanged", "audited B4 math applied independently to each lobe with proposed exact-word gate", "rejected C8/soft2 same proposed gate"],
+  "baseline_adapter_caveat": "B4 and C8 native per-lobe use is a CPU counterfactual, not an existing native route or full RR rerun; ideal portable sampler remains unchanged",
+  "claim_boundary": "Observed clip metric changes cannot establish correct trail removal, semantic noise rejection, or displayed composite luminance",
+  "visualization": "same frame/crop/aspect, per-lobe BASE-derived exposure reused for every column; no final game appearance claim"
+}

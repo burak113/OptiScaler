@@ -1,0 +1,294 @@
+{
+  "schema": "job07.local_gpu_request.v1",
+  "task_id": "07-foliage-guides",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "gpu_executed_in_cloud": false,
+  "recommendation": "keep as research; diagnostic adapter only, default off",
+  "purpose": "Verify numerical parity and input preservation of an original-guide sidecar before any native adapter use. This request is not a foliage image-quality acceptance claim.",
+  "pass": {
+    "source": "adapter/FoliageGuideObservation.hlsl",
+    "entry_point": "CSMain",
+    "compiler_profile": "cs_6_2",
+    "requested_compiler": "DXC 1.8 matching the repository's audited local toolchain; record exact executable SHA256 and version",
+    "flags": [
+      "-E",
+      "CSMain",
+      "-T",
+      "cs_6_2",
+      "-HV",
+      "2021",
+      "-O3",
+      "-Gis"
+    ],
+    "shader_build_in_cloud": false,
+    "generated_bytecode": null,
+    "abi_authority": "adapter/INTERFACE.json and adapter/PRODUCTION_SPEC.md",
+    "execution": "A separate read-only diagnostic dispatch. Do not bind its moments or flags as an AMD provider input.",
+    "build_manifest": "adapter/BUILD.json"
+  },
+  "stages": [
+    {
+      "name": "standalone_shader_parity",
+      "inputs": "Exact original typed crop tensors and analytic fixtures; preserve resource formats, original stored values and current/previous crop origins.",
+      "order": "Chronological once, first observer frame has no previous snapshot. No sequence loops or edge clamping.",
+      "checks": [
+        "OFF/ON output initialization",
+        "odd extents and 1-pixel crops",
+        "all oct hemispheres and all four category codes",
+        "nonfinite/negative/overflowed predicted depth",
+        "changed crop origins and unequal previous/current crop sizes",
+        "missing previous frame, frame gap, context/generation/reset and render-size changes",
+        "finite motion-B sentinel or incompatible depth must not produce temporal evidence",
+        "all-four-tap support and unchanged source words"
+      ]
+    },
+    {
+      "name": "native_read_only_integration",
+      "inputs": "Leased original bridge guides and original pre-G3 bridge motion with explicit source lineage, as required by adapter/INTERFACE.json. Current provider motion is permitted only for the separately attributed standalone captured-fixture replay; it is not the live integration authority. Keep G3 on sourceInput D/S and RR/NZR on their existing owned physical D/S route.",
+      "order": "Retain actual provider chronology/reset/warmup. Observer reset is separate; do not reset AMD RR just because an exported observer crop starts.",
+      "checks": [
+        "default OFF issues no diagnostic dispatch/allocation",
+        "diagnostic ON does not change any provider input descriptor or input/output words",
+        "previous snapshots survive until the consuming queue fence completes",
+        "no resource-generation reuse, descriptor alias or cross-context history",
+        "UAV ordering and debug-layer/lifetime checks"
+      ]
+    }
+  ],
+  "capture_windows": [
+    {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "fixture": "foliage23",
+      "frames": {
+        "first": 43,
+        "last": 65,
+        "order": "inclusive chronological"
+      },
+      "sdk_frame_counters": {
+        "first": 34893,
+        "last": 34915
+      },
+      "crop_extent_wh": [
+        192,
+        64
+      ],
+      "crop_origins_xy": {
+        "all_frames": [
+          752,
+          423
+        ]
+      },
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "fixed_masks": "evidence/base_masks/foliage23.npz"
+    },
+    {
+      "capture": "f2ef375f-4452-4883-b59d-af48c1b903b5",
+      "fixture": "facade16",
+      "frames": {
+        "first": 34,
+        "last": 49,
+        "order": "inclusive chronological"
+      },
+      "sdk_frame_counters": {
+        "first": 15103,
+        "last": 15118
+      },
+      "crop_extent_wh": [
+        96,
+        96
+      ],
+      "crop_origins_xy": {
+        "all_frames": [
+          688,
+          359
+        ]
+      },
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "fixed_masks": "evidence/base_masks/facade16.npz",
+      "scope_limit": "This tile cannot replace the original full-ROI facade/text failure controls."
+    },
+    {
+      "capture": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+      "fixture": "bottle_track7",
+      "frames": {
+        "first": 180,
+        "last": 186,
+        "order": "inclusive chronological"
+      },
+      "sdk_frame_counters": {
+        "first": 20946,
+        "last": 20952
+      },
+      "crop_extent_wh": [
+        128,
+        256
+      ],
+      "crop_origins_xy": [
+        [
+          688,
+          160
+        ],
+        [
+          688,
+          176
+        ],
+        [
+          688,
+          208
+        ],
+        [
+          688,
+          272
+        ],
+        [
+          688,
+          384
+        ],
+        [
+          688,
+          480
+        ],
+        [
+          688,
+          560
+        ]
+      ],
+      "render_extent_wh": [
+        1505,
+        847
+      ],
+      "fixed_masks": "evidence/base_masks/bottle_track7.npz",
+      "scope_limit": "Moving crop is not an object-motion vector; bottle high-motion mask includes hand/arm."
+    }
+  ],
+  "resource_roles": [
+    {
+      "role": "current and previous original normal/roughness",
+      "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+      "shader_view": "Texture2D<float4>",
+      "meaning": "World oct normal RG, linear roughness B, categorical equality code A; no semantic class",
+      "file_row_bytes": "4 * crop_width"
+    },
+    {
+      "role": "current and previous bridge depth",
+      "format": "DXGI_FORMAT_R32_FLOAT",
+      "meaning": "Same positive-linear units as the captured motion B for these fixtures; do not infer raw validity from clamped depth",
+      "file_row_bytes": "4 * crop_width"
+    },
+    {
+      "role": "current motion",
+      "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+      "meaning": "RG previous-minus-current full-render UV; B previous-minus-current linear depth; retain W",
+      "file_row_bytes": "8 * crop_width"
+    },
+    {
+      "role": "output moments",
+      "format": "DXGI_FORMAT_R32G32B32A32_FLOAT",
+      "channels": [
+        "angular dispersion",
+        "relative depth span",
+        "temporal innovation 1-dot",
+        "experimental cosine multiplier; not an RR input"
+      ]
+    },
+    {
+      "role": "output flags",
+      "format": "DXGI_FORMAT_R16_UINT",
+      "meaning": "Separate diagnostic validity flags; do not overwrite existing R8_UINT native raw-depth validity"
+    }
+  ],
+  "row_pitch": {
+    "file_data": "Tightly packed rows as specified above",
+    "d3d_copy_row_pitch": null,
+    "requirement": "Query and record GetCopyableFootprints row pitch; do not treat file stride as a placed-footprint row pitch."
+  },
+  "constants": {
+    "depth_relative_tolerance": 0.02,
+    "depth_domain": "Explicitly positive-linear for the three packaged clip roles only; otherwise unsupported identity until established",
+    "current_previous_size_and_origins": "Use each frame's manifest values",
+    "render_size": [
+      1505,
+      847
+    ],
+    "frame_id_domain": "Choose one original chronology domain and retain it consistently; include SDK and capture mapping in evidence.",
+    "near_far_observed_provider_controls": [
+      0.02,
+      65504.0
+    ],
+    "source_authority": "Original here means pre-Flat-Albedo bridge input, not unseen native per-sample GBuffer truth."
+  },
+  "baseline_candidate_pairs": [
+    {
+      "baseline": "Protected native configuration, diagnostic OFF",
+      "candidate": "Same native configuration, diagnostic ON with sidecar output only",
+      "quality_expected": "Source and actual native RR outputs identical for deterministic replay; no image improvement claimed"
+    },
+    {
+      "baseline": "CPU observer output on original stored inputs",
+      "candidate": "Actual compiled diagnostic CS output on the same typed inputs",
+      "purpose": "Arithmetic and validity parity only"
+    }
+  ],
+  "protected_configuration": {
+    "D": 16,
+    "S": 256,
+    "G2": "enabled",
+    "G3": "enabled",
+    "RR Fallback": "enabled",
+    "Diffuse RR": "enabled",
+    "Reflection History": "enabled",
+    "NZR Temporal": "disabled",
+    "Anchor": "OFF",
+    "PostFlick": "OFF",
+    "ColourTrack": "OFF",
+    "new diagnostic": "OFF by default"
+  },
+  "tolerances": {
+    "source_guide_depth_motion_material_roughness_D_S_alpha": "Bitwise exact: zero changed words",
+    "standalone_flags": "Exact; inspect every boundary disagreement, no percentile waiver",
+    "moments_normalized_components": {
+      "absolute": 2e-06,
+      "relative": 2e-05,
+      "rationale": "Float32 normalization/dot arithmetic, manual point-tap interpolation, no sampler fraction quantization. Report max as well as p99 and exact failing coordinates."
+    },
+    "relative_depth_span": {
+      "absolute": 2e-05,
+      "relative": 2e-05,
+      "rationale": "Float32 depth difference/ratio may exceed one; never clip the statistic to pass."
+    },
+    "unknown_hardware_result": null
+  },
+  "gpu_timing_and_memory": {
+    "measured_ms": null,
+    "measured_memory_bytes": null,
+    "request": "Paired OFF/ON/sham timestamps over fixed warmup + 120 unlooped frames if available; report active pass and full-frame delta separately. Measure actual allocations, retained snapshots and transient row-pitch staging separately; opaque RR cost remains distinct.",
+    "off_budget": "No added dispatch or allocation in production when disabled",
+    "performance_acceptance_threshold_ms": null
+  },
+  "visual_failure_criteria": [
+    "Any original/provider input mutation",
+    "facade/window/text edge or fine-contrast loss",
+    "new grain, specular sparkles or fine flicker",
+    "sky/depth-boundary leakage",
+    "moving person/bottle trailing or glass/reflection change",
+    "delayed response to a real 1.1x or 1.25x light step",
+    "unreported unsupported history or altered masks"
+  ],
+  "final_game_gate": "Actual native AMD execution and matched-exposure/aspect/frame-time videos are required for any later image-quality claim. Include original historical facade/text controls; stored calibration witnesses and CPU surrogate images cannot substitute.",
+  "unavailable_fields": [
+    "D3D copy row pitches",
+    "actual shader binary/hash",
+    "GPU timings and VRAM",
+    "frame durations/QPC",
+    "full original facade-mask coordinates",
+    "game acceptance video"
+  ]
+}

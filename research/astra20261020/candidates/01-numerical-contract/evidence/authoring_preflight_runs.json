@@ -1,0 +1,22 @@
+{
+  "reason": "First authoring check caught REPORT link to not-yet-generated run_records.json. The runner then wrote that receipt. No numerical test ran and no source/tolerance changed; preserve the failed check before the complete final rerun.",
+  "source_revision": "b6ae62591bcf10b9ccc05612035256069b6c8b8a",
+  "records": [
+    {
+      "name": "package",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "working_directory": "repository root",
+      "exit_code": 1,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.6793478049985424,
+      "executor": "root local Linux CPU",
+      "log": "authoring_preflight_package.log",
+      "passed": false,
+      "original_log_name": "package.log"
+    }
+  ]
+}

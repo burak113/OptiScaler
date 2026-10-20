@@ -1,0 +1,19 @@
+{
+  "synthetic_scenarios": 10,
+  "true_light_controls": 24,
+  "captured_groups": [
+    "native_policy/22f9ca14",
+    "native_policy/87ee1fba",
+    "native_policy/2405579e",
+    "combined/22f9ca14",
+    "combined/87ee1fba",
+    "combined/2405579e"
+  ],
+  "holdout_included": true,
+  "matched_excess_strengths": {
+    "baseline": 0.9753298759460449,
+    "provisional_diagnostic": 1.0
+  },
+  "matched_dose_error": 4.6534063505299095e-08,
+  "gpu_executed": false
+}

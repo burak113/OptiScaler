@@ -1,0 +1,1436 @@
+{
+  "schema": "fsrd.numerical-contract-result.v1",
+  "task_id": "01-numerical-contract",
+  "base_tag": "astra-handoff-20261020",
+  "base_tag_object": "1f18416f5b99a0f78e147f362ac436ce2116ed22",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_baseline": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+  "source_revision_scope": "implementation commit; final evidence-only handoff commit has its own PR head SHA",
+  "branch": "astra/01-numerical-contract",
+  "pull_request_base": "sol/26-integration",
+  "contract_version": "0.1.0",
+  "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+  "executor": "root local Linux CPU; independently authored/reviewed components attributed in evidence documents",
+  "development_agents": [
+    "representation_contract",
+    "sampling_contract",
+    "independent_skeptic"
+  ],
+  "dependency_versions": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "numpy_requirement": "numpy==2.3.5",
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "seeds": {
+    "storage_and_encoding": 20261020,
+    "arithmetic_and_carry": 7217,
+    "apply_channels": 20261021,
+    "sampling": [
+      2026102001,
+      2026102002,
+      2026102003,
+      2026102004,
+      2026102005
+    ],
+    "finite_guard": 2026102031,
+    "independent_rtz_and_adversary": 28156419,
+    "independent_development_only_fmaf_crosscheck": 62255
+  },
+  "input_authority": "frozen tag NPZ/manifests; all allow_pickle=False; generated analytic/seeded data labeled separately",
+  "changed_paths": [
+    "research/astra20261020/candidates/01-numerical-contract/API.md",
+    "research/astra20261020/candidates/01-numerical-contract/API_MANIFEST.json",
+    "research/astra20261020/candidates/01-numerical-contract/BLOCKED_DATA_REQUEST.json",
+    "research/astra20261020/candidates/01-numerical-contract/GPU_REQUEST.json",
+    "research/astra20261020/candidates/01-numerical-contract/HYPOTHESES.md",
+    "research/astra20261020/candidates/01-numerical-contract/MANIFEST.sha256",
+    "research/astra20261020/candidates/01-numerical-contract/README.md",
+    "research/astra20261020/candidates/01-numerical-contract/REPORT.md",
+    "research/astra20261020/candidates/01-numerical-contract/RESULT.json",
+    "research/astra20261020/candidates/01-numerical-contract/adapter/ADAPTER_SPEC.md",
+    "research/astra20261020/candidates/01-numerical-contract/adapter/FSRDColourTrackTrack.hlsl",
+    "research/astra20261020/candidates/01-numerical-contract/adapter/PRODUCTION.patch",
+    "research/astra20261020/candidates/01-numerical-contract/adapter/adapter_identity.json",
+    "research/astra20261020/candidates/01-numerical-contract/adversary_controls.py",
+    "research/astra20261020/candidates/01-numerical-contract/calibrate.py",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/ADVERSARY_PRECOMMITMENT.md",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/GUARD_ADAPTER_REVIEW.md",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/INDEPENDENT_REVIEW.md",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/REPRESENTATION.md",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/SAMPLING.md",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/adapter_patch.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/adversary_controls.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/artifact.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/authoring_preflight_package.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/authoring_preflight_runs.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/baseline.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/baseline_cpu.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/baseline_package.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/baseline_runs.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/calibration.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/calibration.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/calibration_intermediates.npz",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/candidate_tests.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/compiler_inventory.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/data_inventory.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/gpu_inputs.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/gpu_microcases.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/gpu_microcases.npz",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/inventory.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/known_bad_quality_gate.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/mutant_missing_high.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/mutant_nearest.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/mutant_old_normal.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/mutant_premature_rounding.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/mutant_wrong_uv.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/overlap_recovery.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/package.log",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/pre_metadata_fix_receipt.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/run_records.json",
+    "research/astra20261020/candidates/01-numerical-contract/evidence/source_inventory.json",
+    "research/astra20261020/candidates/01-numerical-contract/finalize_bundle.py",
+    "research/astra20261020/candidates/01-numerical-contract/gpu_inputs.py",
+    "research/astra20261020/candidates/01-numerical-contract/inventory.py",
+    "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/__init__.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/anchor_gain.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/arithmetic.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/coordinates.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/encoding.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/fixedpoint.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/guards.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/sampling.py",
+    "research/astra20261020/candidates/01-numerical-contract/numerical_contract/storage.py",
+    "research/astra20261020/candidates/01-numerical-contract/run_checks.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_anchor_gain.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_arithmetic.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_calibration.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_coordinates.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_encoding.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_fixedpoint.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_guard_adapter.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_independent_adversary.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_sampling.py",
+    "research/astra20261020/candidates/01-numerical-contract/tests/test_storage.py",
+    "research/astra20261020/candidates/01-numerical-contract/verify_adapter.py"
+  ],
+  "production_changed": false,
+  "frozen_reference_changed": false,
+  "initial_baseline_commands": [
+    {
+      "command": "python research/astra20261020/validate_package.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5595316469989484,
+      "executor": "root local Linux CPU",
+      "output": "baseline_package.log"
+    },
+    {
+      "command": "python research/astra20261020/run_cpu.py",
+      "exit_code": 0,
+      "elapsed_seconds": 5.180280268001297,
+      "executor": "root local Linux CPU",
+      "output": "baseline_cpu.log"
+    }
+  ],
+  "cpu_commands": [
+    {
+      "name": "package",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.5918693629992049,
+      "executor": "root local Linux CPU",
+      "log": "package.log",
+      "passed": true
+    },
+    {
+      "name": "baseline",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/run_cpu.py"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 5.322609532999195,
+      "executor": "root local Linux CPU",
+      "log": "baseline.log",
+      "passed": true
+    },
+    {
+      "name": "artifact",
+      "command": [
+        "python",
+        "-B",
+        "OptiScaler/shaders/shader_tools/tests/test_fsrd_shader_artifact_contract.py",
+        "--skip-compile"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.2566172560000268,
+      "executor": "root local Linux CPU",
+      "log": "artifact.log",
+      "passed": true
+    },
+    {
+      "name": "candidate_tests",
+      "command": [
+        "python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/01-numerical-contract/tests",
+        "-v"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 13.003552280999429,
+      "executor": "root local Linux CPU",
+      "log": "candidate_tests.log",
+      "passed": true
+    },
+    {
+      "name": "adversary_controls",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/adversary_controls.py"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.09528140299880761,
+      "executor": "root local Linux CPU",
+      "log": "adversary_controls.log",
+      "passed": true
+    },
+    {
+      "name": "overlap_recovery",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/adversary_controls.py",
+        "--recover-overlap"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.168862349999472,
+      "executor": "root local Linux CPU",
+      "log": "overlap_recovery.log",
+      "passed": true
+    },
+    {
+      "name": "inventory",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/inventory.py",
+        "--output",
+        "research/astra20261020/candidates/01-numerical-contract/evidence"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.5251996440001676,
+      "executor": "root local Linux CPU",
+      "log": "inventory.log",
+      "passed": true
+    },
+    {
+      "name": "calibration",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/calibrate.py",
+        "--output",
+        "research/astra20261020/candidates/01-numerical-contract/evidence"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 9.415237323000838,
+      "executor": "root local Linux CPU",
+      "log": "calibration.log",
+      "passed": true
+    },
+    {
+      "name": "gpu_inputs",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/gpu_inputs.py",
+        "--output",
+        "research/astra20261020/candidates/01-numerical-contract/evidence"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.11279830499915988,
+      "executor": "root local Linux CPU",
+      "log": "gpu_inputs.log",
+      "passed": true
+    },
+    {
+      "name": "adapter_patch",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/verify_adapter.py"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.037548546999460086,
+      "executor": "root local Linux CPU",
+      "log": "adapter_patch.log",
+      "passed": true
+    },
+    {
+      "name": "known_bad_quality_gate",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/portable/colour/compare.py",
+        "--quality-gate"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 2.551716158999625,
+      "executor": "root local Linux CPU",
+      "log": "known_bad_quality_gate.log",
+      "passed": true
+    },
+    {
+      "name": "mutant_wrong_uv",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+        "wrong_uv"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.12353583399999479,
+      "executor": "root local Linux CPU",
+      "log": "mutant_wrong_uv.log",
+      "passed": true
+    },
+    {
+      "name": "mutant_nearest",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+        "nearest"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.12731184199947165,
+      "executor": "root local Linux CPU",
+      "log": "mutant_nearest.log",
+      "passed": true
+    },
+    {
+      "name": "mutant_old_normal",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+        "old_normal"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.08938678100093966,
+      "executor": "root local Linux CPU",
+      "log": "mutant_old_normal.log",
+      "passed": true
+    },
+    {
+      "name": "mutant_missing_high",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+        "missing_high"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.08892989300147747,
+      "executor": "root local Linux CPU",
+      "log": "mutant_missing_high.log",
+      "passed": true
+    },
+    {
+      "name": "mutant_premature_rounding",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/01-numerical-contract/mutants.py",
+        "premature_rounding"
+      ],
+      "working_directory": "repository root",
+      "source_revision": "275d8fbe200158d653adb67a2b1ed24e614fa039",
+      "api_aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.1354054149996955,
+      "executor": "root local Linux CPU",
+      "log": "mutant_premature_rounding.log",
+      "passed": true
+    }
+  ],
+  "candidate_tests": {
+    "count": 125,
+    "unittest_elapsed_seconds": 12.852
+  },
+  "command_wall_seconds_total": 35.645861928996965,
+  "artifact_validation": {
+    "checks": 883,
+    "generated_headers": 107,
+    "fresh_compilations": 0,
+    "mode": "--skip-compile"
+  },
+  "fixture_hashes": [
+    {
+      "path": "research/astra20261020/fixtures/glass/glass_crop.npz",
+      "bytes": 19310928,
+      "sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/combined/22f9ca14.npz",
+      "bytes": 927216,
+      "sha256": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/combined/2405579e.npz",
+      "bytes": 532809,
+      "sha256": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/combined/87ee1fba.npz",
+      "bytes": 1103676,
+      "sha256": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/22f9ca14.npz",
+      "bytes": 78999,
+      "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/2405579e.npz",
+      "bytes": 11221,
+      "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4"
+    },
+    {
+      "path": "research/astra20261020/portable/anchor/fixtures/native_policy/87ee1fba.npz",
+      "bytes": 73746,
+      "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982"
+    },
+    {
+      "path": "research/astra20261020/portable/colour/fixtures/soft2_gpu_87ee63.npz",
+      "bytes": 9101728,
+      "sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2"
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/bottle_track7.npz",
+      "bytes": 11109320,
+      "sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f"
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/foliage23.npz",
+      "bytes": 12867065,
+      "sha256": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd"
+    },
+    {
+      "path": "research/astra20261020/fixtures/clips/facade16.npz",
+      "bytes": 6036858,
+      "sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562"
+    }
+  ],
+  "result_hashes": [
+    {
+      "path": "evidence/ADVERSARY_PRECOMMITMENT.md",
+      "bytes": 4026,
+      "sha256": "3abe8443d5efd321a40c42daf2617197c34ef880db6bc676efb643e6d3066eae"
+    },
+    {
+      "path": "evidence/GUARD_ADAPTER_REVIEW.md",
+      "bytes": 7830,
+      "sha256": "870c57b610db6401a6c59ff779909147b7af3a9e3eb3fcb613c8ad6fccd1aaa5"
+    },
+    {
+      "path": "evidence/INDEPENDENT_REVIEW.md",
+      "bytes": 14168,
+      "sha256": "da32f36158885ff71433d645e04cd15cc401b701416ec5b6f92c1d7d458ff436"
+    },
+    {
+      "path": "evidence/REPRESENTATION.md",
+      "bytes": 15605,
+      "sha256": "b8668d9de8c7e119a9d822c743bb0e0a327baf25c2d1c41e0b71fab015ddaf52"
+    },
+    {
+      "path": "evidence/SAMPLING.md",
+      "bytes": 15121,
+      "sha256": "b421b54c7686925ca4dc816a4baf21bf1553fc2fe98a3ce93099a6945bd05f80"
+    },
+    {
+      "path": "evidence/adapter_patch.log",
+      "bytes": 261,
+      "sha256": "98eb711d863e753d5a5bf6c9df4174aa287ab8beb74cf4811551ec75e995c7d1"
+    },
+    {
+      "path": "evidence/adversary_controls.log",
+      "bytes": 1072,
+      "sha256": "cc100608aed41e250006b8e40dfc28ca0177014f1f9d76d4c306cf76168ddbfe"
+    },
+    {
+      "path": "evidence/artifact.log",
+      "bytes": 4817,
+      "sha256": "df6314da8f55e8a1c64418979a4f80fddf361c9aac24effe720f469d996e9acd"
+    },
+    {
+      "path": "evidence/authoring_preflight_package.log",
+      "bytes": 445,
+      "sha256": "f3a9d58d56a2d40fe1eecc20f29cb5f6c9a32320ae4c0cd383ee1a9cd43cc77d"
+    },
+    {
+      "path": "evidence/authoring_preflight_runs.json",
+      "bytes": 781,
+      "sha256": "5ff4982eca7d38065b0643ea9f2e53de4ebf1a39a60c7138188d625ae7c7831f"
+    },
+    {
+      "path": "evidence/baseline.log",
+      "bytes": 5509,
+      "sha256": "f099b7a45576cead9d2c539310cfb31ea8aa1b8f6bf273281b6b62a6e62e992f"
+    },
+    {
+      "path": "evidence/baseline_cpu.log",
+      "bytes": 5509,
+      "sha256": "b6bda3d23145c46803eb9e755a31f59cefa0fa2cdab3b2e259c8f6bb17fde3e9"
+    },
+    {
+      "path": "evidence/baseline_package.log",
+      "bytes": 66,
+      "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "path": "evidence/baseline_runs.json",
+      "bytes": 423,
+      "sha256": "5512ea04a52e9affe57555e99ea2d6cae80d8088b2f6a5b5571713e75aae902f"
+    },
+    {
+      "path": "evidence/calibration.json",
+      "bytes": 671395,
+      "sha256": "37e685456d8248dd309377ab76e5d86bc0160e512c745cacde9f6200c0f5be11"
+    },
+    {
+      "path": "evidence/calibration.log",
+      "bytes": 10033,
+      "sha256": "fd91d071e94eeb80f6347b3e6dae1e8703184e3ca8aa44b6ffc3d88da911c7f3"
+    },
+    {
+      "path": "evidence/calibration_intermediates.npz",
+      "bytes": 393584,
+      "sha256": "65b33944dc47773278d3bef5f55a6ae61e526c2f93255669697bec37cfc291b4"
+    },
+    {
+      "path": "evidence/candidate_tests.log",
+      "bytes": 20667,
+      "sha256": "2ed1ecb66393dfff48d83c0e76dd438abd5c85bc80826699520e4637a83d1925"
+    },
+    {
+      "path": "evidence/compiler_inventory.json",
+      "bytes": 906,
+      "sha256": "f1dfefe151de3255d811de65340d9d9a7339b8fc6eb8988b8a073cbac8b5a57f"
+    },
+    {
+      "path": "evidence/data_inventory.json",
+      "bytes": 75889,
+      "sha256": "eca2771e6c343865372a95387b23881fa4d30633950ff43786efa7516782787d"
+    },
+    {
+      "path": "evidence/gpu_inputs.log",
+      "bytes": 354,
+      "sha256": "85e01c4af02902b4947013ea5ca164662b945cf7c43e6bed6d9373b3ce2d0d02"
+    },
+    {
+      "path": "evidence/gpu_microcases.json",
+      "bytes": 6253,
+      "sha256": "23e306013dc44afcf76d7f6297da7ebb03d0e60163cfb34f8ed12d65e89764c3"
+    },
+    {
+      "path": "evidence/gpu_microcases.npz",
+      "bytes": 29922,
+      "sha256": "ffb662a4887ba625d576683494f67a4f5a75ee2b52ff8c0573998ff6dd31da2b"
+    },
+    {
+      "path": "evidence/inventory.log",
+      "bytes": 42,
+      "sha256": "b54f788536980db137127a25642ca52ad5257ac8957bd2dc56e2116c356c6389"
+    },
+    {
+      "path": "evidence/known_bad_quality_gate.log",
+      "bytes": 7141,
+      "sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176"
+    },
+    {
+      "path": "evidence/mutant_missing_high.log",
+      "bytes": 452,
+      "sha256": "88b9a1517d77c130dabecc2dc36fb59383efdbaba9364567106828cd725a03c4"
+    },
+    {
+      "path": "evidence/mutant_nearest.log",
+      "bytes": 1291,
+      "sha256": "e7176961ac8c97d827a5dffa23f92b394880b81d98f7fef34515a924e1bb41ed"
+    },
+    {
+      "path": "evidence/mutant_old_normal.log",
+      "bytes": 426,
+      "sha256": "dc6b8a2b601cc455beaec92e87be9e1cd0738ca0bc19a52f74c6e8f0e3647fd5"
+    },
+    {
+      "path": "evidence/mutant_premature_rounding.log",
+      "bytes": 1322,
+      "sha256": "749fe3f6a370878db3993de297d841311c2beccc5c81ffc60d15eb9072933ebe"
+    },
+    {
+      "path": "evidence/mutant_wrong_uv.log",
+      "bytes": 1309,
+      "sha256": "8080c17687dfca2f91e82f46f935588ac04c49342bafe59b3508d4e7331e4e3b"
+    },
+    {
+      "path": "evidence/overlap_recovery.log",
+      "bytes": 2987,
+      "sha256": "fe2f145ab5801a78f165ff8da6dfc4edccd250d85c42585e715845e3296ec25c"
+    },
+    {
+      "path": "evidence/package.log",
+      "bytes": 66,
+      "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "path": "evidence/pre_metadata_fix_receipt.json",
+      "bytes": 69088,
+      "sha256": "ef7a8d3075026d1dcf16d1630303d140f853bdaecc88db379338cdab4246c241"
+    },
+    {
+      "path": "evidence/run_records.json",
+      "bytes": 9419,
+      "sha256": "84f1a33ce520e0ab44f7e175b20c6184bffa0bf17fb636bd9de7a7b531af37b4"
+    },
+    {
+      "path": "evidence/source_inventory.json",
+      "bytes": 10155,
+      "sha256": "d6ab0a68695c2bd14efde0e0f96f54355761ef0e635b305ebba67fcb6105d2e8"
+    }
+  ],
+  "source_compiler_cso_header_hashes": "evidence/source_inventory.json",
+  "fixed_populations": {
+    "colour_history_cells": 4096,
+    "colour_rgb_channels": 786432,
+    "recovered_overlap_pixels": 12288,
+    "remaining_colour_pixels": 249856,
+    "combined_gain_frames": 133,
+    "combined_gain_cells": 416720,
+    "native_gain_frames": 7,
+    "native_gain_cells": 26256
+  },
+  "measured_comparisons": {
+    "anchor_gain_store": [
+      {
+        "policy": "combined",
+        "exp_mode": "source_exp_f32",
+        "rounding": "rne",
+        "population": 416720,
+        "nonzero_count": 77036,
+        "predicted_above_gpu_count": 77036,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.00048828125,
+        "p99_abs": 0.00048828125,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 173
+      },
+      {
+        "policy": "combined",
+        "exp_mode": "source_exp_f32",
+        "rounding": "rtz",
+        "population": 416720,
+        "nonzero_count": 17,
+        "predicted_above_gpu_count": 16,
+        "predicted_below_gpu_count": 1,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 13
+      },
+      {
+        "policy": "combined",
+        "exp_mode": "dxil_exp2_f32",
+        "rounding": "rne",
+        "population": 416720,
+        "nonzero_count": 77036,
+        "predicted_above_gpu_count": 77036,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.00048828125,
+        "p99_abs": 0.00048828125,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 173
+      },
+      {
+        "policy": "combined",
+        "exp_mode": "dxil_exp2_f32",
+        "rounding": "rtz",
+        "population": 416720,
+        "nonzero_count": 17,
+        "predicted_above_gpu_count": 16,
+        "predicted_below_gpu_count": 1,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 13
+      },
+      {
+        "policy": "native",
+        "exp_mode": "source_exp_f32",
+        "rounding": "rne",
+        "population": 26256,
+        "nonzero_count": 3675,
+        "predicted_above_gpu_count": 3675,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.00048828125,
+        "p99_abs": 0.00048828125,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 8
+      },
+      {
+        "policy": "native",
+        "exp_mode": "source_exp_f32",
+        "rounding": "rtz",
+        "population": 26256,
+        "nonzero_count": 0,
+        "predicted_above_gpu_count": 0,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.0,
+        "p50_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0,
+        "max_half_steps": 0,
+        "identity_classification_mismatches": 0
+      },
+      {
+        "policy": "native",
+        "exp_mode": "dxil_exp2_f32",
+        "rounding": "rne",
+        "population": 26256,
+        "nonzero_count": 3675,
+        "predicted_above_gpu_count": 3675,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.00048828125,
+        "p50_abs": 0.0,
+        "p90_abs": 0.00048828125,
+        "p99_abs": 0.00048828125,
+        "max_half_steps": 1,
+        "identity_classification_mismatches": 8
+      },
+      {
+        "policy": "native",
+        "exp_mode": "dxil_exp2_f32",
+        "rounding": "rtz",
+        "population": 26256,
+        "nonzero_count": 0,
+        "predicted_above_gpu_count": 0,
+        "predicted_below_gpu_count": 0,
+        "max_abs": 0.0,
+        "p50_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0,
+        "max_half_steps": 0,
+        "identity_classification_mismatches": 0
+      }
+    ],
+    "native_gain_invariant_across_both_field_ratio_models": true,
+    "colour_profile_changed_decisions": {
+      "frozen": 0,
+      "ideal_sampler64": 0,
+      "source_sampler32": 0,
+      "observed_fraction8": 9,
+      "rne_stores_source32": 6,
+      "rne_stores_fraction8": 11
+    },
+    "colour_baseline_soft2_error": {
+      "elements": 786432,
+      "max_abs": 6.103515625e-05,
+      "p50_abs": 0.0,
+      "p95_abs": 0.0,
+      "p99_abs": 0.0,
+      "nonzero_error_count": 1083,
+      "array_equal": false
+    },
+    "verified_overlap": {
+      "implementation_owner": "independent_skeptic",
+      "executor": "calling local CPU process; see enclosing run record",
+      "evidence_kind": "CPU reconstruction from actual stored lobe observations and synthetic witnesses",
+      "gpu_executed": false,
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frame": 63,
+      "crop_render_xy": [
+        752,
+        423
+      ],
+      "colour_local_crop_xywh": [
+        256,
+        256,
+        192,
+        64
+      ],
+      "fixed_observed_pixels": 12288,
+      "full_colour_pixels": 262144,
+      "fixed_support_sha256": "d020ec12d99671174549f8db183b3543c53747adf3ec87ad67234caed6266549",
+      "same_frame_stage_comparisons": {
+        "rounded_rr_lobe_sum": {
+          "elements": 36864,
+          "changed": 0,
+          "max_abs": 0.0,
+          "p99_abs": 0.0,
+          "exact": true
+        },
+        "rounded_input_lobe_sum": {
+          "elements": 36864,
+          "changed": 0,
+          "max_abs": 0.0,
+          "p99_abs": 0.0,
+          "exact": true
+        },
+        "depth": {
+          "elements": 12288,
+          "changed": 0,
+          "max_abs": 0.0,
+          "p99_abs": 0.0,
+          "exact": true
+        },
+        "prepared_normal_words": {
+          "elements": 12288,
+          "changed": 0,
+          "max_abs": 0.0,
+          "p99_abs": 0.0,
+          "exact": true
+        }
+      },
+      "original_vs_prepared_normal_differences": 23,
+      "prestore_sum_differs_from_exported_lanes": 28485,
+      "restored_prestore_sum_sha256": "13f05113a9b867af72c8a2b2dbc6df75307dc28b91b0c9d4a6eb44fb0d198c3f",
+      "baseline_vs_expected_on_observed_support": {
+        "elements": 36864,
+        "changed": 13,
+        "max_abs": 7.62939453125e-06,
+        "p99_abs": 0.0,
+        "exact": false
+      },
+      "restored_vs_expected_on_observed_support": {
+        "elements": 36864,
+        "changed": 0,
+        "max_abs": 0.0,
+        "p99_abs": 0.0,
+        "exact": true
+      },
+      "restoration_changes_whole_output": {
+        "elements": 786432,
+        "changed": 13,
+        "max_abs": 7.62939453125e-06,
+        "p99_abs": 0.0,
+        "exact": false
+      },
+      "admissible_hypothetical_half_lobe_witness": {
+        "first_recipe": "exported half h + zero half; replace observed rectangle by actual D+S",
+        "second_recipe": "h + half-exact half-ULP delta (or zero below half-subnormal); retain actual observed D+S",
+        "same_exported_colour": true,
+        "output_difference": {
+          "elements": 786432,
+          "changed": 357,
+          "max_abs": 3.0517578125e-05,
+          "p99_abs": 0.0,
+          "exact": false
+        },
+        "observed_rectangle_output_difference": {
+          "elements": 36864,
+          "changed": 0,
+          "max_abs": 0.0,
+          "p99_abs": 0.0,
+          "exact": true
+        },
+        "scope": "possible inputs for rounded colour fixture plus verified original foliage subset; not recovered original off-crop lobes"
+      },
+      "facade_recovery_rejected": {
+        "capture": "f2ef375f-4452-4883-b59d-af48c1b903b5",
+        "reason": "different capture and no frame63; numerical crop-origin equality does not establish provenance"
+      },
+      "glass_direct_copy_rejected": {
+        "reason": "RGB is bilinearly aligned to reference54; original unwarped RGB lobes are not exported there"
+      }
+    },
+    "overlap_constrained_nonidentifiability": {
+      "exact_reconstruction_rejected": true,
+      "fixed_known_mask_sha256": "d020ec12d99671174549f8db183b3543c53747adf3ec87ad67234caed6266549",
+      "known_pixels": 12288,
+      "remaining_pixels": 249856,
+      "known_region_changed_output_lanes": 0,
+      "outside_known_region_difference": {
+        "elements": 749568,
+        "max_abs": 3.0517578125e-05,
+        "p50_abs": 0.0,
+        "p95_abs": 0.0,
+        "p99_abs": 0.0,
+        "nonzero_error_count": 357,
+        "array_equal": false
+      },
+      "distinguishing_yxc": [
+        [
+          1,
+          382,
+          0
+        ],
+        [
+          7,
+          367,
+          0
+        ],
+        [
+          22,
+          45,
+          0
+        ],
+        [
+          27,
+          175,
+          2
+        ],
+        [
+          31,
+          39,
+          0
+        ],
+        [
+          31,
+          229,
+          2
+        ],
+        [
+          32,
+          362,
+          2
+        ],
+        [
+          34,
+          488,
+          0
+        ],
+        [
+          35,
+          233,
+          2
+        ],
+        [
+          36,
+          221,
+          0
+        ],
+        [
+          38,
+          138,
+          1
+        ],
+        [
+          38,
+          359,
+          0
+        ],
+        [
+          41,
+          179,
+          1
+        ],
+        [
+          47,
+          219,
+          2
+        ],
+        [
+          47,
+          366,
+          0
+        ],
+        [
+          50,
+          254,
+          0
+        ]
+      ],
+      "scope": "Compatible with rounded full colour tensor plus verified unwarped foliage overlap. Aligned glass RGB is not assumed invertible or silently used as raw values."
+    },
+    "encoding": {
+      "scope": "analytic CPU guide distortion, not image-quality or captured GPU output",
+      "decision_scope": "one-sided synthetic guide perturbation: original decoded normal versus stored/redecoded normal, not production SurfaceWeight with both center and tap guides encoded",
+      "population_recipe": "all (qx/255,qy/255), qx,qy=0..255, original decoded using source-shaped octahedral_decode",
+      "uv_sha256": "de19104e56da3ec1cd74f1b23584c51247bde28f0e45c8392e9c946de395353e",
+      "normal_sha256": "f81f3b1efa470f82541cad0c9b678aa0ed45efe58421e109637a5ed7367b71be",
+      "comparisons": [
+        {
+          "encoding": "audited_11bit",
+          "rounding": "rne",
+          "population": 65536,
+          "lost_payload_count": 0,
+          "angular_error_degrees": {
+            "p50": 1.89369503748838,
+            "p90": 3.473903129622517,
+            "p99": 4.637659547539035,
+            "max": 5.660632164503402
+          },
+          "guide_threshold": 0.9,
+          "changed_self_surface_decisions": 0
+        },
+        {
+          "encoding": "audited_11bit",
+          "rounding": "rtz",
+          "population": 65536,
+          "lost_payload_count": 0,
+          "angular_error_degrees": {
+            "p50": 1.89369503748838,
+            "p90": 3.473903129622517,
+            "p99": 4.637659547539035,
+            "max": 5.660632164503402
+          },
+          "guide_threshold": 0.9,
+          "changed_self_surface_decisions": 0
+        },
+        {
+          "encoding": "old_normalized_16bit",
+          "rounding": "rne",
+          "population": 65536,
+          "lost_payload_count": 58367,
+          "angular_error_degrees": {
+            "p50": 3.5895942416099533,
+            "p90": 12.048675692626892,
+            "p99": 152.3084231563897,
+            "max": 179.77353567788973
+          },
+          "guide_threshold": 0.9,
+          "changed_self_surface_decisions": 2325
+        },
+        {
+          "encoding": "old_normalized_16bit",
+          "rounding": "rtz",
+          "population": 65536,
+          "lost_payload_count": 59383,
+          "angular_error_degrees": {
+            "p50": 7.1162227045902515,
+            "p90": 25.3998019488187,
+            "p99": 163.09456355213297,
+            "max": 179.3581910394709
+          },
+          "guide_threshold": 0.9,
+          "changed_self_surface_decisions": 6199
+        }
+      ]
+    },
+    "synthetic_microcases": {
+      "schema": "fsrd.numerical-gpu-microcases.v1",
+      "gpu_executed": false,
+      "arithmetic_staging": {
+        "terms": [
+          1.0,
+          0.00048828125,
+          0.00048828125,
+          0.00048828125
+        ],
+        "entire_formula": "(a+b+c+d)*0.25",
+        "f32_without_store": 0.2503662109375,
+        "f64_without_store": 0.2503662109375,
+        "actual_boundary_rtz_model": 0.250244140625,
+        "fixed_threshold": 0.25030517578125,
+        "f32_without_store_decision": true,
+        "f64_without_store_decision": true,
+        "with_boundary_store_decision": false,
+        "scope": "analytic CPU staging counterexample; no whole-estimator float64 or GPU claim"
+      },
+      "phase_sweep": {
+        "samples": 4097,
+        "depth_texels": [
+          [
+            1.0,
+            1.0625
+          ]
+        ],
+        "current_depth": 1,
+        "motion_depth": 0,
+        "threshold": 0.02,
+        "changed_source_vs_ideal": 0,
+        "changed_observed_vs_ideal": 7,
+        "nearest_mutant_changed_vs_ideal": 737,
+        "interpretation": "analytic affine depth plane sampled at fixed phases; no image-quality score"
+      },
+      "sum_cases": [
+        {
+          "grid_xy": [
+            65,
+            64
+          ],
+          "full_extent_xy": [
+            520,
+            512
+          ],
+          "diffuse_rgb_constant": 32,
+          "specular_rgb_constant": 32,
+          "key_level_constant": 64,
+          "linear_depth_constant": 1,
+          "motion_uv": [
+            0,
+            0
+          ],
+          "expected_count": 4160,
+          "expected_increment": 1048576,
+          "expected_words": [
+            67108864,
+            1,
+            67108864,
+            1,
+            4160,
+            0,
+            0,
+            0
+          ],
+          "expected_32_bytes_hex": "0000000401000000000000040100000040100000000000000000000000000000",
+          "low_word_wraps": 1
+        },
+        {
+          "grid_xy": [
+            129,
+            128
+          ],
+          "full_extent_xy": [
+            1032,
+            1024
+          ],
+          "diffuse_rgb_constant": 32,
+          "specular_rgb_constant": 32,
+          "key_level_constant": 64,
+          "linear_depth_constant": 1,
+          "motion_uv": [
+            0,
+            0
+          ],
+          "expected_count": 16512,
+          "expected_increment": 1048576,
+          "expected_words": [
+            134217728,
+            4,
+            134217728,
+            4,
+            16512,
+            0,
+            0,
+            0
+          ],
+          "expected_32_bytes_hex": "0000000804000000000000080400000080400000000000000000000000000000",
+          "low_word_wraps": 4
+        }
+      ],
+      "reset_expected_32_bytes_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "finite_guard": {
+        "columns": [
+          "current_depth",
+          "motion_depth_delta",
+          "history_depth"
+        ],
+        "row_roles": [
+          "positive_infinite_expected",
+          "negative_infinite_expected",
+          "infinite_motion",
+          "finite_inclusive_positive",
+          "finite_inclusive_negative",
+          "finite_match",
+          "finite_mismatch",
+          "nan_expected",
+          "zero_history_sentinel"
+        ],
+        "source_expected_validity": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false
+        ],
+        "adapter_expected_validity": [
+          false,
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false
+        ],
+        "note": "Inf is an actual representable FP16 payload. Two finite FP16 operands cannot overflow a float32 sum; that case is not claimed here."
+      },
+      "storage_expected_authority": "Two selected CPU rounding profiles. Nonfinite payload bits are model-only; actual GPU behavior must be recorded.",
+      "arrays": {
+        "depth_texture": {
+          "shape": [
+            1,
+            2
+          ],
+          "dtype": "<f2",
+          "raw_sha256": "9b5e24e43b9a4da7e0075bf9c2df5bc0ac995e27d3365f3aa4985d1c27770b2a"
+        },
+        "phase_uv": {
+          "shape": [
+            4097,
+            2
+          ],
+          "dtype": "<f4",
+          "raw_sha256": "6f0ca95f80101e92ee2fd44e375ecf2c8a0dc070d726fc0d11a42f8e1762a57c"
+        },
+        "phase": {
+          "shape": [
+            4097
+          ],
+          "dtype": "<f8",
+          "raw_sha256": "818e307fee696baa22036a579eca9d38ff1f2044191369306fdf580c56dc5697"
+        },
+        "storage_input_f32_words": {
+          "shape": [
+            22
+          ],
+          "dtype": "<u4",
+          "raw_sha256": "8f668321ecf4a31405583e446eff5cd1fb7d244c742829cd2e503523507b0127"
+        },
+        "expected_rne_half_bits": {
+          "shape": [
+            22
+          ],
+          "dtype": "<u2",
+          "raw_sha256": "7af8211002a4a946ba771e02ef569d0646f3cdb1caa575827029ca46f7e041fa"
+        },
+        "expected_rtz_half_bits": {
+          "shape": [
+            22
+          ],
+          "dtype": "<u2",
+          "raw_sha256": "063e5d793b42a603fcca7b2b7ab70a8d0ec9ce013ecb56ea4b78e7169dae9578"
+        },
+        "normal_payloads": {
+          "shape": [
+            2048
+          ],
+          "dtype": "<f4",
+          "raw_sha256": "4b5d38108a9fe57896cb94b2895a194533356f24e9d5e33a5bbac5d0636c2b49"
+        },
+        "normal_payload_half_bits": {
+          "shape": [
+            2048
+          ],
+          "dtype": "<u2",
+          "raw_sha256": "75ea304686b6585dc0a896d73307d59477f730e7d74675adf78e8ef25fdea944"
+        },
+        "phase_sample_ideal": {
+          "shape": [
+            4097
+          ],
+          "dtype": "<f8",
+          "raw_sha256": "05c3fca2b9fbf31091fb450ff8fb63b8578470d5180f3244d75ab17f13581b38"
+        },
+        "phase_sample_source": {
+          "shape": [
+            4097
+          ],
+          "dtype": "<f4",
+          "raw_sha256": "a9c5b76b9d9b086a1f6b5164ce16a7390f49402260c1a7e7277986e74df38c27"
+        },
+        "phase_sample_observed": {
+          "shape": [
+            4097
+          ],
+          "dtype": "<f4",
+          "raw_sha256": "03ba70e3813688672870d702f360d71b273e924d6067cff9e8ab9b7cbbac89fe"
+        },
+        "phase_gate_ideal": {
+          "shape": [
+            4097
+          ],
+          "dtype": "|b1",
+          "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+        },
+        "phase_gate_source": {
+          "shape": [
+            4097
+          ],
+          "dtype": "|b1",
+          "raw_sha256": "aa501121d05bc5b102abc1f0a71c3b3852e8aec1019912930192fd6880e07724"
+        },
+        "phase_gate_observed": {
+          "shape": [
+            4097
+          ],
+          "dtype": "|b1",
+          "raw_sha256": "c530fecc4267bee05a729351b25833c6d49c57722c2d756cf4443e119e79603b"
+        },
+        "guard_current_motion_history_half_bits": {
+          "shape": [
+            9,
+            3
+          ],
+          "dtype": "<u2",
+          "raw_sha256": "27d53fbb8bc05d19e1a6ffc369d31e0b18b3eebe698a525798d7b4c70838b610"
+        }
+      }
+    },
+    "finite_guard": {
+      "exhaustive_comparisons": 253952,
+      "seeded_comparisons": 4096,
+      "changed_finite_decisions": 0
+    }
+  },
+  "rejected_hypotheses_or_claims": [
+    "Changing the final Gain store alone reproduces every recorded combined GPU cell (17 explicit counterexamples).",
+    "Rounded full-colour input uniquely identifies every old expected_soft2 output after the observed foliage overlap is fixed (357 admissible differences).",
+    "A matching count9 proves matching the same historical GPU gate decisions (actual gate map absent).",
+    "The native original atomic buffer can be reconstructed exactly from stored Stats/Recall cells (nonsingleton bounds).",
+    "All guide payloads survive the old16-bit normalized half store.",
+    "Absent off-crop observations can be supplied by texture-edge clamping.",
+    "Arbitrary source-shaped float32 lerp is the universal documented hardware sampler.",
+    "The finite source depth predicate necessarily rejects infinite expected depth."
+  ],
+  "unresolved_hardware_assumptions": [
+    {
+      "id": "U1",
+      "assumption": "Typed UAV FP16 rule depends on boundary/compiler/device; selected RNE/RTZ models do not prove a universal rule.",
+      "request": "GPU_REQUEST storage and Gain cases"
+    },
+    {
+      "id": "U2",
+      "assumption": "Sampler fraction precision/tie handling/address arithmetic and exact filter operations are device-specific within the documented envelope.",
+      "request": "GPU_REQUEST phase/allocation cases; D2"
+    },
+    {
+      "id": "U3",
+      "assumption": "DXC fast division/contraction/reassociation and device Exp accuracy remain unresolved at17combinedGain cells.",
+      "request": "GPU_REQUEST Gain residual diagnostic"
+    },
+    {
+      "id": "U4",
+      "assumption": "NaN payloads, min/max signed-zero ties and intermediate denormal handling are not established GPU bytes.",
+      "request": "GPU_REQUEST typed-store microcases"
+    },
+    {
+      "id": "U5",
+      "assumption": "Native pre-store atomic totals are absent despite invariant Gain over both stored-field ratio envelopes.",
+      "request": "D3"
+    },
+    {
+      "id": "U6",
+      "assumption": "Unknown-region colour pre-store bits remain non-identifiable after recovering the verified foliage rectangle.",
+      "request": "D1"
+    },
+    {
+      "id": "U7",
+      "assumption": "Historical C8 GPU validity map and exact instrumented harness identity are absent.",
+      "request": "D2"
+    },
+    {
+      "id": "U8",
+      "assumption": "Source Anchor projection half-pixel distinction needs original motion/jitter/projection provenance before any production offset correction.",
+      "request": "integration capture constants if proposing such a change; no offset patch here"
+    },
+    {
+      "id": "U9",
+      "assumption": "The finite-depth adapter has no fresh DXC/device validation; fast-math could alter nonfinite guards.",
+      "request": "GPU_REQUEST guard baseline/candidate A/B"
+    },
+    {
+      "id": "U10",
+      "assumption": "No full upstream ring history, converged ground truth, AMD RR, game image or GPU performance was observed.",
+      "request": "job08 local acceptance; not required for using CPU API"
+    },
+    {
+      "id": "U11",
+      "assumption": "Aligned glass RGB is not inverted to raw frame63; overlap-constrained witnesses are scoped to rounded colour plus verified unwarped foliage observations.",
+      "request": "D1 unwarped source values"
+    }
+  ],
+  "gpu_executed": false,
+  "dxc_compiled": false,
+  "amd_rr_executed": false,
+  "game_observed": false,
+  "gpu_timings_ms": null,
+  "gpu_memory_bytes_measured": null,
+  "image_quality_improvement": null,
+  "new_candidate_cso_sha256": null,
+  "new_candidate_header_sha256": null,
+  "acceptance_status": "cpu_contract_passed_gpu_and_game_unvalidated",
+  "recommendation": "keep as research",
+  "adapter_recommendation": "default-off local A/B proposal, pending DXC/GPU and job08 acceptance",
+  "known_bad_controls": "Five numerical mutants and frozen colour quality gate must exit1; their rejection is required, not a passed quality claim."
+}

@@ -1,0 +1,297 @@
+{
+  "schema": "fsrd.job07.guide_observation.v1",
+  "mode": "diagnostic_only_default_off",
+  "cpu_reference": "../src/foliage_guides.py:observe_guides",
+  "shader": "FoliageGuideObservation.hlsl",
+  "host_constants": "HOST_INTERFACE.h",
+  "matrix_or_semantic_material_payload": false,
+  "constants": {
+    "root_parameter": 0,
+    "register": "b0",
+    "num_32bit_constants": 16,
+    "byte_size": 64,
+    "host_alignment": 16,
+    "fields": [
+      {
+        "hlsl": "CurrentExtent",
+        "host": "currentExtent",
+        "type": "uint32[2]",
+        "offset_bytes": 0,
+        "size_bytes": 8
+      },
+      {
+        "hlsl": "PreviousExtent",
+        "host": "previousExtent",
+        "type": "uint32[2]",
+        "offset_bytes": 8,
+        "size_bytes": 8
+      },
+      {
+        "hlsl": "RenderExtent",
+        "host": "renderExtent",
+        "type": "uint32[2]",
+        "offset_bytes": 16,
+        "size_bytes": 8
+      },
+      {
+        "hlsl": "CurrentCropOrigin",
+        "host": "currentCropOrigin",
+        "type": "float32[2]",
+        "offset_bytes": 24,
+        "size_bytes": 8
+      },
+      {
+        "hlsl": "PreviousCropOrigin",
+        "host": "previousCropOrigin",
+        "type": "float32[2]",
+        "offset_bytes": 32,
+        "size_bytes": 8
+      },
+      {
+        "hlsl": "Enabled",
+        "host": "enabled",
+        "type": "uint32",
+        "offset_bytes": 40,
+        "size_bytes": 4
+      },
+      {
+        "hlsl": "Chronological",
+        "host": "chronological",
+        "type": "uint32",
+        "offset_bytes": 44,
+        "size_bytes": 4
+      },
+      {
+        "hlsl": "CurrentPositiveLinearDepth",
+        "host": "currentPositiveLinearDepth",
+        "type": "uint32",
+        "offset_bytes": 48,
+        "size_bytes": 4
+      },
+      {
+        "hlsl": "PreviousPositiveLinearDepth",
+        "host": "previousPositiveLinearDepth",
+        "type": "uint32",
+        "offset_bytes": 52,
+        "size_bytes": 4
+      },
+      {
+        "hlsl": "DepthRelativeTolerance",
+        "host": "depthRelativeTolerance",
+        "type": "float32",
+        "offset_bytes": 56,
+        "size_bytes": 4
+      },
+      {
+        "hlsl": "Reserved",
+        "host": "reserved",
+        "type": "uint32",
+        "offset_bytes": 60,
+        "size_bytes": 4
+      }
+    ],
+    "default_values": {
+      "Enabled": 0,
+      "Chronological": 0,
+      "CurrentPositiveLinearDepth": 0,
+      "PreviousPositiveLinearDepth": 0,
+      "DepthRelativeTolerance": 0.02,
+      "Reserved": 0
+    },
+    "admission": "finite crop origins; positive valid dimensions; finite nonnegative tolerance; boolean words0/1; reserved0; exactly matched resource formats/extents; host must not infer positive-depth semantics from values alone"
+  },
+  "root_signature": {
+    "root_flags": 0,
+    "root_cost_dwords": 18,
+    "srv_table": {
+      "root_parameter": 1,
+      "base_register": "t0",
+      "count": 5
+    },
+    "uav_table": {
+      "root_parameter": 2,
+      "base_register": "u0",
+      "count": 2
+    },
+    "samplers": 0
+  },
+  "dispatch": {
+    "entry_point": "CSMain",
+    "threads": [
+      8,
+      8,
+      1
+    ],
+    "groups": [
+      "ceil(CurrentExtent.x/8)",
+      "ceil(CurrentExtent.y/8)",
+      1
+    ]
+  },
+  "srvs": [
+    {
+      "register": "t0",
+      "name": "CurrentNormalRoughness",
+      "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+      "hlsl_type": "Texture2D<float4>",
+      "role": "owned original bridge normal/roughness, before Flat Albedo; all packed words preserved",
+      "extent": "CurrentExtent"
+    },
+    {
+      "register": "t1",
+      "name": "CurrentDepth",
+      "format": "DXGI_FORMAT_R32_FLOAT",
+      "hlsl_type": "Texture2D<float>",
+      "role": "original bridge linear depth, same signed convention/scene units as motion B; temporal admission restricted to proven positive-linear convention",
+      "extent": "CurrentExtent"
+    },
+    {
+      "register": "t2",
+      "name": "CurrentMotion",
+      "format": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+      "hlsl_type": "Texture2D<float4>",
+      "role": "live: original bridge pre-G3 motion; captured replay: actual provider motion with separately declared authority. Physical full-render UV RG and previous-minus-current linear-depth B; W read-only. These authorities are not silently interchangeable.",
+      "extent": "CurrentExtent"
+    },
+    {
+      "register": "t3",
+      "name": "PreviousNormalRoughness",
+      "format": "DXGI_FORMAT_R10G10B10A2_UNORM",
+      "hlsl_type": "Texture2D<float4>",
+      "role": "immutable previous original guide snapshot with exact lineage",
+      "extent": "PreviousExtent"
+    },
+    {
+      "register": "t4",
+      "name": "PreviousDepth",
+      "format": "DXGI_FORMAT_R32_FLOAT",
+      "hlsl_type": "Texture2D<float>",
+      "role": "immutable previous depth snapshot; same positive-linear semantic convention when admitted",
+      "extent": "PreviousExtent"
+    }
+  ],
+  "uavs": [
+    {
+      "register": "u0",
+      "name": "Observation",
+      "format": "DXGI_FORMAT_R32G32B32A32_FLOAT",
+      "hlsl_type": "RWTexture2D<float4>",
+      "extent": "CurrentExtent",
+      "channels": {
+        "R": "3x3 angular dispersion: clamp(1-length(mean normalized normals),0,1)",
+        "G": "3x3 relative depth span; saturates positive overflow to FLT_MAX, invalid to0",
+        "B": "weighted all-four-point-tap angular innovation,0..2, zero unsupported",
+        "A": "experimental cosine multiplier,clamp(1-B,0,1), identity1 unsupported; display/proxy only"
+      }
+    },
+    {
+      "register": "u1",
+      "name": "SupportFlags",
+      "format": "DXGI_FORMAT_R16_UINT",
+      "hlsl_type": "RWTexture2D<uint>",
+      "extent": "CurrentExtent",
+      "bits": {
+        "0": "CURRENT_FINITE: finite positive current depth + decoded finite normal",
+        "1": "SPATIAL: current valid and at least3 finite positive neighbors in3x3",
+        "2": "MOTION_FINITE: finite current motion XYZ, no W interpretation",
+        "3": "CHRONOLOGICAL: host admitted prior frame/context/conventions",
+        "4": "IN_PREVIOUS_CROP: entire four-tap footprint exists before integer cast",
+        "5": "CATEGORY_MATCH: all four original categorical codes equal current, including zero-weight taps",
+        "6": "DEPTH_MATCH: all four positive finite prior depths agree with finite positive d+motionB, and both depth conventions proven",
+        "7": "TEMPORAL_SUPPORTED: numerical observed-field comparison support, not physical layer/history validity",
+        "8..15": "reserved0"
+      }
+    }
+  ],
+  "identity": {
+    "isolated_shader_off": {
+      "moments": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "flags": 0,
+      "input_reads": false
+    },
+    "production_off": {
+      "dispatch_count": 0,
+      "new_allocations": 0,
+      "existing_inputs_unchanged": true
+    },
+    "unsupported_temporal": {
+      "innovation": 0,
+      "multiplier": 1,
+      "production_behavior": "unchanged; do not install a history gate",
+      "spatial_observation": "retained when spatial evidence is available"
+    }
+  },
+  "coordinate_contract": {
+    "units": "original full-render pixels, crop origin x/y",
+    "formula": "((float2(local)+CurrentCropOrigin)-PreviousCropOrigin)+motion_RG*float2(RenderExtent)",
+    "sampling": "four explicit point Load calls with continuous bilinear weights; no hardware sampler or fraction quantization",
+    "tap_order": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "support": "all four in crop and satisfy category/depth even at zero weight",
+    "spatial_accumulation_order": "dy=-1..1,dx=-1..1; source=current-int2(dx,dy), matching NumPy slices"
+  },
+  "metadata_sidecar_required": [
+    "schema_version",
+    "diagnostic_source_revision",
+    "diagnostic_settings_hash",
+    "source_authority_original_bridge_or_provider_capture",
+    "domain_id",
+    "context_generation",
+    "recording_id",
+    "streamline_frame",
+    "sdk_frame",
+    "capture_frame_if_any",
+    "render_extent",
+    "crop_origin",
+    "crop_extent",
+    "original_depth_sign_convention",
+    "raw_depth_class_available",
+    "raw_coverage_truth_available",
+    "actual_reset",
+    "original_source_resource_generation_and_birth",
+    "shader_sha256",
+    "original_input_hashes_when_exported",
+    "per_role_normal_authority",
+    "per_role_motion_authority",
+    "per_role_depth_authority"
+  ],
+  "semantics": "Angular variability cannot identify coverage mixture versus valid fine geometry, wrong transport or unrelated lighting noise. No AMD binding or production confidence is proposed.",
+  "gpu_validation_status": "pending_local_compile_and_native_execution",
+  "raw_depth_validity_and_coverage": "not inputs to v1; absent evidence cannot be inferred from finite/clamped depth or angular coherence",
+  "source_authorities": {
+    "normal": [
+      "owned_bridge_pre_flat",
+      "captured_bridge_pre_flat",
+      "captured_provider_prepared"
+    ],
+    "motion": [
+      "owned_bridge_pre_G3",
+      "captured_provider_selected"
+    ],
+    "depth": [
+      "bridge_rr_depth_signed_near_far_clamped"
+    ],
+    "temporal_pair_rule": "every per-role authority must match between frames; e.g. glass prepared normal observations cannot join pre-Flat history"
+  }
+}

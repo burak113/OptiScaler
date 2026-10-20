@@ -1,0 +1,479 @@
+{
+  "scale_rows": [
+    {
+      "reference_physical": 0.0,
+      "current_physical_requested": 0.0,
+      "stored_current": 0.0,
+      "stored_reference": 0.0,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": null,
+        "lower": 0.0,
+        "upper": null,
+        "current_sum_bounds": [
+          0,
+          0
+        ],
+        "recalled_sum_bounds": [
+          0,
+          0
+        ],
+        "invalid_interval": true
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "6184": 768
+      }
+    },
+    {
+      "reference_physical": 2.9802322387695312e-08,
+      "current_physical_requested": 3.725290298461914e-08,
+      "stored_current": 5.960464477539063e-08,
+      "stored_reference": 0.0,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": null,
+        "lower": 0.0,
+        "upper": null,
+        "current_sum_bounds": [
+          0,
+          0
+        ],
+        "recalled_sum_bounds": [
+          0,
+          0
+        ],
+        "invalid_interval": true
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "6184": 768
+      }
+    },
+    {
+      "reference_physical": 5.960464477539063e-08,
+      "current_physical_requested": 7.450580596923828e-08,
+      "stored_current": 5.960464477539063e-08,
+      "stored_reference": 5.960464477539063e-08,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": null,
+        "lower": 0.0,
+        "upper": null,
+        "current_sum_bounds": [
+          0,
+          0
+        ],
+        "recalled_sum_bounds": [
+          0,
+          0
+        ],
+        "invalid_interval": true
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "6688": 764,
+        "6696": 4
+      }
+    },
+    {
+      "reference_physical": 7.62939453125e-06,
+      "current_physical_requested": 9.5367431640625e-06,
+      "stored_current": 9.5367431640625e-06,
+      "stored_reference": 7.62939453125e-06,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": null,
+        "lower": 0.0,
+        "upper": null,
+        "current_sum_bounds": [
+          0,
+          0
+        ],
+        "recalled_sum_bounds": [
+          0,
+          0
+        ],
+        "invalid_interval": true
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4128": 764,
+        "4136": 4
+      }
+    },
+    {
+      "reference_physical": 1.52587890625e-05,
+      "current_physical_requested": 1.9073486328125e-05,
+      "stored_current": 1.9073486328125e-05,
+      "stored_reference": 1.52587890625e-05,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 1.0,
+        "lower": 0.0,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          768,
+          768
+        ],
+        "recalled_sum_bounds": [
+          0,
+          768
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4224": 764,
+        "4232": 4
+      }
+    },
+    {
+      "reference_physical": 3.0517578125e-05,
+      "current_physical_requested": 3.814697265625e-05,
+      "stored_current": 3.814697265625e-05,
+      "stored_reference": 3.0517578125e-05,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 1.0,
+        "lower": 0.4999995231628418,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          1536,
+          1536
+        ],
+        "recalled_sum_bounds": [
+          768,
+          1536
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4224": 764,
+        "4232": 4
+      }
+    },
+    {
+      "reference_physical": 6.103515625e-05,
+      "current_physical_requested": 7.62939453125e-05,
+      "stored_current": 7.62939453125e-05,
+      "stored_reference": 6.103515625e-05,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 0.8,
+        "lower": 0.5999994277954102,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          3072,
+          3840
+        ],
+        "recalled_sum_bounds": [
+          2304,
+          3072
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4224": 764,
+        "4232": 4
+      }
+    },
+    {
+      "reference_physical": 0.001,
+      "current_physical_requested": 0.00125,
+      "stored_current": 0.0012502670288085938,
+      "stored_reference": 0.0010004043579101562,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 0.8024691358024691,
+        "lower": 0.7926821708679199,
+        "upper": 0.8024699010966737,
+        "current_sum_bounds": [
+          62208,
+          62976
+        ],
+        "recalled_sum_bounds": [
+          49920,
+          49920
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 0.80126953125,
+      "eligible_fraction": 0.9947916666666666,
+      "reason_counts": {
+        "4096": 764,
+        "4104": 4
+      }
+    },
+    {
+      "reference_physical": 0.1,
+      "current_physical_requested": 0.125,
+      "stored_current": 0.125,
+      "stored_reference": 0.0999755859375,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 0.7998046875,
+        "lower": 0.7987797260284424,
+        "upper": 0.8004891638936287,
+        "current_sum_bounds": [
+          6289920,
+          6297600
+        ],
+        "recalled_sum_bounds": [
+          5030400,
+          5035008
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 0.80029296875,
+      "eligible_fraction": 0.9947916666666666,
+      "reason_counts": {
+        "4096": 764,
+        "4104": 4
+      }
+    },
+    {
+      "reference_physical": 1.0,
+      "current_physical_requested": 1.25,
+      "stored_current": 1.25,
+      "stored_reference": 1.0,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 0.8,
+        "lower": 0.7991795657110996,
+        "upper": 0.801094941395994,
+        "current_sum_bounds": [
+          62889984,
+          62963712
+        ],
+        "recalled_sum_bounds": [
+          50319360,
+          50380800
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 0.80126953125,
+      "eligible_fraction": 0.9947916666666666,
+      "reason_counts": {
+        "4096": 764,
+        "4104": 4
+      }
+    },
+    {
+      "reference_physical": 15.9,
+      "current_physical_requested": 19.875,
+      "stored_current": 19.875,
+      "stored_reference": 15.8984375,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 0.99365234375,
+        "lower": 0.993407255737111,
+        "upper": 0.994141573086381,
+        "current_sum_bounds": [
+          805306368,
+          805306368
+        ],
+        "recalled_sum_bounds": [
+          799997952,
+          800587776
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4160": 764,
+        "4168": 4
+      }
+    },
+    {
+      "reference_physical": 16.0,
+      "current_physical_requested": 20.0,
+      "stored_current": 20.0,
+      "stored_reference": 16.0,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 1.0,
+        "lower": 0.9997549059335142,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          805306368,
+          805306368
+        ],
+        "recalled_sum_bounds": [
+          805109760,
+          805306368
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4160": 764,
+        "4168": 4
+      }
+    },
+    {
+      "reference_physical": 16.1,
+      "current_physical_requested": 20.125,
+      "stored_current": 20.125,
+      "stored_reference": 16.09375,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 1.0,
+        "lower": 0.9999990463256836,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          805306368,
+          805306368
+        ],
+        "recalled_sum_bounds": [
+          805306368,
+          805306368
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4160": 764,
+        "4168": 4
+      }
+    },
+    {
+      "reference_physical": 32.0,
+      "current_physical_requested": 40.0,
+      "stored_current": 40.0,
+      "stored_reference": 32.0,
+      "frame_ratio": {
+        "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+        "exact": false,
+        "count": 768,
+        "coverage": 1.0,
+        "invalid": false,
+        "central": 1.0,
+        "lower": 0.9999990463256836,
+        "upper": 1.0000009536743164,
+        "current_sum_bounds": [
+          805306368,
+          805306368
+        ],
+        "recalled_sum_bounds": [
+          805306368,
+          805306368
+        ]
+      },
+      "production_gain_min": 1.0,
+      "provisional_gain_min": 1.0,
+      "eligible_fraction": 0.0,
+      "reason_counts": {
+        "4160": 764,
+        "4168": 4
+      }
+    }
+  ],
+  "illegal_x256_counterexample": {
+    "unscaled_ratio": {
+      "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+      "exact": false,
+      "count": 768,
+      "coverage": 1.0,
+      "invalid": false,
+      "central": 0.7998046875,
+      "lower": 0.7987797260284424,
+      "upper": 0.8004891638936287,
+      "current_sum_bounds": [
+        50319360,
+        50380800
+      ],
+      "recalled_sum_bounds": [
+        40243200,
+        40280064
+      ]
+    },
+    "scaled_ratio": {
+      "provenance": "FP16 RTNE/RTZ union; native cap16/16.16 bounded estimate",
+      "exact": false,
+      "count": 768,
+      "coverage": 1.0,
+      "invalid": false,
+      "central": 1.0,
+      "lower": 0.9999990463256836,
+      "upper": 1.0000009536743164,
+      "current_sum_bounds": [
+        805306368,
+        805306368
+      ],
+      "recalled_sum_bounds": [
+        805306368,
+        805306368
+      ]
+    },
+    "interpretation": "Multiplication by256 makes both operands exceed physical cap16 and destroys the physical ratio. Never proposed."
+  }
+}

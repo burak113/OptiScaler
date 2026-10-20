@@ -1,0 +1,102 @@
+{
+  "implementation_owner": "independent_skeptic",
+  "executor": "calling local CPU process; see enclosing run record",
+  "evidence_kind": "CPU reconstruction from actual stored lobe observations and synthetic witnesses",
+  "gpu_executed": false,
+  "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+  "frame": 63,
+  "crop_render_xy": [
+    752,
+    423
+  ],
+  "colour_local_crop_xywh": [
+    256,
+    256,
+    192,
+    64
+  ],
+  "fixed_observed_pixels": 12288,
+  "full_colour_pixels": 262144,
+  "fixed_support_sha256": "d020ec12d99671174549f8db183b3543c53747adf3ec87ad67234caed6266549",
+  "same_frame_stage_comparisons": {
+    "rounded_rr_lobe_sum": {
+      "elements": 36864,
+      "changed": 0,
+      "max_abs": 0.0,
+      "p99_abs": 0.0,
+      "exact": true
+    },
+    "rounded_input_lobe_sum": {
+      "elements": 36864,
+      "changed": 0,
+      "max_abs": 0.0,
+      "p99_abs": 0.0,
+      "exact": true
+    },
+    "depth": {
+      "elements": 12288,
+      "changed": 0,
+      "max_abs": 0.0,
+      "p99_abs": 0.0,
+      "exact": true
+    },
+    "prepared_normal_words": {
+      "elements": 12288,
+      "changed": 0,
+      "max_abs": 0.0,
+      "p99_abs": 0.0,
+      "exact": true
+    }
+  },
+  "original_vs_prepared_normal_differences": 23,
+  "prestore_sum_differs_from_exported_lanes": 28485,
+  "restored_prestore_sum_sha256": "13f05113a9b867af72c8a2b2dbc6df75307dc28b91b0c9d4a6eb44fb0d198c3f",
+  "baseline_vs_expected_on_observed_support": {
+    "elements": 36864,
+    "changed": 13,
+    "max_abs": 7.62939453125e-06,
+    "p99_abs": 0.0,
+    "exact": false
+  },
+  "restored_vs_expected_on_observed_support": {
+    "elements": 36864,
+    "changed": 0,
+    "max_abs": 0.0,
+    "p99_abs": 0.0,
+    "exact": true
+  },
+  "restoration_changes_whole_output": {
+    "elements": 786432,
+    "changed": 13,
+    "max_abs": 7.62939453125e-06,
+    "p99_abs": 0.0,
+    "exact": false
+  },
+  "admissible_hypothetical_half_lobe_witness": {
+    "first_recipe": "exported half h + zero half; replace observed rectangle by actual D+S",
+    "second_recipe": "h + half-exact half-ULP delta (or zero below half-subnormal); retain actual observed D+S",
+    "same_exported_colour": true,
+    "output_difference": {
+      "elements": 786432,
+      "changed": 357,
+      "max_abs": 3.0517578125e-05,
+      "p99_abs": 0.0,
+      "exact": false
+    },
+    "observed_rectangle_output_difference": {
+      "elements": 36864,
+      "changed": 0,
+      "max_abs": 0.0,
+      "p99_abs": 0.0,
+      "exact": true
+    },
+    "scope": "possible inputs for rounded colour fixture plus verified original foliage subset; not recovered original off-crop lobes"
+  },
+  "facade_recovery_rejected": {
+    "capture": "f2ef375f-4452-4883-b59d-af48c1b903b5",
+    "reason": "different capture and no frame63; numerical crop-origin equality does not establish provenance"
+  },
+  "glass_direct_copy_rejected": {
+    "reason": "RGB is bilinearly aligned to reference54; original unwarped RGB lobes are not exported there"
+  }
+}

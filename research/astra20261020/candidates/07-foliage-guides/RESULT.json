@@ -1,0 +1,849 @@
+{
+  "schema": "job07.research_result.v1",
+  "task_id": "07-foliage-guides",
+  "repository": "https://github.com/burak113/OptiScaler",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "source_revision": "3d149378c442f0d795e59166ab47f53e8f2b51ae",
+  "source_tree": "112ff59966f54769337e231371bb8ba74c728d33",
+  "revision_scope": "Source/evidence revision identifies the exact tested computational files. A metadata-only successor adds this RESULT and the file inventory; its head SHA is returned with the PR, avoiding a recursive self-hash.",
+  "branch": "astra/07-foliage-guides",
+  "pr_target": "sol/26-integration",
+  "changed_paths": [
+    "research/astra20261020/candidates/07-foliage-guides/.gitignore",
+    "research/astra20261020/candidates/07-foliage-guides/BLOCKED_DATA_REQUEST.json",
+    "research/astra20261020/candidates/07-foliage-guides/GPU_REQUEST.json",
+    "research/astra20261020/candidates/07-foliage-guides/MECHANISM.md",
+    "research/astra20261020/candidates/07-foliage-guides/README.md",
+    "research/astra20261020/candidates/07-foliage-guides/REPORT.md",
+    "research/astra20261020/candidates/07-foliage-guides/RESULT.json",
+    "research/astra20261020/candidates/07-foliage-guides/SHA256SUMS.json",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/BUILD.json",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/FoliageGuideObservation.hlsl",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/HOST_INTERFACE.h",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/HOST_LAYOUT_CHECK.json",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/INTERFACE.json",
+    "research/astra20261020/candidates/07-foliage-guides/adapter/PRODUCTION_SPEC.md",
+    "research/astra20261020/candidates/07-foliage-guides/analyze_captures.py",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/bottle_track7.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/bottle_track7.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/facade16.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/facade16.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/foliage23.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/foliage23.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/glass_unwarped_provider.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/base_masks/glass_unwarped_provider.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/baseline_before.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/baseline_runs.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/captured_baseline.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/captured_with_candidate.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/blind_facade_negative_control.png",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/bottle_track7_identity_diagnostic.png",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/captured_evidence_summary.png",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/facade16_identity_diagnostic.png",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/foliage23_identity_diagnostic.png",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/figures/manifest.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/bottle_track7.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/bottle_track7.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/facade16.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/facade16.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/foliage23.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/foliage23.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/glass_unwarped_provider.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/base_masks/glass_unwarped_provider.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/blind_detail_mutant.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/blind_mutant.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/candidate_and_review_contracts.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/captured_diagnostics.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/captured_with_candidate.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/crop_clamp_mutant.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_cpu_suites.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_package.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_synthetic_sweep.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/known_bad_colour_gate.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/log_export.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/synthetic_benchmark.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/synthetic_reference_arrays.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/verification.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/known_bad_colour_gate.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/known_bad_colour_gate.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/package_before.txt",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/source_audit.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/synthetic_benchmark.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/synthetic_execution.json",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/synthetic_reference_arrays.npz",
+    "research/astra20261020/candidates/07-foliage-guides/evidence/synthetic_transport_discriminator.json",
+    "research/astra20261020/candidates/07-foliage-guides/experiments/README.md",
+    "research/astra20261020/candidates/07-foliage-guides/experiments/protocol.json",
+    "research/astra20261020/candidates/07-foliage-guides/make_figures.py",
+    "research/astra20261020/candidates/07-foliage-guides/requirements-figures.txt",
+    "research/astra20261020/candidates/07-foliage-guides/review/BLIND_REVIEW_PROTOCOL.md",
+    "research/astra20261020/candidates/07-foliage-guides/review/DEDUP_AUDIT.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/REVIEW.md",
+    "research/astra20261020/candidates/07-foliage-guides/review/adversarial_plan.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py",
+    "research/astra20261020/candidates/07-foliage-guides/review/blind_mutant_result.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/calibration_run_receipt.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/bottle_track7.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/bottle_track7.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/facade16.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/facade16.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/foliage23.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/foliage23.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/glass_unwarped_provider.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/base_masks/glass_unwarped_provider.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/capture_replay/captured_with_candidate.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/captured_run_receipt.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/final_cpu_receipt.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/glass_prepared_control.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/glass_prepared_control.py",
+    "research/astra20261020/candidates/07-foliage-guides/review/glass_unwarped_base_mask.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/independent_probes.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/independent_probes.py",
+    "research/astra20261020/candidates/07-foliage-guides/review/synthetic_reference_arrays.npz",
+    "research/astra20261020/candidates/07-foliage-guides/review/synthetic_replay.json",
+    "research/astra20261020/candidates/07-foliage-guides/review/synthetic_run_receipt.json",
+    "research/astra20261020/candidates/07-foliage-guides/run_benchmark.py",
+    "research/astra20261020/candidates/07-foliage-guides/run_checks.py",
+    "research/astra20261020/candidates/07-foliage-guides/src/__init__.py",
+    "research/astra20261020/candidates/07-foliage-guides/src/foliage_guides.py",
+    "research/astra20261020/candidates/07-foliage-guides/src/proxy_metrics.py",
+    "research/astra20261020/candidates/07-foliage-guides/src/synthetic_scene.py",
+    "research/astra20261020/candidates/07-foliage-guides/src/transport_discriminator.py",
+    "research/astra20261020/candidates/07-foliage-guides/tests/test_candidate_contract.py",
+    "research/astra20261020/candidates/07-foliage-guides/tests/test_captured_diagnostics.py",
+    "research/astra20261020/candidates/07-foliage-guides/tests/test_review_adversarial.py",
+    "research/astra20261020/candidates/07-foliage-guides/tests/test_review_calibration.py",
+    "research/astra20261020/candidates/07-foliage-guides/tests/test_review_metrics.py"
+  ],
+  "production_changed": false,
+  "frozen_baseline_changed": false,
+  "dependency_versions": {
+    "python": "3.12.14",
+    "numpy": "2.3.5",
+    "os": "Linux",
+    "matplotlib_optional_figures": "3.10.8",
+    "pillow_optional_figures": "12.3.0",
+    "portable_cpp_compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+    "required_dependency_file": "research/astra20261020/requirements.txt",
+    "optional_figure_dependency_file": "requirements-figures.txt",
+    "dxc": null,
+    "windows_sdk": null
+  },
+  "seed_sets": {
+    "development": 101,
+    "heldout": [
+      9001,
+      17713,
+      29009
+    ],
+    "heldout_orientations_degrees": [
+      13,
+      77,
+      141
+    ],
+    "heldout_phases": [
+      0.37,
+      0.61,
+      0.89
+    ],
+    "heldout_trajectories_pixels_per_frame": [
+      [
+        -0.31,
+        0.22
+      ],
+      [
+        0.63,
+        -0.17
+      ],
+      [
+        -0.71,
+        -0.28
+      ]
+    ],
+    "independent_blind_control": [
+      17041,
+      31873,
+      60791
+    ],
+    "independent_adversarial_probes": 924619,
+    "frozen_protocol_sha256": "fc0dd9b67538a3d64d7af8b97355d16f8640e187dd96f9e1a0261bb79db02c36",
+    "fitting_or_holdout_tuning": false
+  },
+  "one_command_verification": {
+    "command": "python research/astra20261020/candidates/07-foliage-guides/run_checks.py",
+    "cwd": "repository root",
+    "recorded_command": "python research/astra20261020/candidates/07-foliage-guides/run_checks.py --executor /root --output-dir research/astra20261020/candidates/07-foliage-guides/evidence/final_checks",
+    "executor": "/root",
+    "exit_code": 0,
+    "elapsed_seconds": 73.92299061500125,
+    "pass": true,
+    "candidate_and_reviewer_tests": 36,
+    "baseline_cpu_suites": 4,
+    "frozen_package_files": 91,
+    "safe_npz_arrays_in_package": 141,
+    "synthetic_protocol_rows": 51,
+    "unique_input_truth_realizations": 40,
+    "heldout_cases": 9,
+    "full_sweep_exactly_matches_delivered_cases_and_summaries": true,
+    "source_hashes_unchanged_during_execution": true,
+    "known_bad_colour_gate_expected_exit": 1,
+    "blind_noise_only_mutant_expected_exit": 1,
+    "crop_clamp_mutant_expected_exit": 1,
+    "receipt": "evidence/final_checks/verification.json",
+    "traceback_path_export_receipt": "evidence/final_checks/log_export.json"
+  },
+  "cpu_runs": [
+    {
+      "command": "python research/astra20261020/validate_package.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5835998490001657,
+      "log": "evidence/package_before.txt",
+      "executor": "root CPU / Linux / Python 3.12.14",
+      "receipt": "evidence/baseline_runs.json"
+    },
+    {
+      "command": "python research/astra20261020/run_cpu.py",
+      "exit_code": 0,
+      "elapsed_seconds": 5.587189879001016,
+      "log": "evidence/baseline_before.txt",
+      "executor": "root CPU / Linux / Python 3.12.14",
+      "receipt": "evidence/baseline_runs.json"
+    },
+    {
+      "name": "frozen_package",
+      "command": "python research/astra20261020/validate_package.py",
+      "cwd": ".",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "expected_marker": null,
+      "elapsed_seconds": 0.660600916000476,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_package.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "frozen_cpu_suites",
+      "command": "python research/astra20261020/run_cpu.py",
+      "cwd": ".",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "expected_marker": null,
+      "elapsed_seconds": 5.824577352001143,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_cpu_suites.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "candidate_and_review_contracts",
+      "command": "python -B -m unittest discover -s research/astra20261020/candidates/07-foliage-guides/tests -v",
+      "cwd": ".",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "expected_marker": null,
+      "elapsed_seconds": 1.8394130549986585,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/candidate_and_review_contracts.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "known_bad_colour_gate",
+      "command": "python -B compare.py --quality-gate",
+      "cwd": "research/astra20261020/portable/colour",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "expected_marker": null,
+      "elapsed_seconds": 2.5107062780007254,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/known_bad_colour_gate.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "blind_detail_mutant",
+      "command": "python research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py --mutant-ignore-detail --output research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/blind_mutant.json",
+      "cwd": ".",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "expected_marker": "MUTANT CAUGHT: noise-only scoring accepts destroyed facade detail",
+      "elapsed_seconds": 0.17109443600020313,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/blind_detail_mutant.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "crop_clamp_mutant",
+      "command": "python research/astra20261020/candidates/07-foliage-guides/tests/test_candidate_contract.py --mutant-clamp-history",
+      "cwd": ".",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "expected_marker": "FAILED",
+      "elapsed_seconds": 0.09475243099950603,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/crop_clamp_mutant.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "captured_diagnostics",
+      "command": "python research/astra20261020/candidates/07-foliage-guides/analyze_captures.py --with-candidate --executor /root --output-dir research/astra20261020/candidates/07-foliage-guides/evidence/final_checks",
+      "cwd": ".",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "expected_marker": null,
+      "elapsed_seconds": 3.4848757479994674,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/captured_diagnostics.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "name": "frozen_synthetic_sweep",
+      "command": "python research/astra20261020/candidates/07-foliage-guides/run_benchmark.py --executor /root --output research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/synthetic_benchmark.json",
+      "cwd": ".",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "expected_marker": null,
+      "elapsed_seconds": 59.321559478999916,
+      "pass": true,
+      "log": "research/astra20261020/candidates/07-foliage-guides/evidence/final_checks/frozen_synthetic_sweep.txt",
+      "executor": "/root",
+      "receipt": "evidence/final_checks/verification.json"
+    },
+    {
+      "command": "python research/astra20261020/candidates/07-foliage-guides/run_benchmark.py --executor implementation_subagent_final_cpu_verification",
+      "exit_code": 0,
+      "elapsed_seconds": 55.01291361999938,
+      "elapsed_scope": "runner perf_counter",
+      "output": "evidence/synthetic_benchmark.json",
+      "executor": "implementation subagent; independent review has a separate receipt",
+      "receipt": "evidence/synthetic_execution.json"
+    },
+    {
+      "command": "python research/astra20261020/candidates/07-foliage-guides/src/transport_discriminator.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.11071427999922889,
+      "output": "evidence/synthetic_transport_discriminator.json",
+      "executor": "implementation subagent; independent review has a separate receipt",
+      "receipt": "evidence/synthetic_execution.json"
+    },
+    {
+      "command": "python -m unittest discover -s research/astra20261020/candidates/07-foliage-guides/tests -p 'test_candidate*.py' -v",
+      "exit_code": 0,
+      "elapsed_seconds": 0.421,
+      "elapsed_scope": "unittest-reported duration from final recorded implementation run",
+      "test_count": 19,
+      "result": "19 tests passed; test_crop_clamp_mutant_is_killed requires the deliberate child mutant to exit nonzero",
+      "executor": "implementation subagent; independent review has a separate receipt",
+      "receipt": "evidence/synthetic_execution.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.2761299659996439,
+      "executor": "/root/skeptic",
+      "receipt": "review/calibration_run_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/07-foliage-guides/tests",
+        "-p",
+        "test_review_calibration.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.2496203480004624,
+      "executor": "/root/skeptic",
+      "receipt": "review/calibration_run_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py",
+        "--mutant-ignore-detail",
+        "--output",
+        "research/astra20261020/candidates/07-foliage-guides/review/blind_mutant_result.json"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.23210723400006827,
+      "executor": "/root/skeptic",
+      "receipt": "review/calibration_run_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/07-foliage-guides/tests",
+        "-p",
+        "test_review*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.22412509700006922,
+      "executor": "/root/skeptic",
+      "receipt": "review/final_cpu_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/independent_probes.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.32249305000004824,
+      "executor": "/root/skeptic",
+      "receipt": "review/final_cpu_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/glass_prepared_control.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.5329947299997002,
+      "executor": "/root/skeptic",
+      "receipt": "review/final_cpu_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/run_benchmark.py",
+        "--executor",
+        "/root/skeptic",
+        "--output",
+        "research/astra20261020/candidates/07-foliage-guides/review/synthetic_replay.json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 55.59076366299996,
+      "executor": "/root/skeptic",
+      "receipt": "review/synthetic_run_receipt.json"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/analyze_captures.py",
+        "--with-candidate",
+        "--executor",
+        "/root/skeptic",
+        "--output-dir",
+        "research/astra20261020/candidates/07-foliage-guides/review/capture_replay"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 3.3725304230010806,
+      "executor": "/root/skeptic",
+      "receipt": "review/captured_run_receipt.json"
+    },
+    {
+      "command": "c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only -x c++ -",
+      "exit_code": 0,
+      "elapsed_seconds": 0.0840526760002831,
+      "executor": "mechanism subagent CPU C++ compile",
+      "receipt": "adapter/HOST_LAYOUT_CHECK.json"
+    }
+  ],
+  "fixture_sha256": {
+    "research/astra20261020/fixtures/clips/bottle_track7.npz": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+    "research/astra20261020/fixtures/clips/facade16.npz": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+    "research/astra20261020/fixtures/clips/foliage23.npz": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+    "research/astra20261020/fixtures/glass/glass_crop.npz": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+    "research/astra20261020/portable/anchor/fixtures/combined/22f9ca14.npz": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+    "research/astra20261020/portable/anchor/fixtures/combined/2405579e.npz": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+    "research/astra20261020/portable/anchor/fixtures/combined/87ee1fba.npz": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+    "research/astra20261020/portable/anchor/fixtures/native_policy/22f9ca14.npz": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+    "research/astra20261020/portable/anchor/fixtures/native_policy/2405579e.npz": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+    "research/astra20261020/portable/anchor/fixtures/native_policy/87ee1fba.npz": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+    "research/astra20261020/portable/colour/fixtures/soft2_gpu_87ee63.npz": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2"
+  },
+  "source_sha256": {
+    "adapter/BUILD.json": "04918f8286c45108341ced75a1c15c384c5a4a4ebccc01d4876e2a1100b9c04b",
+    "adapter/FoliageGuideObservation.hlsl": "1283813131d32072d0d5ae89c5dc359974f332a041c0156a7853da5189c67a68",
+    "adapter/HOST_INTERFACE.h": "8f6a3edfdb21f43db5cdb1f0bfc2c0ca5d726ddedd50b84f50e9e826941dd627",
+    "adapter/INTERFACE.json": "dc7ca1d09f9e074cdb83851e25fbc0ef48eb9670c3339ebb581131694287c907",
+    "adapter/PRODUCTION_SPEC.md": "42af77ca1113f5c7365545136986983141648343b4b72036d29cf608e0f86364",
+    "analyze_captures.py": "ea2200108e2000b5b464a2429cc022d9a42c29ce23a69ed624616808a1fc93d8",
+    "experiments/protocol.json": "fc0dd9b67538a3d64d7af8b97355d16f8640e187dd96f9e1a0261bb79db02c36",
+    "make_figures.py": "744656ad19c81e3ce7c8104e18be9facf2ad7a65b829e6c9c2a2890e2950e05e",
+    "review/blind_calibration.py": "65e89ff693f8ba1ba05b0a5e41eebf2b4f8821cda5d1b32147f9c1527dc8aa0a",
+    "review/glass_prepared_control.py": "bac0f90ccb23d20f342656355342dd1a105b189e77acfa53cef1540b3889f018",
+    "review/independent_probes.py": "67ede7d50aa42e4ee70b2cb70130a7d05672cc3b16ebd6471dc576d018abf61e",
+    "run_benchmark.py": "dc7d05111ab9fc55873d70d4b97d3550db58930fbfa770ae85dc79db69ba65e0",
+    "run_checks.py": "61e19149f4e556cee3b8307d2744ce537f507bdfff0d2b435141bb167027b314",
+    "src/__init__.py": "7da5ed1fc73af29aa85bbf8b66196d0ec3c2e080cca96531999bd671ef1f31d8",
+    "src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "src/proxy_metrics.py": "7e15929dd457393bce21a20bd1811d3c089a2ee681f3ddd47e123b3dd03eaff4",
+    "src/synthetic_scene.py": "20fde4d8bbf0ad562e4d6190dd382e6d93c780de64e9a5620b6745d9126317b6",
+    "src/transport_discriminator.py": "446612dd18f1f48646f33b27da2b16e9d502a8262645282caa0719eca986af59",
+    "tests/test_candidate_contract.py": "f9ad67078fdb2e1459b2200b5048cd41df675bece8c55ad74ff04e10f1301e3a",
+    "tests/test_captured_diagnostics.py": "f43461d0a84001fbf4c2e2bb0903a02afeca1e2fdc42ddd785288d8037b45214",
+    "tests/test_review_adversarial.py": "e20360a682e126268db6029ae601da21c59ac9d1664d6b5b8f601539656ad96f",
+    "tests/test_review_calibration.py": "173d360c39c2216a00ee74fb8fe501e9baff5685dab3bd75f9fb407785f6a5b7",
+    "tests/test_review_metrics.py": "86f9c0c5c1acece05f23e5ded5e2fa4669af6c4f8eec2c30ec5fb1d90bd03a44"
+  },
+  "result_sha256": {
+    "evidence/base_masks/bottle_track7.json": "1869cdd88a6f32a0eb70240a997bb12873596398b8f84b64d044483cd80683fb",
+    "evidence/base_masks/bottle_track7.npz": "b2aa43315a333c59a461cbcc77f6ad7f980dbdcb0cff939ab92f996642fc20ae",
+    "evidence/base_masks/facade16.json": "1b8a5cfda7adf459287644c844044d0ce84648d4012b0e9788b8685eb244b1cc",
+    "evidence/base_masks/facade16.npz": "51cccddd4c966ff8af2f980f9d3db366275827cc2fc8ce87c7a75441273f5fe7",
+    "evidence/base_masks/foliage23.json": "98be1d6df973d02be5c9882da1feb9f63adbbb1db3ce092a9c7e5f6d7c1151fc",
+    "evidence/base_masks/foliage23.npz": "9a558180f1574860de5e4e72190553ba2a58da2dfbb2b217bdc2e74cb2623d0b",
+    "evidence/base_masks/glass_unwarped_provider.json": "feed3e12174df19c323db1217944d9ed690aa4b2f87c609ec927c3d2f4d82287",
+    "evidence/base_masks/glass_unwarped_provider.npz": "14e46b1f4c5b59944b4b90dfa895de1ac1b3f1c71a1e2c9f603f058d9ea83326",
+    "evidence/baseline_before.txt": "164ef6bd20e5f63420b77df14d1abf9a4f0060e77c7bdfe0b4e488a6d87de981",
+    "evidence/baseline_runs.json": "9865a9bb96bb36c5995f08692146f354b4cd8e5319861ef2f13f532d16285cc1",
+    "evidence/captured_baseline.json": "9fb14670413b0efac5d3af244bf47ed324086c7029adaf1b0d514cde16c7b37e",
+    "evidence/captured_with_candidate.json": "966532c218a29a0ec50c4f8a5fbdb9a1d7aa171f8b2097692bef950b8cb752f0",
+    "evidence/figures/blind_facade_negative_control.png": "1b71c19fdc1698aaa60294fbb84439bf0029b955c96485142c6eb2065210c7aa",
+    "evidence/figures/bottle_track7_identity_diagnostic.png": "fe53077b9d04df19b528febd34b38af212cc98faad90561fa68662b3f5e33c64",
+    "evidence/figures/captured_evidence_summary.png": "1245f16f1150866a1678e83a9ba86b61d01b8e177c44e36d14cb1030667b7cc9",
+    "evidence/figures/facade16_identity_diagnostic.png": "0985f80ef6bd3ba67da4fdbdb32e5583ffafb617c04c846c291e8b9b502b5bd6",
+    "evidence/figures/foliage23_identity_diagnostic.png": "2f04463d35642a6b1457d045360e9d95508304535169f6270facce0225d36d32",
+    "evidence/figures/manifest.json": "a386e2880105f3c1a78b7974315291b7a12959d0264dc1cf57ed2cb6f26502c3",
+    "evidence/final_checks/base_masks/bottle_track7.json": "1869cdd88a6f32a0eb70240a997bb12873596398b8f84b64d044483cd80683fb",
+    "evidence/final_checks/base_masks/bottle_track7.npz": "b2aa43315a333c59a461cbcc77f6ad7f980dbdcb0cff939ab92f996642fc20ae",
+    "evidence/final_checks/base_masks/facade16.json": "1b8a5cfda7adf459287644c844044d0ce84648d4012b0e9788b8685eb244b1cc",
+    "evidence/final_checks/base_masks/facade16.npz": "51cccddd4c966ff8af2f980f9d3db366275827cc2fc8ce87c7a75441273f5fe7",
+    "evidence/final_checks/base_masks/foliage23.json": "98be1d6df973d02be5c9882da1feb9f63adbbb1db3ce092a9c7e5f6d7c1151fc",
+    "evidence/final_checks/base_masks/foliage23.npz": "9a558180f1574860de5e4e72190553ba2a58da2dfbb2b217bdc2e74cb2623d0b",
+    "evidence/final_checks/base_masks/glass_unwarped_provider.json": "feed3e12174df19c323db1217944d9ed690aa4b2f87c609ec927c3d2f4d82287",
+    "evidence/final_checks/base_masks/glass_unwarped_provider.npz": "14e46b1f4c5b59944b4b90dfa895de1ac1b3f1c71a1e2c9f603f058d9ea83326",
+    "evidence/final_checks/blind_detail_mutant.txt": "170f57d1a47be81783175eeb10630de234f434bf4371bf567c307003afdb0f00",
+    "evidence/final_checks/blind_mutant.json": "93054adf1317dfa0722e1d6cda643996348cbc3ec560c5110d2af7eb6a53d73b",
+    "evidence/final_checks/candidate_and_review_contracts.txt": "2b60a43cce20cae7f6c3b8a2bf456323eac683d38ec8ce3e20cef79bc9da92c8",
+    "evidence/final_checks/captured_diagnostics.txt": "e77f353c84614c50455737733d4fecc8db9241808f064beb78ebe3b04ebfdb4e",
+    "evidence/final_checks/captured_with_candidate.json": "966532c218a29a0ec50c4f8a5fbdb9a1d7aa171f8b2097692bef950b8cb752f0",
+    "evidence/final_checks/crop_clamp_mutant.txt": "1f48219d728e05d5867ee287d404e8fbb91407d32091215f940d126f7122a85c",
+    "evidence/final_checks/frozen_cpu_suites.txt": "e122cd88ebae56d5240cf889a035bbeb2dd454faf91a842fc1b5a068ecf8f960",
+    "evidence/final_checks/frozen_package.txt": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/final_checks/frozen_synthetic_sweep.txt": "6d7ae0062bc7a5db4b3541a9a2b31eea20fc70165dd7058e6d9556be1b087fcc",
+    "evidence/final_checks/known_bad_colour_gate.txt": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+    "evidence/final_checks/log_export.json": "5656a2d1df1327249ef2cb13abc1f483776928a2dcf44c59be04a62407a29c8d",
+    "evidence/final_checks/synthetic_benchmark.json": "cf788f1095e19c343fac9c934ef87d77a030a92af0b7ecb3eb90650eff23595d",
+    "evidence/final_checks/synthetic_reference_arrays.npz": "e7bd9abfb0d9ff3c724a4b024c9457cc35e4eafd9a14013746d94cf13911fd35",
+    "evidence/final_checks/verification.json": "5d902a19f8b4810dbc1547c6e7f0689f02abae938b73a580b8c7f9a36367e3d1",
+    "evidence/known_bad_colour_gate.json": "5cce87ed3c67ad7c41b4ba50605012dbcba7725a6828a9de00a83d8707532b53",
+    "evidence/known_bad_colour_gate.txt": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+    "evidence/package_before.txt": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "evidence/source_audit.json": "bc95287b614d0407fd582eabf48ca9317a780db39cf98eaef35a83737c02ed88",
+    "evidence/synthetic_benchmark.json": "bb0eef2b8b8c364e68bc07d89b70cd4ad5bb3c60f6ded464dbb0a88b2f39f9d4",
+    "evidence/synthetic_execution.json": "848802d3ebf8f85eeff4ade696639b7c14e45edc29d58623c6b9056793b62460",
+    "evidence/synthetic_reference_arrays.npz": "e7bd9abfb0d9ff3c724a4b024c9457cc35e4eafd9a14013746d94cf13911fd35",
+    "evidence/synthetic_transport_discriminator.json": "b38ad76f69e51ba5d201aa22d87494637b226c96bfb810d6c04c8629d9642fca",
+    "review/DEDUP_AUDIT.json": "92b8d8c05bfb8bcee984be16ed88f1b6dd0ba96b6a79756d21b4be8d583ad003",
+    "review/adversarial_plan.json": "5f3417f18f540c118b148da5bce93a5cd0d1f2e002fd417ac817756551880269",
+    "review/blind_calibration.json": "1fe863dcf3ddb44690104950c37747a9396d6c11eb2c411f78152c86abb3fa07",
+    "review/blind_mutant_result.json": "17460a68567f1da9ee904efa241073b3b3040027e0ddbb625cb1d4cfbf75ad95",
+    "review/calibration_run_receipt.json": "ad05a35f7b1411c267e336748f730d3df5af1897aa23019ffbb92688f725ae87",
+    "review/capture_replay/base_masks/bottle_track7.json": "1869cdd88a6f32a0eb70240a997bb12873596398b8f84b64d044483cd80683fb",
+    "review/capture_replay/base_masks/bottle_track7.npz": "b2aa43315a333c59a461cbcc77f6ad7f980dbdcb0cff939ab92f996642fc20ae",
+    "review/capture_replay/base_masks/facade16.json": "1b8a5cfda7adf459287644c844044d0ce84648d4012b0e9788b8685eb244b1cc",
+    "review/capture_replay/base_masks/facade16.npz": "51cccddd4c966ff8af2f980f9d3db366275827cc2fc8ce87c7a75441273f5fe7",
+    "review/capture_replay/base_masks/foliage23.json": "98be1d6df973d02be5c9882da1feb9f63adbbb1db3ce092a9c7e5f6d7c1151fc",
+    "review/capture_replay/base_masks/foliage23.npz": "9a558180f1574860de5e4e72190553ba2a58da2dfbb2b217bdc2e74cb2623d0b",
+    "review/capture_replay/base_masks/glass_unwarped_provider.json": "feed3e12174df19c323db1217944d9ed690aa4b2f87c609ec927c3d2f4d82287",
+    "review/capture_replay/base_masks/glass_unwarped_provider.npz": "14e46b1f4c5b59944b4b90dfa895de1ac1b3f1c71a1e2c9f603f058d9ea83326",
+    "review/capture_replay/captured_with_candidate.json": "c41be0ca3b34e22e993e0464b1abc1a3c26ee4043ac7d7b410a6445529e33786",
+    "review/captured_run_receipt.json": "b7bd34c5d42ddacef29a772c354742bb85427a6b9580193807a78c5f67af338f",
+    "review/final_cpu_receipt.json": "24d20eb697354bc7379d8df0e30848297f4dd70ff87cce43d673b3a0719a9389",
+    "review/glass_prepared_control.json": "51ec1b26863f4e72f71532e9ff41b8226a02ae91726cfea742c4dd799f1d160d",
+    "review/glass_unwarped_base_mask.npz": "29c5084a4cba746dab6f45747a92c17f7a743b7e14369d178a5aa94dd4dbc8dd",
+    "review/independent_probes.json": "db152d5cc871d3bb2764c54e9cee1f025e6cf32f275c6236fdb7026df4912459",
+    "review/synthetic_reference_arrays.npz": "e7bd9abfb0d9ff3c724a4b024c9457cc35e4eafd9a14013746d94cf13911fd35",
+    "review/synthetic_replay.json": "fd527b554e647d8f651609664bc9017da8d13674591b3c52c19c2dd7b9662ff2",
+    "review/synthetic_run_receipt.json": "e1ebb7a7589d80b2649a94fcbd749470e24b5bec4fd325236b257031d92eabe4"
+  },
+  "complete_inventory": "SHA256SUMS.json; manifest self-hash is intentionally excluded",
+  "measured_comparisons": {
+    "captured": [
+      {
+        "fixture": "foliage23",
+        "executor": "/root",
+        "evidence_class": "recorded native arrays inspected on CPU; diagnostic only",
+        "core_pixel_frames": 259440,
+        "available_previous_crop_pairs": 247740,
+        "numerically_comparable_pairs": 128523,
+        "numerically_comparable_pair_fraction": 0.5187817873577137,
+        "input_diffuse_exact_zero_fraction": 0.361054579093432,
+        "input_specular_exact_zero_fraction": 0.3846554116558742,
+        "input_diffuse_top_one_percent_positive_energy_share": 0.3305277604368192,
+        "input_specular_top_one_percent_positive_energy_share": 0.5458691075413861,
+        "all_source_arrays_bitwise_unchanged": true,
+        "captured_output_quality_improvement": null,
+        "support_meaning": "Numerical comparability only; not a foliage mask, coverage estimate or physical-history certificate."
+      },
+      {
+        "fixture": "facade16",
+        "executor": "/root",
+        "evidence_class": "recorded native arrays inspected on CPU; diagnostic only",
+        "core_pixel_frames": 135424,
+        "available_previous_crop_pairs": 126960,
+        "numerically_comparable_pairs": 120451,
+        "numerically_comparable_pair_fraction": 0.948731884057971,
+        "input_diffuse_exact_zero_fraction": 0.14907992674858223,
+        "input_specular_exact_zero_fraction": 0.15359906663516068,
+        "input_diffuse_top_one_percent_positive_energy_share": 0.24181629676168181,
+        "input_specular_top_one_percent_positive_energy_share": 0.30661397533479195,
+        "all_source_arrays_bitwise_unchanged": true,
+        "captured_output_quality_improvement": null,
+        "support_meaning": "Numerical comparability only; not a foliage mask, coverage estimate or physical-history certificate."
+      },
+      {
+        "fixture": "bottle_track7",
+        "executor": "/root",
+        "evidence_class": "recorded native arrays inspected on CPU; diagnostic only",
+        "core_pixel_frames": 218736,
+        "available_previous_crop_pairs": 141929,
+        "numerically_comparable_pairs": 65155,
+        "numerically_comparable_pair_fraction": 0.4590675619499891,
+        "input_diffuse_exact_zero_fraction": 0.23488588983980688,
+        "input_specular_exact_zero_fraction": 0.2082647575159096,
+        "input_diffuse_top_one_percent_positive_energy_share": 0.36907684707043087,
+        "input_specular_top_one_percent_positive_energy_share": 0.34608850890359405,
+        "all_source_arrays_bitwise_unchanged": true,
+        "captured_output_quality_improvement": null,
+        "support_meaning": "Numerical comparability only; not a foliage mask, coverage estimate or physical-history certificate."
+      }
+    ],
+    "heldout_cpu_surrogate": {
+      "executor": "implementation_subagent_final_cpu_verification",
+      "independent_replay_executor": "/root/skeptic",
+      "root_replay_executor": "/root",
+      "scope": "Mean over nine distinct synthetic heldout cases; neither AMD RR nor final game output",
+      "metrics": {
+        "grain_highpass_rms": {
+          "single_dominant_guide_mean": 0.22418632275528377,
+          "cosine_support_consumer_mean": 0.22540931072500017,
+          "relative_change_percent": 0.5455230072404449
+        },
+        "sparkle_abs_error_p99": {
+          "single_dominant_guide_mean": 0.9562424090173509,
+          "cosine_support_consumer_mean": 0.9703778955671523,
+          "relative_change_percent": 1.4782325502930904
+        },
+        "flicker_residual_difference_rms": {
+          "single_dominant_guide_mean": 0.26125015649530625,
+          "cosine_support_consumer_mean": 0.26260552638106877,
+          "relative_change_percent": 0.5188015593731832
+        },
+        "detail_gradient_transfer": {
+          "single_dominant_guide_mean": 0.4000722519245511,
+          "cosine_support_consumer_mean": 0.4128855472540249,
+          "relative_change_percent": 3.2027453210851986
+        },
+        "false_history_support_fraction": {
+          "single_dominant_guide_mean": 0.02559156378600823,
+          "cosine_support_consumer_mean": 0.02559156378600823,
+          "relative_change_percent": 0.0
+        },
+        "cross_layer_mixing_weight": {
+          "single_dominant_guide_mean": 0.0383700757390923,
+          "cosine_support_consumer_mean": 0.038345238400830164,
+          "relative_change_percent": -0.06473101182030705
+        },
+        "fixed_score_lower_better": {
+          "single_dominant_guide_mean": 4.797632289587089,
+          "cosine_support_consumer_mean": 4.777228439224273,
+          "relative_change_percent": -0.4252899999672932
+        },
+        "paired_light_response_first_four_frames": {
+          "single_dominant_guide_mean": 0.5880691938930087,
+          "cosine_support_consumer_mean": 0.6133021381166246,
+          "relative_change_percent": 4.290812116270559
+        }
+      },
+      "worst_sparkle_case": {
+        "case": "holdout_facade_17713",
+        "sparkle_ratio": 1.0379841943903758,
+        "flicker_ratio": 1.0035696913480285,
+        "detail_transfer_delta": 0.015539561930724533,
+        "cross_layer_mixing_delta": 0.0
+      },
+      "worst_flicker_case": {
+        "case": "holdout_facade_9001",
+        "sparkle_ratio": 1.0,
+        "flicker_ratio": 1.015166325449278,
+        "detail_transfer_delta": 0.014816525882681841,
+        "cross_layer_mixing_delta": 0.0
+      },
+      "detail_transfer_required_minimum": 0.95,
+      "primary_observer_rgb_bitwise_identity_all_cases": true
+    },
+    "decoder_calibration": {
+      "scope": "analytic homogeneous known normals, oct quantization only",
+      "normal_count": 10,
+      "correct_max_degrees": 0.14265252649784088,
+      "correct_mean_degrees": 0.07070939242839813,
+      "deliberately_misdecoded_mean_degrees": 58.508567810058594,
+      "material_zero_preserved": true
+    },
+    "identifiability_collision": {
+      "construction": "dominant front layer identical; invisible minority layer radiance/motion differs",
+      "guide_sha256": "fe734df53b4b460fba688777c63637183e427c324048732249237d7ad5378cc6",
+      "visible_front_fraction": 0.6,
+      "hidden_motion_pixels": [
+        1.0,
+        -1.0
+      ],
+      "max_true_rgb_difference": 0.1600000560283661,
+      "observer_outputs_identical": true,
+      "supported_mean_multiplier": 1.0,
+      "conclusion": "A guide-only observer cannot identify the hidden mixture; low uncertainty does not establish homogeneous coverage."
+    },
+    "analytic_transport": {
+      "schema": "job07-analytic-two-layer-motion-v1",
+      "stage": "analytic synthetic truth, CPU executed",
+      "gpu_executed": false,
+      "frame_ids": [
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211
+      ],
+      "extent": [
+        64,
+        8
+      ],
+      "crop_origin": [
+        0,
+        0
+      ],
+      "fixed_mask_pixels_per_frame": 480,
+      "history_frames_evaluated": 11,
+      "coverage_fractions": [
+        0.6000000238418579,
+        0.3999999761581421
+      ],
+      "object_velocities_pixels_per_frame": [
+        0.25,
+        -0.5
+      ],
+      "dominant_guide_motion_uv": [
+        -0.00390625,
+        0
+      ],
+      "rgb_units": "positive linear synthetic radiance",
+      "depth_units": "positive synthetic linear scene unit",
+      "previous_evaluation": "exact analytic per-layer sample; no bilinear or GPU sampler approximation",
+      "normal_material_depth_guides": "identical at every frame; zero category means no semantic claim",
+      "normalized_rgb_rmse": {
+        "dominant_layer_motion": 0.1354925036430359,
+        "minority_layer_motion": 0.36654672026634216,
+        "coverage_mean_motion": 0.17561982572078705,
+        "oracle_per_layer_motion": 0.0
+      },
+      "maximum_observable_temporal_innovation": 0.0,
+      "falsifier": "Even analytically correct dominant-layer motion cannot transport both components of an unresolved moving composite.",
+      "limitation": "Unresolved constant synthetic 60/40 coverage, not an assertion about a game pixel's coverage rule; no real image improvement claim."
+    },
+    "independent_blind_control": {
+      "executor": "independent skeptical reviewer /root/skeptic",
+      "before_candidate_inspection": true,
+      "seeds": [
+        17041,
+        31873,
+        60791
+      ],
+      "all_negative_controls_rejected": true,
+      "noise_only_mutant_incorrectly_accepts_all": true,
+      "historical_native_control_reexecuted": false,
+      "receipt": "review/blind_calibration.json"
+    }
+  },
+  "rejected_hypotheses": [
+    {
+      "claim": "The observed provider/pre-Flat difference in these three clips changes normal bits.",
+      "reason": "All packed normal20 bits are identical; only the separately encoded roughness differs.",
+      "scope": "These recorded arrays, not every native capture or shader."
+    },
+    {
+      "claim": "Oct RG and roughness B can be decoded as a Cartesian XYZ normal.",
+      "reason": "Source contract and known-normal CPU witnesses reject this decoding.",
+      "scope": "CPU witness calibration; actual native HLSL decoding remains a local gate."
+    },
+    {
+      "claim": "Low guide innovation certifies homogeneous coverage or correct composite history.",
+      "reason": "Identical available guides conceal different true mixtures; separate analytic layer motion has nonzero single-MV error.",
+      "scope": "A constructive representational counterexample, not identification of a particular game pixel."
+    },
+    {
+      "claim": "A reduction in flicker alone establishes quality improvement.",
+      "reason": "Independent blind flattening controls reduce noise measures while destroying or reversing fine facade detail.",
+      "scope": "Synthetic CPU controls; historical native detail loss is only a stored calibration witness."
+    },
+    {
+      "claim": "The tested cosine-history consumer is ready for production image-quality use.",
+      "reason": "Heldout sparkle/flicker regress and the frozen absolute detail gate fails.",
+      "scope": "This fixed consumer and surrogate; not rejection of every possible future representation."
+    }
+  ],
+  "unresolved_risks": [
+    "Native coverage sampling and per-layer correspondence cannot be identified from one packed normal/depth/motion guide.",
+    "The package omits pre-G3 motion as a separate clip tensor, raw-depth validity, clip albedo, timestamps and converged same-pose truth.",
+    "Numerical support is not physical-history validity; sanitized finite depth may hide invalid raw geometry.",
+    "Short chronological crop windows lack earlier history; moving crops limit valid prior footprints.",
+    "The CPU denoising surrogate has substantial detail loss and does not reproduce AMD RR.",
+    "Glass aligned RGB and masks have different coordinate authority from the unwarped prepared guide control.",
+    "HLSL compilation, DXIL reflection, Windows/native host integration, queue/lifetime execution, GPU timing and VRAM remain untested.",
+    "Historical facade/window/text and final native game-video acceptance remain outstanding."
+  ],
+  "gpu_executed": false,
+  "hlsl_compiled": false,
+  "windows_build_executed": false,
+  "amd_rr_candidate_executed": false,
+  "final_game_observed": false,
+  "unavailable_measurements": {
+    "gpu_time_ms": null,
+    "peak_gpu_memory_bytes": null,
+    "compiled_shader_sha256": null,
+    "candidate_dll_sha256": null,
+    "native_image_quality_delta": null,
+    "final_game_visual_verdict": null
+  },
+  "acceptance_status": {
+    "recommendation": "keep_as_research",
+    "default_enabled": false,
+    "diagnostic_input_preservation_cpu_gate": "passed",
+    "hypothetical_cosine_consumer": "reject_production_activation",
+    "captured_foliage_improvement_demonstrated": false,
+    "foliage_solved": false,
+    "independent_review": "review/REVIEW.md",
+    "local_gpu_gate": "GPU_REQUEST.json",
+    "surgical_missing_observations": "BLOCKED_DATA_REQUEST.json",
+    "integration_authority": "Job08 applies the exact diagnostic adapter only after its local acceptance requirements. No merge or auto-merge is authorized."
+  },
+  "packaging_verification": {
+    "executor": "/root",
+    "command": "python research/astra20261020/validate_package.py",
+    "exit_code": 0,
+    "elapsed_seconds": 0.6875240930003201,
+    "stdout": "Verified 91 frozen files, 141 safe NPZ arrays and Markdown links.\n",
+    "stderr": "",
+    "scope": "Final source/evidence/report and linked result files present; no computational source changed."
+  }
+}

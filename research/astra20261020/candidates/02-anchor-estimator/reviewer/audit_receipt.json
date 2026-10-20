@@ -1,0 +1,29 @@
+{
+  "executor": "independent skeptical reviewer CPU",
+  "command": "python -m unittest discover -s research/astra20261020/candidates/02-anchor-estimator/reviewer -p test_independent_audit.py -v",
+  "exit_code": 0,
+  "elapsed_seconds": 0.21829123600036837,
+  "gpu_executed": false,
+  "candidate_tuning_by_reviewer": false,
+  "fixtures_opened": [],
+  "test_count": 12,
+  "source_sha256": {
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/test_independent_audit.py": "6e1d42e54111bdb08124bfebe7a4363fc63ba7fcba38f3a0bba170c43e34a123",
+    "research/astra20261020/candidates/02-anchor-estimator/estimator.py": "c5eeeb8c04df35732cdf0025065d544edae668e62bcedadf887b32b5199233fe",
+    "research/astra20261020/candidates/02-anchor-estimator/reviewer/PREREGISTRATION.md": "0de694837a53d1a9dff766fad3781394a0c1e3764bd76ee16c85983b510005ce"
+  },
+  "findings": [
+    {
+      "id": "REVIEW-001",
+      "description": "Nonfinite/out-of-range caller frame coverage could bypass a strict ratio guard straddle.",
+      "scope": "Diagnostic/provisional API; deployed gain remained identity.",
+      "status": "fixed and independently regressed"
+    },
+    {
+      "id": "REVIEW-002",
+      "description": "Nonfinite and invalid configuration values could emit NaN provisional gain or invalid log envelopes.",
+      "scope": "Diagnostic/provisional API; deployed gain remained identity.",
+      "status": "fixed and independently regressed"
+    }
+  ]
+}

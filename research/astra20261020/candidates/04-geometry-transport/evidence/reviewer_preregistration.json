@@ -1,0 +1,77 @@
+{
+  "timestamp_utc": "2026-10-20T18:04:03.214606+00:00",
+  "executor": "independent skeptical_review agent",
+  "preregistered_before_candidate_review": true,
+  "candidate_reconstruction_existed_at_registration": false,
+  "reviewer_source_sha256": "94205a8fadafda814db1c08684688f189a2d1defb09575c3a6e4db64904ac650",
+  "known_bad_control": {
+    "width": 16,
+    "cell_size": 8,
+    "coarse_gain": [
+      0.6,
+      1.0
+    ],
+    "protected_pixel_mask": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "full_pixel_gain": [
+      0.6,
+      0.6,
+      0.6,
+      0.6,
+      0.625,
+      0.675,
+      0.725,
+      0.7749999999999999,
+      0.825,
+      0.875,
+      0.925,
+      0.975,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coarse_moving_cell_gain": 1.0,
+    "protected_max_abs_spill": 0.17500000000000004,
+    "protected_mean_abs_spill": 0.05,
+    "protected_affected_count": 4
+  },
+  "acceptance_invariants": [
+    "Fixed BASE protected mask; no redefinition after correction",
+    "Protected full-resolution pixel identity, not only coarse centre identity",
+    "Reject unknown history, no out-of-crop clamp",
+    "Correction dose matched and disclosed separately from leakage",
+    "Mixed-cell gain contamination cannot be repaired using only centre geometry",
+    "All eight coordinate mutants violate their named invariant",
+    "Worst unseen phase and orientation required",
+    "Invalid normals, depth=0, sky, missing hit distance require explicit conservative behavior",
+    "No synthetic-key or CPU result presented as captured native or fresh GPU success"
+  ],
+  "mutants": [
+    "missing_jitter",
+    "double_jitter",
+    "reversed_motion",
+    "render_roi_scale",
+    "transposed_transform",
+    "signed_key_depth",
+    "allocation_active_extent",
+    "out_of_domain_clamp"
+  ],
+  "gpu_executed": false
+}

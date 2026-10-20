@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py", line 198, in <module>
+    main()
+  File "research/astra20261020/candidates/07-foliage-guides/review/blind_calibration.py", line 190, in main
+    assert not any(r["noise_only_scorer_mutant_accepted"] for r in result["cases"]), "MUTANT CAUGHT: noise-only scoring accepts destroyed facade detail"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: MUTANT CAUGHT: noise-only scoring accepts destroyed facade detail

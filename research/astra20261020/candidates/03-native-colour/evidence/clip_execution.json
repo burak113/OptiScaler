@@ -1,0 +1,21 @@
+{
+  "executor": "root_cpu",
+  "command": "python -B research/astra20261020/candidates/03-native-colour/evaluate_clips.py",
+  "cwd": "repository_root",
+  "exit_code": 0,
+  "elapsed_seconds": 30.95768910300103,
+  "timing_scope": "whole subprocess including interpreter and file IO; plots not regenerated",
+  "reason": "Final exact-command and elapsed receipt for the required return protocol; same frozen source, parameters, frames, masks and formulas.",
+  "environment": {
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "MKL_NUM_THREADS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+  "result_sha256": "9f643a36eb401f7d565b5c1587e58029c8c662be67e15937ac13ce2457217b9a",
+  "stdout_sha256": "e852b18a99ff876b4ef0fc368c2c115156e90e8ecb381e5fcb9db28813c2c32f",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "gpu_executed": false,
+  "numeric_results_identical_to_source_revision_except_elapsed": true
+}

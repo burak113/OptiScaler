@@ -1,0 +1,20 @@
+{
+  "schema": "glass-nzr-registration-v1",
+  "task_id": "05-glass-nzr",
+  "base_tag": "astra-handoff-20261020",
+  "tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "noise_scale": 1.0,
+  "minimum_effective_support": 8,
+  "development_seeds_inclusive": [1000, 1015],
+  "holdout_seeds_inclusive": [2000, 2047],
+  "scenario_seed_construction": "numpy.random.SeedSequence([seed, scenario_id])",
+  "frames": 32,
+  "extent_width_height": [56, 40],
+  "main_glass_mode": 2,
+  "main_glass_strength_nzr_fraction": 0.5,
+  "candidate_temporal_state": false,
+  "missing_uncertainty_policy": "local exact identity before unchanged Glass policy",
+  "holdout_tuning_permitted": false,
+  "gpu_executed": false
+}

@@ -1,0 +1,187 @@
+{
+  "policy": {
+    "version": 1,
+    "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "labels": "Fixed clip regions, not semantic foliage/bottle/facade labels",
+    "core": "Two-pixel image border excluded; original finite positive depth",
+    "available_pair": "core AND four previous bilinear taps inside previous crop; t0 false",
+    "depth_edge": "core AND any 4-connected original depth jump >2% of current magnitude",
+    "normal_edge": "core AND any 4-connected original normal dot <cos(15 degrees)",
+    "high_motion": "original full-render motion magnitude >12 pixels, square erosion radius2",
+    "stable_guide_pair": "available_pair; all four previous original normal dots >.99; all depths within2% of current depth+MV.B; identical categories",
+    "sampling": "continuous NumPy bilinear; explicitly not a D3D sampler-parity claim",
+    "first_previous_frame": "absent; no sequence looping or invented history"
+  },
+  "fixture": "facade16",
+  "source_archive_sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+  "arrays": {
+    "core": {
+      "count": 135424,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464
+      ],
+      "sha256": "27fec20bd3c9c8c9b20087ced70b1ee696cfca7acac5b47ec4ece07eaede8125"
+    },
+    "available_pair": {
+      "count": 126960,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464,
+        8464
+      ],
+      "sha256": "b719d5e290a034b634182f37d27e69394a8d098449618e5e78f3690cf2f26cfc"
+    },
+    "depth_edge": {
+      "count": 10146,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        629,
+        632,
+        636,
+        628,
+        631,
+        631,
+        642,
+        633,
+        637,
+        640,
+        637,
+        632,
+        633,
+        627,
+        642,
+        636
+      ],
+      "sha256": "96b586792501d2607e38e52c84a04a137729886f5e4b358d2633f2cf5afd4aad"
+    },
+    "normal_edge": {
+      "count": 49849,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        3122,
+        3135,
+        3114,
+        3110,
+        3090,
+        3124,
+        3156,
+        3115,
+        3087,
+        3098,
+        3092,
+        3129,
+        3125,
+        3100,
+        3181,
+        3071
+      ],
+      "sha256": "6b9db4d49d3fd66e3daf62a5da86d970e1c2d7b8891eea3a10ac6782915a51cf"
+    },
+    "high_motion": {
+      "count": 0,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "sha256": "8123c216413f82bbaa0339c27a43d9822c2a043e20662b27c97874429b996e9a"
+    },
+    "stable_guide_pair": {
+      "count": 90103,
+      "shape": [
+        16,
+        96,
+        96
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        6046,
+        5983,
+        5986,
+        6010,
+        6063,
+        5971,
+        5991,
+        5986,
+        6046,
+        6023,
+        6021,
+        5986,
+        6000,
+        6000,
+        5991
+      ],
+      "sha256": "f09b164c5a970677a343cba128b58cf6dbb7067cf994abb25a2c430da4493b70"
+    }
+  }
+}

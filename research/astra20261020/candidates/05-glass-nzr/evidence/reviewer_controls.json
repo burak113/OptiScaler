@@ -1,0 +1,306 @@
+{
+  "control_runs": [
+    {
+      "command": "python research/astra20261020/portable/colour/compare.py --quality-gate",
+      "exit_code": 1,
+      "elapsed_seconds": 2.430078716000935,
+      "output_sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+      "executor": "independent skeptical subagent /root/skeptical_review, cloud Linux CPU",
+      "measurement": {
+        "fixture": {
+          "scope": "One captured frame with CPU-warmed prior state; not chronological GPU parity.",
+          "soft2_precision_note": "Original JBU guide used pre-UAV float32 RR low bits absent from rounded rr_rgb; see provenance.json.",
+          "comparisons": {
+            "expected_bilinear": {
+              "max_abs": 0.0,
+              "p99_abs": 0.0,
+              "mean_abs": 0.0,
+              "max_half_ulp": 0.0,
+              "different_elements": 0,
+              "array_equal": true
+            },
+            "expected_soft2": {
+              "max_abs": 6.103515625e-05,
+              "p99_abs": 0.0,
+              "mean_abs": 9.91182513843114e-09,
+              "max_half_ulp": 2.0,
+              "different_elements": 1083,
+              "array_equal": false
+            },
+            "expected_history": {
+              "max_abs": 0.0,
+              "p99_abs": 0.0,
+              "mean_abs": 0.0,
+              "max_half_ulp": 0.0,
+              "different_elements": 0,
+              "array_equal": true
+            },
+            "expected_gain": {
+              "max_abs": 0.0,
+              "p99_abs": 0.0,
+              "mean_abs": 0.0,
+              "max_half_ulp": 0.0,
+              "different_elements": 0,
+              "array_equal": true
+            },
+            "expected_stats": {
+              "max_abs": 0.0,
+              "p99_abs": 0.0,
+              "mean_abs": 0.0,
+              "max_half_ulp": 0.0,
+              "different_elements": 0,
+              "array_equal": true
+            },
+            "expected_packed_normal": {
+              "max_abs": 0.0,
+              "p99_abs": 0.0,
+              "mean_abs": 0.0,
+              "max_half_ulp": 0.0,
+              "different_elements": 0,
+              "array_equal": true
+            }
+          }
+        },
+        "edges": {
+          "verdict": "rejected_halo_regression",
+          "scope": "32 synthetic CPU cases. This is a falsification set, not a calibrated whole-game quality score.",
+          "worse_cases": 6,
+          "cases": [
+            {
+              "kind": "same_plane",
+              "phase": 0,
+              "B4_right_bleed_mean": 0.16709846258163452,
+              "soft2_right_bleed_mean": 0.0024056253023445606
+            },
+            {
+              "kind": "same_plane",
+              "phase": 1,
+              "B4_right_bleed_mean": 0.18116210401058197,
+              "soft2_right_bleed_mean": 0.04274611547589302
+            },
+            {
+              "kind": "same_plane",
+              "phase": 2,
+              "B4_right_bleed_mean": 0.18911917507648468,
+              "soft2_right_bleed_mean": 0.09048852324485779
+            },
+            {
+              "kind": "same_plane",
+              "phase": 3,
+              "B4_right_bleed_mean": 0.18116211891174316,
+              "soft2_right_bleed_mean": 0.1341598927974701
+            },
+            {
+              "kind": "same_plane",
+              "phase": 4,
+              "B4_right_bleed_mean": 0.16709846258163452,
+              "soft2_right_bleed_mean": 0.1330495923757553
+            },
+            {
+              "kind": "same_plane",
+              "phase": 5,
+              "B4_right_bleed_mean": 0.18116210401058197,
+              "soft2_right_bleed_mean": 0.09566988050937653
+            },
+            {
+              "kind": "same_plane",
+              "phase": 6,
+              "B4_right_bleed_mean": 0.18911917507648468,
+              "soft2_right_bleed_mean": 0.05070318654179573
+            },
+            {
+              "kind": "same_plane",
+              "phase": 7,
+              "B4_right_bleed_mean": 0.18116211891174316,
+              "soft2_right_bleed_mean": 0.016469281166791916
+            },
+            {
+              "kind": "depth",
+              "phase": 0,
+              "B4_right_bleed_mean": 0.057179879397153854,
+              "soft2_right_bleed_mean": 0.0
+            },
+            {
+              "kind": "depth",
+              "phase": 1,
+              "B4_right_bleed_mean": 0.09937083721160889,
+              "soft2_right_bleed_mean": 0.11769060790538788
+            },
+            {
+              "kind": "depth",
+              "phase": 2,
+              "B4_right_bleed_mean": 0.1162102222442627,
+              "soft2_right_bleed_mean": 0.12416727840900421
+            },
+            {
+              "kind": "depth",
+              "phase": 3,
+              "B4_right_bleed_mean": 0.09585492312908173,
+              "soft2_right_bleed_mean": 0.12139156460762024
+            },
+            {
+              "kind": "depth",
+              "phase": 4,
+              "B4_right_bleed_mean": 0.057179879397153854,
+              "soft2_right_bleed_mean": 0.0977054163813591
+            },
+            {
+              "kind": "depth",
+              "phase": 5,
+              "B4_right_bleed_mean": 0.09937083721160889,
+              "soft2_right_bleed_mean": 0.061250921338796616
+            },
+            {
+              "kind": "depth",
+              "phase": 6,
+              "B4_right_bleed_mean": 0.1162102222442627,
+              "soft2_right_bleed_mean": 0.029237600043416023
+            },
+            {
+              "kind": "depth",
+              "phase": 7,
+              "B4_right_bleed_mean": 0.09585492312908173,
+              "soft2_right_bleed_mean": 0.0077720205299556255
+            },
+            {
+              "kind": "normal",
+              "phase": 0,
+              "B4_right_bleed_mean": 0.057179879397153854,
+              "soft2_right_bleed_mean": 0.0
+            },
+            {
+              "kind": "normal",
+              "phase": 1,
+              "B4_right_bleed_mean": 0.07957068085670471,
+              "soft2_right_bleed_mean": 0.04293116554617882
+            },
+            {
+              "kind": "normal",
+              "phase": 2,
+              "B4_right_bleed_mean": 0.13619542121887207,
+              "soft2_right_bleed_mean": 0.10455217957496643
+            },
+            {
+              "kind": "normal",
+              "phase": 3,
+              "B4_right_bleed_mean": 0.10788305103778839,
+              "soft2_right_bleed_mean": 0.12287195026874542
+            },
+            {
+              "kind": "normal",
+              "phase": 4,
+              "B4_right_bleed_mean": 0.057179879397153854,
+              "soft2_right_bleed_mean": 0.0982605442404747
+            },
+            {
+              "kind": "normal",
+              "phase": 5,
+              "B4_right_bleed_mean": 0.07957068085670471,
+              "soft2_right_bleed_mean": 0.0629163607954979
+            },
+            {
+              "kind": "normal",
+              "phase": 6,
+              "B4_right_bleed_mean": 0.13619542121887207,
+              "soft2_right_bleed_mean": 0.03145818039774895
+            },
+            {
+              "kind": "normal",
+              "phase": 7,
+              "B4_right_bleed_mean": 0.10788305103778839,
+              "soft2_right_bleed_mean": 0.008697262033820152
+            },
+            {
+              "kind": "diagonal",
+              "phase": 0,
+              "B4_right_bleed_mean": 0.1941949725151062,
+              "soft2_right_bleed_mean": 0.059060707688331604
+            },
+            {
+              "kind": "diagonal",
+              "phase": 1,
+              "B4_right_bleed_mean": 0.19411112368106842,
+              "soft2_right_bleed_mean": 0.06471046060323715
+            },
+            {
+              "kind": "diagonal",
+              "phase": 2,
+              "B4_right_bleed_mean": 0.19403159618377686,
+              "soft2_right_bleed_mean": 0.07037611305713654
+            },
+            {
+              "kind": "diagonal",
+              "phase": 3,
+              "B4_right_bleed_mean": 0.19394487142562866,
+              "soft2_right_bleed_mean": 0.06492730975151062
+            },
+            {
+              "kind": "diagonal",
+              "phase": 4,
+              "B4_right_bleed_mean": 0.1941949725151062,
+              "soft2_right_bleed_mean": 0.059939686208963394
+            },
+            {
+              "kind": "diagonal",
+              "phase": 5,
+              "B4_right_bleed_mean": 0.19411112368106842,
+              "soft2_right_bleed_mean": 0.06473358720541
+            },
+            {
+              "kind": "diagonal",
+              "phase": 6,
+              "B4_right_bleed_mean": 0.19403159618377686,
+              "soft2_right_bleed_mean": 0.06965181976556778
+            },
+            {
+              "kind": "diagonal",
+              "phase": 7,
+              "B4_right_bleed_mean": 0.19394487142562866,
+              "soft2_right_bleed_mean": 0.06376497447490692
+            }
+          ]
+        }
+      }
+    },
+    {
+      "command": "python research/astra20261020/fixtures/glass/glass_fixture.py analyze",
+      "exit_code": 0,
+      "elapsed_seconds": 0.31095548499979486,
+      "output_sha256": "4776d3fccd81a117d1476a8193b93ab1226eec12828ff6cf3e83b0dc22e5e2b9",
+      "executor": "independent skeptical subagent /root/skeptical_review, cloud Linux CPU",
+      "measurement": {
+        "Glass Off (captured NZR)": {
+          "fine_temporal_cv_p50": 0.08453057706356049,
+          "hp_temporal_cv_p50": 0.03238876536488533,
+          "detail": 0.0006692720926366746,
+          "level": 0.004335098899900913
+        },
+        "Glass RR": {
+          "fine_temporal_cv_p50": 0.05390767753124237,
+          "hp_temporal_cv_p50": 0.022178910672664642,
+          "detail": 0.0003178186889272183,
+          "level": 0.004591844044625759
+        },
+        "Glass Blend 0.5": {
+          "fine_temporal_cv_p50": 0.060510072857141495,
+          "hp_temporal_cv_p50": 0.025623515248298645,
+          "detail": 0.00047470733989030123,
+          "level": 0.004463471472263336
+        },
+        "Glass Blend 0.75": {
+          "fine_temporal_cv_p50": 0.07079374045133591,
+          "hp_temporal_cv_p50": 0.028289545327425003,
+          "detail": 0.0005692339036613703,
+          "level": 0.004399285186082125
+        }
+      }
+    }
+  ],
+  "base_tag": "astra-handoff-20261020",
+  "resolved_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "candidate_seen": false,
+  "fixture_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+  "gpu_executed": false,
+  "candidate_not_seen_at_control_execution": true,
+  "candidate_exposure_order": "Known-bad soft2, glass calibration and metric-only nulls completed and reported to parent before candidate description was received."
+}

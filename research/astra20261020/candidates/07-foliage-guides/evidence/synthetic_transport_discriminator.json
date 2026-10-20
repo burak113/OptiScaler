@@ -1,0 +1,54 @@
+{
+  "schema": "job07-analytic-two-layer-motion-v1",
+  "stage": "analytic synthetic truth, CPU executed",
+  "gpu_executed": false,
+  "frame_ids": [
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211
+  ],
+  "extent": [
+    64,
+    8
+  ],
+  "crop_origin": [
+    0,
+    0
+  ],
+  "fixed_mask_pixels_per_frame": 480,
+  "history_frames_evaluated": 11,
+  "coverage_fractions": [
+    0.6000000238418579,
+    0.3999999761581421
+  ],
+  "object_velocities_pixels_per_frame": [
+    0.25,
+    -0.5
+  ],
+  "dominant_guide_motion_uv": [
+    -0.00390625,
+    0
+  ],
+  "rgb_units": "positive linear synthetic radiance",
+  "depth_units": "positive synthetic linear scene unit",
+  "previous_evaluation": "exact analytic per-layer sample; no bilinear or GPU sampler approximation",
+  "normal_material_depth_guides": "identical at every frame; zero category means no semantic claim",
+  "normalized_rgb_rmse": {
+    "dominant_layer_motion": 0.1354925036430359,
+    "minority_layer_motion": 0.36654672026634216,
+    "coverage_mean_motion": 0.17561982572078705,
+    "oracle_per_layer_motion": 0.0
+  },
+  "maximum_observable_temporal_innovation": 0.0,
+  "falsifier": "Even analytically correct dominant-layer motion cannot transport both components of an unresolved moving composite.",
+  "limitation": "Unresolved constant synthetic 60/40 coverage, not an assertion about a game pixel's coverage rule; no real image improvement claim."
+}

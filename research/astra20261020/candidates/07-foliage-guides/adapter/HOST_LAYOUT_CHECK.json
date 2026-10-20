@@ -1,0 +1,17 @@
+{
+  "schema": "fsrd.job07.host_layout_check.v1",
+  "executor": "mechanism subagent CPU C++ compile",
+  "command": "c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only -x c++ -",
+  "stdin": "#include \"research/astra20261020/candidates/07-foliage-guides/adapter/HOST_INTERFACE.h\"\nint main() { fsrd::research::job07::Constants c; return c.enabled == 0 ? 0 : 1; }\n",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "exit_code": 0,
+  "elapsed_seconds": 0.0840526760002831,
+  "stdout": "",
+  "stderr": "",
+  "header_sha256": "8f6a3edfdb21f43db5cdb1f0bfc2c0ca5d726ddedd50b84f50e9e826941dd627",
+  "asserted_constants_bytes": 64,
+  "asserted_offsets": true,
+  "gpu_executed": false,
+  "hlsl_compiled": false,
+  "windows_build_executed": false
+}

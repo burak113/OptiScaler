@@ -1,0 +1,5 @@
+foliage23 immutable BASE support {'core': 259440, 'available_pair': 247740, 'depth_edge': 153337, 'normal_edge': 187321, 'high_motion': 11280, 'stable_guide_pair': 77688}
+facade16 immutable BASE support {'core': 135424, 'available_pair': 126960, 'depth_edge': 10146, 'normal_edge': 49849, 'high_motion': 0, 'stable_guide_pair': 90103}
+bottle_track7 immutable BASE support {'core': 218736, 'available_pair': 141929, 'depth_edge': 14640, 'normal_edge': 39312, 'high_motion': 55452, 'stable_guide_pair': 37735}
+glass_unwarped_provider immutable BASE support {'core': 527904, 'available_pair': 498264, 'depth_edge': 0, 'normal_edge': 49698, 'high_motion': 0, 'stable_guide_pair': 459443}
+Wrote captured_with_candidate.json

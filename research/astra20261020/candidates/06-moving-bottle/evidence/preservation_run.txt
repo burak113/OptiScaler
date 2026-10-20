@@ -1,0 +1,1 @@
+{"total_bytes_compared": 23822336, "changed_bytes": 0, "gpu_executed": false}

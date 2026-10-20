@@ -1,0 +1,3 @@
+# Core dependency is identical to the frozen handoff. Matplotlib is for panels.
+numpy==2.3.5
+matplotlib==3.10.8

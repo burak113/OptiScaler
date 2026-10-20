@@ -1,0 +1,18 @@
+test_all_invalid_gain_and_donor_validity_remain_identity (__main__.IndependentReconstructionChallenges.test_all_invalid_gain_and_donor_validity_remain_identity) ... ok
+test_constant_sloped_plane_has_exact_constant_gain_and_partial_mass (__main__.IndependentReconstructionChallenges.test_constant_sloped_plane_has_exact_constant_gain_and_partial_mass) ... ok
+test_coplanar_moving_strip_requires_independent_eligibility (__main__.IndependentReconstructionChallenges.test_coplanar_moving_strip_requires_independent_eligibility) ... ok
+test_false_estimator_provenance_remains_an_explicit_counterexample (__main__.IndependentReconstructionChallenges.test_false_estimator_provenance_remains_an_explicit_counterexample) ... ok
+test_hidden_one_pixel_foreground_cannot_be_certified_from_cell_centre (__main__.IndependentReconstructionChallenges.test_hidden_one_pixel_foreground_cannot_be_certified_from_cell_centre) ... ok
+test_invalid_policy_is_rejected_not_converted_to_valid_support (__main__.IndependentReconstructionChallenges.test_invalid_policy_is_rejected_not_converted_to_valid_support) ... ok
+test_nonfinite_weight_is_not_silently_dropped_from_estimator (__main__.IndependentReconstructionChallenges.test_nonfinite_weight_is_not_silently_dropped_from_estimator) ... ok
+test_odd_extent_partial_cells_stay_unknown (__main__.IndependentReconstructionChallenges.test_odd_extent_partial_cells_stay_unknown) ... ok
+test_off_and_alpha_payload_are_bitwise_preserved (__main__.IndependentReconstructionChallenges.test_off_and_alpha_payload_are_bitwise_preserved) ... ok
+test_pure_target_cannot_approve_a_mixed_estimator_donor (__main__.IndependentReconstructionChallenges.test_pure_target_cannot_approve_a_mixed_estimator_donor) ... ok
+test_sub_tolerance_parallel_surfaces_are_not_observably_separable (__main__.IndependentReconstructionChallenges.test_sub_tolerance_parallel_surfaces_are_not_observably_separable) ... ok
+test_unknown_query_and_invalid_guides_are_identity (__main__.IndependentReconstructionChallenges.test_unknown_query_and_invalid_guides_are_identity) ... ok
+test_zero_weight_foreign_donor_is_not_a_contaminating_observation (__main__.IndependentReconstructionChallenges.test_zero_weight_foreign_donor_is_not_a_contaminating_observation) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.046s
+
+OK

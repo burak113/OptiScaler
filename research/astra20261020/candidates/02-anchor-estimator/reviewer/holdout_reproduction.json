@@ -1,0 +1,568 @@
+{
+  "executor": "independent skeptical reviewer CPU",
+  "gpu_executed": false,
+  "frozen_utc": "2026-10-20T18:09:57.852605+00:00",
+  "frozen_source_hashes_verified": 11,
+  "heldout_release": "explicit coordinator message after source freeze; no tuning",
+  "heldout": {
+    "native_policy": {
+      "fixture_sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+      "mask_sha256": "2521981d6004c05fba1e0870caf50aa7d801b8eff48e069103c0325e312c78ec",
+      "frame_ids": [
+        92
+      ],
+      "adjacent_original_frame_pairs": 0,
+      "old_stored_gpu_gain_max_abs_difference": 0.00048828125,
+      "fixed_mask_samples": 641,
+      "old_dose": 0.05372433637608718,
+      "provisional_diagnostic_dose": 0.0010668264508791453,
+      "deployed_dose": 0.0,
+      "numeric_eligible_fraction_on_original_mask": 0.015600624024960999,
+      "deployed_abstention_fraction": 1.0,
+      "trajectory": [
+        {
+          "frame": 92,
+          "k": 1,
+          "fixed_mask_cells": 641,
+          "old_dose": 0.05372433637608718,
+          "diagnostic_dose": 0.0010668264508791453,
+          "deployed_dose": 0.0
+        }
+      ],
+      "quality_truth_available": false,
+      "native_atomic_sums_present": false,
+      "domain": "native D+S stored calibration"
+    },
+    "combined": {
+      "fixture_sha256": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+      "mask_sha256": "f4b87108bc480e38c19a5a81df5fb93d8502bccaf4bdd6f5348c9b3574b6eeb1",
+      "frame_ids": [
+        6,
+        17,
+        18,
+        19,
+        20,
+        21,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        45,
+        46,
+        47,
+        48,
+        49,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        82,
+        90,
+        91,
+        92
+      ],
+      "adjacent_original_frame_pairs": 46,
+      "old_stored_gpu_gain_max_abs_difference": 0.00048828125,
+      "fixed_mask_samples": 60777,
+      "old_dose": 0.030021193189135306,
+      "provisional_diagnostic_dose": 0.0013164934275166798,
+      "deployed_dose": 0.0,
+      "numeric_eligible_fraction_on_original_mask": 0.02191618539908189,
+      "deployed_abstention_fraction": 1.0,
+      "trajectory": [
+        {
+          "frame": 6,
+          "k": 0,
+          "fixed_mask_cells": 872,
+          "old_dose": 0.03529957091837224,
+          "diagnostic_dose": 0.0013983623700798804,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 17,
+          "k": 3,
+          "fixed_mask_cells": 1316,
+          "old_dose": 0.0468703179693418,
+          "diagnostic_dose": 0.0010008419337189166,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 18,
+          "k": 4,
+          "fixed_mask_cells": 1316,
+          "old_dose": 0.04667195206725716,
+          "diagnostic_dose": 0.0023563551834213407,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 19,
+          "k": 5,
+          "fixed_mask_cells": 1292,
+          "old_dose": 0.048606647960479824,
+          "diagnostic_dose": 0.0022854080409865276,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 20,
+          "k": 6,
+          "fixed_mask_cells": 1134,
+          "old_dose": 0.04840989782523506,
+          "diagnostic_dose": 0.002014430459377988,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 21,
+          "k": 0,
+          "fixed_mask_cells": 811,
+          "old_dose": 0.05058576707422834,
+          "diagnostic_dose": 0.002302132262716694,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 31,
+          "k": 5,
+          "fixed_mask_cells": 1404,
+          "old_dose": 0.04025692985769736,
+          "diagnostic_dose": 0.0026612012459965497,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 32,
+          "k": 6,
+          "fixed_mask_cells": 1341,
+          "old_dose": 0.037695216699293224,
+          "diagnostic_dose": 0.0016650359064261076,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 33,
+          "k": 7,
+          "fixed_mask_cells": 1329,
+          "old_dose": 0.026758586224573753,
+          "diagnostic_dose": 0.001242548177758044,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 34,
+          "k": 8,
+          "fixed_mask_cells": 1320,
+          "old_dose": 0.018792484368088985,
+          "diagnostic_dose": 0.00042216204050657944,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 35,
+          "k": 9,
+          "fixed_mask_cells": 1333,
+          "old_dose": 0.025316754069974134,
+          "diagnostic_dose": 0.0012920001362039329,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 36,
+          "k": 10,
+          "fixed_mask_cells": 1349,
+          "old_dose": 0.028790213918909183,
+          "diagnostic_dose": 0.0005786581100655025,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 37,
+          "k": 11,
+          "fixed_mask_cells": 1249,
+          "old_dose": 0.019315771673289926,
+          "diagnostic_dose": 0.0009531035381903767,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 38,
+          "k": 12,
+          "fixed_mask_cells": 1252,
+          "old_dose": 0.017104510038282002,
+          "diagnostic_dose": 0.001321926200437889,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 39,
+          "k": 13,
+          "fixed_mask_cells": 1458,
+          "old_dose": 0.026819637477437278,
+          "diagnostic_dose": 0.0011140980252864429,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 40,
+          "k": 14,
+          "fixed_mask_cells": 1427,
+          "old_dose": 0.022933815332445054,
+          "diagnostic_dose": 0.000680795058758371,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 41,
+          "k": 15,
+          "fixed_mask_cells": 1444,
+          "old_dose": 0.02000262274802813,
+          "diagnostic_dose": 0.0006805801694448613,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 42,
+          "k": 0,
+          "fixed_mask_cells": 1000,
+          "old_dose": 0.028577430750012917,
+          "diagnostic_dose": 0.002934036721893434,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 45,
+          "k": 0,
+          "fixed_mask_cells": 171,
+          "old_dose": 0.025889232268473814,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 46,
+          "k": 0,
+          "fixed_mask_cells": 1072,
+          "old_dose": 0.01352893608423485,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 47,
+          "k": 0,
+          "fixed_mask_cells": 369,
+          "old_dose": 0.006494215501713642,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 48,
+          "k": 0,
+          "fixed_mask_cells": 1030,
+          "old_dose": 0.012563475780479873,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 49,
+          "k": 0,
+          "fixed_mask_cells": 152,
+          "old_dose": 0.0022968253273808275,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 53,
+          "k": 0,
+          "fixed_mask_cells": 136,
+          "old_dose": 0.055158071315583264,
+          "diagnostic_dose": 0.0004955625357782938,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 54,
+          "k": 1,
+          "fixed_mask_cells": 137,
+          "old_dose": 0.050214824587297785,
+          "diagnostic_dose": 0.006405283843292947,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 55,
+          "k": 2,
+          "fixed_mask_cells": 139,
+          "old_dose": 0.04499186137663723,
+          "diagnostic_dose": 0.0014953747774428402,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 56,
+          "k": 3,
+          "fixed_mask_cells": 1459,
+          "old_dose": 0.046875939619961005,
+          "diagnostic_dose": 0.0018891802703430282,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 57,
+          "k": 4,
+          "fixed_mask_cells": 1455,
+          "old_dose": 0.04098039871254518,
+          "diagnostic_dose": 0.0019211659977733868,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 58,
+          "k": 5,
+          "fixed_mask_cells": 1441,
+          "old_dose": 0.03602278377244623,
+          "diagnostic_dose": 0.001987571497511986,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 59,
+          "k": 6,
+          "fixed_mask_cells": 1432,
+          "old_dose": 0.0354490553526049,
+          "diagnostic_dose": 0.0014744258617359178,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 60,
+          "k": 7,
+          "fixed_mask_cells": 1459,
+          "old_dose": 0.03406030433474717,
+          "diagnostic_dose": 0.001790354479141439,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 61,
+          "k": 8,
+          "fixed_mask_cells": 1448,
+          "old_dose": 0.031873063270221894,
+          "diagnostic_dose": 0.0006546059671009032,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 62,
+          "k": 9,
+          "fixed_mask_cells": 1474,
+          "old_dose": 0.029514961227745693,
+          "diagnostic_dose": 0.0009164718161653987,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 63,
+          "k": 10,
+          "fixed_mask_cells": 1420,
+          "old_dose": 0.028772640431885658,
+          "diagnostic_dose": 0.0010515590809847357,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 64,
+          "k": 11,
+          "fixed_mask_cells": 1504,
+          "old_dose": 0.032556640602644106,
+          "diagnostic_dose": 0.001183182189423205,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 65,
+          "k": 12,
+          "fixed_mask_cells": 1460,
+          "old_dose": 0.023782203740426534,
+          "diagnostic_dose": 0.0008662162781699052,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 66,
+          "k": 13,
+          "fixed_mask_cells": 1459,
+          "old_dose": 0.02205004301913533,
+          "diagnostic_dose": 0.0013980627974382125,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 67,
+          "k": 14,
+          "fixed_mask_cells": 1465,
+          "old_dose": 0.02185833267595854,
+          "diagnostic_dose": 0.0008681445526300416,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 68,
+          "k": 15,
+          "fixed_mask_cells": 1516,
+          "old_dose": 0.029451916846036975,
+          "diagnostic_dose": 0.0007031694500644192,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 69,
+          "k": 16,
+          "fixed_mask_cells": 1481,
+          "old_dose": 0.02404268253954712,
+          "diagnostic_dose": 0.0004885509447785127,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 70,
+          "k": 17,
+          "fixed_mask_cells": 1482,
+          "old_dose": 0.02548521906000751,
+          "diagnostic_dose": 0.00044329539928170234,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 71,
+          "k": 18,
+          "fixed_mask_cells": 1465,
+          "old_dose": 0.01910649369636746,
+          "diagnostic_dose": 0.0013383873722163462,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 72,
+          "k": 19,
+          "fixed_mask_cells": 1498,
+          "old_dose": 0.025407657946379333,
+          "diagnostic_dose": 0.0011666476724274597,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 73,
+          "k": 20,
+          "fixed_mask_cells": 1079,
+          "old_dose": 0.027685201713731077,
+          "diagnostic_dose": 0.0008971513740412724,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 74,
+          "k": 21,
+          "fixed_mask_cells": 1147,
+          "old_dose": 0.02240023772116319,
+          "diagnostic_dose": 0.0009709063642340378,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 75,
+          "k": 22,
+          "fixed_mask_cells": 1151,
+          "old_dose": 0.022309671167082823,
+          "diagnostic_dose": 0.0013575041904606252,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 76,
+          "k": 23,
+          "fixed_mask_cells": 1375,
+          "old_dose": 0.02452127921630353,
+          "diagnostic_dose": 0.0012105924920270338,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 77,
+          "k": 24,
+          "fixed_mask_cells": 1211,
+          "old_dose": 0.026049676336201175,
+          "diagnostic_dose": 0.0017532997455161883,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 78,
+          "k": 25,
+          "fixed_mask_cells": 1158,
+          "old_dose": 0.02545703424457058,
+          "diagnostic_dose": 0.001123082372657661,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 82,
+          "k": 0,
+          "fixed_mask_cells": 497,
+          "old_dose": 0.054648862644977696,
+          "diagnostic_dose": 0.0034742543560652038,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 90,
+          "k": 0,
+          "fixed_mask_cells": 1089,
+          "old_dose": 0.0,
+          "diagnostic_dose": 0.002328455823714207,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 91,
+          "k": 0,
+          "fixed_mask_cells": 658,
+          "old_dose": 0.0,
+          "diagnostic_dose": 0.0,
+          "deployed_dose": 0.0
+        },
+        {
+          "frame": 92,
+          "k": 1,
+          "fixed_mask_cells": 641,
+          "old_dose": 0.05482960777865645,
+          "diagnostic_dose": 0.0010668264508791453,
+          "deployed_dose": 0.0
+        }
+      ],
+      "quality_truth_available": false,
+      "native_atomic_sums_present": false,
+      "domain": "separate combined stress; no native claim"
+    }
+  },
+  "synthetic_independent_metric_check": {
+    "shared_component": "preregistered synthetic data generator only; scalar metrics computed independently",
+    "positive_calibration_target_dose": 0.05051897233257407,
+    "baseline_matched_strength": 0.9753299951553345,
+    "baseline_matched_dose": 0.050518980517866095,
+    "diagnostic_strength": 1.0,
+    "absolute_dose_residual": 8.185292027507174e-09,
+    "antithetic_null_baseline_loss": 0.03184677055105567,
+    "antithetic_null_diagnostic_loss": 0.048141995018037655,
+    "diagnostic_rejected_as_active_correction": true,
+    "light_response_areas_22_frames": [
+      {
+        "step": 1.1,
+        "baseline_response_area": 0.03631882659521362,
+        "provisional_diagnostic_response_area": 0.028422496026872347,
+        "deployed_abstainer_response_area": 0.999940305803938
+      },
+      {
+        "step": 1.25,
+        "baseline_response_area": 0.3097656105240385,
+        "provisional_diagnostic_response_area": 0.29721317762330457,
+        "deployed_abstainer_response_area": 1.0000205826493735
+      },
+      {
+        "step": 1.4,
+        "baseline_response_area": 0.5168356034382839,
+        "provisional_diagnostic_response_area": 0.5070915760683856,
+        "deployed_abstainer_response_area": 1.0000140320454043
+      }
+    ],
+    "deployed_dose": 0.0,
+    "deployed_positive_dose_comparison": null
+  },
+  "elapsed_seconds": 0.900568826999006,
+  "reviewer_script_sha256": "a70e9c614e5713c274309bf32c7a9c475cc947d3416a0c265cff5d9185c0075c"
+}

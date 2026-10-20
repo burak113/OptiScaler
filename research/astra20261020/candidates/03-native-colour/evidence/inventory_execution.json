@@ -1,0 +1,20 @@
+{
+  "executor": "root_cpu",
+  "command": "python -B research/astra20261020/candidates/03-native-colour/inventory.py",
+  "cwd": "repository_root",
+  "exit_code": 0,
+  "elapsed_seconds": 1.717658087000018,
+  "timing_scope": "whole subprocess including interpreter and file IO",
+  "reason": "Final exact-command and elapsed receipt; original inventory result bytes unchanged.",
+  "environment": {
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "MKL_NUM_THREADS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "inventory_bytes_unchanged": true,
+  "result_sha256": "eca16768773ef78af5138a90a867db512b4fa06639ada5f392ee7c372a01dbe7",
+  "stdout_sha256": "cda3602d5a81d81744b9399a0cdd49d8fc9ca75bbe44a2d7f12147c87772b611",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "gpu_executed": false
+}

@@ -1,0 +1,11 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "command": "python -B research/astra20261020/candidates/03-native-colour/tests/test_adversarial.py -v",
+  "exit_code": 0,
+  "elapsed_seconds": 0.23019786199984082,
+  "source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+  "test_sha256": "74d1cddf4aa00277dffe352bfd60d291d456d736e34ea51601360de421ba309e",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "b3f47f230cf2a701c5057b9dea69934cb395f6360c2092841c74d78b96f615d5",
+  "gpu_executed": false
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "command": "python research/astra20261020/validate_package.py",
+    "exit_code": 0,
+    "elapsed_seconds": 0.5595316469989484,
+    "executor": "root local Linux CPU",
+    "output": "baseline_package.log"
+  },
+  {
+    "command": "python research/astra20261020/run_cpu.py",
+    "exit_code": 0,
+    "elapsed_seconds": 5.180280268001297,
+    "executor": "root local Linux CPU",
+    "output": "baseline_cpu.log"
+  }
+]
