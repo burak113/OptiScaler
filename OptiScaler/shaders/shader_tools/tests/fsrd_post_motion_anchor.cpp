@@ -113,7 +113,7 @@ namespace
             }
             view.Format = format;
             view.ViewDimension = array ? D3D12_SRV_DIMENSION_TEXTURE2DARRAY : D3D12_SRV_DIMENSION_TEXTURE2D;
-            if (array) { view.Texture2DArray.MipLevels = 1; view.Texture2DArray.ArraySize = 8; }
+            if (array) { view.Texture2DArray.MipLevels = 1; view.Texture2DArray.ArraySize = PostMotionAnchorMath::kRingSize; }
             else view.Texture2D.MipLevels = 1;
             view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             device->CreateShaderResourceView(texture, &view, cpu(index));
@@ -133,7 +133,7 @@ namespace
             }
             view.Format = format;
             view.ViewDimension = array ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
-            if (array) view.Texture2DArray.ArraySize = 8;
+            if (array) view.Texture2DArray.ArraySize = PostMotionAnchorMath::kRingSize;
             device->CreateUnorderedAccessView(texture, nullptr, &view, cpu(index));
         }
     };
@@ -434,8 +434,12 @@ namespace
             specular = makeTexture(host.device.Get(), kWidth, kHeight, kColour, L"anchor specular");
             depth = makeTexture(host.device.Get(), kWidth, kHeight, kDepthFormat, L"anchor depth");
             motion = makeTexture(host.device.Get(), kWidth, kHeight, kColour, L"anchor motion");
-            keyLevel = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kColour, L"anchor key level", 8);
-            keyDepth = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kDepthFormat, L"anchor key depth", 8);
+            // kRingSize, not a literal 8: an 8-slice texture masks a 6-slice out-of-bounds write of exactly the
+            // class the gain pass's write-slice clamp exists for (SA22, 2026-10-20).
+            keyLevel = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kColour, L"anchor key level",
+                                   PostMotionAnchorMath::kRingSize);
+            keyDepth = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kDepthFormat, L"anchor key depth",
+                                   PostMotionAnchorMath::kRingSize);
             stats = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kColour, L"anchor stats");
             recalled = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kColour, L"anchor recalled");
             gain = makeTexture(host.device.Get(), kWidth / 8, kHeight / 8, kColour, L"anchor gain");
