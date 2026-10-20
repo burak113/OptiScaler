@@ -41,8 +41,8 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
         const float gate = GlassGate(InNormals[p].rg);
         if (gate > 0.0f)
         {
-            const float forced = gate * (VerticalMode == 1u ? 1.0f : 1.0f - VerticalStrength);
-            result = off + max(w,forced) * (rr - off);
+            const float3 policy = VerticalMode == 1u ? rr : lerp(rr,result,VerticalStrength);
+            result = lerp(result,policy,gate);
         }
     }
     if (!all(isfinite(result))) result = rr;

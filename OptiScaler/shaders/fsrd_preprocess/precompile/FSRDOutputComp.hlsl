@@ -79,8 +79,11 @@ float3 DiffuseSignalInput(int2 p)
 // domain as the composite without re-deriving the albedo modulation (or the extra-diffuse factor) anywhere else.
 float3 ColourTrackTarget(int2 p)
 {
+    const float4 skip = InSkipSignal[p];
+    // The composite contains Skip too. Current-source authority is already a complete colour.
+    if (skip.a == -1.0f) return float3(skip.rgb);
     return float3(InIndirectSpecularSignal[p].rgb) * SpecularMultiplier(p) +
-           DiffuseSignalInput(p) * DiffuseMultiplier(p);
+           DiffuseSignalInput(p) * DiffuseMultiplier(p) + float3(skip.rgb);
 }
 // Blend weight toward the unmodulated specular path: how much of the nearby same-surface
 // albedo structure the light does not show (see FSRDAlbedoTrustEvidence/Propagate). Zero
@@ -300,7 +303,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 colour=Reconstruct(p);
     [branch]
     if (IsSet(FLAGS_COLOUR_TRACK_TARGET))
-        OutTarget[p]=half4(SanitizeRadiance(ColourTrackTarget(p)),1);
+        OutTarget[p]=half4(SanitizeRadiance(ColourTrackTarget(p)), InSkipSignal[p].a == -1.0f ? 0.0f : 1.0f);
     if (IsSet(FLAGS_DEBUG))
     {
         switch (GetDebugMode())

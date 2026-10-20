@@ -41,11 +41,14 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     // The keyframe capture (host decision: settled camera, at most every kSampleFrames frames). The stored
     // level is the input BEFORE the gain, so the anchor can never pollute its own reference, and only a cell
     // whose motion the camera alone explains is stored: a moving object must not become the settled level.
-    if (Params4.x > 0.5f && cell.z > 0.5f)
+    if (Params4.x > 0.5f)
     {
         const int slice = int(clamp(Params4.y, 0.0f, max(Params4.z - 1.0f, 0.0f)));
-        OutKeyLevel[int3(p, slice)] = float4(cell.x, 0.0f, 0.0f, 0.0f);
-        OutKeyDepth[int3(p, slice)] = cell.y;
+        // Every cell is overwritten on slot reuse: invalid/moving cells may not keep
+        // an older frame's level/depth under this frame's newly published camera.
+        const bool valid = cell.z > 0.5f;
+        OutKeyLevel[int3(p, slice)] = float4(valid ? cell.x : 0.0f, 0.0f, 0.0f, 0.0f);
+        OutKeyDepth[int3(p, slice)] = valid ? cell.y : 0.0f;
     }
     const int step = int(clamp(Params2.z, 1.0f, 4.0f) + 0.5f);
     float numerator = 0.0f, denominator = 0.0f, coverage = 0.0f;

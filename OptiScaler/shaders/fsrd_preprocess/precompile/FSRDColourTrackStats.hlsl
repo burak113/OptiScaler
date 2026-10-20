@@ -32,6 +32,10 @@ float2 BoxUv(float2 base, float2 sub, float2 full)
 float4 SampleBox(Texture2D<float4> source, int2 box, float2 full)
 {
     const float2 base = float2(box) * 4.0f;
+    // Source allocations can exceed the active render extent (dynamic resolution).
+    uint sourceWidth, sourceHeight;
+    source.GetDimensions(sourceWidth, sourceHeight);
+    full = float2(sourceWidth, sourceHeight);
     float4 sum = 0.0f;
     [unroll] for (int j = 0; j < 2; ++j)
         [unroll] for (int i = 0; i < 2; ++i)
@@ -41,17 +45,21 @@ float4 SampleBox(Texture2D<float4> source, int2 box, float2 full)
 float SampleBoxDepth(int2 box, float2 full)
 {
     const float2 base = float2(box) * 4.0f;
+    uint sourceWidth, sourceHeight;
+    InDepth.GetDimensions(sourceWidth, sourceHeight);
+    full = float2(sourceWidth, sourceHeight);
     float sum = 0.0f;
     [unroll] for (int j = 0; j < 2; ++j)
         [unroll] for (int i = 0; i < 2; ++i)
             sum += InDepth.SampleLevel(InSampler, BoxUv(base, float2(i * 2 + 1.0f, j * 2 + 1.0f), full), 0.0f);
     return sum * 0.25f;
 }
-// Two 8-bit octahedral components in one half; a normal similarity test needs no more.
+// A half stores every integer 0..2047 exactly: six X bits and five Y bits.
+// Packing two 8-bit components as a normalised 16-bit value loses low Y bits in FP16.
 float PackNormal(float2 octahedral)
 {
-    const float2 q = floor(saturate(octahedral * 0.5f + 0.5f) * 255.0f + 0.5f);
-    return (q.x * 256.0f + q.y) / 65535.0f;
+    const float2 q = floor(saturate(octahedral) * float2(63.0f, 31.0f) + 0.5f);
+    return q.x * 32.0f + q.y;
 }
 [RootSignature(MainRS)]
 [numthreads(8, 8, 1)]

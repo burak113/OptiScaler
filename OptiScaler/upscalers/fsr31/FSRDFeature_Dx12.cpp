@@ -4486,10 +4486,10 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convDesc.FogGuides = cfg.FfxDenoiserFogGuides.value_or_default();
     _convDesc.RRMotionJitterDelta = cfg.FfxDenoiserMotionJitterDelta.value_or_default();
     // Post-motion level anchor (task 25 T3 ii, default off): the measured amplitude is capture dependent, so the
-    // strength is the user's dial (0 = off, 1 = the measured dose, the prototype's sweep winner).
+    // strength blends from the original input (0) to the full bounded correction (1).
     _convDesc.PostMotionAnchor = cfg.FfxDenoiserPostMotionAnchor.value_or_default();
     _convDesc.PostMotionAnchorStrength = finiteRange(
-        cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default(), 0.0f, 1.5f, 1.0f);
+        cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default(), 0.0f, 1.0f, 1.0f);
 
     StoreHlslColumnVectorMatrix(_convDesc.InvViewMatrix, _invViewMatrix);
 

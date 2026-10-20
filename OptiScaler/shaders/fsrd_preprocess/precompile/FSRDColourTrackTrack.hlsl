@@ -25,8 +25,8 @@ cbuffer CB_ColourTrackTrack : register(b0)
 }
 float2 UnpackNormal(float packed)
 {
-    const float q = floor(packed * 65535.0f + 0.5f);
-    return (float2(floor(q / 256.0f), q - floor(q / 256.0f) * 256.0f) / 255.0f) * 2.0f - 1.0f;
+    const float x = floor(packed / 32.0f);
+    return float2(x, packed - x * 32.0f) / float2(63.0f, 31.0f);
 }
 // Same relative depth tolerance the reprojection test uses (the measured 2 %): a tap from another surface must
 // not contribute to the smoothed colour, so the two gates agree instead of the smoothing being twice as strict.

@@ -378,6 +378,7 @@ struct Host
     UINT m_maxWidth = 1920, m_maxHeight = 1080;
     int m_recoveryOutputIndex = -1;
     bool m_postFlickActive = false, m_postFlickValid = false, m_postFlickWasEnabled = false;
+    bool m_motionHistoryValid = true;  // healthy continuity unless a reset scenario overrides it
     bool m_skinOutputActive = false, m_flatDetailActive = false, m_flatTemporalActive = false;
     bool m_compareSnapshotsReady = false, m_compareFrozenValid = false;
     uint32_t m_postFlickParity = 0, m_postFlickWidth = 0, m_postFlickHeight = 0;

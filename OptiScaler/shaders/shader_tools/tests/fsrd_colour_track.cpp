@@ -318,10 +318,10 @@ namespace
                    trackSrvs, trackUavs, quarterW, quarterH);
         for (auto& resource : {gain, historyWrite}) barrier(host.list.Get(), resource, kWrite, kRead);
 
-        const Binding applySrvs[] {{gain, kColour}};
+        const Binding applySrvs[] {{gain, kColour}, {input, kColour}};
         const Binding applyUavs[] {{colour, kColour}};
         barrier(host.list.Get(), colour, kRead, kWrite);
-        heaps.emplace_back(host, 2);
+        heaps.emplace_back(host, 3);
         recordPass(host, heaps.back(), pipelines.applyPso.Get(), pipelines.applyRoot.Get(), constants.apply.Get(),
                    applySrvs, applyUavs, width, height);
         barrier(host.list.Get(), colour, kWrite, kRead);
@@ -358,7 +358,7 @@ namespace
                 putHalf(inputData, pixel, 3, 1.0f);
                 putHalf(motionData, pixel, 3, 1.0f);
                 depthData[pixel] = corner ? 20.0f : 10.0f;
-                normalData[pixel] = (512u << 0) | (512u << 10) | (0u << 20) | (0u << 30);
+                normalData[pixel] = ((x / 4) * 1023u / 15u) | (((y / 4) * 1023u / 15u) << 10);
             }
         uploadTexture(host, scene, colour.Get(), colourData.data(), colourData.size(), kRead);
         uploadTexture(host, scene, input.Get(), inputData.data(), inputData.size(), kRead);
@@ -382,8 +382,10 @@ namespace
             barrier(host.list.Get(), resource, kWrite, kRead);
 
         Readback read(host, stats.Get(), kRead);
+        Readback normalRead(host, target.Get(), kRead);
         host.submit();
         host.checkDebug();
+        auto normalBytes = normalRead.bytes();
         auto data = read.bytes();   // the readback map must happen after the copy has executed
         const size_t centre = size_t(quarterH / 2) * quarterW + quarterW / 2;
         const float mean = halfAt(data, centre, 0);
@@ -392,6 +394,74 @@ namespace
                   << meanDepth << " (truth 12.5, sparse 20.0)" << std::endl;
         need(std::abs(mean - 1.5f) < 2e-3f, "colour-track statistics are the true 16-texel box mean");
         need(std::abs(meanDepth - 12.5f) < 2e-3f, "colour-track statistics average all 16 depth texels");
+        for (uint32_t y = 0; y < quarterH; ++y)
+            for (uint32_t x = 0; x < quarterW; ++x)
+            {
+                const float ox = float(x * 1023u / 15u) / 1023.0f;
+                const float oy = float(y * 1023u / 15u) / 1023.0f;
+                const float packed = std::floor(ox * 63.0f + 0.5f) * 32.0f + std::floor(oy * 31.0f + 0.5f);
+                need(halfAt(normalBytes, size_t(y) * quarterW + x, 3) == packed,
+                     "normal payload survives the actual R16 stats store exactly");
+            }
+        host.reset();
+    }
+
+
+    // The active render rectangle is smaller than the allocation ceiling. All
+    // source coordinates must stay in that rectangle, even though SRV UVs use
+    // the full allocation. The tracker target itself has active dimensions.
+    void allocationExtentChecks(Host& host, const Pipelines& pipelines, const Constants& constants)
+    {
+        constexpr uint32_t w = 64, h = 32, mw = 128, mh = 64, qw = w / 4, qh = h / 4;
+        Scene scene(host, 8, 8);
+        auto colour = makeTexture(host.device.Get(), mw, mh, kColour, L"ct allocated colour");
+        auto input = makeTexture(host.device.Get(), w, h, kColour, L"ct active target");
+        auto motion = makeTexture(host.device.Get(), mw, mh, kColour, L"ct allocated motion");
+        auto depth = makeTexture(host.device.Get(), mw, mh, kDepth, L"ct allocated depth");
+        auto normals = makeTexture(host.device.Get(), mw, mh, kNormals, L"ct allocated normals");
+        auto stats = makeTexture(host.device.Get(), qw, qh, kColour, L"ct allocated stats");
+        auto target = makeTexture(host.device.Get(), qw, qh, kColour, L"ct allocated target stats");
+        auto mv = makeTexture(host.device.Get(), qw, qh, kColour, L"ct allocated motion stats");
+        std::vector<uint8_t> colourData(size_t(mw) * mh * 8), inputData(size_t(w) * h * 8);
+        std::vector<uint8_t> motionData(size_t(mw) * mh * 8, 0);
+        std::vector<float> depthData(size_t(mw) * mh, 10.0f);
+        std::vector<uint32_t> normalData(size_t(mw) * mh, (512u << 0) | (512u << 10));
+        for (uint32_t y = 0; y < mh; ++y)
+            for (uint32_t x = 0; x < mw; ++x)
+            {
+                const size_t p = size_t(y) * mw + x;
+                const bool active = x < w && y < h;
+                for (int c = 0; c < 3; ++c)
+                    putHalf(colourData, p, c, active ? 0.2f : (c == 0 ? 2.0f : 0.02f));
+                putHalf(colourData, p, 3, 1.0f);
+            }
+        for (size_t p = 0; p < size_t(w) * h; ++p)
+        {
+            for (int c = 0; c < 3; ++c) putHalf(inputData, p, c, 0.2f);
+            putHalf(inputData, p, 3, 1.0f);
+        }
+        uploadTexture(host, scene, colour.Get(), colourData.data(), colourData.size(), kRead);
+        uploadTexture(host, scene, input.Get(), inputData.data(), inputData.size(), kRead);
+        uploadTexture(host, scene, motion.Get(), motionData.data(), motionData.size(), kRead);
+        uploadTexture(host, scene, depth.Get(), depthData.data(), depthData.size() * sizeof(float), kRead);
+        uploadTexture(host, scene, normals.Get(), normalData.data(), normalData.size() * sizeof(uint32_t), kRead);
+        const ColourTrackMath::StatsConstants cb {.Size = {float(w), float(h), float(qw), float(qh)}};
+        std::memcpy(constants.statsMapped, &cb, sizeof(cb));
+        const Binding srvs[] {{colour.Get(), kColour}, {input.Get(), kColour}, {motion.Get(), kColour},
+                              {depth.Get(), kDepth}, {normals.Get(), kNormals}};
+        const Binding uavs[] {{stats.Get(), kColour}, {target.Get(), kColour}, {mv.Get(), kColour}};
+        for (auto* r : {stats.Get(), target.Get(), mv.Get()}) barrier(host.list.Get(), r, kRead, kWrite);
+        Descriptors heap(host, 8);
+        recordPass(host, heap, pipelines.statsPso.Get(), pipelines.statsRoot.Get(), constants.stats.Get(),
+                   srvs, uavs, qw, qh);
+        for (auto* r : {stats.Get(), target.Get(), mv.Get()}) barrier(host.list.Get(), r, kWrite, kRead);
+        Readback read(host, stats.Get(), kRead);
+        host.submit(); host.checkDebug();
+        auto bytes = read.bytes();
+        for (size_t p = 0; p < size_t(qw) * qh; ++p)
+            for (int c = 0; c < 3; ++c)
+                need(std::abs(halfAt(bytes, p, c) - 0.2f) < 2e-3f,
+                     "stats ignore allocation padding when render dimensions are smaller");
         host.reset();
     }
 
@@ -403,6 +473,7 @@ namespace
         float motionUv[2] {};
         float motionDepthDelta = 0.0f;
         float depth = 10.0f;
+        float inputValid = 1.0f; // semantic authority: zero means apply must leave exact bytes
     };
 
     struct ChainResult
@@ -435,7 +506,7 @@ namespace
                     putHalf(inputData, pixel, channel, frame.input[channel]);
                 }
                 putHalf(colourData, pixel, 3, 1.0f);
-                putHalf(inputData, pixel, 3, 1.0f);
+                putHalf(inputData, pixel, 3, frame.inputValid);
                 putHalf(motionData, pixel, 0, frame.motionUv[0]);
                 putHalf(motionData, pixel, 1, frame.motionUv[1]);
                 putHalf(motionData, pixel, 2, frame.motionDepthDelta);
@@ -584,6 +655,13 @@ namespace
         std::cout << "colour-track off-screen warp: share " << warped.share << std::endl;
         need(std::abs(warped.share - shareOfRgb(frame2.input)) < 5e-3f,
              "a warp that leaves the frame restarts from the current input colour");
+        ChainFrame authority = frame1;
+        authority.inputValid = 0.0f;
+        const auto protectedColour = runChainFrame(host, pipelines, constants, scene, colour.Get(), input.Get(),
+            motion.Get(), depth.Get(), normals.Get(), stats.Get(), target.Get(), motionOut.Get(), gain.Get(),
+            history[0].Get(), history[1].Get(), w, h, authority, 0.25f, 1.0f, false);
+        need(protectedColour.composite == zeroStrength.composite,
+             "current-source authority is byte-identical despite a non-identity gain field");
     }
 
     // ---- A) OFF identity against the base composition CSO, and the target write ---------------------------
@@ -733,6 +811,26 @@ namespace
         need(std::abs(gotR - expectedR) < 2e-3f && std::abs(gotG - expectedG) < 2e-3f &&
              std::abs(gotB - expectedB) < 2e-3f,
              "the target holds RR's input colour in output units");
+        fillColour(skip.Get(), 0.8f, 0.2f, 0.1f, -1.0f);
+        auto authorityHeap = runComposition(pipelines.compPso.Get(), pipelines.compRoot.Get(), 1u << 10, target.Get());
+        Readback authorityTarget(host, target.Get(), kRead);
+        Readback authorityColour(host, colour.Get(), kRead);
+        host.submit(); host.checkDebug();
+        auto at = authorityTarget.bytes(); auto ac = authorityColour.bytes();
+        host.reset();
+        need(halfAt(at, 0, 3) == 0.0f, "the target marks current-source authority as protected");
+        for (int c = 0; c < 3; ++c)
+            need(halfAt(at, 0, c) == halfAt(ac, 0, c),
+                 "authority target is the complete source colour, not kept-warm RR residual");
+        fillColour(skip.Get(), 0.8f, 0.2f, 0.1f, 0.0f);
+        auto skipHeap = runComposition(pipelines.compPso.Get(), pipelines.compRoot.Get(), 1u << 10, target.Get());
+        Readback skipTarget(host, target.Get(), kRead);
+        host.submit(); host.checkDebug();
+        auto st = skipTarget.bytes(); host.reset();
+        need(std::abs(halfAt(st, 0, 0) - (expectedR + 0.8f)) < 2e-3f &&
+             std::abs(halfAt(st, 0, 1) - (expectedG + 0.2f)) < 2e-3f &&
+             std::abs(halfAt(st, 0, 2) - (expectedB + 0.1f)) < 2e-3f,
+             "ordinary target includes the same additive Skip domain as the composite");
     }
 
     // ---- E) the cost of the three dispatches ---------------------------------------------------------------
@@ -827,6 +925,7 @@ int main(int argc, char** argv) try
     Pipelines pipelines(host);
     Constants constants(host);
     statsChecks(host, pipelines, constants);
+    allocationExtentChecks(host, pipelines, constants);
     chainChecks(host, pipelines, constants);
     compositionChecks(host, pipelines);
     costChecks(host, pipelines);

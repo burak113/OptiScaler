@@ -49,16 +49,23 @@ struct Cell { float level; float depth; float2 motion; };
 Cell BoxCell(int2 cell, float2 full)
 {
     const float2 base = float2(cell) * 8.0f;
+    // Active render size can be smaller than the allocated source texture in DRS.
+    uint diffuseWidth, diffuseHeight, specularWidth, specularHeight;
+    uint depthWidth, depthHeight, motionWidth, motionHeight;
+    InDiffuse.GetDimensions(diffuseWidth, diffuseHeight);
+    InSpecular.GetDimensions(specularWidth, specularHeight);
+    InDepth.GetDimensions(depthWidth, depthHeight);
+    InMotion.GetDimensions(motionWidth, motionHeight);
     Cell sum;
     sum.level = 0.0f; sum.depth = 0.0f; sum.motion = float2(0.0f, 0.0f);
     [unroll] for (int j = 0; j < 2; ++j)
         [unroll] for (int i = 0; i < 2; ++i)
         {
-            const float2 uv = (base + float2(i * 4 + 2.0f, j * 4 + 2.0f)) / full;
-            sum.level += dot(InDiffuse.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma) +
-                         dot(InSpecular.SampleLevel(InSampler, uv, 0.0f).rgb, kLuma);
-            sum.depth += InDepth.SampleLevel(InSampler, uv, 0.0f);
-            sum.motion += InMotion.SampleLevel(InSampler, uv, 0.0f).xy;
+            const float2 pixel = base + float2(i * 4 + 2.0f, j * 4 + 2.0f);
+            sum.level += dot(InDiffuse.SampleLevel(InSampler, pixel / float2(diffuseWidth, diffuseHeight), 0.0f).rgb, kLuma) +
+                         dot(InSpecular.SampleLevel(InSampler, pixel / float2(specularWidth, specularHeight), 0.0f).rgb, kLuma);
+            sum.depth += InDepth.SampleLevel(InSampler, pixel / float2(depthWidth, depthHeight), 0.0f);
+            sum.motion += InMotion.SampleLevel(InSampler, pixel / float2(motionWidth, motionHeight), 0.0f).xy;
         }
     sum.level *= 0.25f; sum.depth *= 0.25f; sum.motion *= 0.25f;
     return sum;
@@ -102,7 +109,7 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     const int2 p = int2(dispatch.xy);
     if (any(p >= grid)) return;
     const float2 full = Size.xy;
-    if (Extra.z < 0.5f || Extra.x == 0.0f)
+    if ((Extra.z < 0.5f && Extra.w < 0.5f) || Extra.x == 0.0f)
     {
         // Not armed, outside the window, or no usable projection: the pass is inert, but it writes defined values
         // so a later dispatch can never read an unwritten texture.
@@ -117,6 +124,12 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     const float z = abs(depth) * (Extra.x < 0.0f ? -1.0f : 1.0f);
     const float staticCell = StaticCell(centre, z, cell.motion, full);
     OutStats[p] = float4(level, depth, staticCell, 0.0f);
+    if (Extra.z < 0.5f)
+    {
+        // Capture-only frame: publish statistics, but never recall/apply a level correction.
+        OutRecalled[p] = float4(0.0f, 0.0f, 0.0f, staticCell);
+        return;
+    }
     float recalled = 0.0f, valid = 0.0f, slice = 0.0f;
     const int2 gridSize = grid;
     if (staticCell > 0.5f)

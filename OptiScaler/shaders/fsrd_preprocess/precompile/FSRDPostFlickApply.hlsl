@@ -43,7 +43,10 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     const int2 p = int2(dispatch.xy), size = int2(Size.xy);
     if (any(p >= size)) return;
     const float3 cur = SanitizeRadiance(InColor[p].rgb);
-    const float2 aux = InAux[p >> 1];
+    uint auxWidth, auxHeight;
+    InAux.GetDimensions(auxWidth, auxHeight);
+    const int2 auxPixel = min(p >> 1, int2(auxWidth, auxHeight) - 1);
+    const float2 aux = InAux[auxPixel];
     if (HistoryValid == 0u || !(aux.x < Extra.w))
     {
         OutColor[p] = float4(cur, InColor[p].a);
@@ -67,10 +70,14 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     {
         const float2 kndc = clip.xy / clip.w;
         const float2 q = float2((kndc.x + 1.0f) * 0.5f * Size.x, (1.0f - kndc.y) * 0.5f * Size.y);
-        key = SampleHalf(InKey, q, Size.xy);
-        const float2 kaux = SampleHalfAux(InKeyAux, q, Size.xy);
-        const float expected = clip.w / Extra.y; // view z in the keyframe's frame
-        valid = kaux.y > 0.0f && abs(kaux.x - abs(expected)) <= Extra.z * max(abs(expected), 1e-3f);
+        // Clamp addressing is only for valid edge interpolation, never out-of-view recall.
+        if (all(q >= 0.0f) && all(q < Size.xy))
+        {
+            key = SampleHalf(InKey, q, Size.xy);
+            const float2 kaux = SampleHalfAux(InKeyAux, q, Size.xy);
+            const float expected = clip.w / Extra.y; // view z in the keyframe's frame
+            valid = kaux.y > 0.0f && abs(kaux.x - abs(expected)) <= Extra.z * max(abs(expected), 1e-3f);
+        }
     }
     const float4 curBand = SampleHalf(InCur, float2(float(p.x) + 0.5f, float(p.y) + 0.5f), Size.xy);
     const float ratio = clamp(curBand.a / max(key.a, 1e-6f), Ratio.x, Ratio.y);

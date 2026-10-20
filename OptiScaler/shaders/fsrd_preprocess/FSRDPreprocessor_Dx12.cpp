@@ -1771,10 +1771,10 @@ struct FSRDPreprocessor_Dx12::Impl
         const uint32_t width = m_postFlickWidth, height = m_postFlickHeight;
         const uint32_t halfW = std::max(1u, width / 2), halfH = std::max(1u, height / 2);
         if (!EnsurePostFlick()) return;
-        if (!m_postFlickWasEnabled)
+        if (!m_postFlickWasEnabled || !m_motionHistoryValid)
         {
-            // Rising edge: the first frame after the option is switched on must not reuse the previous run's
-            // keyframe, age or history flag (up to six frames of stale recall).
+            // An option edge, title reset or broken frame continuity invalidates both the key and pixel ages.
+            // The first complete frame starts a new run instead of recalling a discarded or unrelated image.
             m_postFlickValid = false;
             m_postFlickKeyState = PostFlickMath::KeyState {};
             m_postFlickWasEnabled = true;
@@ -1834,7 +1834,7 @@ struct FSRDPreprocessor_Dx12::Impl
             m_colourTrackTrackShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackTrack_cso),
                 sizeof(ColourTrackMath::TrackConstants), 4, 2, L"FSRD_ColourTrack_Track_Constants");
             m_colourTrackApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackApply_cso),
-                sizeof(ColourTrackMath::ApplyConstants), 1, 1, L"FSRD_ColourTrack_Apply_Constants");
+                sizeof(ColourTrackMath::ApplyConstants), 2, 1, L"FSRD_ColourTrack_Apply_Constants");
         }
         const uint32_t width = m_colourTrackWidth, height = m_colourTrackHeight;
         const uint32_t quarterW = std::max(1u, width / 4), quarterH = std::max(1u, height / 4);
@@ -1886,6 +1886,9 @@ struct FSRDPreprocessor_Dx12::Impl
             m_colourTrackWasEnabled = false;
             return false;
         }
+        // A title reset/camera cut invalidates this EMA even if depth happens to match.
+        if (!m_motionHistoryValid)
+            m_colourTrackValid = false;
         if (!m_colourTrackWasEnabled)
         {
             // Rising edge: the first frame after the option is switched on must not reuse the previous run's EMA
@@ -1928,7 +1931,7 @@ struct FSRDPreprocessor_Dx12::Impl
         // --- apply (full resolution, in place) ---
         const ColourTrackMath::ApplyConstants applyConstants {
             .Size = {float(width), float(height), 1.0f / float(width), 1.0f / float(height)}};
-        ID3D12Resource* applyInputs[] {m_colourTrackGain.Get()};
+        ID3D12Resource* applyInputs[] {m_colourTrackGain.Get(), m_colourTrackInput.Get()};
         ID3D12Resource* applyOutputs[] {m_compositionOutput.Get()};
         m_colourTrackApplyShader.Dispatch(cmdList, GetAsByteSpan(applyConstants), applyInputs, applyOutputs,
             {float(width), float(height)});
@@ -2027,6 +2030,8 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         if (!EnsurePostMotionAnchor(width, height)) return;
         m_postMotionWidth = width; m_postMotionHeight = height;
+        if (!m_postMotionWasEnabled || !desc.MotionHistoryValid)
+            m_postMotionState = PostMotionAnchorMath::State {};
         // The conversion desc carries the transpose of the inverse view/projection and the previous view; the
         // anchor needs the forward matrices, which is exactly how the post-flick fix fills the same three.
         DirectX::XMFLOAT4X4 view {}, projection {}, previousView {};
@@ -2034,13 +2039,11 @@ struct FSRDPreprocessor_Dx12::Impl
             {desc.InvViewMatrix, desc.InvProjMatrix, desc.PrevViewMatrix});
         PostMotionAnchorMath::StatsRecallConstants statsConstants {};
         PostMotionAnchorMath::GainConstants gainConstants {};
-        // The state machine resets the ring when the option is switched on (WasEnabled != enabled): a stale
-        // keyframe from an earlier ON period must not be recalled. Passing a literal true made that branch
-        // unreachable (SA17 D1); the real previous-frame flag is what the reset was written for.
         const bool active = PostMotionAnchorMath::BuildFrame(m_postMotionState, view, projection, previousView,
-            m_postMotionWasEnabled, desc.PostMotionAnchorStrength, statsConstants, gainConstants);
+            desc.PostMotionAnchor, desc.PostMotionAnchorStrength, statsConstants, gainConstants);
         m_postMotionWasEnabled = true;
-        if (!active) return;
+        const bool refresh = gainConstants.Params4.x > 0.5f;
+        if (!active && !refresh) return;
         PostMotionAnchorMath::ApplyConstants applyConstants {};
         PostMotionAnchorMath::SetSize(statsConstants, gainConstants, applyConstants, width, height);
         auto& signals = m_out.Resources.Signals;
@@ -2057,6 +2060,10 @@ struct FSRDPreprocessor_Dx12::Impl
         AddBarrier(cmdList, m_postMotionRecalled.Get(), kSrvState, kUavState);
         // Clear the frame-level sums with a copy from the persistent zero buffer: the ordering is explicit in the
         // command list (no in-dispatch reset racing the reads) and the copy is 16 bytes.
+        auto retainedSums = std::make_shared<std::array<ComPtr<ID3D12Resource>,2>>(
+            std::array<ComPtr<ID3D12Resource>,2>{m_postMotionSums,m_postMotionSumsReset});
+        if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev, cmdList, retainedSums))
+            throw std::runtime_error("Post-motion anchor copy lifetime tracking unavailable");
         AddBarrier(cmdList, m_postMotionSums.Get(), m_postMotionSumsState, D3D12_RESOURCE_STATE_COPY_DEST);
         cmdList->CopyBufferRegion(m_postMotionSums.Get(), 0, m_postMotionSumsReset.Get(), 0, 16);
         AddBarrier(cmdList, m_postMotionSums.Get(), D3D12_RESOURCE_STATE_COPY_DEST, kUavState);
@@ -2068,8 +2075,12 @@ struct FSRDPreprocessor_Dx12::Impl
             {float(cellsX), float(cellsY)}, false);
         AddBarrier(cmdList, m_postMotionStats.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionRecalled.Get(), kUavState, kSrvState);
+        D3D12_RESOURCE_BARRIER sumsBarrier {};
+        sumsBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        sumsBarrier.UAV.pResource = m_postMotionSums.Get();
+        cmdList->ResourceBarrier(1, &sumsBarrier);
         // --- the gain field and the keyframe capture (1/8 resolution) ---
-        // The sums stay in the UAV state for the gain pass (it reads them through their own UAV and clears them):
+        // The sums stay in the UAV state for the gain pass (it only reads them):
         // an SRV and a UAV of one resource may not share a dispatch, which the fixture's debug layer rejects.
         ID3D12Resource* gainInputs[] {m_postMotionStats.Get(), m_postMotionRecalled.Get()};
         ID3D12Resource* gainOutputs[] {m_postMotionGain.Get(), m_postMotionKeyLevel.Get(),
@@ -2082,6 +2093,8 @@ struct FSRDPreprocessor_Dx12::Impl
         AddBarrier(cmdList, m_postMotionGain.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionKeyLevel.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, m_postMotionKeyDepth.Get(), kUavState, kSrvState);
+        // A settled capture must populate the ring even outside the correction window.
+        if (!active) return;
         // --- apply (full resolution, in place on RR's input signals) ---
         // The signals are the bridge's denoiser inputs: shader-readable when the packing left them, and returned to
         // that state so the provider dispatch sees exactly what it always saw, scaled by the anchored level.
@@ -2090,7 +2103,7 @@ struct FSRDPreprocessor_Dx12::Impl
         ID3D12Resource* applyInputs[] {m_postMotionGain.Get()};
         ID3D12Resource* applyOutputs[] {signals.DirectDiffuse.Get(), signals.IndirectSpecular.Get()};
         m_postMotionApplyShader.Dispatch(cmdList, GetAsByteSpan(applyConstants), applyInputs, applyOutputs,
-            {float(width), float(height)});
+            {float(width), float(height)}, false);
         AddBarrier(cmdList, signals.DirectDiffuse.Get(), kUavState, kSrvState);
         AddBarrier(cmdList, signals.IndirectSpecular.Get(), kUavState, kSrvState);
         m_postMotionActive = true;
@@ -4104,6 +4117,15 @@ void FSRDPreprocessor_Dx12::InvalidateCompositionHistory() noexcept
 {
     m_impl->m_recoveryHistoryValid = false;
     m_impl->ResetFlatTemporalHistory();
+    m_impl->m_postFlickValid = false;
+    m_impl->m_postFlickWasEnabled = false;
+    m_impl->m_postFlickActive = false;
+    m_impl->m_colourTrackValid = false;
+    m_impl->m_colourTrackWasEnabled = false;
+    m_impl->m_colourTrackActive = false;
+    m_impl->m_postMotionState = PostMotionAnchorMath::State {};
+    m_impl->m_postMotionWasEnabled = false;
+    m_impl->m_postMotionActive = false;
 }
 
 void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame) noexcept
@@ -4114,6 +4136,15 @@ void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame)
         m_impl->m_research.Abort("Reference aborted: normal evaluation failed or was bypassed.");
         m_impl->m_recoveryHistoryValid=false;
         m_impl->ResetFlatTemporalHistory();
+        m_impl->m_postFlickValid = false;
+        m_impl->m_postFlickWasEnabled = false;
+        m_impl->m_postFlickActive = false;
+        m_impl->m_colourTrackValid = false;
+        m_impl->m_colourTrackWasEnabled = false;
+        m_impl->m_colourTrackActive = false;
+        m_impl->m_postMotionState = PostMotionAnchorMath::State {};
+        m_impl->m_postMotionWasEnabled = false;
+        m_impl->m_postMotionActive = false;
         if (m_impl->m_gameTraceFrameRecorded)
             m_impl->m_gameTrace.Abort("Normal evaluation failed or bypassed after recording.");
     }

@@ -9,8 +9,9 @@
 // descriptor check, and a pointwise read of the UAV is the same value.
 #pragma once
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 1)), DescriptorTable(UAV(u0, numDescriptors = 1)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 2)), DescriptorTable(UAV(u0, numDescriptors = 1)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
 Texture2D<float4> InGain : register(t0);    // rgb the gain, a 1 (quarter resolution)
+Texture2D<float4> InTarget : register(t1);  // full-resolution target; alpha 0 = current-source authority
 SamplerState InSampler : register(s0);
 RWTexture2D<float4> OutColor : register(u0); // the composite of this frame, read and written
 cbuffer CB_ColourTrackApply : register(b0)
@@ -23,6 +24,9 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
 {
     const int2 p = int2(dispatch.xy);
     if (any(p >= int2(Size.xy))) return;
+    const float4 target = InTarget[p];
+    // Current-source authority is already the complete current colour; preserve its exact bytes.
+    if (target.a < 0.5f) return;
     const float3 colour = OutColor[p].rgb;
     const float4 gain = InGain.SampleLevel(InSampler, (float2(p) + 0.5f) / Size.xy, 0.0f);
     float3 tracked = colour * gain.rgb;

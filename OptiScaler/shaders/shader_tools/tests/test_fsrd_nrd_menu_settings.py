@@ -38,6 +38,8 @@ KEYS = {
     'FfxDenoiserRecoveryFlatReflectionHistory': ('RecoveryFlatReflectionHistory', 'Bool'),
     'FfxDenoiserRecoveryFlatReflectionDetail': ('RecoveryFlatReflectionDetail', 'Float'),
     'FfxDenoiserRecoveryFlatReflectionPolish': ('RecoveryFlatReflectionPolish', 'Float'),
+    'FfxDenoiserRecoveryFlatVerticalMode': ('RecoveryFlatVerticalMode', 'Int'),
+    'FfxDenoiserRecoveryFlatVerticalStrength': ('RecoveryFlatVerticalStrength', 'Float'),
     'FfxDenoiserRadianceScaleExperiment': ('RadianceScaleExperiment', 'Bool'),
     'FfxDenoiserRadianceScaleDiffuse': ('RadianceScaleDiffuse', 'Int'),
     'FfxDenoiserRadianceScaleSpecular': ('RadianceScaleSpecular', 'Int'),
@@ -70,6 +72,8 @@ KEYS = {
     'FfxDenoiserColourTrackStrength': ('ColourTrackStrength', 'Float'),
     'FfxDenoiserColourTrackEmaWeight': ('ColourTrackEmaWeight', 'Float'),
     'FfxDenoiserColourTrackRadius': ('ColourTrackRadius', 'Float'),
+    'FfxDenoiserPostFlickFix': ('PostFlickFix', 'Bool'),
+    'FfxDenoiserPostFlickStrength': ('PostFlickStrength', 'Float'),
     'FfxDenoiserPostMotionAnchor': ('PostMotionAnchor', 'Bool'),
     'FfxDenoiserPostMotionAnchorStrength': ('PostMotionAnchorStrength', 'Float'),
     'FfxDenoiserNrdBridgeNativeDebugView': ('NrdBridgeNativeDebugView', 'Int'),
@@ -145,6 +149,7 @@ constexpr int ImGuiTableFlags_Borders=1,ImGuiTableFlags_Resizable=2;
 struct ScopedIndent {};
 namespace ImGui {
 std::map<std::string,bool> bools;std::map<std::string,float> floats;std::map<std::string,int> combos;std::map<std::string,bool> buttons,headers;
+std::map<std::string,std::array<float,2>> floatRanges;
 std::vector<bool> disabled;std::vector<std::string> labels,text;unsigned rrTables=0;
 bool hovered=false;
 bool isDisabled(){return !disabled.empty()&&disabled.back();}
@@ -155,7 +160,7 @@ bool SliderInt(const char* name,int* value,int minimum,int maximum){labels.push_
  *value=it->second;combos.erase(it);return true;}
 bool Checkbox(const char* name,bool* value){labels.push_back(name);auto it=bools.find(name);
  if(isDisabled()||it==bools.end())return false;bool next=it->second;bools.erase(it);bool changed=*value!=next;*value=next;return changed;}
-bool SliderFloat(const char* name,float* value,float minimum,float maximum,const char* =nullptr){labels.push_back(name);auto it=floats.find(name);
+bool SliderFloat(const char* name,float* value,float minimum,float maximum,const char* =nullptr){labels.push_back(name);floatRanges[name]={minimum,maximum};auto it=floats.find(name);
  if(isDisabled()||it==floats.end())return false;need(it->second>=minimum&&it->second<=maximum,"UI input stays inside actual slider range");
  *value=it->second;floats.erase(it);return true;}
 bool Button(const char* name){labels.push_back(name);return !isDisabled()&&buttons.erase(name)!=0;}
@@ -175,7 +180,7 @@ void Text(const char* format,...){va_list args;va_start(args,format);capture(for
 void TextUnformatted(const char* value){text.push_back(value);}
 bool BeginTable(const char* name,int,int){if(std::string(name)=="NrdBridgeRRValues")++rrTables;return true;}
 void TableSetupColumn(const char*){}void TableHeadersRow(){}void TableNextRow(){}void TableNextColumn(){}void EndTable(){}
-void frame(){bools.clear();floats.clear();combos.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;hovered=false;need(disabled.empty(),"UI disabled scopes are balanced");}
+void frame(){bools.clear();floats.clear();floatRanges.clear();combos.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;hovered=false;need(disabled.empty(),"UI disabled scopes are balanced");}
 bool hasText(const std::string& term){return std::any_of(text.begin(),text.end(),[&](const auto& s){return s.find(term)!=s.npos;});}
 bool hasLabel(const std::string& term){return std::find(labels.begin(),labels.end(),term)!=labels.end();}
 }
@@ -576,6 +581,35 @@ int main(){try{
  "Full production reset clears polish in Config and the coherent runtime payload");
  saved=cfg.save();reload.load(saved);need(NrdBridge::ReadFlatAlbedoSettings(reload).reflectionPolish==0.f,
  "Polish OFF reset survives actual save/reload");
+ // Task 24 glass: the actual native flat-settings reader, menu and INI serializers share the four states.
+ cfg.load("[FSR-RR]\nRecoveryFlatAlbedo=true\nRecoveryFlatVerticalMode=auto\nRecoveryFlatVerticalStrength=auto\n");
+ flat=NrdBridge::ReadFlatAlbedoSettings(cfg);
+ need(flat.verticalMode==0u&&flat.verticalStrength==.5f,"Glass defaults OFF with half-strength Blend stored");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Glass strength##NrdFlat"]=.25f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before&&cfg.FfxDenoiserRecoveryFlatVerticalStrength.value_or_default()==.5f&&
+      !ImGui::hasLabel("Glass strength##NrdFlat"),"Glass strength is not editable while the glass policy is OFF");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::combos["Glass (vertical surfaces)##NrdFlat"]=1;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.flatAlbedo.verticalMode==1u,
+ "Glass RR selection reaches the coherent native flat-settings snapshot");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::combos["Glass (vertical surfaces)##NrdFlat"]=2;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.flatAlbedo.verticalMode==2u&&ImGui::hasLabel("Glass strength##NrdFlat"),
+ "Glass Blend exposes its strength and publishes the selected mode");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Glass strength##NrdFlat"]=.75f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.flatAlbedo.verticalStrength==.75f,
+ "Glass strength reaches the native flat-settings snapshot");
+ saved=cfg.save();reload.load(saved);flat=NrdBridge::ReadFlatAlbedoSettings(reload);
+ need(flat.verticalMode==2u&&flat.verticalStrength==.75f,"Glass mode and strength survive actual INI save/reload");
+ for(const auto [value,expected]:std::array<std::array<int,2>,4>{{{-3,0},{0,0},{2,2},{7,2}}}) {
+  cfg.FfxDenoiserRecoveryFlatVerticalMode=value;
+  need(NrdBridge::ReadFlatAlbedoSettings(cfg).verticalMode==uint32_t(expected),"Glass mode is bounded to the shipped modes");
+ }
+ for(const auto [value,expected]:std::array<std::array<float,2>,5>{{{-1.f,0.f},{2.f,1.f},{.75f,.75f},
+ {std::numeric_limits<float>::quiet_NaN(),.5f},{std::numeric_limits<float>::infinity(),.5f}}}) {
+  cfg.FfxDenoiserRecoveryFlatVerticalStrength=value;
+  need(NrdBridge::ReadFlatAlbedoSettings(cfg).verticalStrength==expected,"Glass strength clamps finite input and defaults nonfinite input");
+ }
+ cfg.ResetFfxDenoiserSettings();saved=cfg.save();reload.load(saved);flat=NrdBridge::ReadFlatAlbedoSettings(reload);
+ need(flat.verticalMode==0u&&flat.verticalStrength==.5f,"Full reset/save/reload restores the glass OFF defaults");
  cfg.load("[FSR-RR]\nRadianceScaleExperiment=false\nRadianceScaleDiffuse=16\nRadianceScaleSpecular=256\n");
  ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
  need(!ReadNrdBridgeRRSettings(cfg).radianceScale.enabled&&NrdBridge::applyCalls==before,
@@ -717,9 +751,28 @@ int main(){try{
  need(!cfg.FfxDenoiserColourTrack.value_or_default()&&cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f&&
       cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.25f&&cfg.FfxDenoiserColourTrackRadius.value_or_default()==16.0f,
  "Full reset restores the colour tracking defaults");
+ // Task 24 post-flick controls: Config/menu/INI scope; native dispatch effectiveness is a separate test.
+ cfg.load("[FSR-RR]\nPostFlickFix=auto\nPostFlickStrength=auto\n");
+ need(!cfg.FfxDenoiserPostFlickFix.value_or_default()&&cfg.FfxDenoiserPostFlickStrength.value_or_default()==1.f,
+ "Post-flick fix defaults OFF with full bounded strength");
+ ImGui::frame();ImGui::floats["Post-flick strength##NrdBridge"]=.4f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostFlickStrength.value_or_default()==1.f,"Post-flick strength is inert while OFF");
+ ImGui::frame();ImGui::bools["Post-flick blotch fix (experimental)##NrdBridge"]=true;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostFlickFix.value_or_default(),"Post-flick checkbox writes the stored option");
+ ImGui::frame();ImGui::floats["Post-flick strength##NrdBridge"]=.4f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserPostFlickStrength.value_or_default()==.4f,"Post-flick strength writes the stored value");
+ saved=cfg.save();reload.load(saved);
+ need(reload.FfxDenoiserPostFlickFix.value_or_default()&&reload.FfxDenoiserPostFlickStrength.value_or_default()==.4f,
+ "Post-flick ON and strength survive actual INI save/reload");
+ ImGui::frame();ImGui::bools["Post-flick blotch fix (experimental)##NrdBridge"]=false;drawBridge(&cfg);
+ saved=cfg.save();reload.load(saved);
+ need(!reload.FfxDenoiserPostFlickFix.value_or_default()&&reload.FfxDenoiserPostFlickStrength.value_or_default()==.4f,
+ "Post-flick OFF roundtrip retains the user's strength for a later enable");
+ cfg.ResetFfxDenoiserSettings();saved=cfg.save();reload.load(saved);
+ need(!reload.FfxDenoiserPostFlickFix.value_or_default()&&reload.FfxDenoiserPostFlickStrength.value_or_default()==1.f,
+ "Full reset/save/reload restores the post-flick defaults");
  // Post-motion level anchor (task 25 T3 ii): the checkbox and its strength slider drive the stored values, the
- // keys persist, and the full reset restores the measured default (the strength is the user's dial because the
- // amplitude calibration is capture dependent).
+ // keys persist, and the full reset restores the default bounded blend (0 = input, 1 = full correction).
  cfg.load("[FSR-RR]\n");
  need(!cfg.FfxDenoiserPostMotionAnchor.value_or_default()&&cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,
  "Post-motion anchor defaults OFF with the measured strength");
@@ -729,6 +782,8 @@ int main(){try{
  need(cfg.FfxDenoiserPostMotionAnchor.value_or_default(),"Post-motion anchor checkbox drives the stored option");
  ImGui::frame();ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.6f;drawBridge(&cfg);
  need(cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,"Post-motion anchor slider writes the stored value");
+ need(ImGui::floatRanges.at("Post-motion anchor strength##NrdBridge")==std::array<float,2>{0.f,1.f},
+ "Post-motion strength UI range matches the shader saturating fraction");
  saved=cfg.save();reload.load(saved);
  need(reload.FfxDenoiserPostMotionAnchor.value_or_default()&&reload.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,
  "Post-motion anchor settings survive production INI save and reload");
@@ -746,6 +801,16 @@ def run():
     menu=(ROOT/'OptiScaler/menu/menu_common.cpp').read_text()
     rr=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     bridge=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h').read_text()
+    # These controls also serve the FSRDFeature route. Pin the actual source assignments rather than
+    # treating Config persistence as proof that a dispatcher consumes a setting.
+    feature=(ROOT/'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp').read_text()
+    assert re.search(r'\.PostFlickFix\s*=\s*cfg\.FfxDenoiserPostFlickFix\.value_or_default\(\)',feature)
+    assert re.search(r'\.PostFlickStrength\s*=\s*std::clamp\(cfg\.FfxDenoiserPostFlickStrength\.value_or_default\(\),\s*0\.0f,\s*1\.0f\)',feature)
+    anchor=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h').read_text()
+    gain=(ROOT/'OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain.hlsl').read_text()
+    assert re.search(r'kStrengthMax\s*=\s*1\.0f',anchor), 'host strength range must match the saturating shader'
+    assert 'saturate(Params2.x)' in gain, 'update the strength range test if the shader contract changes'
+    assert re.search(r'FfxDenoiserPostMotionAnchorStrength\.value_or_default\(\),\s*0\.0f,\s*1\.0f,\s*1\.0f',feature)
     assert 'struct RRSettings\n' in rr
     contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('FlatAlbedoSettings','RRSettings','RRSettingsState'))
     contract+='\n'+function(rr,'template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(')
@@ -815,7 +880,7 @@ def run():
     if result.returncode:raise RuntimeError(result.stderr)
     print(result.stdout,end='')
     checks=int(re.search(r'PASS: (\d+)',result.stdout).group(1))
-    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=11,api_contract=contract_origin,
+    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=16,api_contract=contract_origin,
         scope='actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim'),indent=2)+'\n')
 
 

@@ -70,7 +70,7 @@ namespace PostMotionAnchorMath
     // Coverage blend: 0.3 x the 9 taps, the prototype's cov/0.3 fold with its 9-tap kernel.
     inline constexpr float kCoverageTaps = 2.7f;
 
-    inline constexpr float kStrengthMin = 0.0f, kStrengthMax = 1.5f, kStrengthDefault = 1.0f;
+    inline constexpr float kStrengthMin = 0.0f, kStrengthMax = 1.0f, kStrengthDefault = 1.0f;
 
     struct RingSlot
     {
@@ -156,6 +156,13 @@ namespace PostMotionAnchorMath
         const DirectX::XMFLOAT4X4& previousView, bool enabled, float strength,
         StatsRecallConstants& stats, GainConstants& gain)
     {
+        // Reset before deriving active, refresh, or any published keyframe constants.
+        if (state.WasEnabled != enabled)
+        {
+            state = State {};
+            state.WasEnabled = enabled;
+        }
+        if (!enabled) return false;
         const DirectX::XMMATRIX currentView = LoadDesc(view);
         const DirectX::XMMATRIX currentProjection = LoadDesc(projection);
         const float degrees = ForwardDegrees(currentView, LoadDesc(previousView));
@@ -188,18 +195,9 @@ namespace PostMotionAnchorMath
         // The keyframe this frame writes (if any) takes the next physical slot; the ring's contents are then laid
         // out in priority order: keyframes captured before the motion frame that just ended come first (they cannot
         // carry that burst's own excess), newest first, then the rest, newest first.
-        uint32_t writeSlice = kRingSize;
-        if (refresh)
-        {
-            writeSlice = state.WriteIndex;
-            auto& slot = state.Ring[writeSlice];
-            slot.View = view;
-            slot.Projection = projection;
-            slot.Valid = true;
-            slot.CaptureFrame = state.Frame;
-            state.WriteIndex = (state.WriteIndex + 1u) % kRingSize;
-            state.LastSampleFrame = state.Frame;
-        }
+        // Recall consumes the OLD slot data. The GPU captures this frame only after recall,
+        // so defer publishing the new camera metadata until the constants are complete.
+        const uint32_t writeSlice = refresh ? state.WriteIndex : kRingSize;
         uint32_t order[kRingSize]; uint32_t count = 0;
         const uint64_t lastMotionFrame = state.Frame - state.MotionFrames;
         for (int pass = 0; pass < 2; ++pass)
@@ -260,14 +258,16 @@ namespace PostMotionAnchorMath
         gain.Params2 = {std::clamp(strength, kStrengthMin, kStrengthMax), kFallbackA, kTapStepCells, kCoverageTaps};
         gain.Params3 = {kRejectMult, kRejectAbs, kGainLow, float(state.MotionFrames)};
         gain.Params4 = {refresh ? 1.0f : 0.0f, float(writeSlice), float(kRingSize), 0.0f};
-        if (state.WasEnabled != enabled)
+        if (refresh)
         {
-            // A toggle restarts the ring: a stale keyframe from a previous run must not be recalled.
-            for (auto& slot : state.Ring) slot.Valid = false;
-            state.WriteIndex = 0; state.LastSampleFrame = 0; state.Armed = false; state.MotionFrames = 100000u;
-            state.WasEnabled = enabled;
+            auto& slot = state.Ring[writeSlice];
+            slot.View = view;
+            slot.Projection = projection;
+            slot.Valid = true;
+            slot.CaptureFrame = state.Frame;
+            state.WriteIndex = (state.WriteIndex + 1u) % kRingSize;
+            state.LastSampleFrame = state.Frame;
         }
-        (void)writeSlice;
         return active;
     }
 

@@ -585,7 +585,7 @@ class Config
     CustomOptional<bool> FfxDenoiserPostFlickFix {false};
     // Post-motion level anchor (task 25 T3 ii, default off): a luminance-only gain on RR's input during the
     // post-motion window, measured from a ring of settled keyframes of the input's own level. The strength is
-    // mandatory because the measured amplitude calibration is capture dependent (0 = off, 1 = the measured dose).
+    // a fraction in [0, 1]: 0 keeps the input, 1 applies the full bounded correction; values above 1 are clamped.
     CustomOptional<bool> FfxDenoiserPostMotionAnchor {false};
     CustomOptional<float> FfxDenoiserPostMotionAnchorStrength {1.0f};
     CustomOptional<float> FfxDenoiserPostFlickStrength {1.0f};

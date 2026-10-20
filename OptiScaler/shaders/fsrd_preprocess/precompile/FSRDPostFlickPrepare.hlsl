@@ -64,11 +64,16 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID, uint3 group : SV_GroupID, uint
         const float2 pixels = motion.xy * float2(Size.x, Size.y);
         if (all(abs(pixels) < 4096.0f))
         {
-            const int2 q = clamp(int2(round(float2(h) + pixels * 0.5f)), int2(0, 0), half - 1);
-            const float2 prev = InPrevAux[q];
-            const float expected = abs(depth + motion.z);
-            if (prev.y > 0.0f && abs(prev.y - expected) <= Params.x * max(expected, 1e-3f))
-                age = min(prev.x + 1.0f, Params.y);
+            const float2 previousHalf = float2(h) + pixels * 0.5f;
+            // A clamped edge pixel is not history for a newly exposed surface.
+            if (all(previousHalf >= 0.0f) && all(previousHalf < float2(half)))
+            {
+                const int2 q = clamp(int2(round(previousHalf)), int2(0, 0), half - 1);
+                const float2 prev = InPrevAux[q];
+                const float expected = abs(depth + motion.z);
+                if (prev.y > 0.0f && abs(prev.y - expected) <= Params.x * max(expected, 1e-3f))
+                    age = min(prev.x + 1.0f, Params.y);
+            }
         }
     }
     OutAux[h] = float2(age, abs(depth));
