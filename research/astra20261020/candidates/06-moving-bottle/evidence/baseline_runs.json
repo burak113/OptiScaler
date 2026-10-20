@@ -1,0 +1,21 @@
+{
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "executor": "Linux CPU, root agent",
+  "runs": [
+    {
+      "command": "python -B research/astra20261020/validate_package.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5692896239997935,
+      "log": "research/astra20261020/candidates/06-moving-bottle/evidence/package_validation.txt",
+      "sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "command": "python -B research/astra20261020/run_cpu.py",
+      "exit_code": 0,
+      "elapsed_seconds": 5.5025850029996946,
+      "log": "research/astra20261020/candidates/06-moving-bottle/evidence/baseline_cpu.txt",
+      "sha256": "55c65116763d5e9d8ba80237042c5e5d35a2e993087864b1938b3a931e4bbd64"
+    }
+  ]
+}

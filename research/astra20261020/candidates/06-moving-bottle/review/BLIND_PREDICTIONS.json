@@ -1,0 +1,118 @@
+{
+  "schema": "job06.independent_blind_predictions.v1",
+  "executor": "independent_skeptical_reviewer",
+  "frozen_utc": "2026-10-20T18:11:44.103549+00:00",
+  "truth_key_viewed": false,
+  "candidate_implementation_imported": false,
+  "generation_code_viewed": false,
+  "gpu_executed": false,
+  "private_truth_key_precommit_sha256": "5c69f858b3364f9d2ae4d3215d6d902ac05708a93b76e373f3e81fd682d881a0",
+  "public_manifest_sha256": "c3a245421bcb2c91a47f6fd2896d34cbbf1e499ed08775c77171d006e95bced0",
+  "measurement_sha256": "471dbcbeead1e954eb6fc0e10b2c6bda1d1b018414229fd2241719679948cdcc",
+  "cases": [
+    {
+      "case_id": "case_01",
+      "prediction": "selected_stage_stale_support",
+      "status": "identified",
+      "observations": "Raw source and raw RR are identical with zero outside-silhouette energy; the first tail appears only at selected. Surface and virtual witnesses align to numerical precision.",
+      "limits": "A selected-stage temporal mix is supported; exact NZR policy would require stage state/weights."
+    },
+    {
+      "case_id": "case_02",
+      "prediction": "sparse_source_correct_motion",
+      "status": "identified",
+      "observations": "68.0016% of true object pixels have zero raw support, but all nonzero source support lies inside the silhouette and both geometry witnesses align. Every stage is identical.",
+      "limits": "Do not blame motion or interpret sparse zeroes as absent geometry. Noise process details are not identifiable from this finite sample."
+    },
+    {
+      "case_id": "case_03",
+      "prediction": "surface_mv_bias",
+      "status": "identified",
+      "observations": "Rigid local-coordinate reconstruction gives a constant +2.5 render-pixel x residual in the supplied surface motion. Current source support is clean; raw RR is the first stage with added tail. Virtual correspondence is sound.",
+      "limits": "The transport error is identifiable; its upstream software cause is not."
+    },
+    {
+      "case_id": "case_04",
+      "prediction": "clean_control",
+      "status": "identified",
+      "observations": "Dense current support lies wholly inside the analytic silhouette; geometry and virtual errors are below1e-6 pixels on available fixed support and every stage is identical.",
+      "limits": "This certifies only supplied synthetic observations, not unseen history or final composition."
+    },
+    {
+      "case_id": "case_05",
+      "prediction": "virtual_correspondence_mismatch",
+      "status": "identified",
+      "observations": "Surface witness aligns, but the independent virtual witness has about1.04454-pixel mean mismatch. Only specular raw RR adds support outside the silhouette; selected adds nothing further.",
+      "limits": "Supplied analytic virtual coordinates distinguish this case. They are not inferable from real hit distance alone."
+    },
+    {
+      "case_id": "case_06",
+      "prediction": "delayed_or_misplaced_source_support",
+      "status": "identified",
+      "observations": "Current raw source already has2391.44043 energy units outside the true current silhouette; every output is identical to its corresponding input. Both geometry witnesses align.",
+      "limits": "Source support is wrong before RR. This supports delay/misplacement, without uniquely proving a particular estimator or delay mechanism."
+    },
+    {
+      "case_id": "case_07",
+      "prediction": "multiplicative_level_only",
+      "status": "identified",
+      "observations": "Selected is0.65 times raw RR for both lobes (FP32 rounding); shape/support remains inside the same silhouette and geometry is correct.",
+      "limits": "A35% level reduction is not shape repair. It cannot identify display exposure without final composition metadata."
+    },
+    {
+      "case_id": "case_08",
+      "prediction": "alternating_surface_motion_error",
+      "status": "identified",
+      "observations": "Rigid reconstruction gives alternating -1.1/+1.1 render-pixel x residual on consecutive observed frames. Raw source is clean and raw RR first adds tail; virtual witness is sound.",
+      "limits": "Compatible with jitter inclusion/sign error, but an alternating MV bias is observationally equivalent without explicit jitter metadata."
+    },
+    {
+      "case_id": "case_09",
+      "prediction": "raw_rr_stage_stale_support",
+      "status": "identified",
+      "observations": "Source is clean and both geometry witnesses align. Added tail first appears at raw RR, and selected equals raw RR.",
+      "limits": "Provider/internal-history-like retention is supported for this synthetic stage model, not proof of an AMD algorithm defect."
+    },
+    {
+      "case_id": "case_10",
+      "prediction": "untrusted_geometry_witness",
+      "status": "abstain",
+      "observations": "Reported guide authority is false. Its apparent alternating2.6-pixel identity mismatch cannot be used to blame motion. Source and all stages remain equal.",
+      "limits": "Require an independently trusted geometry/trajectory witness; guide corruption versus motion error is not identifiable from an untrusted witness."
+    },
+    {
+      "case_id": "case_11",
+      "prediction": "zero_hit_distance_clean_observations",
+      "status": "identified_with_limit",
+      "observations": "All hit distances are zero, while the independently supplied surface and virtual analytic witnesses align and all stages remain identical.",
+      "limits": "No observed transport or stage-support error. Do not reconstruct physical virtual motion from zero hit distance; production virtual-history causality remains unobservable."
+    },
+    {
+      "case_id": "case_12",
+      "prediction": "missing_independent_support_witness",
+      "status": "abstain",
+      "observations": "Independent support_truth, surface_identity and virtual_identity are absent. All observed stages are equal.",
+      "limits": "Raw equality alone cannot decide source-support fidelity or physical correspondence. Require trusted support/trajectory or geometry witness."
+    },
+    {
+      "case_id": "case_13",
+      "prediction": "observation_equivalent_undetermined",
+      "status": "abstain",
+      "observations": "This public NPZ is byte-identical to case_14 and has no independent support/identity witnesses. Stage outputs are all identical.",
+      "limits": "Source sparsity/delay versus missing physical support/geometry cannot be uniquely recovered from these tensors. The same observation must get the same diagnosis."
+    },
+    {
+      "case_id": "case_14",
+      "prediction": "observation_equivalent_undetermined",
+      "status": "abstain",
+      "observations": "This public NPZ is byte-identical to case_13 and has no independent support/identity witnesses. Stage outputs are all identical.",
+      "limits": "Source sparsity/delay versus missing physical support/geometry cannot be uniquely recovered from these tensors. The same observation must get the same diagnosis."
+    }
+  ],
+  "counts_before_reveal": {
+    "identified": 9,
+    "identified_with_limit": 1,
+    "abstain": 4
+  },
+  "interpretation": "Predictions are stage/mechanism identifications or explicit abstentions. They do not assign a physical provider defect or a GPU quality win."
+}

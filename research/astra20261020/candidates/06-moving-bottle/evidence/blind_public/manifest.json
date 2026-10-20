@@ -1,0 +1,113 @@
+{
+  "schema": "job06.synthetic_blind.v1",
+  "gpu_executed": false,
+  "cases": [
+    {
+      "case_id": "case_01",
+      "file": "case_01.npz",
+      "sha256": "e9ab4e891b2f0cc62acd61bebb89ef0d87760ff7f407d80ffc8bc4fe55a1204e",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_02",
+      "file": "case_02.npz",
+      "sha256": "6cccf224b68ac56c26e0ec760283db20908e3f670bbd4682eeff23f8ee38334b",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_03",
+      "file": "case_03.npz",
+      "sha256": "7c837ce1349f6f1a0dd748d1867f027693d93aaa8f6d95411f7a4d88aec00a0c",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_04",
+      "file": "case_04.npz",
+      "sha256": "56cba1909f112387a13db1989b315c2270b809bff89f87381b49be5f9e4adc97",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_05",
+      "file": "case_05.npz",
+      "sha256": "31c0ede9316fc060529d28ca00ffe3e87cddf8718ed53728bacdf4f2448ae570",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_06",
+      "file": "case_06.npz",
+      "sha256": "b49c9b0896f759c17efffef5d4f8a0b0f4e99b41c350ad7058ae465d0fe65b17",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_07",
+      "file": "case_07.npz",
+      "sha256": "2a128a92135613588d9a94dea81380c3e087993830bb6cd9d58868726613dd83",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_08",
+      "file": "case_08.npz",
+      "sha256": "38daf82cb76496e9f1500161da9dc254b177b0ce7437671f84d33482c5f2d925",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_09",
+      "file": "case_09.npz",
+      "sha256": "f15d0b9bd7e1cbde04a6a5f0bcd646d364289514eb7567a7dd202b2852c7054c",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_10",
+      "file": "case_10.npz",
+      "sha256": "d50b91cce1425425f7b9a329a61c92e62952c0bc597563b5f1953dcb3185f3c9",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_11",
+      "file": "case_11.npz",
+      "sha256": "7d422488ad06625c418a68427629396fd4c87a7d3f355bbede1f7c17fa50f6bd",
+      "independent_support_and_geometry_present": true,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_12",
+      "file": "case_12.npz",
+      "sha256": "97d387abd018c745b4cdb51bf666a606956c449957901fbafdc7f09fbc6d7b44",
+      "independent_support_and_geometry_present": false,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_13",
+      "file": "case_13.npz",
+      "sha256": "c0473080fca7bb15907296d5e36986a5b6e2627d49737a419e29150e274d60bf",
+      "independent_support_and_geometry_present": false,
+      "analytic_witnesses_only": true
+    },
+    {
+      "case_id": "case_14",
+      "file": "case_14.npz",
+      "sha256": "c0473080fca7bb15907296d5e36986a5b6e2627d49737a419e29150e274d60bf",
+      "independent_support_and_geometry_present": false,
+      "analytic_witnesses_only": true
+    }
+  ],
+  "coordinates": "clip_loader contract: previous-minus-current full-render UV; crop origins x,y; no added jitter",
+  "signal_units": "synthetic linear scalar radiance; source support may be sparse",
+  "surface_identity": "Independent analytic local object coordinates (x,y in pixels) and wall world coordinates; channel2 surface ID",
+  "virtual_identity": "Independent analytic reflected-feature coordinates; not reconstructed from hit distance",
+  "support_truth": "Known analytic physical silhouette; unavailable in supplied game clips",
+  "fixed_masks": "Analytic original visible correspondence support, fixed before observed motion mutation",
+  "guide_authority": "Whether the geometry witness has independent trusted provenance; false requires abstention",
+  "unknowns": "No final game composite. Zero hit distance does not authorize virtual projection. Incomplete cases lack support/history authority.",
+  "instructions": "Recover mechanisms from arrays or explicitly report non-identifiability. No injected labels/configuration are published."
+}

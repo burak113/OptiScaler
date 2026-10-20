@@ -1,0 +1,67 @@
+test_crop_origin_cancels_physical_motion (__main__.Coordinates.test_crop_origin_cancels_physical_motion) ... FAIL
+test_exact_frozen_helper_equivalence (__main__.Coordinates.test_exact_frozen_helper_equivalence) ... FAIL
+test_explicit_convention_rejects_implicit_conversion (__main__.Coordinates.test_explicit_convention_rejects_implicit_conversion) ... ok
+test_mixed_extents_and_sentinel_dz_are_not_clamped (__main__.Coordinates.test_mixed_extents_and_sentinel_dz_are_not_clamped) ... ok
+test_no_clamp_wrap_or_nonfinite_history (__main__.Coordinates.test_no_clamp_wrap_or_nonfinite_history) ... ok
+test_empty_sequence_or_evaluation_universe_rejected (__main__.ShapeMetrics.test_empty_sequence_or_evaluation_universe_rejected) ... ok
+test_level_only_darkening_is_not_shape_repair (__main__.ShapeMetrics.test_level_only_darkening_is_not_shape_repair) ... ok
+test_seed_bootstrap_is_deterministic (__main__.ShapeMetrics.test_seed_bootstrap_is_deterministic) ... ok
+test_unobserved_disocclusion_is_not_inferred_from_local_footprints (__main__.ShapeMetrics.test_unobserved_disocclusion_is_not_inferred_from_local_footprints) ... ok
+test_first_frame_and_gap_have_no_history (__main__.Tracing.test_first_frame_and_gap_have_no_history) ... ok
+test_identity_preserves_every_bit_and_ownership (__main__.Tracing.test_identity_preserves_every_bit_and_ownership) ... ok
+test_missing_authority_never_edits_image_or_blames_motion (__main__.Tracing.test_missing_authority_never_edits_image_or_blames_motion) ... ok
+test_nonfinite_untrusted_or_missing_authority_abstains (__main__.Tracing.test_nonfinite_untrusted_or_missing_authority_abstains) ... ok
+test_unknown_nonfinite_sample_not_asserted_absent (__main__.Tracing.test_unknown_nonfinite_sample_not_asserted_absent) ... ok
+test_unlooped_chronology_and_fixed_threshold_required (__main__.Tracing.test_unlooped_chronology_and_fixed_threshold_required) ... ok
+
+======================================================================
+FAIL: test_crop_origin_cancels_physical_motion (__main__.Coordinates.test_crop_origin_cancels_physical_motion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py", line 15, in test_crop_origin_cancels_physical_motion
+    np.testing.assert_allclose(qx,xx,atol=1e-12)
+  File "<numpy>/testing/_private/utils.py", line 1711, in assert_allclose
+    assert_array_compare(compare, actual, desired, err_msg=str(err_msg),
+  File "<numpy>/testing/_private/utils.py", line 919, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError:
+Not equal to tolerance rtol=1e-07, atol=1e-12
+
+Mismatched elements: 35 / 35 (100%)
+Max absolute difference among violations: 2.
+Max relative difference among violations: 2.
+ ACTUAL: array([[-2., -1.,  0.,  1.,  2.,  3.,  4.],
+       [-2., -1.,  0.,  1.,  2.,  3.,  4.],
+       [-2., -1.,  0.,  1.,  2.,  3.,  4.],...
+ DESIRED: array([[0, 1, 2, 3, 4, 5, 6],
+       [0, 1, 2, 3, 4, 5, 6],
+       [0, 1, 2, 3, 4, 5, 6],...
+
+======================================================================
+FAIL: test_exact_frozen_helper_equivalence (__main__.Coordinates.test_exact_frozen_helper_equivalence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py", line 25, in test_exact_frozen_helper_equivalence
+    for left,right in zip(actual,expected): np.testing.assert_array_equal(left,right)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<numpy>/testing/_private/utils.py", line 1054, in assert_array_equal
+    assert_array_compare(operator.__eq__, actual, desired, err_msg=err_msg,
+  File "<numpy>/testing/_private/utils.py", line 919, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError:
+Arrays are not equal
+
+Mismatched elements: 63 / 63 (100%)
+Max absolute difference among violations: 2.
+Max relative difference among violations: 14.08770421
+ ACTUAL: array([[ 5.784178,  4.685799,  0.79293 , -2.703802, 10.76878 ,  4.770535,
+        -1.256775, -0.698841, 12.087677],
+       [-2.805972, -1.739949,  9.980156, -6.375248,  2.688872,  5.113208,...
+ DESIRED: array([[ 7.784178,  6.685799,  2.79293 , -0.703802, 12.76878 ,  6.770535,
+         0.743225,  1.301159, 14.087677],
+       [-0.805972,  0.260051, 11.980156, -4.375248,  4.688872,  7.113208,...
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.050s
+
+FAILED (failures=2)

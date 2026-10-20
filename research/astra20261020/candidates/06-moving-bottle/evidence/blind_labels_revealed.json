@@ -1,0 +1,74 @@
+{
+  "case_01": {
+    "cause": "selected_tail",
+    "expected": "selected_stage_tail",
+    "heldout": false
+  },
+  "case_02": {
+    "cause": "sparse_source",
+    "expected": "sparse_source_no_motion_blame",
+    "heldout": true
+  },
+  "case_03": {
+    "cause": "mv_bias",
+    "expected": "transport_error",
+    "heldout": true
+  },
+  "case_04": {
+    "cause": "clean",
+    "expected": "no_detected_support_error",
+    "heldout": false
+  },
+  "case_05": {
+    "cause": "virtual_mismatch",
+    "expected": "virtual_correspondence_error",
+    "heldout": true
+  },
+  "case_06": {
+    "cause": "source_delay",
+    "expected": "source_support_error",
+    "heldout": true
+  },
+  "case_07": {
+    "cause": "exposure_only",
+    "expected": "no_detected_support_error",
+    "heldout": false
+  },
+  "case_08": {
+    "cause": "jitter_error",
+    "expected": "transport_error",
+    "heldout": true
+  },
+  "case_09": {
+    "cause": "provider_tail",
+    "expected": "provider_stage_tail",
+    "heldout": false
+  },
+  "case_10": {
+    "cause": "wrong_guide",
+    "expected": "non_identifiable",
+    "heldout": false
+  },
+  "case_11": {
+    "cause": "zero_hit_distance",
+    "expected": "no_detected_support_error",
+    "heldout": false
+  },
+  "case_12": {
+    "cause": "missing_geometry",
+    "expected": "non_identifiable",
+    "heldout": false
+  },
+  "case_13": {
+    "cause": "missing_samples_with_correct_motion",
+    "expected": "non_identifiable",
+    "heldout": true,
+    "observation_equivalence_pair": true
+  },
+  "case_14": {
+    "cause": "unobserved_source_delay_with_same_sparse_observation",
+    "expected": "non_identifiable",
+    "heldout": true,
+    "observation_equivalence_pair": true
+  }
+}

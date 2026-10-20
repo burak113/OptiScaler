@@ -1,0 +1,358 @@
+{
+  "schema": "fsrd.astra.blocked_data_request.v1",
+  "task_id": "06-moving-bottle",
+  "status": "blocked_for_real_bottle_causal_attribution_and_production_fix_not_for_completed_cpu_diagnostics",
+  "executor": "mechanism_subagent_source_audit; primary agent reviews integration",
+  "gpu_executed": false,
+  "recommendation": "keep_as_research",
+  "missing_observation": "Longer same-frame native stage chronology with full per-frame lineage/settings and an independent support/trajectory witness; separately synchronized final composition.",
+  "why_current_data_cannot_identify": "bottle_track7 provides only seven moving128x256 crops of frames180..186. Current D/S, hit alpha, provider MV/depth/guides and raw/selected outputs exist, but no independent shape truth, original pre-G3 MV provenance, full settings, final Consumer/output, or unseen pre-start history. Correct sparse/delayed source support, different specular correspondence and provider history can therefore remain observationally equivalent. Raw/selected equality on the fixed moving mask excludes an added selected difference there, not every NZR role everywhere.",
+  "first_action": "Inspect and export the requested interval from the existing local original2405579e capture. This is a data extraction request, not a request to rerun a GPU or upload everything.",
+  "window": {
+    "preferred_existing_capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+    "preferred_source_frame_indices_inclusive": [
+      168,
+      207
+    ],
+    "preferred_consecutive_frames": 40,
+    "approach_motion_settle_containment_verified": false,
+    "selection_instruction": "Inspect the original capture manifest and preview first. Use frames168..207 only if they contain approach, motion and settle. Otherwise select and report one new consecutive window of at most48 frames; do not splice phases or loop frames.",
+    "maximum_consecutive_frames": 48,
+    "render_extent_xy": [
+      1505,
+      847
+    ],
+    "render_extent_policy": "These are known dimensions for the existing capture. If a new capture uses another render extent, record its actual per-frame values and revalidate coordinate transforms; do not relabel its pixels as1505x847.",
+    "roi_origin_render_xy": [
+      688,
+      0
+    ],
+    "roi_extent_xy": [
+      128,
+      847
+    ],
+    "roi_pixels": 108416,
+    "crop_policy": "Prefer the original fixed128x847 vertical strip, which avoids the seven-frame moving-crop ambiguity. If local preview shows the bottle leaves this strip, choose a single fixed crop with at most108416 pixels; record actual origin/extent rather than clamping or omitting object support.",
+    "prior_history": "Original captured RR output retains the original unseen provider history. The exported first frame has no exported previous image and must be marked unsupported; do not reset or loop to fabricate history.",
+    "frame_time_seconds": null,
+    "frame_time_status": "Read actual per-frame recording QPC/timestamp and its frequency from local capture metadata. The seven-frame fixture does not attest final display times."
+  },
+  "provenance_requirements": {
+    "base_tag": "astra-handoff-20261020",
+    "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "source_commit_and_build_identity": "Record actual local source commit, clean/dirty status, build configuration, shader artifact/source hashes, AMD provider binary/API/version and native route attestation.",
+    "capture_identity": "Original capture UUID and capture.json SHA256, source-relative filenames, every full source file SHA256, exact crop raw-byte SHA256 and export NPZ/array SHA256.",
+    "ordering": "Original capture, Streamline and SDK frame indices, recording_id, recording_generation, context_generation/domain and reset flags. Preserve actual chronological order.",
+    "metadata": "Copy full original frame_parameters, settings, provider controls, provider_radiance_scales, raw/selected resource alias roles, native_control_header including unknown-word status, source native resource descriptions, crop and copy footprints. No private machine path is needed.",
+    "formats": "Preserve original little-endian words, alpha and signed zero; no colour conversion, half re-store, averaging, tone mapping or clipping in tensor export. Load NPZ with allow_pickle=False."
+  },
+  "missing_observables": [
+    {
+      "roles": [
+        "input_diffuse",
+        "input_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "RecordBridgeOwned sources0/1, after current native raw decode and optional Anchor, before optional turn processing and provider radiance scaling; identify actual source routing in metadata.",
+      "units": "Restored native linear RGB treated as demodulated by bridge; alpha is native hit-distance payload. Upstream exposure/modulation calibration remains unverified.",
+      "why": "Locate bright/lagging or sparse support before RR. Input alpha already exists in the short fixture; the missing observation is longer chronology and its source provenance, not alpha itself.",
+      "hypotheses": [
+        "H1_source_support",
+        "H3_virtual_correspondence",
+        "H4a_provider_history"
+      ]
+    },
+    {
+      "roles": [
+        "raw_rr_diffuse",
+        "raw_rr_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Owned provider output after RGB scale restoration, before optional lobe/flat recovery; snapshot.rawDiff/rawSpec.",
+      "units": "Restored native linear RGBA; preserve output alpha without interpreting it as the original hit.",
+      "why": "Determine whether an additional tail first appears before selected NZR; stored RR output is not converged truth.",
+      "hypotheses": [
+        "H1_source_support",
+        "H4a_provider_history",
+        "H4b_selected_history"
+      ]
+    },
+    {
+      "roles": [
+        "selected_rr_diffuse",
+        "selected_rr_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Snapshot.selectedDiff/selectedSpec after lobe recovery and FlatAlbedoRecovery::RecordOutput, before CommitOwned; preserve alias map.",
+      "units": "Restored native linear RGBA; actual selected working output, not a reference image.",
+      "why": "Localize an added difference to selected recovery while holding source, transport, frame and denominator fixed.",
+      "hypotheses": [
+        "H4b_selected_history",
+        "H5_composition"
+      ]
+    },
+    {
+      "roles": [
+        "input_motion"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "RecordBridgeOwned providerMotion, including actual G3 substitution if active.",
+      "units": "RG full-render UV current-to-previous with camera/raster jitter already included; B signed previous-minus-current linear view-Z or explicit G3 rejection sentinel; A preserved.",
+      "why": "Test actual provider transport and separate outside-crop support from real motion. Record B provenance rather than treating every B as geometric truth.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H4a_provider_history"
+      ]
+    },
+    {
+      "roles": [
+        "surface_motion_original"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Optional additional owned copy of input.motion before LightingGuard replaces providerMotion; required if G3 is active and this original is available locally.",
+      "units": "Same RG/B convention before G3. Preserve native/camera-only/unknown B provenance when available.",
+      "why": "Discriminate a source transport error from a deliberate G3 B rejection. If not captured in original data, mark missing; do not reconstruct it from provider output.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H4a_provider_history"
+      ],
+      "optional_if_proven_identical_or_g3_inactive": true
+    },
+    {
+      "roles": [
+        "input_depth"
+      ],
+      "bytes_per_pixel": 4,
+      "format": "R32_FLOAT",
+      "numpy_dtype": "<f4",
+      "channels": 1,
+      "stage": "Owned converted signed linear depth used by the provider.",
+      "units": "Signed view-space Z in native scene units; record handedness and near/far bounds.",
+      "why": "Lighting-independent geometry witness; no same-surface inference solely from a self-fulfilling previous-visible-depth sample.",
+      "hypotheses": [
+        "H1_source_support",
+        "H2_surface_transport",
+        "H3_virtual_correspondence"
+      ]
+    },
+    {
+      "roles": [
+        "input_normal_roughness",
+        "recovery_original_normal_roughness"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R10G10B10A2_UNORM",
+      "numpy_dtype": "<u4",
+      "channels": 1,
+      "stage": "Actual provider guide and original owned guide before FlatAlbedo roughness floor. If they alias, record the alias and transmit one copy.",
+      "units": "RG octahedral world-space normal in bits0..19; linear roughness bits20..29; category bits30..31, not a semantic object class.",
+      "why": "Check surface transport independent of lobe radiance and distinguish guide preparation from original roughness. Rotation and mixed boundaries remain confounds.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H3_virtual_correspondence",
+        "H4b_selected_history"
+      ]
+    },
+    {
+      "roles": [
+        "input_diffuse_albedo",
+        "input_specular_albedo"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R8G8B8A8_UNORM",
+      "numpy_dtype": "u1",
+      "channels": 4,
+      "stage": "Actual owned albedo resources passed in the provider descriptor; existing native trace roles.",
+      "units": "Linear native material guides Qd/Qs; preserve alpha and provenance. Exact final Consumer remodulation is separately requested.",
+      "why": "Required for faithful native provider replay and to avoid attributing a material/domain difference to support history.",
+      "hypotheses": [
+        "H3_virtual_correspondence",
+        "H4a_provider_history",
+        "H5_composition"
+      ]
+    },
+    {
+      "roles": [
+        "encoded_commit_diffuse",
+        "encoded_commit_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "CompleteBridgeFrame after same owned transaction successfully commits, before original Consumer.",
+      "units": "Actual RGB or YCoCg according to captured Consumer encoding flag. Title destination alpha is opaque and retained.",
+      "why": "Separate bridge encoding from later game composition; do not treat this as final game output.",
+      "hypotheses": [
+        "H5_composition"
+      ]
+    }
+  ],
+  "metadata_observations": [
+    {
+      "name": "provider_controls",
+      "format": "46 little-endian uint32 words /184 bytes",
+      "stage": "Exact dispatch suffix at byte264 of448-byte descriptor; original bit patterns.",
+      "layout": {
+        "float_words0_2": "motionVectorScale",
+        "float_words3_4": "jitterOffsets in pixels",
+        "float_words5_7": "previous minus current camera position",
+        "float_words8_23": "provider view matrix",
+        "float_words24_39": "provider projection matrix",
+        "float_words40_41": "linearDepthBounds",
+        "uint_words42_43": "render extent",
+        "uint_word44": "provider frame index",
+        "uint_word45": "flags (bit0 reset, bit1 non-gamma albedo)"
+      }
+    },
+    {
+      "name": "frame_parameters_and_settings",
+      "format": "Original typed JSON plus uint32 IEEE754 words",
+      "stage": "FSRDGameTraceBridgeMetadata::Frame/Settings and recorded output metadata.",
+      "required": [
+        "view",
+        "projection",
+        "previous camera/jitter",
+        "matrix conventions",
+        "motion conventions/provenance",
+        "D/S radiance factors",
+        "G2/G3 requested/effective controls and activity",
+        "NZR Temporal and Reflection History independently",
+        "RR Fallback",
+        "Diffuse RR",
+        "flat roughness/strength",
+        "glass blend",
+        "resource alias roles",
+        "native decode profile and checkerboard modes if available",
+        "recording/context/domain identity",
+        "actual reset flags",
+        "timestamps and clock frequency"
+      ]
+    },
+    {
+      "name": "consumer_modulation_exposure",
+      "format": null,
+      "stage": "Original title Consumer/composition operands associated with the encoded commit.",
+      "status": "No known universally sufficient compact ABI in this package; local extractor must identify actual factors and units, report source offsets/provenance, and mark unknown fields null instead of assuming final energy equals pre-remod lobe sum.",
+      "why": "Separate H5 from source-domain occupancy; source contract explicitly does not attest material modulation or upstream exposure."
+    },
+    {
+      "name": "independent_geometry_or_feature_witness",
+      "format": "Small frame-indexed JSON, plus optional immutable bool masks within metadata budget",
+      "stage": "Independently labelled silhouette/feature tracks from same-pose geometry/final reference, not thresholded candidate radiance.",
+      "status": "Required to call a source footprint physically wrong rather than merely bright/sparse. If unavailable, retain H1/H3 non-identifiability. Existing speed mask includes hand/arm.",
+      "maximum_bytes": 524288
+    }
+  ],
+  "proposed_local_extraction": [
+    "Read the existing source capture manifest; verify its UUID/source manifest hash and original consecutive frame metadata. Preview whether168..207 contains approach/motion/settle before committing to that interval.",
+    "Read the original owned input/raw/selected/encoded payloads for the fixed strip. Verify full source payload hashes first. Preserve original words and source-relative filenames; do not recalculate radiance, motion, normal or alpha.",
+    "Reuse the existing trace copy and export contract; export typed arrays and full per-frame metadata, retaining role aliases. Include original motion only if it was actually observed; missing data must remain null/absent with a reason.",
+    "Compute original-file, crop-byte, array and archive SHA256. Use allow_pickle=False-compatible arrays and no private machine paths.",
+    "If missing observations are not in the original capture, request one new bounded unlooped capture under GPU_REQUEST.json. Do not guess missing tensors from the seven-frame crop or patch its baseline files."
+  ],
+  "payload": {
+    "tensor_formula": "width * height * frames * sum(bytes_per_pixel_by_role_group)",
+    "maximum_width_height_product": 108416,
+    "preferred_frames": 40,
+    "maximum_frames": 48,
+    "maximum_bytes_per_pixel": 100,
+    "preferred_uncompressed_tensor_bytes": 433664000,
+    "maximum_uncompressed_tensor_bytes": 520396800,
+    "metadata_maximum_bytes": 2097152,
+    "maximum_useful_primary_payload_bytes": 536870912,
+    "maximum_tensor_plus_metadata_bytes": 522493952,
+    "compression": "Lossless NPZ/ZIP permitted; cap is on uncompressed useful payload, not a promise about compression ratio.",
+    "alias_policy": "Do not duplicate aliased raw/selected/normal resources; retain explicit alias metadata and hashes.",
+    "row_pitch_policy": "Export rows tightly packed after fence-protected mapping. Record original resource row pitch/stride separately; padding is not requested.",
+    "original_gpu_row_pitch_bytes": null,
+    "original_gpu_row_pitch_reason": "Must be taken from each actual CopyFootprintMetadata; not inferred from packed export width.",
+    "no_extra_payload": "Do not upload full full-resolution renders, DLLs, replay caches, opaque provider histories or unrelated captures."
+  },
+  "final_clip_separate": {
+    "requested": true,
+    "same_source_window": true,
+    "crop": {
+      "origin_render_xy": [
+        688,
+        0
+      ],
+      "extent_xy": [
+        128,
+        847
+      ]
+    },
+    "stage": "Actual final title/upscaler output after Consumer, distinct from encoded commit.",
+    "format": "Lossless same-crop RGB frame sequence with original timestamps preferred; alternatively same-crop lossless video plus exact frame-index mapping.",
+    "actual_display_format": null,
+    "transfer_function": null,
+    "exposure": null,
+    "fps": null,
+    "unknown_fields_instruction": "Read and report actual output format/transfer, exposure, tone-map settings and frame timing. Preserve each panel aspect/exposure; no independently normalized frames.",
+    "maximum_frames": 48,
+    "maximum_payload_bytes": 33554432,
+    "why": "H5 and final apparent shape cannot be resolved from pre-remod/encoded tensors. If final frames cannot be exactly keyed, retain the mismatch as uncertainty."
+  },
+  "competing_outcomes": [
+    {
+      "observation": "Independent geometry aligns with declared MV; source occupancy already lags or is intermittent before RR.",
+      "supports": "H1_source_support; distinguish stochastic missing samples from systematic delay using chronology and fixed support.",
+      "does_not_prove": "The source footprint is physically wrong without independent silhouette/feature truth."
+    },
+    {
+      "observation": "Opaque/geometry witness fails with declared MV and passes with an independently attested transport.",
+      "supports": "H2_surface_transport.",
+      "does_not_prove": "Radiance self-alignment alone is sufficient; it can prefer an incorrect MV."
+    },
+    {
+      "observation": "Surface/diffuse witness aligns while reflected feature follows another independently measured trajectory.",
+      "supports": "H3_virtual_correspondence.",
+      "does_not_prove": "Generic hit-distance-as-depth projection works for curved/moving reflectors."
+    },
+    {
+      "observation": "Current source and geometric witness are correct but additional tail first appears in raw RR.",
+      "supports": "H4a_provider_history as a candidate requiring controlled same-input isolation.",
+      "does_not_prove": "A darker reset output is a shape improvement."
+    },
+    {
+      "observation": "Tail is absent in raw RR and first appears in selected output on identical fixed support.",
+      "supports": "H4b_selected_history.",
+      "does_not_prove": "Whole-crop selected differences belong to the moving bottle."
+    },
+    {
+      "observation": "Source and encoded supports agree but final display diverges with actual composition/exposure metadata.",
+      "supports": "H5_composition.",
+      "does_not_prove": "Unmatched or autoexposed video is a causal witness."
+    }
+  ],
+  "useful_work_completed_without_missing_data": [
+    "Portable explicit-coordinate support tracer, synthetic delayed-source versus wrong-MV interventions, conservative identity/abstention candidate and CPU tests.",
+    "Fixed-support chronological analysis of available bottle/foliage/facade data and bitwise raw/selected localization, without fabricating hidden history.",
+    "Native source/units/lobe/stage audit and exact diagnostic-only integration specification with source hashes.",
+    "Independent known-bad and blinded diagnostic review; final measured results are in RESULT.json and REPORT.md."
+  ],
+  "prohibited_shortcuts": [
+    "No crop clamping as history",
+    "No frame looping",
+    "No threshold/mask selected from candidate output",
+    "No global or automatic history reset as a fix",
+    "No roughness inflation or smoothing as a claimed shape correction",
+    "No assumption that alpha is missing or that it proves reflection geometry",
+    "No final-game or GPU acceptance claim from CPU synthetic results"
+  ]
+}

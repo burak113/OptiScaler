@@ -1,0 +1,91 @@
+{
+  "schema": "astra.job06.visual_evidence.v1",
+  "frames": [
+    {
+      "frame": 180,
+      "image": "bottle_f180.png",
+      "origin": [
+        688,
+        160
+      ],
+      "mask_pixels": 9275
+    },
+    {
+      "frame": 181,
+      "image": "bottle_f181.png",
+      "origin": [
+        688,
+        176
+      ],
+      "mask_pixels": 9430
+    },
+    {
+      "frame": 182,
+      "image": "bottle_f182.png",
+      "origin": [
+        688,
+        208
+      ],
+      "mask_pixels": 9560
+    },
+    {
+      "frame": 183,
+      "image": "bottle_f183.png",
+      "origin": [
+        688,
+        272
+      ],
+      "mask_pixels": 9864
+    },
+    {
+      "frame": 184,
+      "image": "bottle_f184.png",
+      "origin": [
+        688,
+        384
+      ],
+      "mask_pixels": 8730
+    },
+    {
+      "frame": 185,
+      "image": "bottle_f185.png",
+      "origin": [
+        688,
+        480
+      ],
+      "mask_pixels": 5479
+    },
+    {
+      "frame": 186,
+      "image": "bottle_f186.png",
+      "origin": [
+        688,
+        560
+      ],
+      "mask_pixels": 3114
+    }
+  ],
+  "source_archive_sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+  "display_gamma": 2.2,
+  "source_frame_duration_seconds": null,
+  "synchronized_by": "captured original frame index",
+  "exposure": {
+    "diffuse": 46.81387767914756,
+    "specular": 38.803166579332526
+  },
+  "threshold_native_luma": 0.001,
+  "support_operator": "threshold prior radiance then bilinear transport binary coverage; majority >0.5, mixed coverage remains an uncertainty proxy",
+  "row_order": [
+    "diffuse",
+    "specular"
+  ],
+  "column_order": [
+    "current input",
+    "transported previous input",
+    "raw RR",
+    "selected output",
+    "support overlap"
+  ],
+  "not_displayed": "Final title composition/video is not available; no simulated final image is substituted.",
+  "original_evidence_modified": false
+}

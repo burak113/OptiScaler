@@ -1,0 +1,178 @@
+{
+  "schema": "job06.independent_blind_scoring.v1",
+  "executor": "independent_skeptical_reviewer",
+  "gpu_executed": false,
+  "prediction_sha256": "89285b452a6d77d81c27f8a4d9b16afb64dc94fbba9d26a9f6f3173e301f9406",
+  "revealed_key_sha256": "5c69f858b3364f9d2ae4d3215d6d902ac05708a93b76e373f3e81fd682d881a0",
+  "identified_or_qualified_cases": 10,
+  "identified_broad_classes_consistent": 10,
+  "explicit_abstentions": 4,
+  "abstentions_consistent": 4,
+  "incorrect_broad_class_claims": 0,
+  "heldout_identified_cases": 5,
+  "observation_equivalent_cases_are_not_independent_trials": true,
+  "cases": [
+    {
+      "case_id": "case_01",
+      "frozen_prediction": "selected_stage_stale_support",
+      "prediction_status": "identified",
+      "injected_cause": "selected_tail",
+      "expected_observable_class": "selected_stage_tail",
+      "predicted_observable_class": "selected_stage_tail",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "A selected-stage temporal mix is supported; exact NZR policy would require stage state/weights."
+    },
+    {
+      "case_id": "case_02",
+      "frozen_prediction": "sparse_source_correct_motion",
+      "prediction_status": "identified",
+      "injected_cause": "sparse_source",
+      "expected_observable_class": "sparse_source_no_motion_blame",
+      "predicted_observable_class": "sparse_source_no_motion_blame",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Do not blame motion or interpret sparse zeroes as absent geometry. Noise process details are not identifiable from this finite sample."
+    },
+    {
+      "case_id": "case_03",
+      "frozen_prediction": "surface_mv_bias",
+      "prediction_status": "identified",
+      "injected_cause": "mv_bias",
+      "expected_observable_class": "transport_error",
+      "predicted_observable_class": "transport_error",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "The transport error is identifiable; its upstream software cause is not."
+    },
+    {
+      "case_id": "case_04",
+      "frozen_prediction": "clean_control",
+      "prediction_status": "identified",
+      "injected_cause": "clean",
+      "expected_observable_class": "no_detected_support_error",
+      "predicted_observable_class": "no_detected_support_error",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "This certifies only supplied synthetic observations, not unseen history or final composition."
+    },
+    {
+      "case_id": "case_05",
+      "frozen_prediction": "virtual_correspondence_mismatch",
+      "prediction_status": "identified",
+      "injected_cause": "virtual_mismatch",
+      "expected_observable_class": "virtual_correspondence_error",
+      "predicted_observable_class": "virtual_correspondence_error",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Supplied analytic virtual coordinates distinguish this case. They are not inferable from real hit distance alone."
+    },
+    {
+      "case_id": "case_06",
+      "frozen_prediction": "delayed_or_misplaced_source_support",
+      "prediction_status": "identified",
+      "injected_cause": "source_delay",
+      "expected_observable_class": "source_support_error",
+      "predicted_observable_class": "source_support_error",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Source support is wrong before RR. This supports delay/misplacement, without uniquely proving a particular estimator or delay mechanism."
+    },
+    {
+      "case_id": "case_07",
+      "frozen_prediction": "multiplicative_level_only",
+      "prediction_status": "identified",
+      "injected_cause": "exposure_only",
+      "expected_observable_class": "no_detected_support_error",
+      "predicted_observable_class": "no_detected_support_error",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "A35% level reduction is not shape repair. It cannot identify display exposure without final composition metadata."
+    },
+    {
+      "case_id": "case_08",
+      "frozen_prediction": "alternating_surface_motion_error",
+      "prediction_status": "identified",
+      "injected_cause": "jitter_error",
+      "expected_observable_class": "transport_error",
+      "predicted_observable_class": "transport_error",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Compatible with jitter inclusion/sign error, but an alternating MV bias is observationally equivalent without explicit jitter metadata."
+    },
+    {
+      "case_id": "case_09",
+      "frozen_prediction": "raw_rr_stage_stale_support",
+      "prediction_status": "identified",
+      "injected_cause": "provider_tail",
+      "expected_observable_class": "provider_stage_tail",
+      "predicted_observable_class": "provider_stage_tail",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "Provider/internal-history-like retention is supported for this synthetic stage model, not proof of an AMD algorithm defect."
+    },
+    {
+      "case_id": "case_10",
+      "frozen_prediction": "untrusted_geometry_witness",
+      "prediction_status": "abstain",
+      "injected_cause": "wrong_guide",
+      "expected_observable_class": "non_identifiable",
+      "predicted_observable_class": "non_identifiable",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "Require an independently trusted geometry/trajectory witness; guide corruption versus motion error is not identifiable from an untrusted witness."
+    },
+    {
+      "case_id": "case_11",
+      "frozen_prediction": "zero_hit_distance_clean_observations",
+      "prediction_status": "identified_with_limit",
+      "injected_cause": "zero_hit_distance",
+      "expected_observable_class": "no_detected_support_error",
+      "predicted_observable_class": "no_detected_support_error",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "No observed transport or stage-support error. Do not reconstruct physical virtual motion from zero hit distance; production virtual-history causality remains unobservable."
+    },
+    {
+      "case_id": "case_12",
+      "frozen_prediction": "missing_independent_support_witness",
+      "prediction_status": "abstain",
+      "injected_cause": "missing_geometry",
+      "expected_observable_class": "non_identifiable",
+      "predicted_observable_class": "non_identifiable",
+      "broad_class_consistent": true,
+      "heldout": false,
+      "prediction_limit": "Raw equality alone cannot decide source-support fidelity or physical correspondence. Require trusted support/trajectory or geometry witness."
+    },
+    {
+      "case_id": "case_13",
+      "frozen_prediction": "observation_equivalent_undetermined",
+      "prediction_status": "abstain",
+      "injected_cause": "missing_samples_with_correct_motion",
+      "expected_observable_class": "non_identifiable",
+      "predicted_observable_class": "non_identifiable",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Source sparsity/delay versus missing physical support/geometry cannot be uniquely recovered from these tensors. The same observation must get the same diagnosis."
+    },
+    {
+      "case_id": "case_14",
+      "frozen_prediction": "observation_equivalent_undetermined",
+      "prediction_status": "abstain",
+      "injected_cause": "unobserved_source_delay_with_same_sparse_observation",
+      "expected_observable_class": "non_identifiable",
+      "predicted_observable_class": "non_identifiable",
+      "broad_class_consistent": true,
+      "heldout": true,
+      "prediction_limit": "Source sparsity/delay versus missing physical support/geometry cannot be uniquely recovered from these tensors. The same observation must get the same diagnosis."
+    }
+  ],
+  "limitations": [
+    "Broad observable classes match; this is not 14 independently identified physical causes.",
+    "The two identical-observation cases are one abstention stress test, not independent captures.",
+    "The alternating transport residual is compatible with jitter error or alternating MV bias; missing convention metadata prevents exact causality.",
+    "Source misplacement is observable before RR; the raw estimator and exact delay mechanism are not uniquely determined.",
+    "Zero hit distance prevents physical virtual projection even though synthetic virtual identities are independently provided.",
+    "Game clips lack the independent analytic support and identity witnesses used by the identifiable synthetic cases."
+  ]
+}
