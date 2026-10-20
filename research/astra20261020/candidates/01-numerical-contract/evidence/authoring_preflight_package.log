@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "<repo>/research/astra20261020/validate_package.py", line 39, in <module>
+    main()
+  File "<repo>/research/astra20261020/validate_package.py", line 34, in main
+    assert (path.parent / target).exists(), f"Broken link: {path.relative_to(ROOT)} -> {target}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Broken link: candidates/01-numerical-contract/REPORT.md -> evidence/run_records.json

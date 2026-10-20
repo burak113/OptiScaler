@@ -1,0 +1,130 @@
+{
+  "schema": "astra-gpu-request-v1",
+  "task_id": "03-native-colour",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "gpu_executed": false,
+  "candidate_quality_status": "keep_as_research; frozen quality gate failed; do not promote through integration-only tests",
+  "owner": "job08 and local owner",
+  "purpose": "A minimal native wiring/word/sampler-parity canary and reproduction of existing counterexamples, followed only if justified by fresh unlooped RR and calibrated final output",
+  "shader": {
+    "path": "shaders/NativeColourPacked.hlsl",
+    "entry_point": "CSMain",
+    "profile": "cs_6_2",
+    "compiler_requested": "project-audited DXC1.8",
+    "flags": ["-HV", "2021", "-Ges", "-Gis", "-O3"],
+    "enable_native_16bit_arithmetic": false,
+    "compiled_here": false,
+    "actual_compiler_sha256": null,
+    "cso_sha256": null
+  },
+  "adapter": "adapter/INTEGRATION_SPEC.md",
+  "candidate_constants": {
+    "enabled_default": false,
+    "enabled_canary": true,
+    "representation": "log",
+    "strength": 1.0,
+    "radius": 3,
+    "spatial_sigma": 2.0,
+    "depth_tolerance": 0.02,
+    "normal_cosine": 0.9,
+    "roughness_tolerance": 0.15,
+    "guide_chroma_radius": 0.35,
+    "max_log_delta": 0.22314355131420976,
+    "support_prior": 4.0,
+    "constant_buffer_bytes": 96,
+    "constant_buffer_slot_alignment_bytes": 256
+  },
+  "per_lobe_input_roles": [
+    {"name":"physical_noisy_input","format":"R16G16B16A16_FLOAT copied to raw packed-half buffer","units":"restored physical linear pre-remod RGB; original opaque alpha","source":"actual restored provider-physical lobe, including owned input-anchor source when applicable"},
+    {"name":"raw_rr","format":"R16G16B16A16_FLOAT copied to raw packed-half buffer","units":"restored physical pre-remod RGB; original alpha","source":"canonical raw lease slot, before recovery"},
+    {"name":"original_selected_rr","format":"R16G16B16A16_FLOAT copied to immutable packed-half buffer","units":"same physical domain; all original words preserved","source":"after NZR/lobe recovery and FlatAlbedo.RecordOutput"},
+    {"name":"depth","format":"R32_FLOAT","units":"signed original linear depth; zero/nonfinite invalid"},
+    {"name":"original_normal_roughness","format":"R10G10B10A2_UNORM","units":"oct RG, linear roughness B; no semantic material assumption"},
+    {"name":"explicit_authority","format":"R8_UINT or R32_UINT","units":"validated boolean policy independent of alpha; no reliable recovery override assumed"}
+  ],
+  "outputs": [
+    {"name":"private_selected_lobe","format":"R16G16B16A16_FLOAT","initialization":"exact original selected bit copy; packed integer RGB update; every alpha word retained"},
+    {"name":"diagnostics","format":"R32G32B32A32_FLOAT","channels":["eligible","supported","confidence","effective_spatial_samples"]}
+  ],
+  "extent_and_stride": {
+    "active_extent_distinct_from_allocation": true,
+    "packed_bytes_per_pixel": 8,
+    "row_pitch": "actual GetCopyableFootprints result for each allocation; validate, do not assume width*8",
+    "footprint_offset_alignment_bytes": 512,
+    "selected_output_footprint_layout_must_match": true,
+    "address_range": "all byte offsets plus final accessed word fit uint32",
+    "actual_row_pitches": null,
+    "actual_allocation_padding": null
+  },
+  "cases": [
+    {
+      "id":"native_on_word_canary",
+      "active_extent_wh":[67,53],
+      "allocation_extent_wh":[73,59],
+      "render_crop_origin_xy":[0,0],
+      "frames":[0,1,2,3],
+      "startup":"fresh recording/context, explicit reset; candidate stateless",
+      "input_recipe":"source RGB(0.45,0.32,0.25), raw RGB(0.35,0.32,0.32), depth10, normal(0,0,1), roughness0.2; quantize RGB once to half, authority true except one stripe; selected equals raw except ULP/alpha-only protected stripes",
+      "alpha_payloads_hex16":["0000","8000","3c00","7e01","7e55"],
+      "require":"actual native selected resources/SRVs both change on ON; correction nonzero with alpha0; OFF output all words equal; protected RGBA and all alpha word differences exactly0; allocation padding pixels unchanged; force-OFF and broken-gate mutants must be caught"
+    },
+    {
+      "id":"all_phase_boundaries_and_small_chroma_counterexample",
+      "active_extent_wh":[64,40],
+      "cpu_generator":"review/independent_checks.py:edge_scene and review/low_contrast_probe.py",
+      "frames":"fresh independent static cases plus eight chronological moving frames",
+      "phases_pixels":[0,1,2,3,4,5,6,7],
+      "angles_degrees":[0,27,45,73,90],
+      "pairs":["equal-Y red/blue","equal-Y green/magenta","frozen low-contrast palette in review/low_contrast_probe_protocol.json"],
+      "guides":["normal-only edge","depth-only edge","roughness edge","same geometry different colour"],
+      "thin_widths_pixels":[1,2,3],
+      "baseline_candidate_pairs":["B4 vs rejected soft2","original selected vs frozen log","frozen log vs linear"],
+      "require":"retain maximum boundary contamination and worst phase, including known small-contrast failure; do not accept an aligned/large-contrast-only panel"
+    },
+    {
+      "id":"native_units_and_selection_order",
+      "extent":"same odd-size canary and one real recorded crop",
+      "provider_scales_requested_for_asymmetric_canary":{"diffuse":16,"specular":256},
+      "actual_effective_capture_scales":null,
+      "require":"record scales and restoration order; raw/selected/source all physical at candidate input; selected raw gate made after all recovery, before colour; GetOwnedOutputSnapshot pointer pair and Context::SetCommitInputs descriptors agree; original G3 domain retained"
+    },
+    {
+      "id":"fresh_chronological_rr_and_final_observation",
+      "capture":"87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "rr_startup":"replay original chronology0..65 once from fresh context; collect43..65 only, never loop frame63 or bootstrap from exported partial clip",
+      "measurement_crop_origin_render_xy":[749,420],
+      "measurement_crop_extent_wh":[198,70],
+      "inner_original_crop_origin_render_xy":[752,423],
+      "inner_original_crop_extent_wh":[192,64],
+      "original_render_extent_wh":[1505,847],
+      "provider_controls":"preserve original46 uint32 control words, camera words, frame indices and chronology",
+      "pairs":["protected user preset + new colour OFF","same preset + frozen log ON"],
+      "final_output_stage_and_mapping":null,
+      "require":"record actual AMD provider and final same-crop calibrated scene/display output with exposure/timing/remod metadata; confirm pink-trail correction, grain/sparkle/flicker and text/detail separately; CPU score cannot substitute"
+    }
+  ],
+  "precision_tolerances": {
+    "protected_RGBA_and_all_alpha_changed_words":0,
+    "OFF_or_inactive_changed_words":0,
+    "CPU_GPU_RGB_initial_reporting":"report max,p99,mean and half-ULP histogram; initial synthetic parity target<=2 local FP16 ULP plus2^-24 absolute subnormal step, any violation requires investigation not threshold widening",
+    "luma":"pre-store float32 closure tested separately; post-RTZ absolute envelope2^-10*Y+2^-24 plus4*float32_epsilon*Y, no universal small relative bound near zero",
+    "sampler":"candidate uses integer pixel loads; do not silently change portable ideal B4 sampler to a claimed universal device sampler",
+    "native_quality":"must re-evaluate noise and correction jointly; current frozen CPU quality failed"
+  },
+  "d3d_debug_and_lifetime_checks":["zero resource-state/descriptor debug errors","copy footprint format/alignment/range checked","no SRV/UAV input-output alias","same device/context-generation/frame/recording identity","retained-flight buffer/constant/descriptor ownership","guarded CommitOwned has no new allocation","abandonment leaves original selection and releases only after safe lifetime","shared family budget accounts every owned resource and retained recording"],
+  "analytic_cost": {
+    "compute_dispatches_DS":2,
+    "max_taps_per_pixel_per_lobe":49,
+    "copy_operations_DS":10,
+    "incremental_unpadded_bytes_per_allocation_pixel_DS":80,
+    "diagnostic_incremental_unpadded_bytes_per_allocation_pixel_DS":112,
+    "history_bytes":0,
+    "measured_gpu_ms":null,
+    "measured_allocated_bytes":null,
+    "measured_resident_vram_bytes":null,
+    "timing_request":"paired OFF/ON/sham timestamps around copies+compute+commit separately, fresh AMD RR total separately; median/p90, GPU/driver/clock/resolution and sample count recorded; no CPU timing converted to GPU time"
+  },
+  "visual_failure_criteria":["pink/chroma trail remains or correction weakens below useful dose","added fine chroma grain, isolated sparkles or flicker","unchanged-side tint at any phase","thin/text/detail contrast loss","protected NZR appearance changes","final remod composite luminance/colour changes not predicted by lobe-only tests"],
+  "deployment_authorized_by_this_request":false
+}

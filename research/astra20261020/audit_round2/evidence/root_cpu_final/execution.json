@@ -1,0 +1,329 @@
+{
+  "schema": "astra-local-audit-cpu-v1",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.14",
+  "runner_sha256": "d77c7b225cf42d4ef78282120d93074fa37b4e292a81487fc8abb71af9260577",
+  "intake_files": 559,
+  "intake_unchanged_after_execution": true,
+  "commands": [
+    {
+      "name": "frozen_package",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\validate_package.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.7828427999629639,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "364d30ad8ebfbb0158811c3b8406141d06a4cde6ddf3b0839d81141c3aca8c03"
+    },
+    {
+      "name": "four_baselines",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\run_cpu.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 7.978285400022287,
+      "unittest_count": 7,
+      "passed": true,
+      "log_sha256": "b62f67ec4318e685745ad4794fb72c7d97b399852cc3865c598313c13625eeb1"
+    },
+    {
+      "name": "01-numerical-contract",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 15.025718200020492,
+      "unittest_count": 125,
+      "passed": true,
+      "log_sha256": "e6e5c114934b899d078e8c080f6859713e6c0a881e7cbfbf3b2924cc81779994"
+    },
+    {
+      "name": "02-anchor-estimator",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\02-anchor-estimator\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.447797900007572,
+      "unittest_count": 14,
+      "passed": true,
+      "log_sha256": "2d12c88e38acda422754ec0af5b0f362dd4cf776918096c47bda133c38e1810c"
+    },
+    {
+      "name": "03-native-colour",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\03-native-colour\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.8768039999995381,
+      "unittest_count": 24,
+      "passed": true,
+      "log_sha256": "da2e65cd08fc8624e5dbf0b9a9e15705c2c1efc77db8c1018bb4945a089d1196"
+    },
+    {
+      "name": "04-geometry-transport",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\04-geometry-transport\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.5335664000012912,
+      "unittest_count": 55,
+      "passed": true,
+      "log_sha256": "285ee69eeb267f6e3bf4af2bd2a7cb1c3b2d6e343fc82fc4a3e8efe8fdf6f753"
+    },
+    {
+      "name": "05-glass-nzr",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.620595400047023,
+      "unittest_count": 35,
+      "passed": true,
+      "log_sha256": "fd2780b82c448c996737317357b79b1ecc0c25a5231606183f9346aa911542a9"
+    },
+    {
+      "name": "06-moving-bottle",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\06-moving-bottle\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.5803155999747105,
+      "unittest_count": 41,
+      "passed": true,
+      "log_sha256": "72aa843430ab6439c733b2c8876ea703cb951950142bd4c4f16bae18af27458b"
+    },
+    {
+      "name": "07-foliage-guides",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\07-foliage-guides\\tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 3.040983100014273,
+      "unittest_count": 36,
+      "passed": true,
+      "log_sha256": "ec727064477658e396383ce2640c1df7e9d4e5386ea8d9b6db82c7b99e5792ee"
+    },
+    {
+      "name": "anchor_independent",
+      "arguments": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "<repo>\\research\\astra20261020\\candidates\\02-anchor-estimator\\reviewer",
+        "-p",
+        "test_independent_audit.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.5426761999842711,
+      "unittest_count": 12,
+      "passed": true,
+      "log_sha256": "7eba53a2bbb9ba0054b874a3924913eb3735d730ec862d72f2204cabdee16d84"
+    },
+    {
+      "name": "portable_adapters",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\audit_round2\\verify_adapters.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.7218768000020646,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "8d1a08fa103949850bf8d5a32ff9a2b84b7c9effff5a28a0212952f38f84aea3"
+    },
+    {
+      "name": "numerical_adversary_controls",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\adversary_controls.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.22029219998512417,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "6c1d3f94cd8265b7f06489f2c0f01094714deec5ffc8643554e4aff60c7ef72c"
+    },
+    {
+      "name": "reject_wrong_uv",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\mutants.py",
+        "wrong_uv"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.3606762000126764,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "3895e5a6fc610efe878dce77ad879f9105c2744825e28962bba5ac97378cc883"
+    },
+    {
+      "name": "reject_nearest",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\mutants.py",
+        "nearest"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.3399172999779694,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "706c9b4fa3f1c603db9b7f47741895ab2ce7fb9ac7a93a8563ca4995e26aead6"
+    },
+    {
+      "name": "reject_old_normal",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\mutants.py",
+        "old_normal"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.20835589995840564,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "2b5d5f90e5710f890350edea5993c1ca1e845be703dc195e53adf72c7fe7303a"
+    },
+    {
+      "name": "reject_missing_high",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\mutants.py",
+        "missing_high"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.2136008000234142,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "543937547e708d35a3076b17fe7a42f6a2d298f0416254efca55038e62131413"
+    },
+    {
+      "name": "reject_premature_rounding",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\mutants.py",
+        "premature_rounding"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.34461889998055995,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "0dc47dd4a37204a261557bfb47d252a26023a697ef412fc8e498632a662f4ea0"
+    },
+    {
+      "name": "glass_bundle_utf8",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\verify_bundle.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.2723478000261821,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "6219846ecd7cdc8feb4a6662fa8ee89de05adbbd569ae666ed3f367bde05c9e3"
+    },
+    {
+      "name": "glass_mutation-alpha",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\tests\\test_review_adversarial.py",
+        "--mutation-alpha"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.356948199972976,
+      "unittest_count": 1,
+      "passed": true,
+      "log_sha256": "fcb510f0f8d5dadddc91ff7f140bbfa3facba521343e55c2e14581ea84e8428d"
+    },
+    {
+      "name": "glass_measurements",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\tests\\test_review_adversarial.py",
+        "--measurements"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.4736999000306241,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "18a680e3924f85d5cd3c1bc436496cc76d9133f9b148f2ea0616904fa8a0d5f8"
+    },
+    {
+      "name": "glass_audit-holdout",
+      "arguments": [
+        "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\tests\\test_review_adversarial.py",
+        "--audit-holdout"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.25789170002099127,
+      "unittest_count": null,
+      "passed": true,
+      "log_sha256": "759e43ec21f2cb69610ef02cca4cd77b46d0e180f549e6f092b04e48e092bad3"
+    }
+  ],
+  "passed": true,
+  "quality_accepted": false,
+  "gpu_executed": false
+}

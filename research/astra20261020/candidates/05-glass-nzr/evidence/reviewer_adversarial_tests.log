@@ -1,0 +1,16 @@
+test_changed_colour_and_moderate_light_have_current_frame_response (__main__.IndependentAdversarialTests.test_changed_colour_and_moderate_light_have_current_frame_response) ... ok
+test_correlated_noise_requires_honest_independence_evidence (__main__.IndependentAdversarialTests.test_correlated_noise_requires_honest_independence_evidence) ... ok
+test_crossed_geometry_and_partial_eligible_blocks_abstain (__main__.IndependentAdversarialTests.test_crossed_geometry_and_partial_eligible_blocks_abstain) ... ok
+test_drs_odd_extent_and_new_view_have_no_stale_border (__main__.IndependentAdversarialTests.test_drs_odd_extent_and_new_view_have_no_stale_border) ... ok
+test_existing_glass_strength_is_nzr_fraction_and_off_keeps_policy (__main__.IndependentAdversarialTests.test_existing_glass_strength_is_nzr_fraction_and_off_keeps_policy) ... ok
+test_identical_observations_cannot_certify_glint_and_sparkle_truth (__main__.IndependentAdversarialTests.test_identical_observations_cannot_certify_glint_and_sparkle_truth) ... ok
+test_low_count_newly_visible_invalid_and_reset_abstain (__main__.IndependentAdversarialTests.test_low_count_newly_visible_invalid_and_reset_abstain) ... ok
+test_moving_thin_sign_block_phase_counterexample_is_detected (__main__.IndependentAdversarialTests.test_moving_thin_sign_block_phase_counterexample_is_detected) ... ok
+test_off_and_missing_uncertainty_preserve_float_bits (__main__.IndependentAdversarialTests.test_off_and_missing_uncertainty_preserve_float_bits) ... ok
+test_raw_output_alpha_bits_and_read_only_inputs_are_protected (__main__.IndependentAdversarialTests.test_raw_output_alpha_bits_and_read_only_inputs_are_protected) ... ok
+test_zero_noise_retains_thin_signal (__main__.IndependentAdversarialTests.test_zero_noise_retains_thin_signal) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.256s
+
+OK

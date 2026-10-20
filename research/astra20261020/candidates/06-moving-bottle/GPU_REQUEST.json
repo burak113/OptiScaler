@@ -1,0 +1,497 @@
+{
+  "schema": "fsrd.astra.gpu_request.v1",
+  "task_id": "06-moving-bottle",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "status": "not_executed_local_owner_gate",
+  "gpu_executed": false,
+  "amd_rr_executed": false,
+  "native_build_executed": false,
+  "final_game_observed": false,
+  "candidate": "Read-only support diagnosis and explicit abstention with identity image handoff; no image repair or production shader proposed.",
+  "recommendation": "keep_as_research",
+  "purpose": "First resolve real bottle stage/support provenance; preserve current image pipeline. Only then consider any production candidate.",
+  "adapter_specification": "adapter/ADAPTER_SPEC.md",
+  "compiler": {
+    "new_hlsl_proposed": false,
+    "profile": null,
+    "entry_point": null,
+    "flags": null,
+    "generated_bytecode": null,
+    "status": "Not applicable to the CPU/read-only candidate. Any later job08-only diagnostic hook must be built and attested locally; existing generated headers are not a new build claim."
+  },
+  "priority0_existing_data_export": {
+    "request": "BLOCKED_DATA_REQUEST.json",
+    "new_gpu_execution_required": false,
+    "instruction": "Inspect existing2405579e raw capture/manifest first and export only the bounded requested roles. Run the CPU tracer on those exported bytes; do not manufacture an AMD replay from incomplete seven-frame clips."
+  },
+  "actual_native_route": {
+    "required": "Real native NRD bridge with actual AMD RR provider; no combined-path substitute, mock provider, standalone analytic shader or stored GPU receipt relabelled as this execution.",
+    "native_profile": null,
+    "profile_reason": "Read actual A_Recon_direct or B_PrePass route from local attestation/native_control_header; not available in compact clip metadata.",
+    "record_order": [
+      "Native owned raw snapshot and geometry preparation",
+      "Same-frame surface motion finalization",
+      "Late Consumer RawSignalSnapshotPass::Decode",
+      "RRWrapper::RecordOwnedImpl input graph preparation",
+      "G3 provider-motion substitution with original source D/S",
+      "Optional FlatAlbedo RecordInputs",
+      "D16/S256 radiance scaling",
+      "Actual AMD FfxApiProxy::D3D12_Dispatch (DirectDiffuse then IndirectSpecular)",
+      "Restore RGB scales",
+      "Lobe recovery Record and FlatAlbedo RecordOutput",
+      "GetOwnedOutputSnapshot / RecordBridgeOwned copies",
+      "CommitOwned under same live transaction",
+      "CompleteBridgeFrame encoded copies before original Consumer",
+      "Separate actual final game output capture"
+    ],
+    "sources": [
+      "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp:2161-2189,2269-2287",
+      "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp:1297-1712",
+      "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp:2016-2190,2302-2379"
+    ]
+  },
+  "window": {
+    "preferred_existing_capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+    "preferred_source_frame_indices_inclusive": [
+      168,
+      207
+    ],
+    "preferred_consecutive_frames": 40,
+    "approach_motion_settle_containment_verified": false,
+    "selection_instruction": "Inspect the original capture manifest and preview first. Use frames168..207 only if they contain approach, motion and settle. Otherwise select and report one new consecutive window of at most48 frames; do not splice phases or loop frames.",
+    "maximum_consecutive_frames": 48,
+    "render_extent_xy": [
+      1505,
+      847
+    ],
+    "render_extent_policy": "These are known dimensions for the existing capture. If a new capture uses another render extent, record its actual per-frame values and revalidate coordinate transforms; do not relabel its pixels as1505x847.",
+    "roi_origin_render_xy": [
+      688,
+      0
+    ],
+    "roi_extent_xy": [
+      128,
+      847
+    ],
+    "roi_pixels": 108416,
+    "crop_policy": "Prefer the original fixed128x847 vertical strip, which avoids the seven-frame moving-crop ambiguity. If local preview shows the bottle leaves this strip, choose a single fixed crop with at most108416 pixels; record actual origin/extent rather than clamping or omitting object support.",
+    "prior_history": "Original captured RR output retains the original unseen provider history. The exported first frame has no exported previous image and must be marked unsupported; do not reset or loop to fabricate history.",
+    "frame_time_seconds": null,
+    "frame_time_status": "Read actual per-frame recording QPC/timestamp and its frequency from local capture metadata. The seven-frame fixture does not attest final display times."
+  },
+  "protected_settings": {
+    "radiance_scale": {
+      "enabled": true,
+      "diffuse": 16,
+      "specular": 256
+    },
+    "G2": {
+      "preserve_enabled": true,
+      "exact_effective_parameters": null,
+      "parameter_policy": "Record actual working values; do not substitute guessed numeric defaults."
+    },
+    "G3": {
+      "preserve_enabled": true,
+      "exact_effective_parameters": null,
+      "parameter_policy": "Record actual working values/activity; retain original and provider B separately if captured."
+    },
+    "NZR": {
+      "temporal": false,
+      "rr_fallback": true,
+      "diffuse_rr": true,
+      "reflection_history": true,
+      "glass_blend": "Preserve actual working choice; record0.5/0.75 or other exact effective value rather than assuming.",
+      "other_parameters": null
+    },
+    "new_experiments_default_off": true,
+    "anchor": false,
+    "postflick": false,
+    "colourtrack": false,
+    "old_turn_filters": false,
+    "automatic_merge_or_install": false
+  },
+  "input_roles_and_formats": [
+    {
+      "roles": [
+        "input_diffuse",
+        "input_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "RecordBridgeOwned sources0/1, after current native raw decode and optional Anchor, before optional turn processing and provider radiance scaling; identify actual source routing in metadata.",
+      "units": "Restored native linear RGB treated as demodulated by bridge; alpha is native hit-distance payload. Upstream exposure/modulation calibration remains unverified.",
+      "why": "Locate bright/lagging or sparse support before RR. Input alpha already exists in the short fixture; the missing observation is longer chronology and its source provenance, not alpha itself.",
+      "hypotheses": [
+        "H1_source_support",
+        "H3_virtual_correspondence",
+        "H4a_provider_history"
+      ]
+    },
+    {
+      "roles": [
+        "raw_rr_diffuse",
+        "raw_rr_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Owned provider output after RGB scale restoration, before optional lobe/flat recovery; snapshot.rawDiff/rawSpec.",
+      "units": "Restored native linear RGBA; preserve output alpha without interpreting it as the original hit.",
+      "why": "Determine whether an additional tail first appears before selected NZR; stored RR output is not converged truth.",
+      "hypotheses": [
+        "H1_source_support",
+        "H4a_provider_history",
+        "H4b_selected_history"
+      ]
+    },
+    {
+      "roles": [
+        "selected_rr_diffuse",
+        "selected_rr_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Snapshot.selectedDiff/selectedSpec after lobe recovery and FlatAlbedoRecovery::RecordOutput, before CommitOwned; preserve alias map.",
+      "units": "Restored native linear RGBA; actual selected working output, not a reference image.",
+      "why": "Localize an added difference to selected recovery while holding source, transport, frame and denominator fixed.",
+      "hypotheses": [
+        "H4b_selected_history",
+        "H5_composition"
+      ]
+    },
+    {
+      "roles": [
+        "input_motion"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "RecordBridgeOwned providerMotion, including actual G3 substitution if active.",
+      "units": "RG full-render UV current-to-previous with camera/raster jitter already included; B signed previous-minus-current linear view-Z or explicit G3 rejection sentinel; A preserved.",
+      "why": "Test actual provider transport and separate outside-crop support from real motion. Record B provenance rather than treating every B as geometric truth.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H4a_provider_history"
+      ]
+    },
+    {
+      "roles": [
+        "surface_motion_original"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "Optional additional owned copy of input.motion before LightingGuard replaces providerMotion; required if G3 is active and this original is available locally.",
+      "units": "Same RG/B convention before G3. Preserve native/camera-only/unknown B provenance when available.",
+      "why": "Discriminate a source transport error from a deliberate G3 B rejection. If not captured in original data, mark missing; do not reconstruct it from provider output.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H4a_provider_history"
+      ],
+      "optional_if_proven_identical_or_g3_inactive": true
+    },
+    {
+      "roles": [
+        "input_depth"
+      ],
+      "bytes_per_pixel": 4,
+      "format": "R32_FLOAT",
+      "numpy_dtype": "<f4",
+      "channels": 1,
+      "stage": "Owned converted signed linear depth used by the provider.",
+      "units": "Signed view-space Z in native scene units; record handedness and near/far bounds.",
+      "why": "Lighting-independent geometry witness; no same-surface inference solely from a self-fulfilling previous-visible-depth sample.",
+      "hypotheses": [
+        "H1_source_support",
+        "H2_surface_transport",
+        "H3_virtual_correspondence"
+      ]
+    },
+    {
+      "roles": [
+        "input_normal_roughness",
+        "recovery_original_normal_roughness"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R10G10B10A2_UNORM",
+      "numpy_dtype": "<u4",
+      "channels": 1,
+      "stage": "Actual provider guide and original owned guide before FlatAlbedo roughness floor. If they alias, record the alias and transmit one copy.",
+      "units": "RG octahedral world-space normal in bits0..19; linear roughness bits20..29; category bits30..31, not a semantic object class.",
+      "why": "Check surface transport independent of lobe radiance and distinguish guide preparation from original roughness. Rotation and mixed boundaries remain confounds.",
+      "hypotheses": [
+        "H2_surface_transport",
+        "H3_virtual_correspondence",
+        "H4b_selected_history"
+      ]
+    },
+    {
+      "roles": [
+        "input_diffuse_albedo",
+        "input_specular_albedo"
+      ],
+      "bytes_per_pixel": 8,
+      "format": "R8G8B8A8_UNORM",
+      "numpy_dtype": "u1",
+      "channels": 4,
+      "stage": "Actual owned albedo resources passed in the provider descriptor; existing native trace roles.",
+      "units": "Linear native material guides Qd/Qs; preserve alpha and provenance. Exact final Consumer remodulation is separately requested.",
+      "why": "Required for faithful native provider replay and to avoid attributing a material/domain difference to support history.",
+      "hypotheses": [
+        "H3_virtual_correspondence",
+        "H4a_provider_history",
+        "H5_composition"
+      ]
+    },
+    {
+      "roles": [
+        "encoded_commit_diffuse",
+        "encoded_commit_specular"
+      ],
+      "bytes_per_pixel": 16,
+      "format": "R16G16B16A16_FLOAT",
+      "numpy_dtype": "<f2",
+      "channels": 4,
+      "stage": "CompleteBridgeFrame after same owned transaction successfully commits, before original Consumer.",
+      "units": "Actual RGB or YCoCg according to captured Consumer encoding flag. Title destination alpha is opaque and retained.",
+      "why": "Separate bridge encoding from later game composition; do not treat this as final game output.",
+      "hypotheses": [
+        "H5_composition"
+      ]
+    }
+  ],
+  "constants_and_metadata": [
+    {
+      "name": "provider_controls",
+      "format": "46 little-endian uint32 words /184 bytes",
+      "stage": "Exact dispatch suffix at byte264 of448-byte descriptor; original bit patterns.",
+      "layout": {
+        "float_words0_2": "motionVectorScale",
+        "float_words3_4": "jitterOffsets in pixels",
+        "float_words5_7": "previous minus current camera position",
+        "float_words8_23": "provider view matrix",
+        "float_words24_39": "provider projection matrix",
+        "float_words40_41": "linearDepthBounds",
+        "uint_words42_43": "render extent",
+        "uint_word44": "provider frame index",
+        "uint_word45": "flags (bit0 reset, bit1 non-gamma albedo)"
+      }
+    },
+    {
+      "name": "frame_parameters_and_settings",
+      "format": "Original typed JSON plus uint32 IEEE754 words",
+      "stage": "FSRDGameTraceBridgeMetadata::Frame/Settings and recorded output metadata.",
+      "required": [
+        "view",
+        "projection",
+        "previous camera/jitter",
+        "matrix conventions",
+        "motion conventions/provenance",
+        "D/S radiance factors",
+        "G2/G3 requested/effective controls and activity",
+        "NZR Temporal and Reflection History independently",
+        "RR Fallback",
+        "Diffuse RR",
+        "flat roughness/strength",
+        "glass blend",
+        "resource alias roles",
+        "native decode profile and checkerboard modes if available",
+        "recording/context/domain identity",
+        "actual reset flags",
+        "timestamps and clock frequency"
+      ]
+    },
+    {
+      "name": "consumer_modulation_exposure",
+      "format": null,
+      "stage": "Original title Consumer/composition operands associated with the encoded commit.",
+      "status": "No known universally sufficient compact ABI in this package; local extractor must identify actual factors and units, report source offsets/provenance, and mark unknown fields null instead of assuming final energy equals pre-remod lobe sum.",
+      "why": "Separate H5 from source-domain occupancy; source contract explicitly does not attest material modulation or upstream exposure."
+    },
+    {
+      "name": "independent_geometry_or_feature_witness",
+      "format": "Small frame-indexed JSON, plus optional immutable bool masks within metadata budget",
+      "stage": "Independently labelled silhouette/feature tracks from same-pose geometry/final reference, not thresholded candidate radiance.",
+      "status": "Required to call a source footprint physically wrong rather than merely bright/sparse. If unavailable, retain H1/H3 non-identifiability. Existing speed mask includes hand/arm.",
+      "maximum_bytes": 524288
+    }
+  ],
+  "provenance_requirements": {
+    "base_tag": "astra-handoff-20261020",
+    "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "source_commit_and_build_identity": "Record actual local source commit, clean/dirty status, build configuration, shader artifact/source hashes, AMD provider binary/API/version and native route attestation.",
+    "capture_identity": "Original capture UUID and capture.json SHA256, source-relative filenames, every full source file SHA256, exact crop raw-byte SHA256 and export NPZ/array SHA256.",
+    "ordering": "Original capture, Streamline and SDK frame indices, recording_id, recording_generation, context_generation/domain and reset flags. Preserve actual chronological order.",
+    "metadata": "Copy full original frame_parameters, settings, provider controls, provider_radiance_scales, raw/selected resource alias roles, native_control_header including unknown-word status, source native resource descriptions, crop and copy footprints. No private machine path is needed.",
+    "formats": "Preserve original little-endian words, alpha and signed zero; no colour conversion, half re-store, averaging, tone mapping or clipping in tensor export. Load NPZ with allow_pickle=False."
+  },
+  "dimensions_stride_crop": {
+    "existing_render_extent_xy": [
+      1505,
+      847
+    ],
+    "requested_fixed_roi_origin_xy": [
+      688,
+      0
+    ],
+    "requested_roi_extent_xy": [
+      128,
+      847
+    ],
+    "packed_export_strides_bytes": {
+      "RGBA16F": 1024,
+      "R32_FLOAT": 512,
+      "R10G10B10A2_UNORM": 512,
+      "RGBA8_UNORM": 512
+    },
+    "source_resource_row_pitch_bytes": null,
+    "source_allocation_extent_xy": null,
+    "d3d_copy_footprint_row_pitch_bytes": null,
+    "unknown_reason": "Read actual resource descriptions and CopyFootprintMetadata from the executed frame. Never infer GPU allocation/rowpitch from the packed cropped export.",
+    "motion_formula": "previous_local = current_local + current_crop_origin + motion_RG * actual_render_extent - previous_crop_origin",
+    "bilinear_support": "Require finite coordinates and complete four-tap support inside previous crop; never clamp or wrap."
+  },
+  "baseline_candidate_pairs": [
+    {
+      "id": "A_observation_identity",
+      "baseline": "Original no-reset selected D/S and encoded title output in the native working route.",
+      "candidate": "The same recorded frame passed through CPU support tracing/identity handoff, with optional readback-only native observation; no alternative denoising dispatch or runtime reset.",
+      "comparison": "Bitwise original versus preserved arrays at each identical observation point, exact frame/role identity and alpha. Use same source run; two independent stochastic game runs are not a bit-equality test.",
+      "expected_result": "No changed words attributable to diagnostics; separate readback scheduling overhead from image equivalence."
+    },
+    {
+      "id": "B_raw_selected_observation",
+      "baseline": "Raw RR and selected output from one frame and one owned recording.",
+      "candidate": "Diagnostic switches only displayed observation role, without changing the title commit.",
+      "comparison": "Per-lobe fixed-support occupancy/tail/level/detail differences, same exposure, all consecutive frames.",
+      "expected_result": "Localize any extra selected difference; equality only rules out an added selected difference on the stated support."
+    },
+    {
+      "id": "C_isolated_provider_reset_diagnostic",
+      "baseline": "No-reset provider context after identical chronological warmup on the actual native input stream.",
+      "candidate": "Separate diagnostic provider context with the same chronological input/control stream and exactly one provider-only FFX_DENOISER_DISPATCH_RESET at the chosen motion-onset frame; diagnostic output is never committed to the working game.",
+      "comparison": "Raw RR D/S only at fixed source support and matched exposure; level-normalized shape metrics must accompany raw brightness/detail.",
+      "reset_frame_index": null,
+      "reset_frame_selection": "Choose and record the motion-onset source frame after local preview, before evaluating output. Do not automatically assume historical frame183 is correct for a new trajectory.",
+      "warmup": "For existing complete capture replay, use its original preceding frames locally and keep identical unlooped warmup for both contexts; do not upload warmup tensors. For a new live capture, establish both contexts before the bounded observation window and record actual initialization/history age.",
+      "warmup_frames": null,
+      "warmup_reason": "Original hidden pre-capture history is unavailable; local replay must report its actual shared initial state and cannot claim to recreate it.",
+      "required_isolation": "Do not reset G3, native geometry, NZR Reflection History, lobe recovery, camera, or frame counters at the same time. If the only available control is RRWrapper::ResetHistory/global frame.reset, it also propagates to downstream histories; label that test coupled_reset_non_identifying instead and retain H4a/H4b uncertainty.",
+      "optional_if": "Run only if stage localization still requires separating provider history from current source support; no reset is part of the candidate.",
+      "diagnostic_export_roles": [
+        "raw_rr_diffuse",
+        "raw_rr_specular"
+      ],
+      "maximum_export_tensor_bytes": 83263488,
+      "maximum_export_metadata_bytes": 2097152,
+      "maximum_export_total_bytes": 100663296
+    }
+  ],
+  "startup_reset_order": {
+    "baseline": "No capture-induced reset. Preserve original actual_reset and original frame ids. First exported previous sample is unavailable unless genuinely included.",
+    "chronology": "Approach, motion and settle are one consecutive unlooped sequence. Preserve actual input/control chronology and never stitch independent attempts.",
+    "diagnostic_state": "Invalidate only the tracer observation state on reset, frame gap, convention/extent change or absent crop; do not issue renderer/provider resets.",
+    "publication": "Recorded is not submitted, submitted is not completed, and completion alone does not prove same-domain validity. Publish mapped CPU bytes only under the completed immutable snapshot proof.",
+    "failure": "Cancel/invalidate uncertain captures; retain GPU leases until actual fence completion or proven command-list discard. Missing fields remain explicit null/absent, never zero-filled evidence."
+  },
+  "debug_and_lifetime_checks": [
+    "D3D12 debug layer and GPU-based validation messages captured with actual provider route; require zero new severity/error attributable to the diagnostic hook. Existing unrelated warnings reported separately.",
+    "Readback sources retain exact owned resources and generation across command-list execution; snapshots use same recording/context/frame as selected and encoded outputs.",
+    "Keep pre-copy and post-copy resource states explicit; preserve UAV/transition ordering around provider restore, recovery and commit.",
+    "Borrowed title targets are accessed only inside the existing valid native transaction and not retained as owned resources.",
+    "Record physical queue submissions/fence values, completion proof, repeated-execution/cancellation behavior, and rejected domain/settings discontinuities.",
+    "Verify source/active/allocation extents, original/full-render motion scale, crop origin and first/outside-crop invalidity.",
+    "Preserve all input alpha and selected/title-alpha roles; validate lobe ordering and encoded-mode flag for each late commit."
+  ],
+  "tolerances": {
+    "image_identity": {
+      "maximum_differing_words": 0,
+      "scope": "Same source observation before/after CPU diagnostic identity; native readback-only adapter must not write any image role.",
+      "rationale": "No arithmetic image transformation is proposed."
+    },
+    "alpha_identity": {
+      "maximum_differing_words": 0,
+      "scope": "Compare each preserved role to itself; do not compare input hit alpha with provider or title alpha.",
+      "rationale": "These have different ownership/semantics."
+    },
+    "cpu_coordinate_equivalence": {
+      "absolute_pixels": 1e-12,
+      "scope": "Float64 origin-aware math versus packaged CPU reference on identical finite inputs.",
+      "rationale": "Same declared continuous arithmetic; this is not a D3D sampler parity tolerance."
+    },
+    "gpu_sampler_parity": {
+      "maximum_error": null,
+      "status": "Not claimed. If a GPU support sampler is later implemented, capture actual sampled history, compile profile/flags and FP16 boundary witnesses before setting a justified tolerance."
+    },
+    "shape_improvement_threshold": null,
+    "shape_improvement_reason": "No physical silhouette truth or production repair is supplied. A threshold must not be selected from the reset/candidate output."
+  },
+  "output_resources": {
+    "cpu": [
+      "Named stage overlays with frozen exposure",
+      "Fixed baseline masks and hashes",
+      "Per-frame support/shape/level/temporal metrics with unsupported counts",
+      "Explicit diagnostic labels and abstention reasons"
+    ],
+    "native": [
+      "Existing raw/selected/encoded trace roles only; no replacement image resource from this candidate"
+    ],
+    "final_game": "Separately synchronized final output under BLOCKED_DATA_REQUEST.json, otherwise unavailable."
+  },
+  "timings_memory_scope": {
+    "gpu_timing_ms": null,
+    "resident_vram_bytes": null,
+    "readback_allocation_bytes": null,
+    "cpu_analysis_seconds": null,
+    "instruction": "Measure actual same-route baseline/readback-on GPU timestamps, CPU capture time, committed allocation, retained peak and resident VRAM separately. Capture overhead is not zero merely because candidate does not filter. Do not infer full-game budget or AMD internal cost from CPU tests.",
+    "paired_scope": "Same local capture content/settings and reported observer overhead. Reset-diagnostic extra context costs must not be charged as normal runtime candidate cost.",
+    "primary_export_cap": {
+      "tensor_formula": "width * height * frames * sum(bytes_per_pixel_by_role_group)",
+      "maximum_width_height_product": 108416,
+      "preferred_frames": 40,
+      "maximum_frames": 48,
+      "maximum_bytes_per_pixel": 100,
+      "preferred_uncompressed_tensor_bytes": 433664000,
+      "maximum_uncompressed_tensor_bytes": 520396800,
+      "metadata_maximum_bytes": 2097152,
+      "maximum_useful_primary_payload_bytes": 536870912,
+      "maximum_tensor_plus_metadata_bytes": 522493952,
+      "compression": "Lossless NPZ/ZIP permitted; cap is on uncompressed useful payload, not a promise about compression ratio.",
+      "alias_policy": "Do not duplicate aliased raw/selected/normal resources; retain explicit alias metadata and hashes.",
+      "row_pitch_policy": "Export rows tightly packed after fence-protected mapping. Record original resource row pitch/stride separately; padding is not requested.",
+      "original_gpu_row_pitch_bytes": null,
+      "original_gpu_row_pitch_reason": "Must be taken from each actual CopyFootprintMetadata; not inferred from packed export width.",
+      "no_extra_payload": "Do not upload full full-resolution renders, DLLs, replay caches, opaque provider histories or unrelated captures."
+    },
+    "additional_reset_diagnostic_export_cap_bytes": 100663296,
+    "separate_final_clip_cap_bytes": 33554432
+  },
+  "visual_failure_criteria": [
+    "Any changed rendered word attributable to a purported read-only/identity adapter.",
+    "Claiming shorter shape from reduced brightness alone, without level-matched structural comparison.",
+    "Mistaking sparse black source samples for proved disocclusion or stale history.",
+    "Treating moving crop displacement as object motion or manufacturing history by clamp/loop.",
+    "Suppressing one-pixel/sign detail, increasing grain/sparkles/flicker, or changing true-light response in any later image candidate.",
+    "Changing working glass/water controls, diffuse lobe or title alpha while diagnosing bottle motion.",
+    "Attributing a provider-only cause from a coupled global reset, or calling a reset result clean truth.",
+    "Showing only the best frame, using candidate-derived supports, unmatched exposure/aspect or missing timestamps.",
+    "Presenting a replay or stored GPU witness as new final game observation."
+  ],
+  "required_return": [
+    "Executed local commands and exit codes",
+    "Actual source/build/provider hashes and profile",
+    "Bounded typed stage payloads and metadata hashes",
+    "No-reset versus any diagnostic intervention scope and timing",
+    "New unlooped motion/same-frame final observations with uncertainty",
+    "Local decision: remain research, reject an intervention, or propose a separately reviewed default-off A/B"
+  ],
+  "acceptance_status": "CPU diagnostic work can be accepted as research; production visual acceptance remains pending real native GPU/game evidence."
+}

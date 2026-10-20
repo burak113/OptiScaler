@@ -1,0 +1,7 @@
+test_explicit_reset_break_invalidates_comparison_only (test_recorded.RecordedContracts.test_explicit_reset_break_invalidates_comparison_only) ... ok
+test_fractional_render_extent_is_not_silently_truncated (test_recorded.RecordedContracts.test_fractional_render_extent_is_not_silently_truncated) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.166s
+
+OK

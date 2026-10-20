@@ -1,0 +1,35 @@
+{
+  "executor": "/root/skeptic",
+  "command": [
+    "python",
+    "research/astra20261020/candidates/07-foliage-guides/run_benchmark.py",
+    "--executor",
+    "/root/skeptic",
+    "--output",
+    "research/astra20261020/candidates/07-foliage-guides/review/synthetic_replay.json"
+  ],
+  "source_hashes_at_start": {
+    "run_benchmark.py": "dc7d05111ab9fc55873d70d4b97d3550db58930fbfa770ae85dc79db69ba65e0",
+    "src/transport_discriminator.py": "446612dd18f1f48646f33b27da2b16e9d502a8262645282caa0719eca986af59",
+    "src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "src/proxy_metrics.py": "7e15929dd457393bce21a20bd1811d3c089a2ee681f3ddd47e123b3dd03eaff4",
+    "src/__init__.py": "7da5ed1fc73af29aa85bbf8b66196d0ec3c2e080cca96531999bd671ef1f31d8",
+    "src/synthetic_scene.py": "20fde4d8bbf0ad562e4d6190dd382e6d93c780de64e9a5620b6745d9126317b6",
+    "experiments/protocol.json": "fc0dd9b67538a3d64d7af8b97355d16f8640e187dd96f9e1a0261bb79db02c36"
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 55.59076366299996,
+  "stdout": "[1/51] reference\n[2/51] thickness_0.3\n[3/51] thickness_0.8\n[4/51] thickness_1.8\n[5/51] orientation_0\n[6/51] orientation_31\n[7/51] orientation_60\n[8/51] orientation_89\n[9/51] orientation_135\n[10/51] overlap_0\n[11/51] overlap_1\n[12/51] overlap_2\n[13/51] coverage_fraction_0.25\n[14/51] coverage_fraction_0.5\n[15/51] coverage_fraction_0.75\n[16/51] coverage_fraction_1.0\n[17/51] guide_bits_4\n[18/51] guide_bits_7\n[19/51] guide_bits_10\n[20/51] object_vx_-0.6\n[21/51] object_vx_0.0\n[22/51] object_vx_0.12\n[23/51] object_vx_0.37\n[24/51] object_vx_0.8\n[25/51] noise_rho_0\n[26/51] noise_rho_0.5\n[27/51] noise_rho_0.95\n[28/51] coverage_rule_geometric\n[29/51] coverage_rule_alpha_test\n[30/51] coverage_rule_stochastic\n[31/51] guide_rule_dominant\n[32/51] guide_rule_sample\n[33/51] guide_rule_stochastic_sample\n[34/51] phase_0.0\n[35/51] phase_0.25\n[36/51] phase_0.5\n[37/51] phase_0.75\n[38/51] fixed_coverage_independent\n[39/51] fixed_coverage_correlated\n[40/51] rigid_facade_static\n[41/51] rigid_facade_moving\n[42/51] moderate_light_125\n[43/51] holdout_9001\n[44/51] holdout_facade_9001\n[45/51] holdout_thin_9001\n[46/51] holdout_17713\n[47/51] holdout_facade_17713\n[48/51] holdout_thin_17713\n[49/51] holdout_29009\n[50/51] holdout_facade_29009\n[51/51] holdout_thin_29009\n{\"output\": \"synthetic_replay.json\", \"case_count\": 51, \"elapsed_seconds\": 55.41024901899982}\n",
+  "stderr": "",
+  "gpu_executed": false,
+  "source_hashes_after_run": {
+    "run_benchmark.py": "dc7d05111ab9fc55873d70d4b97d3550db58930fbfa770ae85dc79db69ba65e0",
+    "src/transport_discriminator.py": "446612dd18f1f48646f33b27da2b16e9d502a8262645282caa0719eca986af59",
+    "src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "src/proxy_metrics.py": "7e15929dd457393bce21a20bd1811d3c089a2ee681f3ddd47e123b3dd03eaff4",
+    "src/__init__.py": "7da5ed1fc73af29aa85bbf8b66196d0ec3c2e080cca96531999bd671ef1f31d8",
+    "src/synthetic_scene.py": "20fde4d8bbf0ad562e4d6190dd382e6d93c780de64e9a5620b6745d9126317b6",
+    "experiments/protocol.json": "fc0dd9b67538a3d64d7af8b97355d16f8640e187dd96f9e1a0261bb79db02c36"
+  },
+  "source_hashes_unchanged": true
+}

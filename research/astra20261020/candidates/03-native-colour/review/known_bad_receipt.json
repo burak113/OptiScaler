@@ -1,0 +1,37 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "scope": "New CPU execution of packaged controls; no candidate inspected and no GPU executed.",
+  "command": "python -B compare.py --quality-gate",
+  "cwd": "research/astra20261020/portable/colour",
+  "exit_code": 1,
+  "expected_exit_code": 1,
+  "elapsed_seconds": 2.6097058069990453,
+  "known_bad_reproduced": true,
+  "worse_cases_of_32": 6,
+  "phase4_counterexamples": [
+    {
+      "kind": "depth",
+      "phase": 4,
+      "B4_right_bleed_mean": 0.057179879397153854,
+      "soft2_right_bleed_mean": 0.0977054163813591,
+      "soft2_over_B4_ratio": 1.7087377135360382
+    },
+    {
+      "kind": "normal",
+      "phase": 4,
+      "B4_right_bleed_mean": 0.057179879397153854,
+      "soft2_right_bleed_mean": 0.0982605442404747,
+      "soft2_over_B4_ratio": 1.7184461610698265
+    }
+  ],
+  "gpu_executed": false,
+  "hashes": {
+    "colour_portable.py": "6f0703e6b0ef9443005ad0cecd9c00d383093a86aa82ff2a65d66d9ee68055d7",
+    "compare.py": "9942f36a951fb8d420dc1eea699cd3f73206d93aedae6ad2e1ae9007313cb813",
+    "test_colour_portable.py": "a8e698434938ddc056a30eca355d5ee98db5c3ec70c9ce397b09f0aa917d6d81",
+    "fixtures/soft2_gpu_87ee63.npz": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+    "frozen_protocol.json": "33330f612290005613e979d2f9c31e745a1e3f937172a8c36666000fffd73446",
+    "known_bad_stdout.json": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+    "known_bad_stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

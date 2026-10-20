@@ -1,0 +1,51 @@
+{
+  "schema":"astra-blocked-data-request-v1",
+  "task_id":"03-native-colour",
+  "status":"No data blocks source/CPU delivery. Missing observations block a native/game quality claim and identification of coloured-tail semantics.",
+  "requests":[
+    {
+      "id":"chronological_native_and_calibrated_final_pair",
+      "missing_observation":"Chronological raw inputs D/S, raw RR, original selected RR, candidate-selected RR and calibrated final output from the same actual native ON/OFF run with documented remodulation/crop mapping",
+      "why_current_data_cannot_identify_it":"Three partial crops omit albedos and final output; stored RR retains unknown pre-window history. The colour frame63 witness is a D+S sum with CPU-warmed history, not a native temporal replay. Per-lobe Y conservation cannot predict the displayed composite.",
+      "hypotheses_distinguished":["real correction of native per-lobe chroma lag versus merely moving toward a noisy input proxy","correct lobe recolouring versus wrong provider normalization/selection domain","per-lobe closure versus remodulated display colour/luma change"],
+      "capture_uuid":"87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames_requested":[43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65],
+      "startup":"Use original unlooped0..65 context replay locally; only export43..65. Preserve original frame/control/camera words.",
+      "render_extent_wh":[1505,847],
+      "crop_origin_render_xy":[749,420],
+      "crop_extent_wh":[198,70],
+      "crop_purpose":"Known foliage192x64 crop with three-pixel candidate-input halo; metrics must still exclude their own filter halo. Preserve original full-render coordinate units.",
+      "tensors":[
+        {"roles":["input_diffuse","input_specular","raw_rr_diffuse","raw_rr_specular","original_selected_diffuse","original_selected_specular","candidate_selected_diffuse","candidate_selected_specular"],"dtype":"float16 RGBA original words","units":"physical linear pre-remod RGB; alpha unchanged opaque hit-distance/signal data"},
+        {"roles":["input_depth"],"dtype":"float32","units":"original signed linear depth"},
+        {"roles":["input_motion"],"dtype":"float16 RGBA","units":"RG full-render UV previous-minus-current; B previous-minus-current linear depth"},
+        {"roles":["original_normal_roughness","provider_normal_roughness"],"dtype":"uint32","units":"original packed R10G10B10A2 words"},
+        {"roles":["diffuse_albedo","specular_albedo"],"dtype":"original native format plus lossless bytes","units":"document exact linear/gamma and remod use; format unknown until actual export"},
+        {"roles":["final_scene_output"],"dtype":"prefer scene-linear float16/float32 RGB(A); actual stage/format unknown","units":"document pre/post-exposure, remod and tonemap; if only display available retain exact transfer/exposure and pixel mapping"}
+      ],
+      "metadata":["source commit and shader/CSO/provider hashes","46 original uint32 provider controls","camera/projection/position words","actual per-lobe radiance scales and restoration stages","frame index, source frame time and render/output extents","per-frame crop origins and final crop mapping","exact masks/denominators from unchanged BASE","final-output transfer/exposure/colour space and remod shader or explicit unknowns"],
+      "proposed_local_extraction":"Extend native trace selection at the adapter's post-restore/pre-commit point; write lossless NPZ without pickle with per-array/raw-file SHA256. Export a synchronized final stage and documented mapping. Do not install or enable an unaccepted DLL automatically.",
+      "provenance_requirements":"archive SHA256, per-array dtype/shape/raw-byte SHA256, original capture manifest/file hashes, exact source stages, original chronology and baseline/candidate identity; no averaged replacement for raw noisy inputs",
+      "maximum_useful_payload":{"uncompressed_bytes_upper_target":80000000,"compression":"lossless NPZ permitted","estimate_note":"Two23-frame crops, about100bytes/pixel/stage bundle at198x70, plus metadata and optional aligned final pixels; export only these roles/crop. Actual final output format/mapping may change size and must be reported."},
+      "competing_outcomes":{"supports_candidate":"correct dose improves true final colour while matched grain/sparkle/flicker/detail and protected words meet gates","rejects_candidate":"proxy gain disappears after remod, wrong-lobe/normalization canary, new grain/tint or inadequate correction"}
+    },
+    {
+      "id":"same_pose_independent_radiance_reference",
+      "missing_observation":"Independent noisy D/S samples at two fixed poses/lighting states and a measured converged same-pose linear reference",
+      "why_current_data_cannot_identify_it":"14-38% source zeros and24-53% energy in the top1% are compatible with valid rare radiance or biased coloured outliers. Median/log rejection can remove real energy while its noise score goes to zero. The current single realization and saved RR are not truth.",
+      "hypotheses_distinguished":["mean-preserving heavy-tail radiance versus biased chromatic contamination","small true lighting/colour change versus persistent estimator colour bias","variance-confidence improvement versus attenuated useful correction"],
+      "capture_and_pose":"Same87ee scene/crop; hold camera, geometry and lighting at source-frame43 pose and source-frame65 pose separately if the local capture/game supports exact replay",
+      "exact_replay_availability":null,
+      "frames":"128 independently seeded raw samples per fixed pose, ordered sample index0..127; do not replay identical bytes or call repeated histories independent",
+      "crop_origin_render_xy":[749,420],
+      "crop_extent_wh":[198,70],
+      "tensors":[{"roles":["noisy_diffuse","noisy_specular"],"dtype":"original float16 RGBA words per sample","units":"physical linear pre-remod RGB; original alpha retained"},{"roles":["reference_diffuse","reference_specular"],"dtype":"float32 mean plus variance/standard-error maps","units":"same physical linear domain; compute after retaining raw samples"},{"roles":["depth","normal_roughness","albedos","pose_camera"],"dtype":"original lossless formats and words","units":"prove same pose/material/lighting; explicit metadata"}],
+      "proposed_local_extraction":"Local deterministic pose/lighting replay with independent renderer noise seeds or an explicitly validated higher-sample reference; record sample independence and convergence by split means. If this capability is absent, return that absence instead of a proxy labelled truth.",
+      "provenance_requirements":"same-pose proof, seed/sample independence, actual renderer/provider configuration and effective sample count, split-mean convergence error, original source/capture and per-array SHA256",
+      "maximum_useful_payload":{"uncompressed_bytes_upper_target":65000000,"estimate_note":"2poses*128samples*198*70pixels*2lobes*8bytes=56,770,560bytes before lossless compression, plus guides/references/metadata"},
+      "competing_outcomes":{"valid_tail":"robust per-sample log target remains biased as sample count grows; retain linear radiance means","biased_tail":"outlier-rejecting model may be justified only on this calibrated domain and must still pass boundaries and true-change response"}
+    }
+  ],
+  "useful_work_completed_without_missing_data":["immutable package and fixture validation","B4/soft2 negative calibration reproduced independently","stateless per-lobe CPU candidate and linear competitor implemented","exact selected/raw RGBA protection, alpha0 ON canary and killed mutants","independent boundary/temporal/true-change synthetic suite with retained failures","additional same-guide low-contrast counterexample","linear/log algebraic and heavy-tail population falsifiers","chronological observed clip metrics with documented crop-support audit","source-shaped packed-half shader and exact job08 adapter specification"],
+  "no_claims":["GPU execution","fresh AMD RR quality","actual native ON routing","final-game pink-trail fix","GPU milliseconds or resident VRAM"]
+}

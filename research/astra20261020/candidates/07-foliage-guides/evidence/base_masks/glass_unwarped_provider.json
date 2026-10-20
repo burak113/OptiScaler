@@ -1,0 +1,199 @@
+{
+  "policy": {
+    "version": 1,
+    "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "labels": "Fixed clip regions, not semantic foliage/bottle/facade labels",
+    "core": "Two-pixel image border excluded; original finite positive depth",
+    "available_pair": "core AND four previous bilinear taps inside previous crop; t0 false",
+    "depth_edge": "core AND any 4-connected original depth jump >2% of current magnitude",
+    "normal_edge": "core AND any 4-connected original normal dot <cos(15 degrees)",
+    "high_motion": "original full-render motion magnitude >12 pixels, square erosion radius2",
+    "stable_guide_pair": "available_pair; all four previous original normal dots >.99; all depths within2% of current depth+MV.B; identical categories",
+    "sampling": "continuous NumPy bilinear; explicitly not a D3D sampler-parity claim",
+    "first_previous_frame": "absent; no sequence looping or invented history"
+  },
+  "fixture": "glass_unwarped_provider",
+  "source_archive_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+  "arrays": {
+    "core": {
+      "count": 527904,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328
+      ],
+      "sha256": "d54ef5e2173c5ead6f1064d24baf5a9c05026a21a48c87cbcc0136c15497487d"
+    },
+    "available_pair": {
+      "count": 498264,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        29016,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328,
+        29328
+      ],
+      "sha256": "0d514bbede7afea519ca61b8727c5d65678c3bff379c2492f3856fb7449f680c"
+    },
+    "depth_edge": {
+      "count": 0,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "sha256": "d1768af9860251b5b7bc5c43b5368761bba981c92dd8005238016b83940d5bad"
+    },
+    "normal_edge": {
+      "count": 49698,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        2659,
+        2796,
+        2751,
+        2774,
+        2763,
+        2786,
+        2756,
+        2759,
+        2736,
+        2804,
+        2785,
+        2756,
+        2757,
+        2752,
+        2767,
+        2808,
+        2763,
+        2726
+      ],
+      "sha256": "8af9be5a3f707e06be33041417bd5861394d9d393343b270dceae51eae71eef9"
+    },
+    "high_motion": {
+      "count": 0,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "sha256": "d1768af9860251b5b7bc5c43b5368761bba981c92dd8005238016b83940d5bad"
+    },
+    "stable_guide_pair": {
+      "count": 459443,
+      "shape": [
+        18,
+        160,
+        192
+      ],
+      "dtype": "bool",
+      "per_frame_count": [
+        0,
+        26771,
+        27027,
+        27025,
+        27016,
+        27074,
+        27189,
+        27012,
+        27018,
+        27047,
+        27024,
+        27036,
+        27039,
+        27079,
+        27013,
+        27039,
+        26993,
+        27041
+      ],
+      "sha256": "03ba47a73eb0688e35b95063f9934bc727969c2f158a44505ed9fee5bf4d8e18"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "job07.blocked_data_request.v1",
+  "task_id": "07-foliage-guides",
+  "blocked_claim": "Identifying the native foliage cause, selecting a safe active guide/history intervention, and claiming captured AMD RR/game improvement",
+  "not_blocked": "CPU source audit, immutable recorded-input diagnostics, layered synthetic falsifiers, byte-preserving diagnostic implementation, independent review and exact local adapter proposal",
+  "why_current_data_is_insufficient": "Raw guide sequences exist. They give one observed guide/MV per pixel and short partial histories, not per-sample visibility/layer truth or a same-pose converged reference. Identical observable guides can arise from different hidden mixtures. Rendered/recorded RR is not ground truth.",
+  "requests": [
+    {
+      "id": "existing_foliage_provenance_supplement",
+      "missing_observation": "Source preparation, raw depth validity, material modulation and pre-G3 motion lineage",
+      "hypotheses_distinguished": ["H1 coverage representation", "H2 decode/quantization", "H3 lighting/modulation", "H4 motion/validity intervention"],
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": {"first":43,"last":65,"inclusive":true,"chronological":true},
+      "crop": {"origin_global_render_xy":[752,423],"extent_wh":[192,64],"render_extent_wh":[1505,847],"extra_halo_pixels":0},
+      "existing_data_to_reuse": "fixtures/clips/foliage23.npz and its existing SHA256; do not upload unchanged ten roles again",
+      "requested_tensors": [
+        {"role":"original pre-G3 motion", "stage":"sourceInput motion before LightingGuard invalidation", "format":"original RGBA16F", "units":"RG full-render UV toward previous; B signed previous-current linear-depth; W untouched", "bytes_per_pixel":8},
+        {"role":"actual provider diffuse/specular albedo", "stage":"same AMD dispatch, after guide preparation", "format":"two original RGBA8_UNORM resources if that dispatch used the audited bridge format; otherwise report actual format", "units":"linear albedo as bound, not display RGB", "bytes_per_pixel":8},
+        {"role":"raw view-depth", "stage":"geometry writer input before abs/near/far clamp", "format":"R32_FLOAT", "units":"original signed view-depth scene units; attest sign/scale", "bytes_per_pixel":4},
+        {"role":"native raw-depth validity", "stage":"OutValidity after geometry pass", "format":"R8_UINT", "units":"existing class/sign bitfield, unchanged", "bytes_per_pixel":1},
+        {"role":"optional native base-metal capture", "stage":"same-writer generation verified material capture", "format":"R16G16B16A16_FLOAT", "units":"linear base RGB and metallic A", "bytes_per_pixel":8,"if_unavailable":null},
+        {"role":"optional raw material roughness", "stage":"same-writer material parameter capture", "format":"R16_FLOAT", "units":"linear roughness before guide floor", "bytes_per_pixel":2,"if_unavailable":null}
+      ],
+      "metadata": ["capture UUID and original manifest SHA256", "per-frame capture and SDK indices", "recording_qpc, frequency, or exact frame durations", "current/previous camera matrices, jitter, render/crop origins", "resource format/extent/row pitch/source-writer generation", "preserveNativeMaterialIDs and Flat Albedo settings", "G2/G3 settings and selected-motion lineage", "per-file and cropped-byte SHA256"],
+      "local_extraction": "Read-only export each exact chronological crop from existing raw captures or a new native trace that records the missing stage. Retain original bytes and original frame counters; do not warp geometry to aligned glass RGB.",
+      "maximum_useful_payload": {"uncompressed_tensor_bytes":8761344,"approx_mib":8.36,"metadata_cap_bytes":262144,"formula":"23*192*64*(8+8+4+1+8+2); no new halo or whole-capture upload"},
+      "competing_outcomes": ["Known-normal source disagrees after decoding: numerical/encoding problem", "Source values agree but motion/validity stage changes support: transport intervention", "Guides remain stable while D/S/albedo relationship changes: lighting/modulation dominates", "Guide switches follow independently witnessed coverage phase: supports mixed representation, not yet a safe fix"]
+    },
+    {
+      "id":"known_normal_and_known_motion_controls",
+      "missing_observation":"Visibility and per-layer motion truth for an interpretable native thin-geometry sequence",
+      "hypotheses_distinguished":["H1 representation", "H2 decoder", "H3 noise distribution", "H4 single-layer motion"],
+      "requested_sequences":["homogeneous known world normals spanning oct folds/hemispheres", "thin alpha-tested/stochastic card over a rigid fine-texture/window background with known distinct layer motion"],
+      "frames":{"count_per_sequence":16,"order":"chronological, no loop, preserve startup/reset and actual frame IDs"},
+      "crop":{"extent_wh":[64,64],"origin_global_render_xy":null,"render_extent_wh":null,"requirement":"Record actual origin/render extent and sample-phase/jitter; keep fixed view or known camera path."},
+      "requested_tensors":["native and provider packed guide uint32 (2*4 bytes/pixel)","signed depth float32 (4)","original/provider RGBA16F MV (2*8)","provider RGBA8 albedos (2*4)","unmodified physical D/S RGBA16F including hit-distance alpha (2*8)","raw/selected RR D/S RGBA16F (4*8)"],
+      "units":"Same native linear depth/UV/physical lobe units as the baseline contract; no extra half store, normalization or exposure; preserve alpha and category codes.",
+      "optional_truth":"When accessible: coverage/sample owner and per-layer normal/depth/MV, with sampling rule and source provenance. Otherwise mark absent and retain H1/H4 ambiguity.",
+      "local_extraction":"Use a controlled native replay/capture. Freeze geometry and light; vary only one family (phase, layer motion, noise correlation, then 1.1x light step). Do not manufacture independent samples by repeating one frame.",
+      "provenance_requirements":["source shader and native/AMD binary SHA256", "all input array hashes, formats and row strides", "sample phase/coverage rule and random-seed provenance if known", "camera/MV convention and frame timing", "which channels are truth versus observed"],
+      "maximum_useful_payload":{"bytes_per_sequence":5505024,"two_sequence_bytes":11010048,"formula":"16*64*64*84 per sequence; optional truth must be separately sized"},
+      "competing_outcomes":["Correct source/CPU/GPU normal decode on a homogeneous surface rejects that decoder fault", "Per-layer motion aligns layers but composite motion cannot: representation/transport limit", "Changing only noise statistics changes flicker with invariant guide sidecar: guide uncertainty cannot address that effect", "No coverage truth available: do not infer a specific native coverage mechanism"]
+    },
+    {
+      "id":"historical_facade_and_native_acceptance",
+      "missing_observation":"Actual native output and final visual acceptance on the protected detail controls",
+      "hypotheses_distinguished":["H5 detail destruction", "safe diagnostics versus accidental production side effects"],
+      "frames_and_crop":{"historical_facade_mask_and_frames":null,"requirement":"Recover the exact original BASE mask, crop/exposure and normal-EMA .25 comparison metadata; the included96x96 tile is insufficient to reconstruct it."},
+      "requested_outputs":["native read-only observer OFF/ON input hashes and output tensors", "original historical facade/window/text mask and matched BASE/control excerpt", "matched final display video for foliage, moving bottle/person, sky boundary and glass/reflections", "per-pass GPU/debug/lifetime receipt specified in GPU_REQUEST.json"],
+      "maximum_useful_payload":{"diagnostic_excerpt_cap_bytes":33554432,"video_cap_bytes":52428800,"note":"Short matched excerpts only; exact original capture coordinates must be supplied, not guessed."},
+      "local_extraction":"Run the exact scoped diagnostic adapter under protected D16/S256+G2/G3 and NZR settings. Preserve actual native pre-start history. Do not enable the hypothetical CPU history multiplier.",
+      "competing_outcomes":["Bit identity and stable lifetime/debug checks allow continued diagnostic research", "Changed source words or lost facade/text detail reject integration", "A later active candidate requires its own native A/B and 1.1/1.25x light-response test; current CPU work grants no image-quality acceptance"]
+    }
+  ],
+  "completed_without_missing_data":["immutable tag and production/source hash audit", "frozen package CPU calibration and known rejected colour gate", "all-three-clip typed/hash/crop inventory", "original fixed-mask sparsity, tail energy and motion-compensated variation diagnostics", "layered synthetic visibility/lighting generator and independent holdouts", "observable-only original-guide sidecar and identity fallback", "blind independent detail-destruction calibration and adversarial code review", "exact default-off diagnostic adapter and GPU request"],
+  "ground_truth_available":false,
+  "gpu_executed":false,
+  "captured_foliage_improvement_claim":null
+}

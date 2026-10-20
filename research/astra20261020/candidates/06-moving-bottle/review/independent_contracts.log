@@ -1,0 +1,11 @@
+test_bilinear_ramp_matches_analytic_value (test_review_contracts.IndependentCoordinateContracts.test_bilinear_ramp_matches_analytic_value) ... ok
+test_different_previous_extent_is_not_current_extent (test_review_contracts.IndependentCoordinateContracts.test_different_previous_extent_is_not_current_extent) ... ok
+test_displacement_uses_full_render_extent_not_crop (test_review_contracts.IndependentCoordinateContracts.test_displacement_uses_full_render_extent_not_crop) ... ok
+test_outside_and_nonfinite_samples_are_unknown (test_review_contracts.IndependentCoordinateContracts.test_outside_and_nonfinite_samples_are_unknown) ... ok
+test_physical_backward_motion_and_moving_crop_cancel (test_review_contracts.IndependentCoordinateContracts.test_physical_backward_motion_and_moving_crop_cancel) ... ok
+test_identity_preserves_fp16_words_and_alpha (test_review_contracts.IndependentPreservationContracts.test_identity_preserves_fp16_words_and_alpha) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.025s
+
+OK

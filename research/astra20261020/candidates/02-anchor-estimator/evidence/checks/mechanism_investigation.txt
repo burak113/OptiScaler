@@ -1,0 +1,63 @@
+{
+  "output": "results.json",
+  "self_checks": "passed",
+  "development_native": [
+    {
+      "frame": 41,
+      "coverage": 0.632568359375,
+      "top1_energy": 0.07424514892937806,
+      "energy_effective_count": 1077.2659330246424,
+      "valid_count": 2591,
+      "changed_unsupported": 138
+    },
+    {
+      "frame": 44,
+      "coverage": 0.781005859375,
+      "top1_energy": 0.04269119385229274,
+      "energy_effective_count": 2062.6588867683017,
+      "valid_count": 3199,
+      "changed_unsupported": 191
+    },
+    {
+      "frame": 52,
+      "coverage": 0.942138671875,
+      "top1_energy": 0.03545564801206478,
+      "energy_effective_count": 2669.3155002497297,
+      "valid_count": 3859,
+      "changed_unsupported": 66
+    }
+  ],
+  "null": {
+    "physical_current_reference_global_energy_equal": true,
+    "gain_mean": 0.920166015625,
+    "energy_drift": -0.08781738471589051,
+    "correction_dose": 0.08781738471589051,
+    "proof": "drift = -dose for every non-brightening gain on nonnegative inputs, independently of noise model"
+  },
+  "sampling": {
+    "all_spike_positions": 64,
+    "sampled_texels": 16,
+    "full_64_texel_mean": 1.0,
+    "four_bilinear_tap_mean_expected": 1.0,
+    "four_tap_mean_variance": 3.0,
+    "miss_probability": 0.75,
+    "hit_estimate": 4.0,
+    "claim_scope": "synthetic static single-spike 8x8 cell, no D3D sampler precision issue at exact half fractions; not a claim that captured residual is pure path noise"
+  },
+  "strict_guard": {
+    "constructed_current": 1.0,
+    "constructed_reference": 0.7,
+    "native_ratio_estimate": 0.7001953125,
+    "interval": [
+      0.6996095656417765,
+      0.7006105006105006
+    ],
+    "count": 64,
+    "strict_reject_threshold": 0.30000001192092896,
+    "guard_at_endpoints": [
+      true,
+      false
+    ],
+    "decision": "uncertain: abstain; a central estimate alone is insufficient"
+  }
+}

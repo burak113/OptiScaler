@@ -16,7 +16,7 @@ import numpy as np
 FORMATS = {2: (np.dtype('<f4'), 4), 3: (np.dtype('<u4'), 4),
            10: (np.dtype('<f2'), 4), 16: (np.dtype('<f4'), 2), 17: (np.dtype('<u4'), 2),
            24: (np.dtype('<u4'), 1), 28: (np.dtype('u1'), 4),
-           34: (np.dtype('<f2'), 2), 41: (np.dtype('<f4'), 1)}
+           34: (np.dtype('<f2'), 2), 41: (np.dtype('<f4'), 1), 42: (np.dtype('<u4'), 1)}
 
 
 def compile_shader(source, output, defines=()):

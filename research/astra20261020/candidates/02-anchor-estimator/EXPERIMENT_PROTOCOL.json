@@ -1,0 +1,43 @@
+{
+  "schema": "anchor02.experiment_protocol.v1",
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "frozen_before_holdout_array_evaluation": true,
+  "holdout_disclosure": "Published fixture manifest and historical calibration metadata were visible; the candidate was fixed before opening held-out NPZ arrays. This is an engineering holdout, not a previously unseen capture or blinded clinical trial.",
+  "development_capture": "22f9ca14",
+  "validation_capture": "87ee1fba",
+  "heldout_capture": "2405579e",
+  "heldout_paths": [
+    "portable/anchor/fixtures/native_policy/2405579e.npz",
+    "portable/anchor/fixtures/combined/2405579e.npz"
+  ],
+  "synthetic_seeds": [2026102001, 2026102002, 2026102003, 2026102004, 2026102005, 2026102006, 2026102007, 2026102008],
+  "synthetic_grid_hw": [24, 32],
+  "synthetic_frames": 32,
+  "light_step_onset": 6,
+  "response_window_frames": 22,
+  "early_motion_age_range_inclusive": [0, 5],
+  "late_motion_age_range_inclusive": [6, 25],
+  "light_steps": [0.5, 0.7142857142857143, 0.8, 0.9090909090909091, 1.1, 1.25, 1.4, 2.0],
+  "noise_sigma_log": 0.25,
+  "temporal_ar1": 0.92,
+  "heavy_tail_probability": 0.01,
+  "heavy_tail_multiplier": 24.0,
+  "strength_sweep": [0.0, 0.25, 0.5, 0.75, 1.0],
+  "sensitivity_pairs": [3, 5, 7],
+  "sensitivity_dispersion_multiplier": [0.0, 1.0, 2.0],
+  "physical_scale_probe": [0.0, 2.9802322387695312e-8, 5.960464477539063e-8, 7.62939453125e-6, 1.52587890625e-5, 3.0517578125e-5, 0.00006103515625, 0.001, 0.1, 1.0, 15.9, 16.0, 16.1, 32.0],
+  "dose_matching": {
+    "calibration": "Deterministic spatially uniform labeled 18% post-motion excess decaying with tau=10 frames, physical level 1. This is an analytic synthetic cause, never inferred from capture labels.",
+    "target": "Minimum attainable full-strength energy dose of frozen baseline and provisional diagnostic on the calibration, then binary-search each strength within [0,1]. Final deployed abstainer has zero dose and is excluded from nonzero-dose improvement claims.",
+    "report": "Residual matching error after FP16 gain storage, false-positive dose on independent nulls, local error variance, and genuine light-step response loss using the same strengths.",
+    "same_realized_null_dose_identity": "For nonnegative X and g<=1, relative global energy drift equals -sum(X*(1-g))/sum(X); at matched realized null dose global bias cannot improve."
+  },
+  "evaluation": {
+    "masks": "Immutable original fixed_mask arrays for capture evaluation; synthetic truth/support masks fixed before candidate calls. Candidate eligibility never becomes a metric denominator.",
+    "chronology": "Original increasing frame ids, no looping, no artificial filling of gaps. Temporal deltas only between adjacent original frames. Native calibration has seven sparse snapshots, not a native temporal replay.",
+    "signal_domain": "Native physical luminance of diffuse+specular, shared scalar gain, original alpha preserved. Combined fixtures only separately labeled calibration/conditional stress; no composite-to-lobe transfer claim.",
+    "flicker": "Only CPU input/gain-field proxies. Fresh RR and final-game flicker remain unmeasured.",
+    "acceptance": "No nonidentity production correction without an independent cause observable. Lower false-positive dose bought by discarding true-excess dose is reported as a trade-off, never lighting discrimination."
+  }
+}

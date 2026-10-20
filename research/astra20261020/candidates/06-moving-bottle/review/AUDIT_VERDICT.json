@@ -1,0 +1,37 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "recommendation": "keep_as_research",
+  "image_fix_accepted": false,
+  "read_only_diagnostics_accepted": true,
+  "gpu_executed": false,
+  "native_build_executed": false,
+  "amd_rr_executed": false,
+  "independent_contract_tests_passed": 6,
+  "post_audit_candidate_tests_passed": 39,
+  "expected_mutation_exit_code": 1,
+  "mutation_assertion_failures": 2,
+  "blind_identified_or_qualified_broad_classes_consistent": 10,
+  "blind_explicit_abstentions": 4,
+  "blind_contradictory_broad_class_claims": 0,
+  "corrected_review_findings": [
+    "Crop-local difference is not physical disocclusion; explicit BASE background correspondence mask added",
+    "Static text now passed through identity composite and measured",
+    "Empty sequence/universe rejected; unavailable disocclusion null"
+  ],
+  "real_data_scope": "Fixed BASE moving support raw/selected equality only; whole-crop specular has456 changed RGB FP16 words outside that support",
+  "remaining_gate": "Actual native-route capture with independent silhouette/feature witnesses, complete settings and final same-crop composition evidence; no production inference from synthetic oracles",
+  "audited_source_sha256": {
+    "support_tracer.py": "b6a7db386f857e7ae52ba406b305b03f7e416ae15b2db66cde9ba702c373218b",
+    "synthetic_scenes.py": "44e454749699dfa033a3abd2de701541ff744966276b6be05cbe872e21fe8fb5",
+    "synthetic_experiments.py": "15e90877e0a9d16f74c5ab162426d4eef47e5d6e772d471ca8e58e43034f2e85",
+    "recorded_analysis.py": "d75e9922986d3a24b90ae705ef20792a0a468d5627c868e812c3e387418b08ef",
+    "preservation.py": "682d01d9a87bf5f3c2ad9edb86ac2bf567d014bc3a0f805407b4f52b42cee5f5",
+    "tests/test_review_contracts.py": "c4487c3648ded836cc70d74e90a90067d764e151fb81f7b49d7276e12054f88d",
+    "tests/test_synthetic.py": "d4e2abff8384e267bd4709a26a1502e969df7be553a671678568e2d1e6ec94a3",
+    "tests/test_tracer.py": "231bf0d4940551ad7dc28df87c462d52a93306075be1a0edb71e6a84b06974d0",
+    "tests/test_recorded.py": "375edde6117265a735031a2e949cc0f3ec4b4d58f95e5888ec88e4e1633d015f",
+    "render_evidence.py": "d85a0eed819cc7022d36e950becc9b9662c5d6080020a745973afda7d8a75408"
+  },
+  "final_metadata_targeted_tests_passed": 2,
+  "final_metadata_review": "Explicit comparison breaks invalidate only prior observation; integer render dimensions required; binary support transport is documented separately from radiance interpolation."
+}

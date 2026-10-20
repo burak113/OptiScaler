@@ -1,0 +1,53 @@
+{
+  "schema": "fsrd.numerical-api.v1",
+  "version": "0.1.0",
+  "aggregate_recipe": "SHA256 of UTF-8 sorted relative_path + NUL + file_sha256 + LF",
+  "aggregate_sha256": "4d89420ac529efa0b110888ef8d0d902da8fcea9f19fa73840fbe5014c438786",
+  "files": [
+    {
+      "path": "numerical_contract/__init__.py",
+      "sha256": "fd0b6274384dcb1f892bb6af7bc01bd04d175a34d1a004568c13ed33bbd987d1",
+      "bytes": 98
+    },
+    {
+      "path": "numerical_contract/anchor_gain.py",
+      "sha256": "fee695c3042416e12260a1d11a6d112dd6fc66574424287368f19ad596d406c2",
+      "bytes": 20063
+    },
+    {
+      "path": "numerical_contract/arithmetic.py",
+      "sha256": "250278dfb71a061c35907bbceded80f020357daa72ed6f4a9e851bf9f6304811",
+      "bytes": 6444
+    },
+    {
+      "path": "numerical_contract/coordinates.py",
+      "sha256": "1e22c8ab15b77101f548d8db706fe8f75e400b5b789f2e74076df16c1019bc44",
+      "bytes": 8695
+    },
+    {
+      "path": "numerical_contract/encoding.py",
+      "sha256": "09c5784180d86fa8fa0fc85b4b8584cba9fdb2de73b1dcbed3524bc1407c0ae2",
+      "bytes": 5376
+    },
+    {
+      "path": "numerical_contract/fixedpoint.py",
+      "sha256": "356016781d79ae78b194c1867cd8843fd721669f72aabcffd89e7f062d1185c6",
+      "bytes": 10264
+    },
+    {
+      "path": "numerical_contract/guards.py",
+      "sha256": "0f775e997bbf7e6c0e603a1966b5752cef1fb034bb93a0be710fbdd06ed45d6d",
+      "bytes": 4566
+    },
+    {
+      "path": "numerical_contract/sampling.py",
+      "sha256": "60614472a8563099e939714f8271d5bae3fb700df977f755010cbacc4fba1431",
+      "bytes": 18437
+    },
+    {
+      "path": "numerical_contract/storage.py",
+      "sha256": "34eb39bb6e61414247c09dcaf65045620f6b0f1c9379111cda446011f19e66d1",
+      "bytes": 6175
+    }
+  ]
+}

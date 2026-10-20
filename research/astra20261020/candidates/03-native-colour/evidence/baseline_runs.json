@@ -1,0 +1,22 @@
+[
+  {
+    "name": "package_baseline",
+    "command": "python research/astra20261020/validate_package.py",
+    "exit_code": 0,
+    "elapsed_seconds": 0.580357972999991,
+    "log": "package_baseline.txt",
+    "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7",
+    "cwd": "repository_root",
+    "executor": "root_cpu_before_candidate_changes"
+  },
+  {
+    "name": "cpu_baseline",
+    "command": "python research/astra20261020/run_cpu.py",
+    "exit_code": 0,
+    "elapsed_seconds": 5.458194219001598,
+    "log": "cpu_baseline.txt",
+    "log_sha256": "4828b05a4c7ca345deca8bbc1555fc5f8b7b452d799bbd41d6e9d1aab346d227",
+    "cwd": "repository_root",
+    "executor": "root_cpu_before_candidate_changes"
+  }
+]

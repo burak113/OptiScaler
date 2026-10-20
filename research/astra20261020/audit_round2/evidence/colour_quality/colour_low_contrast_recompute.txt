@@ -1,0 +1,71 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "scope": "Follow-up outside the original frozen heldout quality set. Does not replace, modify, or retrofit the original acceptance thresholds.",
+  "command": "python -B research/astra20261020/candidates/03-native-colour/review/low_contrast_probe.py",
+  "source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+  "original_review_result_sha256_unchanged": "a04f4f0e9a2c9c3a048d210e96cfda9868f89218300a19257dfed7c5c463b5c0",
+  "protocol_sha256": "e9341f7549d178354b8fcc418512e8e52775b992cd71fa4463c78840191c272c",
+  "gpu_executed": false,
+  "case_count": 32,
+  "summary": {
+    "raw": {
+      "max_unchanged_right_contamination": 0.0,
+      "max_above_original_storage_envelope": -0.0040677966101694924,
+      "cases_with_contamination_above_original_storage_envelope": 0,
+      "worst_case": {
+        "lobe": "diffuse",
+        "phase": 0,
+        "angle_degrees": 0,
+        "raw_opponent_gap_without_epsilon": 0.12804062306111672
+      }
+    },
+    "B4": {
+      "max_unchanged_right_contamination": 0.0854353132628153,
+      "max_above_original_storage_envelope": 0.080553295362083,
+      "cases_with_contamination_above_original_storage_envelope": 32,
+      "worst_case": {
+        "lobe": "diffuse",
+        "phase": 4,
+        "angle_degrees": 27,
+        "raw_opponent_gap_without_epsilon": 0.12804062306111672
+      }
+    },
+    "soft2": {
+      "max_unchanged_right_contamination": 0.0870626525630594,
+      "max_above_original_storage_envelope": 0.08271186440677968,
+      "cases_with_contamination_above_original_storage_envelope": 32,
+      "worst_case": {
+        "lobe": "diffuse",
+        "phase": 2,
+        "angle_degrees": 27,
+        "raw_opponent_gap_without_epsilon": 0.12804062306111672
+      }
+    },
+    "log": {
+      "max_unchanged_right_contamination": 0.06265256305939788,
+      "max_above_original_storage_envelope": 0.05777054515866558,
+      "cases_with_contamination_above_original_storage_envelope": 32,
+      "worst_case": {
+        "lobe": "diffuse",
+        "phase": 0,
+        "angle_degrees": 27,
+        "raw_opponent_gap_without_epsilon": 0.12804062306111672
+      }
+    },
+    "linear": {
+      "max_unchanged_right_contamination": 0.06305084745762712,
+      "max_above_original_storage_envelope": 0.058983050847457634,
+      "cases_with_contamination_above_original_storage_envelope": 32,
+      "worst_case": {
+        "lobe": "specular",
+        "phase": 0,
+        "angle_degrees": 27,
+        "raw_opponent_gap_without_epsilon": 0.12804062306111672
+      }
+    }
+  },
+  "counterexample_found": true,
+  "interpretation": "Zero leakage in the original high-contrast set is not universal boundary safety. Compact support can mix distinct low-contrast colours that lie inside its radius.",
+  "elapsed_seconds": 1.0390430000261404,
+  "representative_arrays_sha256": "f59e018cb0a4022f3a5afce1bcff0062f0649921ded311df6d54c4472e40a480"
+}

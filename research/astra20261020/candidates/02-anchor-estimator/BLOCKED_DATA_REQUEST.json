@@ -1,0 +1,185 @@
+{
+  "schema": "anchor02.blocked_data_request.v1",
+  "task_id": "02-anchor-estimator",
+  "status": "research_deliverable_complete_causal_correction_and_local_gpu_acceptance_blocked",
+  "recommendation": "keep_as_research",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "gpu_executed": false,
+  "relationship_to_gpu_request": "GPU_REQUEST.json specifies the same surgical initial pair, native passes, returned tensors, controls, provenance and byte budget. This file states which missing observations prevent stronger conclusions; it does not ask for a second duplicate upload.",
+  "decision_blocked": "Whether any nonidentity estimator can reduce genuine transient input excess while preserving real moderate local illumination and moving/new-view support in the actual native RR route. The returned diagnostic's bound application gain is identity; the provisional one-sided correction is not accepted for RR/NZR.",
+  "current_evidence_limits": [
+    "Anchor arrays contain current scalar Stats, already-recalled keys, actual old gain and fixed masks. They do not contain independent physical illumination truth or raw six-slice key textures.",
+    "Native ratio metadata are bounded stored-FP16 estimates. Original pre-store full-dispatch16.16 low/high atomic sums were not exported; combined1/1024 counters are a different numerical/domain contract.",
+    "Native-policy shader grids were captured on an extracted harness. They are historical calibration, not this candidate's actual native bridge or fresh AMD RR execution.",
+    "Chronological bottle/foliage/facade crops omit albedo and pre-start history; moving crop origins must be respected. Their raw/selected RR outputs are not converged truth and cannot be reused as output for a newly modified input.",
+    "Colour's single stored GPU frame follows CPU history warmup; glass is aligned raw/old-NZR output. Neither supplies the missing native illumination cause witness."
+  ],
+  "requests": [
+    {
+      "id": "O1_independent_physical_light_witness",
+      "priority": "first_causal_discriminator",
+      "missing_observation": "An independently established expected physical D/S response at the same target pose before and after a genuine moderate engine-light intervention, and at constant-light motion stop, with spatially resolved uncertainty and validity.",
+      "why_current_data_cannot_identify_it": "True light1.25 and input excess1.25 can produce byte-identical current/recalled grids, masks and motion metadata. A ratio threshold, decay prior, MAD or repeated current frame cannot identify which world occurred. Sparse high-energy tails may be true reflection structure; deleting them is not proof of denoising.",
+      "hypotheses_distinguished": [
+        {
+          "hypothesis": "captured early excess is mostly transient estimator noise/bias",
+          "independent_prediction": "At matched camera/geometry/light state, the independent physical reference remains near the constant-light level while current native D/S has an early excess larger than reference uncertainty."
+        },
+        {
+          "hypothesis": "observed current/reference change contains genuine illumination",
+          "independent_prediction": "The independent physical reference changes with the real engine intervention; a correction suppressing that supported change incurs measurable light-response loss."
+        },
+        {
+          "hypothesis": "apparent difference is geometry/disocclusion/support rather than level bias",
+          "independent_prediction": "Reference validity or baseline support changes account for the affected region; when those are held fixed the proposed level effect does not persist."
+        }
+      ],
+      "smallest_useful_initial_experiment": {
+        "source_sequences": 2,
+        "pair": "Matched actual camera trajectory ending at the same target pose at relative0; one run keeps engine light constant, the other changes a documented real light parameter to nominal1.25 at0 and holds it through31. Record the realized D/S ratio rather than assuming nominal parameter value equals every pixel's radiance ratio.",
+        "relative_export_frames": {"first": -8, "last": 31, "inclusive_count": 40},
+        "reference_snapshot_states": ["target_pose_before_light_change", "target_pose_after_real_1p25_change", "constant_light_target_pose_at_motion_stop"],
+        "same_pose_and_motion_extension": "After the first pair, locally test real1.1/1.25/1.4 steps in both directions at the same pose and during active motion, then a moving object against a static background whose light changes. Upload summaries and the first new discriminating counterexample, not every full capture.",
+        "original_capture_uuid": null,
+        "original_frame_ordinals": null,
+        "original_frame_ordinals_reason": "New scene events have not been recorded; return exact original frameIndex/ordinal/onset mapping, never fabricated identifiers.",
+        "prehistory_available": null,
+        "prehistory_available_reason": "Actual complete local history is unknown. Keep all real context-start-to-window inputs locally and disclose unavailable history; do not manufacture it by replaying a short window repeatedly."
+      },
+      "exact_requested_tensors_and_metadata": {
+        "native_current_inputs": "Original pre-Anchor/pre-provider-scale diffuse and specular RGBA16F, depthR32F, original full-render-UV motionRGBA16F, original/prepared packed guides;40 chronological192x192 crops per source, roles/strides/frame IDs as GPU_REQUEST.json.",
+        "independent_reference_per_snapshot": [
+          {"name": "diffuse_rgb_mean_lower_upper", "arrays": 3, "dtype": "float32", "shape_each": [192, 192, 3]},
+          {"name": "specular_rgb_mean_lower_upper", "arrays": 3, "dtype": "float32", "shape_each": [192, 192, 3]},
+          {"name": "sample_count_per_lobe", "arrays": 1, "dtype": "uint32", "shape": [192, 192, 2]},
+          {"name": "reference_valid_support", "arrays": 1, "dtype": "uint8", "shape": [192, 192]}
+        ],
+        "required_metadata": "Actual light-control events, engine state/camera/geometry/time identity, exposure/remod settings, reference generation method, random-seed/independence provenance, uncertainty method/coverage target, per-lobe count treatment under correlation, hashes and missing support. The reference must share the native physical lobe domain; final displayed RGB or selected RR is insufficient."
+      },
+      "units": {
+        "radiance": "native physical pre-provider-scale lobe RGB units; no multiply256 and no final-game remod substitution",
+        "physical_SI_unit": null,
+        "physical_SI_unit_reason": "The capture contract supplies pipeline physical units, not an independently calibrated SI radiometric unit.",
+        "reference_bounds": "same units as each corresponding D/S RGB channel; state actual statistical coverage/assumptions",
+        "motion": "original previous-minus-current full-render UV, B linear depth delta",
+        "alpha": "original input hit-distance bytes retained; not estimated by RGB reference"
+      },
+      "extent_and_crop": {
+        "analysis_core_xy": [128, 128],
+        "halo_each_side": 32,
+        "export_extent_xy": [192, 192],
+        "actual_render_extent_xy": null,
+        "actual_crop_origin_render_xy": null,
+        "unknown_reason": "Select the core from unmodified BASE before evaluating variants, inside the actual new scene render, aligned to8. Return original extents and every crop origin. Retain outside-crop native/RR execution locally."
+      },
+      "proposed_local_extraction": "If the engine exposes a legitimate same-pose high-sample mode or independent-seed renderer, hold the documented scene state and estimate physical D/S means plus defensible bounds. Keep raw independent replicates locally with hashes and upload summaries only. The actual engine API/control is unknown: if unavailable, report that this observation cannot be obtained. Scaling saved tensors, treating a late input frame as truth, or looping a noisy frame does not satisfy this request.",
+      "production_affordability": "This observation may require offline research effort and may be impractical in the live pipeline. It can validate or reject the proposed explanation without implying an affordable production witness.",
+      "reference_summary_bytes_per_snapshot": 2985984,
+      "reference_summary_bytes_for_three_snapshots": 8957952,
+      "maximum_useful_payload": "The three reference summaries plus the shared cropped pair specified in GPU_REQUEST.json, within the common256MiB uncompressed cap. Reference raw replicates and full scene histories remain local.",
+      "competing_outcomes_and_next_decision": [
+        "Reference stable, input transient excess exceeds uncertainty on fixed support: continue a new explicitly conditioned estimator hypothesis; current candidate is not automatically accepted.",
+        "Reference follows the observed moderate change: reject correction that removes it; the indistinguishability warning is realized by an actual light intervention.",
+        "Spatially mixed true light/noise/support: require a per-region independent-observation contract or retain abstention; a single scalar witness is inadequate.",
+        "Reference uncertainty overlaps both causes or no reference capability exists: keep diagnostic identity and research status; do not convert missing evidence into a causal confidence score."
+      ]
+    },
+    {
+      "id": "O2_original_native_sums_and_strict_guard_witness",
+      "priority": "small_numeric_observation",
+      "missing_observation": "The original native full-dispatch32-byte frame-sums buffer after Stats and before Gain, together with exact dispatch/support scope and constant bytes.",
+      "why_current_data_cannot_identify_it": "FP16 stored fields lose pre-store bits, while the native atomics quantize original physical values at16.16. An exported midpoint can straddle a strict rejection boundary. Cropped FP16 cells also cannot reconstruct the actual full-frame denominator. Exact combined1/1024 counters are not the native16.16 sums.",
+      "hypotheses_distinguished": [
+        "Apparent acceptance/rejection is stable under true native arithmetic.",
+        "A claimed branch or ratio depends on guessing missing pre-store bits or replacing full-frame support with a cropped denominator."
+      ],
+      "capture_stage": "FSRDNrdPostMotionAnchorStatsRecall OutSums after all InterlockedAdd writes and the required UAV ordering barrier, before FSRDNrdPostMotionAnchorGain consumes it",
+      "exact_requested_tensors_and_metadata": {
+        "sums": {"format": "eight little-endian uint32 words /32 exact bytes", "shape_per_sequence_enabled_variant": [40, 8], "offsets": {"current_low": 0, "current_high": 4, "recalled_low": 8, "recalled_high": 12, "count": 16, "padding": [20, 31]}},
+        "constants": "Original Stats864-byte, Gain80-byte and Apply16-byte buffers; preserve all floating bit patterns and native host state flags.",
+        "scope_metadata": "Actual full dispatch grid and render/allocation extent, original valid/static count, source frame ordinal/index, reset/active/refresh, full-grid fixed-mask hash and local full-grid bound summary. Crop Stats/Recalled with global cell origin remain separately identified.",
+        "inactive_frame_rule": "If the pass did not execute on a frame, mark the result unavailable instead of exporting stale or synthetic zero counters as an observation."
+      },
+      "units": "physical cap16, floor-to16.16 scale65536, emulated uint64 sums. No physical input rescaling, ABI widening or composite/per-lobe domain substitution.",
+      "frames": {"relative_first": -8, "relative_last": 31, "source_sequences": 2, "enabled_variants": 2, "actual_original_ids": null},
+      "extent": "global native sums cover actual full dispatch; accompanying192x192/24x24 export covers only the named fixed crop",
+      "actual_gpu_row_pitch_bytes": null,
+      "actual_gpu_row_pitch_reason": "Buffer is32 bytes; texture readback pitches for accompanying fields are device/resource observations and must be recorded rather than guessed.",
+      "proposed_local_extraction": "In the job08-owned local diagnostic instrumentation, copy the unchanged32-byte UAV to a per-frame readback allocation with correct barriers and fence ownership, restore required state and tag it with the exact frame. Compute integer ratios and the shader's split-word FP32 ratio separately. Locally compare full-grid quantization bounds against the exact buffer; do not claim the uploaded crop sums reproduce global atomics.",
+      "required_sums_bytes_upper_bound": 5120,
+      "required_constant_bytes_upper_bound": 153600,
+      "maximum_useful_payload": "These160 original sum buffers and corresponding constant bytes fit inside the shared initial upload. No raw ring textures or full-resolution capture is requested for this numerical question.",
+      "competing_outcomes_and_next_decision": [
+        "Exact native ratio lies within declared bounds and strict decisions agree: conditional arithmetic model is supported for those observations, not exactness of all stored-field estimates.",
+        "Exact ratio or guard lies outside claimed bounds: reject/fix the numerical model with job01; do not loosen a quality threshold or hide the failing frame.",
+        "Buffer or full-frame scope unavailable: retain interval uncertainty and abstention; never substitute the central stored estimate as exact."
+      ]
+    },
+    {
+      "id": "O3_actual_native_wiring_and_fresh_rr",
+      "priority": "local_acceptance_gate",
+      "missing_observation": "Execution of the actual native Config/owned-resource/Stats/Gain/Apply/provider path for the identity diagnostic, with a discriminating legacy native canary and fresh AMD RR output.",
+      "why_current_data_cannot_identify_it": "Historical extracted-host CSOs, CPU arithmetic and a source-shaped adapter cannot prove current native resource selection, scheduling, fence lifetime, physical input scale, alpha preservation or provider consumption. Stored RR output cannot respond to a new input correction.",
+      "hypotheses_distinguished": [
+        "The diagnostic is correctly reached while the provider receives unchanged physical D/S identity copies.",
+        "The option is bypassed, stale resources are consumed, original/private domains are confused, or provisional nonidentity gain accidentally reaches the provider."
+      ],
+      "capture_stage": "RRWrapper::Configure -> RecordOwned/NativePostMotionAnchor::Prepare/RecordInputs -> actual provider dispatch -> CommitOwned; witness sourceInput, private post-Apply physical copies, pre-scale binding IDs and restored physical resources",
+      "exact_requested_tensors_and_metadata": {
+        "execution_pairs": ["OFF", "unchanged LEGACY_NATIVE control", "DIAGNOSTIC_V1 identity application"],
+        "post_apply_snapshots": "Physical D/S RGBA16F192x192 at relative[-1,0,8,24,31], two source sequences and two enabled variants; all other frames carry per-stage bit hashes/energy/alpha witnesses.",
+        "fresh_rr_outputs": "Fresh native raw D/S RGBA16F128x128 core for every relative frame-8..31 and all three variants, plus actual provider attestation/reset/order metadata.",
+        "canary": "Actual known-active legacy nonidentity case; forced-OFF mutation must fail the expected correction/routing assertion. The identity diagnostic is validated separately; provisional gain remains an unbound output.",
+        "readback_formats_and_strides": "See GPU_REQUEST.json; record actual source allocation/render dimensions and GPU row pitches, export tight arrays with preserved words."
+      },
+      "units": "Physical native D/S before providerD16/S256 scaling, alpha untouched; original G3 inputs remain unchanged; RR/NZR consume owned copies in their intended domain.",
+      "frames": {"relative_first": -8, "relative_last": 31, "original_frame_ids": null, "prehistory_count_available": null},
+      "extent": {"core_xy": [128, 128], "halo_export_xy": [192, 192], "actual_full_render_xy": null},
+      "unknown_fields_reason": "The fresh local scene, history availability, native integration revision and hardware have not been observed here. Return them explicitly; do not fill from a different historical capture.",
+      "proposed_local_extraction": "Job08 implements the reviewed diagnostic adapter separately, compiles fresh proposed DXC1.8 cs_6_2 CSMain -O3 -HV2021 bytecode, and runs native-owned execution with D3D debug/lifetime checks. Retain full inputs and albedo locally for RR replay. Use complete unlooped histories once per fresh provider context; report OFF-vs-OFF repeatability before claiming pixel parity.",
+      "provisional_restriction": "Do not feed provisional_gain to RR/NZR under this request. A nonidentity future adapter needs a separate local acceptance and independent-observable contract.",
+      "post_apply_snapshot_bytes_upper_bound": 11796480,
+      "fresh_rr_core_bytes_upper_bound": 62914560,
+      "maximum_useful_payload": "The defined snapshots, core outputs, diagnostics and metadata inside the shared256MiB cap. Full captures, all ring slices and repeated reference samples remain local.",
+      "competing_outcomes_and_next_decision": [
+        "Native canary rejects forced-OFF and identity physical/alpha outputs match: diagnostic wiring is supported, with no denoising-quality claim.",
+        "Canary cannot distinguish OFF, copies/scales/alpha differ, or provisional gain reaches Apply: reject integration and fix the specific local path before any image-quality comparison.",
+        "Fresh identity RR differs from OFF beyond actual measured provider repeatability: investigate history/resource/provider effects; do not attribute a quality improvement to an identity estimator.",
+        "Native/provider execution unavailable: retain CPU-only scope and proposed adapter status."
+      ]
+    }
+  ],
+  "provenance_requirements": [
+    "Capture UUID and exact original frame ordinals/provider frameIndex/timestamps; map relative0 to the actual event.",
+    "Source/integration commits, configuration, source/HLSL/CSO/header/compiler hashes, device/driver/provider identities, actual executor and local commands.",
+    "Exact roles, formats, units, render/allocation extents, per-frame crop origins and source GPU strides; original FP16 alpha bytes.",
+    "SHA256 of raw exported arrays, source capture manifest, fixed BASE masks/denominators, original32-byte sums and every result; no manifest self-hash.",
+    "Independent light-reference generation and uncertainty provenance; distinguish a real engine intervention from synthetic multiplication of captured tensors.",
+    "Declare missing history/support/reference pixels and unavailable observations explicitly; no looping/clamping/future-frame reference or candidate-dependent mask replacement."
+  ],
+  "size_budget": {
+    "scope": "one shared initial paired experiment, not one upload per request",
+    "uncompressed_tensor_bytes": 197384192,
+    "uncompressed_tensor_mib": 188.240234375,
+    "metadata_visual_summary_allowance_bytes": 8388608,
+    "initial_total_upper_bound_bytes": 205772800,
+    "maximum_useful_payload_bytes": 268435456,
+    "maximum_useful_payload_mib": 256,
+    "calculation_reference": "GPU_REQUEST.json uncompressed_initial_upload_budget lists all11 component byte counts; two source sequences x40 frames,192x192 input halo,128x128 RR core,24x24 grids.",
+    "transfer_policy": "Lossless compression is welcome but no compression ratio is assumed. Keep complete local histories/reference replicates local. Run expanded controls locally and upload small summaries or the first discriminating failure only. If an input/reference cannot be produced, return the exact unavailable observation rather than a larger unrelated capture."
+  },
+  "not_requested": [
+    "Raw six-slice anchor textures: this job estimates gain conditional on already-recalled observations; job04 owns new selection/transport.",
+    "All full game captures or replay caches: the initial fixed crop, global sum buffers and independent light summaries suffice to distinguish the identified explanations.",
+    "A fake light reference obtained by scaling saved RGB, a repeated short history treated as convergence, or selected/raw RR relabeled ground truth."
+  ],
+  "useful_work_completed_without_missing_data": [
+    "Ran the untouched portable CPU calibration and retained its results; implemented a runnable frozen native estimator comparator and a conservative paired-log diagnostic with unconditional application identity.",
+    "Proved and reproduced the one-sided null energy-loss identity; constructed byte-identical true-light/excess observations and moderate1.1/1.25/1.4 failures.",
+    "Measured support mixing, grid-to-full-resolution bilinear leakage, physical FP16/16.16/cap16 cases and strict-guard uncertainty instead of inventing exact native counters.",
+    "Inventoried actual anchor/colour/clip/glass data, original units/crops/chronology/masks/provenance, raw lobe sparsity/tails, and original alpha hashes.",
+    "Froze candidate sources before held-out numerical analysis; independent skeptical controls reject the known bad one-sided path and challenge the provisional candidate.",
+    "Produced reproducible source, tests, fixed-mask measurements/trajectories, proposed integration specification and a negative research recommendation rather than a false AMD RR/game quality claim."
+  ]
+}

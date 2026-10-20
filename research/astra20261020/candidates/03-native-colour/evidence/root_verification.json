@@ -1,0 +1,49 @@
+{
+  "schema": "native-colour-root-verification-v1",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "stages": [
+    {
+      "stage": "package_integrity_final",
+      "command": "python -B research/astra20261020/validate_package.py",
+      "cwd": "repository_root",
+      "executor": "root_cpu_verification",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5825017749994004,
+      "log": "evidence/package_integrity_final.txt",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "stage": "portable_baselines_final",
+      "command": "python -B research/astra20261020/run_cpu.py",
+      "cwd": "repository_root",
+      "executor": "root_cpu_verification",
+      "exit_code": 0,
+      "elapsed_seconds": 5.533245968999836,
+      "log": "evidence/portable_baselines_final.txt",
+      "log_sha256": "8e49d1467194890f69bffaf1c84e496580b5772760c95e744045669be9361010"
+    },
+    {
+      "stage": "native_contracts_and_independent_mutations",
+      "command": "python -B -m unittest discover -s research/astra20261020/candidates/03-native-colour/tests -p test_*.py -v",
+      "cwd": "repository_root",
+      "executor": "root_cpu_verification",
+      "exit_code": 0,
+      "elapsed_seconds": 0.2620347319989378,
+      "log": "evidence/native_contracts_and_independent_mutations.txt",
+      "log_sha256": "de6ea04049592e9d35bf93464523818619434c13dbfc89af7a9362d7c5323fee"
+    }
+  ],
+  "integrity": {
+    "independent_review_manifest_files": 29,
+    "candidate_evidence_npz_arrays": 40,
+    "source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+    "gpu_executed": false,
+    "recorded_quality_gate_exit_code": 1,
+    "quality_accepted": false,
+    "recommendation": "keep_as_research"
+  },
+  "execution_and_contracts_pass": true,
+  "quality_accepted": false,
+  "quality_gate_scope": "Independent recorded synthetic --quality-gate failed with exit1; low-contrast counterexample also retained. No failure relabelled as a quality pass."
+}

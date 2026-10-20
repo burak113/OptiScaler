@@ -1,0 +1,141 @@
+{
+  "schema": "glass-nzr-cpu-execution-v1",
+  "executor": "cloud Linux CPU root agent",
+  "started_utc": "2026-10-20T18:38:27.454519+00:00",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "platform": "Linux x86_64",
+  "gpu_executed": false,
+  "holdout_requested": false,
+  "runs": [
+    {
+      "command": "python -B research/astra20261020/validate_package.py",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/validate_package.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.6749101939985849,
+      "log": "evidence/root_contract_rerun/package_validation.txt",
+      "log_sha256": "63792e2eac043b06418a88befff217e09e32443e68203b2d5cb6b4d82f5c99a7"
+    },
+    {
+      "command": "python -B research/astra20261020/run_cpu.py",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/run_cpu.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 5.634120719998464,
+      "log": "evidence/root_contract_rerun/frozen_cpu_baseline.txt",
+      "log_sha256": "4f95d33688d615fbf9a1f3d20f031b86f14d53aab0825919f9a48de4d9110356"
+    },
+    {
+      "command": "python -B -m unittest discover -s research/astra20261020/candidates/05-glass-nzr/tests -p 'test_*.py' -v",
+      "command_argv": [
+        "python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/05-glass-nzr/tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.5905735150008695,
+      "log": "evidence/root_contract_rerun/candidate_and_independent_tests.txt",
+      "log_sha256": "5041e2c03c57073f53550511787c806595787a72f3730d467cbb2fe168d8bce6"
+    },
+    {
+      "command": "python -B research/astra20261020/candidates/05-glass-nzr/experiments/causal_probes.py",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/05-glass-nzr/experiments/causal_probes.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.5237941359991964,
+      "log": "evidence/root_contract_rerun/source_shaped_causal_probes.txt",
+      "log_sha256": "766d4530c439b1fec528785cdd7361ce67ec412f65908ddffe75b328fa98edc5"
+    },
+    {
+      "command": "python -B research/astra20261020/candidates/05-glass-nzr/experiments/recorded.py --images",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/05-glass-nzr/experiments/recorded.py",
+        "--images"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.9397329540006467,
+      "log": "evidence/root_contract_rerun/recorded_inventory.txt",
+      "log_sha256": "c14d14656447f9f79b781b775ece8dc414506fbb76556e384410aee9ff2a27da"
+    },
+    {
+      "command": "python -B research/astra20261020/candidates/05-glass-nzr/adapter/validate_adapter.py",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/05-glass-nzr/adapter/validate_adapter.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.06145704400114482,
+      "log": "evidence/root_contract_rerun/adapter_scope_and_clean_apply.txt",
+      "log_sha256": "f9c4a5d6c7fea77dae50337557c204b0c60be5ce46bd8650af814458d83b36ac"
+    },
+    {
+      "command": "python -B research/astra20261020/portable/colour/compare.py --quality-gate",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/portable/colour/compare.py",
+        "--quality-gate"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 2.402121184999487,
+      "log": "evidence/root_contract_rerun/known_bad_colour_quality_gate.txt",
+      "log_sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176"
+    },
+    {
+      "command": "python -B research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py --mutation-alpha",
+      "command_argv": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py",
+        "--mutation-alpha"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.13700991299992893,
+      "log": "evidence/root_contract_rerun/alpha_authority_mutation.txt",
+      "log_sha256": "bfa61e1bc9212f209ecad070c619e531d1f6023649fcb012ea13718c168f93cd"
+    }
+  ],
+  "elapsed_seconds": 12.965682107998873,
+  "status": "passed_with_detected_negative_controls",
+  "exit_code": 0,
+  "code_sha256": {
+    "src/glass_candidate.py": "fda21a2aa138e6555e7c2ba520dfca844572a88a1b5df5ee5e6533cc1d2f7f67",
+    "src/native_subset.py": "bf90ada576c14f1a1c39363ccc9fb34c09419dc0e91f941cc07603891bd3688e",
+    "tests/test_candidate.py": "769de9fb3de06979a44c4703ecb94818cee3ae42c16637fa1ecf349d88a452bc",
+    "tests/test_causal_probes.py": "11e293648d03edc988aab2a28a3d2ef3d00a70d78af06b7908c8002fc4ce4ee8",
+    "tests/test_recorded_contracts.py": "e8085b3b7aac623f6a2bf5ba578195f9c9a3dde0051e499245894316829eca1d",
+    "tests/test_review_adversarial.py": "376bd6916a52ecceef9cb24a8868e38d59b968fb265cc9d9c6b0a5817f07c3a1",
+    "experiments/causal_probes.py": "5173ed3fbfc56e806a7d00fc2936847f5cb949d16816d18b1b6a9a1920d55b1a",
+    "experiments/recorded.py": "83455c699745cf6f537001c32ab7fc4ce2302a32cdd0a9bdee63b98b72709e8a",
+    "experiments/synthetic.py": "5cdf6f379b6fa8520d9f19359eff68746010b64b3089d1bbf7d16b336dc788ce",
+    "adapter/validate_adapter.py": "c6b00bf6c952e3ab49e8cb22541f1cc54145e0368b2c46541b4c587295f53f0c"
+  }
+}

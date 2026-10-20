@@ -1,0 +1,21 @@
+{
+  "actual_executor": "local Codex root, Windows CPU",
+  "source_snapshot": "351ceae2251fffbc62498260fb4354886a0dd76d",
+  "quality_command_exit": 1,
+  "quality_failed_gates": [
+    "primary_log_diffuse_true_step_response_below_0.90"
+  ],
+  "low_contrast_command_exit": 0,
+  "low_contrast_counterexample": true,
+  "explanation": "Fresh outputs retain the upstream script hardcoded executor label. That label is not provenance. Root launched both commands in a disposable worktree; original imported evidence is unchanged.",
+  "figure_provenance": "Original low_contrast_panels.png retained: local Matplotlib unavailable. All underlying stored arrays are bit-identical to the independent recomputation.",
+  "figure_array_identity": {
+    "raw": true,
+    "B4": true,
+    "soft2": true,
+    "log": true,
+    "linear": true,
+    "truth": true,
+    "unchanged_band": true
+  }
+}

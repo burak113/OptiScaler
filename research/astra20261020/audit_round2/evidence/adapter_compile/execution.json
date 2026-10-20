@@ -1,0 +1,117 @@
+[
+  {
+    "source": "research/astra20261020/candidates/01-numerical-contract/adapter/FSRDColourTrackTrack.hlsl",
+    "source_sha256": "63667381b5080354a1b65c5ddb210d1b214eada8e36e400b8eb29c9f69ec629c",
+    "command": [
+      "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-HV",
+      "2021",
+      "-Ges",
+      "-Gis",
+      "-O3",
+      "-I",
+      "<repo>\\OptiScaler\\shaders\\fsrd_preprocess\\precompile",
+      "<repo>\\research\\astra20261020\\candidates\\01-numerical-contract\\adapter\\FSRDColourTrackTrack.hlsl",
+      "-Fo",
+      "<output>\\FSRDColourTrackTrack.cso"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.2970000000204891
+  },
+  {
+    "source": "research/astra20261020/candidates/03-native-colour/shaders/NativeColourPacked.hlsl",
+    "source_sha256": "cbfb1be18162d1629dfb6054b3288772460b7f4813fb45bdaed5f746c3940014",
+    "command": [
+      "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-HV",
+      "2021",
+      "-Ges",
+      "-Gis",
+      "-O3",
+      "-I",
+      "<repo>\\OptiScaler\\shaders\\fsrd_preprocess\\precompile",
+      "<repo>\\research\\astra20261020\\candidates\\03-native-colour\\shaders\\NativeColourPacked.hlsl",
+      "-Fo",
+      "<output>\\NativeColourPacked.cso"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.061999999976251274
+  },
+  {
+    "source": "research/astra20261020/candidates/04-geometry-transport/adapter/SupportCertifiedApply.hlsl",
+    "source_sha256": "7d85210aa07d55371c98379991a6c6174a2810b65f1b69747b3914dac5f8bfc4",
+    "command": [
+      "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-HV",
+      "2021",
+      "-Ges",
+      "-Gis",
+      "-O3",
+      "-I",
+      "<repo>\\OptiScaler\\shaders\\fsrd_preprocess\\precompile",
+      "<repo>\\research\\astra20261020\\candidates\\04-geometry-transport\\adapter\\SupportCertifiedApply.hlsl",
+      "-Fo",
+      "<output>\\SupportCertifiedApply.cso"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.0779999999795109
+  },
+  {
+    "source": "research/astra20261020/candidates/05-glass-nzr/adapter/GlassNzrCorrection.hlsl",
+    "source_sha256": "2fdbc2483995bb63dcf8934c2038856330bda7caaa951d25ffc84a6fd057f767",
+    "command": [
+      "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-HV",
+      "2021",
+      "-Ges",
+      "-Gis",
+      "-O3",
+      "-I",
+      "<repo>\\OptiScaler\\shaders\\fsrd_preprocess\\precompile",
+      "<repo>\\research\\astra20261020\\candidates\\05-glass-nzr\\adapter\\GlassNzrCorrection.hlsl",
+      "-Fo",
+      "<output>\\GlassNzrCorrection.cso"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.07900000002700835
+  },
+  {
+    "source": "research/astra20261020/candidates/07-foliage-guides/adapter/FoliageGuideObservation.hlsl",
+    "source_sha256": "1283813131d32072d0d5ae89c5dc359974f332a041c0156a7853da5189c67a68",
+    "command": [
+      "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+      "-T",
+      "cs_6_2",
+      "-E",
+      "CSMain",
+      "-HV",
+      "2021",
+      "-Ges",
+      "-Gis",
+      "-O3",
+      "-I",
+      "<repo>\\OptiScaler\\shaders\\fsrd_preprocess\\precompile",
+      "<repo>\\research\\astra20261020\\candidates\\07-foliage-guides\\adapter\\FoliageGuideObservation.hlsl",
+      "-Fo",
+      "<output>\\FoliageGuideObservation.cso"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.0779999999795109
+  }
+]

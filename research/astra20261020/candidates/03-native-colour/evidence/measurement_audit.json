@@ -1,0 +1,9 @@
+{
+  "reason": "Independent implementation-agent audit found3px insufficient for candidate radius3 plus sigma3 metric kernel radius9. Use12px common support, retain original3px receipts. No algorithm/parameters/frames/denominators changed.",
+  "amended_after_initial_scores": true,
+  "original_results": "clip_results_initial_halo3.json",
+  "original_protocol": "clip_evaluation_protocol_initial_halo3.json",
+  "candidate_and_selected_spatial_support_complete": true,
+  "B4_soft2_support_complete": false,
+  "baseline_limitation": "B4/coarse soft2 have larger spatial support and partial temporal history. Fully supported soft2 plus sigma3 could require36px border, leaving no usable interior in64px-high foliage crop. Those controls are explicitly crop-limited counterfactuals."
+}

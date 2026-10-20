@@ -1,0 +1,37 @@
+{
+  "protected_sources": {
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl": {
+      "git_blob_sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944",
+      "working_bytes_sha256": "f2f34586fa4896cd9e3862197f6f387bf8179bce7cf7fda6661a16bd76c411d0",
+      "only_checkout_line_endings_differ": true
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h": {
+      "git_blob_sha256": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+      "working_bytes_sha256": "94d7f86952d422f752f1cd5a779b4bdb692b5472597ee881e953201c9b986a6b",
+      "only_checkout_line_endings_differ": true
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": {
+      "git_blob_sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "working_bytes_sha256": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+      "only_checkout_line_endings_differ": true
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": {
+      "git_blob_sha256": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+      "working_bytes_sha256": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+      "only_checkout_line_endings_differ": true
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply.hlsl": {
+      "git_blob_sha256": "8d090231399d96de869624bfe7ea225a0799a6e075d1ca1015a4af61d80e0ff9",
+      "working_bytes_sha256": "5054d5d8f64143e813bde442800eddd3af17950bca6c919b9c5f65b53eadf9e3",
+      "only_checkout_line_endings_differ": true
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDFlatDetailBindings.hlsli": {
+      "git_blob_sha256": "dad0f645927f161b26319e6787e16dfd3362c1832ef97be562099df642010696",
+      "working_bytes_sha256": "ab6a09ed2d0134995ab799b73335f2beabc12e7e47cfce44468bf62861f7b689",
+      "only_checkout_line_endings_differ": true
+    }
+  },
+  "exact_patch_payloads_verified": true,
+  "production_written": false,
+  "gpu_executed": false
+}

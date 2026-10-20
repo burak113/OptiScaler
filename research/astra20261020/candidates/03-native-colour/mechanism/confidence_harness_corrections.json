@@ -1,0 +1,13 @@
+{
+  "attempt": 1,
+  "exit_code": 1,
+  "elapsed_seconds": null,
+  "stage": "result aggregation after all synthetic scenes",
+  "error": "TypeError in numpy.median because some correction-dose ratios were null",
+  "cause": "Some original-log true-change cases had nonpositive correction dose. Dividing by them was already declined, but the summary assumed every ratio existed.",
+  "correction": "Keep undefined ratios null; report nonpositive original dose counts and raw dose metrics; fail the useful-correction gate when any required ratio is undefined.",
+  "estimator_parameters_changed": false,
+  "synthetic_inputs_changed": false,
+  "acceptance_thresholds_changed": false,
+  "first_attempt_is_a_successful_measurement": false
+}

@@ -1,0 +1,11 @@
+{
+  "initial_test_command": "python -B research/astra20261020/candidates/03-native-colour/tests/test_adversarial.py -v",
+  "initial_exit_code": 1,
+  "initial_tests_completed_successfully": 8,
+  "initial_errors": 1,
+  "classification": "review_harness_exception_type_assumption",
+  "observation": "The candidate rejected omitted authority by raising TypeError. The reviewer initially accepted ValueError only, although the frozen requirement permits a fail-closed rejection and does not mandate its Python exception type.",
+  "correction": "Accept ValueError or TypeError as an explicit fail-closed API rejection.",
+  "candidate_changed_for_this_correction": false,
+  "quality_thresholds_changed": false
+}

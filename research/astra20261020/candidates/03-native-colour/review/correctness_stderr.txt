@@ -1,0 +1,14 @@
+test_default_off_override_off_active_extent_and_authority (__main__.NativeAdversarialContracts.test_default_off_override_off_active_extent_and_authority) ... ok
+test_exposure_scale_invariance_before_half_storage (__main__.NativeAdversarialContracts.test_exposure_scale_invariance_before_half_storage) ... ok
+test_float32_protected_nan_payload_words (__main__.NativeAdversarialContracts.test_float32_protected_nan_payload_words) ... ok
+test_invalid_geometry_and_negative_rgb_are_unchanged (__main__.NativeAdversarialContracts.test_invalid_geometry_and_negative_rgb_are_unchanged) ... ok
+test_known_bad_was_reproduced_before_candidate_review (__main__.NativeAdversarialContracts.test_known_bad_was_reproduced_before_candidate_review) ... ok
+test_missing_authority_fails_closed (__main__.NativeAdversarialContracts.test_missing_authority_fails_closed) ... ok
+test_original_half_words_alpha_payloads_and_signed_zero (__main__.NativeAdversarialContracts.test_original_half_words_alpha_payloads_and_signed_zero) ... ok
+test_protected_gate_and_forced_on_mutations_are_killed (__main__.NativeAdversarialContracts.test_protected_gate_and_forced_on_mutations_are_killed) ... ok
+test_stateless_reset_crop_and_order_are_explicit (__main__.NativeAdversarialContracts.test_stateless_reset_crop_and_order_are_explicit) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.090s
+
+OK

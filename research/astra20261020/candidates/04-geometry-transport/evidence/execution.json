@@ -1,0 +1,107 @@
+{
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "platform": "Linux x86_64",
+  "gpu_executed": false,
+  "quick": false,
+  "commands": [
+    {
+      "name": "candidate_tests",
+      "command": [
+        "python",
+        "-B",
+        "-W",
+        "error",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/04-geometry-transport/tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.2527617260002444,
+      "executor": "root Linux CPU",
+      "log_sha256": "fdf28a48b24f8605a00bd3d08a596e84b9838ae2a3f055198fb14eb97ddad0bd"
+    },
+    {
+      "name": "fixture_diagnostics",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/fixture_diagnostics.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.508797782998954,
+      "executor": "root Linux CPU",
+      "log_sha256": "ff6bcf1f2353e3638e865f6827da88f5764620e5528b8cd4d430ae516f69df8d"
+    },
+    {
+      "name": "phase_and_temporal_experiments",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/experiments.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 164.28896308299954,
+      "executor": "root Linux CPU",
+      "log_sha256": "7d7e8b738141bf10014aa7057a5d8ba2a21e36ae690bc8e56ccd92652ed0f619"
+    },
+    {
+      "name": "gpu_fixture_export_CPU_only",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/generate_gpu_fixtures.py",
+        "--out",
+        "research/astra20261020/candidates/04-geometry-transport/evidence/gpu_inputs"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.14629461799995624,
+      "executor": "root Linux CPU",
+      "log_sha256": "d0ffd02fdd0f52c7193fd33b43a1a0c6b245d509fe3593b1b3fe379abbc3922e"
+    },
+    {
+      "name": "transport_metrics",
+      "command": [
+        "python",
+        "-B",
+        "research/astra20261020/candidates/04-geometry-transport/transport_experiment.py",
+        "--output",
+        "research/astra20261020/candidates/04-geometry-transport/evidence",
+        "--executor",
+        "root Linux CPU"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.1369962549997581,
+      "executor": "root Linux CPU",
+      "log_sha256": "8ca025db195a114d08fd828151d2ea68ac3de4e08653dde6a90e2eb96121eedb",
+      "original_log_sha256": "b612801c5a35c65a5f658bfdceaaccb53e0902205157762736de92a43bfa60fb",
+      "log_sanitization": "Removed local repository absolute prefix; no measurements changed."
+    }
+  ],
+  "source_hashes": {
+    "adapter/SupportCertifiedApply.hlsl": "7d85210aa07d55371c98379991a6c6174a2810b65f1b69747b3914dac5f8bfc4",
+    "experiments.py": "df79408aa32cfe3fd86ec4e9a0e0f3f97bc07cacfd602caa5a13e0e4b15b77d4",
+    "fixture_diagnostics.py": "aa05000b786a5998cd46d364113b07b5bc14036f856b0e3f47bd4ca113dafe9a",
+    "generate_gpu_fixtures.py": "f5ff9921b45a3540633a5b665518d6a6d1aeaae033b02e8d55b0f45eb038fe2b",
+    "history.py": "f72ab481d6af37c611fc019cb57c98b2734911665119e695dc87a0a6b8057cb1",
+    "plot_evidence.py": "bda4cae6108a54a74a63b1cee39867bb4904ac1ae88d7773206808211b637838",
+    "reconstruction.py": "e05bf88489fa0bb67253d55e98d5c2943e72dddaf97b277d2d92e541c0444e50",
+    "run_checks.py": "f7cd1d627ca9b9d94a044ff1d44f13aeef97a9455e6517751f135067a7b2007f",
+    "tests/test_adversarial_reconstruction.py": "e4b1cd50de03c272e894acd4075d5943f70f17f3d0ec75f588699885cb58f928",
+    "tests/test_certificate_contract.py": "310d914d098d2ffaf1f4fd8ff9808532fae9c00e999a5690f477792791852c07",
+    "tests/test_history.py": "0a7098d82e4a660db468903b63e044ee80fb049d90404404a2ee4f616bb41796",
+    "tests/test_negative_controls.py": "1d3e53a301c2afed595ff46f99322940dd079a8724750c8098a46ab2813169bf",
+    "tests/test_transport.py": "58d9b6050b8fc42a37f4f9b8d8f10b71ddd9105a133b7a6fac65ae2b24d6d1e0",
+    "transport.py": "1f95346e2ba02fcb63093dedfffdac94c9827596eb42f50f0123013131182bfb",
+    "transport_experiment.py": "6cea7d258288aa5369b73e18fdf2348ced5a70eac17faca8583edb4f80ec671e"
+  }
+}

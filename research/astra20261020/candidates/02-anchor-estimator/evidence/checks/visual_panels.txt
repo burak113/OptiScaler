@@ -1,0 +1,9 @@
+{
+  "matplotlib": "3.10.8",
+  "figures": [
+    "gain_trajectories.png",
+    "light_response_trajectories.png",
+    "matched_dose_tradeoffs.png",
+    "native_fixed_fields.png"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "executor": "/root/skeptic",
+  "source_benchmark_sha256": "fd527b554e647d8f651609664bc9017da8d13674591b3c52c19c2dd7b9662ff2",
+  "protocol_rows": 51,
+  "unique_input_groups": 40,
+  "unique_input_truth_pairs": 40,
+  "all_same_input_groups_have_identical_truth": true,
+  "all_same_input_groups_have_identical_masks": true,
+  "duplicate_groups": [
+    {
+      "input_sha256": "51b61f5b2178840e5d64ef7053bd4e189e278ab93963129a1ad4744473474ab1",
+      "case_names": [
+        "reference",
+        "thickness_0.8",
+        "orientation_31",
+        "overlap_2",
+        "coverage_fraction_0.75",
+        "guide_bits_10",
+        "object_vx_0.37",
+        "noise_rho_0",
+        "coverage_rule_alpha_test",
+        "guide_rule_dominant"
+      ],
+      "truth_sha256_values": [
+        "094825eb30e72d66dd415210715810903093c0130336903e3606f869bfd14f61"
+      ],
+      "mask_sha256_values": [
+        "6d5e17dd3e610d52f83dd70ecbcf24b324736537575b51824ad226536e284895"
+      ],
+      "same_truth": true,
+      "same_masks": true
+    },
+    {
+      "input_sha256": "e46d64b6182593f3e8c8d7a213274de610613202e8586adfe23e95b8e172647d",
+      "case_names": [
+        "overlap_0",
+        "rigid_facade_moving"
+      ],
+      "truth_sha256_values": [
+        "5208680091600ec8b1acf84ab8aa42fa81129ad62804203f4c42b3812bdacd8d"
+      ],
+      "mask_sha256_values": [
+        "c0f1962f99af14fd417fa3d0237c02003081682b7dcda62e574d0a369b422672"
+      ],
+      "same_truth": true,
+      "same_masks": true
+    },
+    {
+      "input_sha256": "705ba4d424deac414638a660e95f9a0bf0ce8ad9b29082c29ad5dd77a57af521",
+      "case_names": [
+        "coverage_fraction_1.0",
+        "coverage_rule_geometric"
+      ],
+      "truth_sha256_values": [
+        "40ac49af3f60edf2368607823a8cd2fb3f5477d1e0513a457d64cf39b2d5a1d5"
+      ],
+      "mask_sha256_values": [
+        "be8529248c575ff6fb50c8a6db4b978a424facc206903927c79945ee24b6fecd"
+      ],
+      "same_truth": true,
+      "same_masks": true
+    }
+  ],
+  "interpretation": "Input-only deduplication is exactly equivalent to input+truth deduplication for this frozen dataset; protocol rows are not independent samples."
+}

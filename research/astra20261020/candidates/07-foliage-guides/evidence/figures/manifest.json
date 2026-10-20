@@ -1,0 +1,42 @@
+{
+  "executor": "root CPU rendering",
+  "matplotlib": "3.10.8",
+  "numpy": "2.3.5",
+  "images": [
+    {
+      "file": "evidence/figures/foliage23_identity_diagnostic.png",
+      "sha256": "2f04463d35642a6b1457d045360e9d95508304535169f6270facce0225d36d32",
+      "source_archive_sha256": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+      "frame": 54,
+      "exposure": 31.138114328136602,
+      "display_mapping": "(exposure*max(rgb,0)/(1+exposure*max(rgb,0)))**(1/2.2)",
+      "stage": "recorded selected-RR sum and CPU diagnostic; identical recorded RGB on both sides, not new candidate RR output"
+    },
+    {
+      "file": "evidence/figures/facade16_identity_diagnostic.png",
+      "sha256": "0985f80ef6bd3ba67da4fdbdb32e5583ffafb617c04c846c291e8b9b502b5bd6",
+      "source_archive_sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+      "frame": 42,
+      "exposure": 85.39918000256101,
+      "display_mapping": "(exposure*max(rgb,0)/(1+exposure*max(rgb,0)))**(1/2.2)",
+      "stage": "recorded selected-RR sum and CPU diagnostic; identical recorded RGB on both sides, not new candidate RR output"
+    },
+    {
+      "file": "evidence/figures/bottle_track7_identity_diagnostic.png",
+      "sha256": "fe53077b9d04df19b528febd34b38af212cc98faad90561fa68662b3f5e33c64",
+      "source_archive_sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+      "frame": 183,
+      "exposure": 24.183025830258305,
+      "display_mapping": "(exposure*max(rgb,0)/(1+exposure*max(rgb,0)))**(1/2.2)",
+      "stage": "recorded selected-RR sum and CPU diagnostic; identical recorded RGB on both sides, not new candidate RR output"
+    },
+    {
+      "file": "evidence/figures/blind_facade_negative_control.png",
+      "sha256": "1b71c19fdc1698aaa60294fbb84439bf0029b955c96485142c6eb2065210c7aa"
+    },
+    {
+      "file": "evidence/figures/captured_evidence_summary.png",
+      "sha256": "1245f16f1150866a1678e83a9ba86b61d01b8e177c44e36d14cb1030667b7cc9"
+    }
+  ]
+}

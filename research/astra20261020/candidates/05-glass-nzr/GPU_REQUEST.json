@@ -1,0 +1,1001 @@
+{
+  "schema": "glass-nzr-gpu-request-v1",
+  "task_id": "05-glass-nzr",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "request_status": "UNEXECUTED; staged local diagnostics; KEEP AS RESEARCH",
+  "gpu_executed": false,
+  "shader_compiled": false,
+  "native_test_executed": false,
+  "amd_rr_executed": false,
+  "final_game_executed": false,
+  "host_integrated": false,
+  "current_recommendation": {
+    "keep_as_research": true,
+    "ship_visual_improvement": false,
+    "reason": "Independent thin-sign block-phase failure and true-glint ambiguity/loss already reject visual shipping; correction uncertainty/support sidecar is unavailable. Better data does not erase the observed structural counterexample."
+  },
+  "completed_useful_work": [
+    {
+      "work": "Read and traced actual native source and existing Windows test contracts",
+      "artifact": "notes/MECHANISM.md",
+      "scope": "Source facts and H1-H4predictions; no GPU execution."
+    },
+    {
+      "work": "Reproduced frozen baseline/calibration and independently rejected known bad soft2 control before candidate exposure",
+      "artifact": "evidence/reviewer_controls.json",
+      "scope": "Cloud CPU; historical GPU receipts labelled separately."
+    },
+    {
+      "work": "Implemented frozen stateless correction API, conservative missing-evidence identity and source-shaped standalone HLSL with unreachable additive adapter patch",
+      "artifact": "src/glass_candidate.py; adapter/ADAPTER.md; adapter/GlassNzrCorrection.hlsl; adapter/PRODUCTION.patch",
+      "scope": "Candidate arithmetic, tests and patch validation only; no native sidecar producer, CSO or host scheduling delivered."
+    },
+    {
+      "work": "Ran source-shaped H1 fit-support, H2 selector/gain identifiability, H3 capped-count AR1 and H4 reflected-motion discriminators",
+      "artifact": "evidence/causal_probes.json",
+      "scope": "Analytic/synthetic CPU subset; actual native cause remains unidentifiable without missing internals."
+    },
+    {
+      "work": "Froze development/holdout settings and tested independent correlated-noise, thin-sign, light/colour, geometry and alpha mutation controls",
+      "artifact": "REGISTRATION.json; evidence/synthetic_holdout.json; evidence/reviewer_adversarial_measurements.json",
+      "scope": "Independent reviewer exposed17.2144percentage-point sign phase modulation and75%trueglint-excess loss; green expected-negative tests do not accept the candidate."
+    }
+  ],
+  "execution_owner": "Future local Windows/D3D12 operator and job08 integration owner; no execution or production mutation is performed by this request.",
+  "protected_settings": {
+    "radiance_scale_enabled": true,
+    "diffuse_scale": 16.0,
+    "specular_scale": 256.0,
+    "G2_motion_adaptive_stability": true,
+    "G3_lighting_validation": true,
+    "NZR_Temporal": false,
+    "RRFallback": true,
+    "DiffuseRR": true,
+    "ReflectionHistory": true,
+    "Glass_mode": 2,
+    "Glass_strength_NZR_fraction": 0.5,
+    "other_actual_settings": null,
+    "other_settings_rule": "Preserve actual protected preset words. Source defaults are not user settings. Candidate admission requires reflectionPolish0; otherwise abstain without changing it. Record all other actual settings in local manifest."
+  },
+  "input_roles_and_formats": "Stage1 and Stage2 tables below define every exported role; shared per-resource metadata and provenance apply to both.",
+  "capture_dimensions_stride_crop": {
+    "known_source_capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "known_source_render_extent_width_height": [
+      1505,
+      847
+    ],
+    "historical_evaluation_core_origin_xy": [
+      546,
+      347
+    ],
+    "historical_evaluation_core_extent_width_height": [
+      192,
+      160
+    ],
+    "historical_reference_frame": 54,
+    "historical_mask_pixels": 6497,
+    "historical_metric_halo_pixels": 6,
+    "historical_separate_full_roi_mask_pixels_not_substitutable": 8048,
+    "requested_minimum_unwarped_readback_origin_xy": [
+      546,
+      346
+    ],
+    "requested_minimum_unwarped_readback_extent_width_height": [
+      192,
+      162
+    ],
+    "core_offset_xy_in_minimum_readback": [
+      0,
+      1
+    ],
+    "requested_maximum_support_readback_origin_xy": [
+      514,
+      314
+    ],
+    "requested_maximum_support_readback_extent_width_height": [
+      256,
+      224
+    ],
+    "core_offset_xy_in_maximum_readback": [
+      32,
+      33
+    ],
+    "phase_rule": "Both requested readback origins are even in global render coordinates. Native computation remains full render at origin(0,0); only readback is cropped. The published aligned crop starts at odd global y347 and cannot stand in for this native parity input.",
+    "support_rule": "Start with the minimum ROI. Export the bounded larger ROI only where transport/support crosses the smaller ROI and provenance can be retained. Mark samples outside the available preceding ROI unsupported; do not clamp, extrapolate, manufacture history, or enlarge the requested upload beyond256x224.",
+    "mask_rule": "Keep the existing 6497-pixel camera-aligned evaluation mask byte-identical for exact historical calibration. For a new capture UUID/camera, freeze a separate BASE mask before candidate output and report a new denominator. Do not reuse warped RGB with unwarped geometry for native decisions.",
+    "live_render_extent_width_height": null,
+    "live_camera_view_words_u32": null,
+    "live_projection_words_u32": null,
+    "live_camera_position_words_u32": null,
+    "live_per_frame_crop_origins_xy": null,
+    "live_source_row_pitch_bytes": null,
+    "live_readback_row_pitch_bytes": null,
+    "resolution_of_unknowns": "Populate from each local source resource/dispatch manifest, including full render and allocation extents, original crop origins, actual strides and camera conventions. Do not guess from the historical crop."
+  },
+  "constants_and_source_provenance": {
+    "source_revision": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+    "required_fields": [
+      "Capture UUID; exact file hashes; per-frame SDK/Streamline indices, original timestamp and submission order",
+      "Actual native source/adapter/compiler/CSO/provider binary hashes and provider version/ABI/route attestation",
+      "Context, recording, cancellation and resource generations; history parity; original and actual reset flags",
+      "Actual settings JSON/hash and original float/integer words for D16/S256, G2/G3, flat strength/floor/history/mix/anchor/detail/polish, Temporal, RRFallback, DiffuseRR, ReflectionHistory and Glass mode/strength",
+      "184 original provider-control bytes,46 uint32 words, native suffix offset264 in448-byte dispatch; preserve frame/control bits",
+      "Actual128-byte History constants,96-byte Hybrid constants per direction and80-byte Detail constants; source-shaped defaults are not a substitute for upload bytes",
+      "Full render and allocation extents, format/channel/byte order, subresource/mip/slice/plane, per-frame original crop, source/readback row pitch and packed export stride",
+      "Exact native role to resource identity/alias mapping and stage before/after provider scaling, recovery, Glass and encode/commit",
+      "Original camera/view/projection words and depth/motion conventions; actual previous full-render q/tap validity",
+      "Every exported field states measured native value, derived diagnostic, synthetic input or unavailable; no guessed native inputs",
+      "Local command, actual executor, exit code, elapsed time, D3D messages and complete failure output; ordinary JSON numbers with unavailable values null"
+    ],
+    "g3_source_authority": {
+      "source_expression": "RRWrapper::RecordOwnedImpl sourceInput.diff/sourceInput.spec passed to lighting validation",
+      "existing_input_trace_stage_label": "after_anchor_before_optional_turn_filters_and_radiance_scaling",
+      "units_label": "physical_native_linear_rgb",
+      "requirement": "Record original G3 diffuse/specular resource identities and input trace role aliases separately. If optional input anchoring/turn filters make them differ, return distinct exact-stage hashes and label that scope; never relabel post-anchor input as original G3 source. Preserve the actual preset; do not toggle these options to make an alias true.",
+      "actual_g3_input_aliases": null
+    },
+    "history_max_count": {
+      "tagged_host_expected_upload": 16,
+      "source_reason": "HistoryConstants member initializer16; reflection{size}; only camera/projection/historyValid later assigned; Describe memcpy uploads all128 bytes. Temporal Accumulate maxCount32 and settings.historyLength6 do not override it.",
+      "actual_uploaded_max_count": null,
+      "actual_uploaded_constant_bytes_sha256": null,
+      "interpretation": "Analytic N16 controls match the tagged source recurrence; they do not attest the loaded live DLL or any captured noise correlation."
+    },
+    "manifest_excludes_self_hash": true
+  },
+  "startup_reset_order": [
+    "Use isolated local diagnostic resources/contexts owned by job08. No installation into a game is requested by this bundle.",
+    "Run chronological original inputs once, preserve original SDK indices, motion conventions and resets; never loop a crop/window to simulate mature history.",
+    "For exact46..63 attribution, retain the actual preceding native history or capture incoming state. If unavailable, label partial history and restart in a separately identified diagnostic run, never call it reproduction of the historical native output.",
+    "In every paired baseline/candidate or sham run, use identical inputs, preceding state, shader settings, frame order and reset schedule. Record context resets caused by structural settings changes; changing Glass cannot secretly give a different warmup.",
+    "Test low-count startup, explicit reset, newly visible support, discontinuous SDK index and odd DRS extent in the small local harness. Sidecar generation/extent/frame mismatches invalidate admission even though the correction core carries no history.",
+    "No production candidate work when optionOFF. Enabled0 inside a dispatched standalone shader is a distinct arithmetic control, not native OFF proof."
+  ],
+  "baseline_candidate_pairs": [
+    {
+      "id": "P0_native_off_identity",
+      "baseline": "Unmodified tagged native graph at protected mode2 strength0.5",
+      "candidate": "Same graph with proposed optionOFF, no extra passes/resources/routing",
+      "claim": "Exact native OFF identity only; full diffuse/alpha/current settings/resource authority included."
+    },
+    {
+      "id": "P1_arithmetic",
+      "baseline": "CPU shrink_specular with t0 rounded once to originalFP16 then promoted and t1 originalFP32",
+      "candidate": "One standalone GlassNzrCorrection CSMain dispatch, validv1 ABI",
+      "claim": "Arithmetic and abstention parity only, independent of AMD and full graph."
+    },
+    {
+      "id": "P2_existing_glass_calibration",
+      "baseline": "Actual native NZR TemporalOFF with existing Glassmode0, pre-Glass S also captured",
+      "candidate": "Actual existing native Glassmode2 strength0.5 on otherwise identical current inputs/history",
+      "claim": "Reproduce the existing protected visual trade-off; rawRR is a separate existing mode1/control, not clean truth. Return actual native outputs or native hashes, never call a NumPy blend native execution."
+    },
+    {
+      "id": "P3_diagnostic_candidate",
+      "baseline": "Existing native Glassmode2 strength0.5",
+      "candidate": "Only if independent sidecar provenance is available: residual correction before the unchanged sameGlasspolicy; otherwise exact abstention",
+      "claim": "Research diagnostic only. Current Haar candidate already fails CPU thin-sign/glint acceptance; native parity does not reverse that rejection."
+    },
+    {
+      "id": "P4_same_mode_sham",
+      "baseline": "Same ON staging/resources/dispatches but high-band gains fixed to1 and identical current alpha",
+      "candidate": "ON arithmetic at frozen NoiseScale1 andMinEffectiveCount8",
+      "claim": "Measure correction arithmetic separately from staging/sidecar/copy cost, plus compare both with native no-pass OFF. No performance estimate is supplied by CPU."
+    },
+    {
+      "id": "P5_causal_nulls",
+      "baseline": "Current rawRR, current preGlassS, existingBlend0.5 on fixedBASEmasks",
+      "candidate": "CPU/offline diagnostic controls: useRR; reduce correction strength; spatial blur; freeze RGB history; separately freeze w or k while retaining current RGB",
+      "claim": "Clearly label derived controls. Freeze controls must be penalized for real light/colour response and reflected-feature phase loss; no native quality claim from derived controls."
+    }
+  ],
+  "stages": [
+    {
+      "stage_id": "1_minimal_compute_arithmetic",
+      "purpose": "Check that the bounded source-shaped arithmetic and host admission rules survive actual compilation/bindings; no game/provider needed.",
+      "executed": false,
+      "pass": "adapter/GlassNzrCorrection.hlsl::CSMain only",
+      "compiler": {
+        "requested": "DXC1.8",
+        "profile": "cs_6_2",
+        "entry_point": "CSMain",
+        "flags": [
+          "-O3",
+          "-Gis",
+          "-force-rootsig-ver",
+          "rootsig_1_0"
+        ],
+        "actual_version": null,
+        "compiler_sha256": null,
+        "cso_sha256": null,
+        "generated_header_sha256": null
+      },
+      "dispatch": {
+        "thread_group": [
+          8,
+          8,
+          1
+        ],
+        "group_count_formula": "ceil(width/8),ceil(height/8),1",
+        "maximum_extent_width_height": [
+          32,
+          32
+        ],
+        "odd_extent_control_width_height": [
+          31,
+          29
+        ],
+        "global_origin_xy": [
+          0,
+          0
+        ],
+        "history": "none; each independent case initialized from its exact uploaded tensors"
+      },
+      "input_roles_and_formats": [
+        {
+          "role": "t0_InRawRR",
+          "requested_dxgi_format": "R16G16B16A16_FLOAT",
+          "packed_bytes_per_pixel": 8,
+          "exact_capture_stage": "Standalone upload, original half represented once",
+          "meaning_and_units": "RGB physical radiance; native-like current alpha.",
+          "availability": "Generated standalone synthetic upload; not an existing native resource."
+        },
+        {
+          "role": "t1_InSelectedNZR",
+          "requested_dxgi_format": "R32G32B32A32_FLOAT",
+          "packed_bytes_per_pixel": 16,
+          "exact_capture_stage": "Standalone upload",
+          "meaning_and_units": "PreGlass float32 RGB; alpha must carry original t0 current alpha in the admitted adapter domain.",
+          "availability": "Generated standalone synthetic upload; not an existing native resource."
+        },
+        {
+          "role": "t2_InEligible",
+          "requested_dxgi_format": "R32_UINT",
+          "packed_bytes_per_pixel": 4,
+          "exact_capture_stage": "Fixed before candidate",
+          "meaning_and_units": "Original BASE eligibility; no post-filter denominator.",
+          "availability": "Generated standalone synthetic upload; not an existing native resource."
+        },
+        {
+          "role": "t3_InUncertainty",
+          "requested_dxgi_format": "R32G32_FLOAT",
+          "packed_bytes_per_pixel": 8,
+          "exact_capture_stage": "Synthetic analytic truth supplied explicitly",
+          "meaning_and_units": "traceCov(S-R) in radiance squared and independent effective count; valid synthetic provenance only.",
+          "availability": "Generated standalone synthetic upload; not an existing native resource."
+        },
+        {
+          "role": "t4_InSupport",
+          "requested_dxgi_format": "R32G32B32A32_SINT",
+          "packed_bytes_per_pixel": 16,
+          "exact_capture_stage": "Synthetic known partitions/version",
+          "meaning_and_units": "valid, spatial independence, nonnegative support partition,version1; no semantic NRD material rewriting.",
+          "availability": "Generated standalone synthetic upload; not an existing native resource."
+        }
+      ],
+      "output_resources": [
+        {
+          "role": "u0_OutPreGlass",
+          "requested_dxgi_format": "R32G32B32A32_FLOAT",
+          "packed_bytes_per_pixel": 16,
+          "exact_capture_stage": "Distinct UAV",
+          "meaning_and_units": "PreGlass candidate result with original current alpha.",
+          "availability": "New standalone output resource to be allocated by the local compute harness; not an existing native resource."
+        },
+        {
+          "role": "cpu_reference",
+          "requested_dxgi_format": "R32G32B32A32_FLOAT",
+          "packed_bytes_per_pixel": 16,
+          "exact_capture_stage": "CPU oracle built from exactly uploaded data",
+          "meaning_and_units": "Validv1 ABI reference and diagnostics; not an AMD result.",
+          "availability": "CPU reference to be computed from exactly uploaded synthetic tensors; not a native captured resource."
+        }
+      ],
+      "constants": {
+        "buffer_bytes": 32,
+        "byte_layout": {
+          "0": "uint2Size",
+          "8": "uintEnabled",
+          "12": "uintContractVersion",
+          "16": "floatNoiseScale",
+          "20": "floatMinEffectiveCount",
+          "24": "uint2Reserved"
+        },
+        "Enabled_default": 0,
+        "ContractVersion": 1,
+        "NoiseScale": 1.0,
+        "MinEffectiveCount": 8.0,
+        "Reserved": [
+          0,
+          0
+        ],
+        "actual_uploaded_bytes_sha256": null
+      },
+      "case_groups_maximum": 16,
+      "case_groups": [
+        "Finite OFF and signed-zero/current-alpha identity; optionOFF host schedules no shader in a separate native control.",
+        "Missing uncertainty/provenance: host refuses scheduling and retains existing current result.",
+        "Zero noise trace and constant correction: no round-trip change.",
+        "IID synthetic correction noise with exactly known traceCov(S-R), including heteroskedastic four-tap blocks.",
+        "High-signal RGB coefficient, all three high bands, low-band preservation at frozen gain rule.",
+        "Effective count below/at8, newly valid support and incomplete block.",
+        "NaN/Inf/negative uncertainty and invalid effective count: whole-block abstention.",
+        "Invalid ABI/version/reserved/configuration and stale frame/generation/extent metadata: separate host rejection/standalone passthrough tests.",
+        "Crossed support partitions from known geometry; every peer must be eligible and same support.",
+        "Odd31x29 extent, fixed global even phase; last row/column identity.",
+        "Negative/nonfinite/over65504 reconstructed RGB: whole-block identity, not per-channel clamp.",
+        "Overflowing scaled variance: whole-block abstention.",
+        "Current RGB lighting/colour step with no reused RGB history; compare response against freeze-RGB null.",
+        "Four block phases of independent reviewer thin-sign witness; arithmetic parity must reproduce the known negative result.",
+        "All-four-originally-changed true-glint/noise ambiguity witness with uniform0.005 correction plus0.08peak; expect research failure, not visual acceptance.",
+        "Deliberate final-alpha authority mutation and forbidden diffuse mutation must fail the corresponding local guard; do not write into production resources."
+      ],
+      "required_outputs": "Exact uploaded tensors or deterministic generator+seeds+hashes; CPU/GPU outputs; acceptance/abstention/range diagnostics; shader reflection/disassembly; actual command/exit/timing/debug logs. Never serialize NaN/Infinity into JSON; binary tensors preserve invalid test bits.",
+      "maximum_useful_payload": {
+        "assumption": "16cases*32*32pixels*(52input+16GPUoutput+16CPUreference)bytes; smaller cases and shared inputs need less. Packed data, before compression; GPU allocations/row-pitch padding excluded.",
+        "raw_tensor_bytes": 1376256,
+        "metadata_and_logs_cap_bytes": 2097152,
+        "request_cap_bytes": 4194304,
+        "compressed_size_bytes": null
+      }
+    },
+    {
+      "stage_id": "2_native_diagnostic_capture",
+      "purpose": "Identify H1 fit/support, H2 selector/gain, H3 correlated or heavy-tail residual and H4 wrong reflection support using native tensors at unchanged protected settings. Do this before admitting any speculative production sidecar.",
+      "executed": false,
+      "native_passes": [
+        "FSRDNrdFlatPrepare",
+        "FSRDNrdFlatHistory",
+        "FSRDFlatDetailSeed",
+        "FSRDFlatDetailRefine",
+        "FSRDFlatDetailBase",
+        "FSRDNrdFlatHybridPrep",
+        "FSRDNrdFlatHybridBlur horizontal/vertical",
+        "FSRDNrdFlatHybridApply existing Glass mode2 strength0.5"
+      ],
+      "source_of_input_roles": "Actual full-render native wrapper+AMD provider at the pinned graph; crop readback only. Existing published aligned RGB cannot drive this graph faithfully.",
+      "probe_a": {
+        "id": "2A_internal_state_glass",
+        "preferred_capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+        "preferred_sdk_frames_inclusive": [
+          46,
+          63
+        ],
+        "frame_count": 18,
+        "snapshot_sdk_frames": [
+          46,
+          47,
+          50,
+          54,
+          55,
+          59,
+          62,
+          63
+        ],
+        "incoming_state_before_first_exported_frame": true,
+        "availability_rule": "Use these exact frames only if the original full native inputs and prior state can actually be replayed or the source capture can supply new internal witnesses. Otherwise acquire an independently labelled18-frame scene-matched native window; actual UUID/SDK indices/camera remain null until its manifest. Do not fabricate old internal outputs from the compact fixture.",
+        "actual_capture_uuid": null,
+        "actual_sdk_frames": null,
+        "per_frame_roles": [
+          {
+            "role": "input_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "NRD_BRIDGE physical input role; separately attest original G3 source alias",
+            "meaning_and_units": "Physical native linear demodulated RGB; preserve original input alpha/hit-distance words.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_diffuse",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "NRD_BRIDGE physical input role; separately attest original G3 source alias",
+            "meaning_and_units": "Physical native linear demodulated RGB; preserve original input alpha/hit-distance words.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "raw_rr_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "After provider radiance-scale restoration, before any flat recovery/Glass mutation",
+            "meaning_and_units": "Immutable physical native RR RGB and its original current alpha; this is R.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "raw_rr_diffuse",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "After provider radiance-scale restoration, before flat recovery",
+            "meaning_and_units": "Current physical native diffuse RR RGBA, all words preserved.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "selected_rr_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Existing native flat recovery and existing Glass complete, before native encode/commit",
+            "meaning_and_units": "Actual protected mode-2 strength-0.5 final selected physical lobe; not clean truth or pre-Glass S.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "selected_rr_diffuse",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Existing native recovery selection, before native encode/commit",
+            "meaning_and_units": "Must equal the same-frame raw diffuse RGBA bit for bit under DiffuseRR.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "recovery_original_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original geometry before private Prepare compatibility-floor copy",
+            "meaning_and_units": "Export packed little-endian uint32 words; octahedral normal RG, roughness B, material A. No semantic relabelling.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Actual provider normal role after private Prepare floor when active",
+            "meaning_and_units": "Separate prepared/provider uint32 geometry; never substitute for original mask authority.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_depth",
+            "requested_dxgi_format": "R32_FLOAT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Same-recording original native input depth",
+            "meaning_and_units": "Original signed linear depth, float32 bits; preserve source convention and scale.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_motion",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Same-recording original native bridge motion input",
+            "meaning_and_units": "RG full-render UV displacement toward previous frame; B signed previous-minus-current depth delta. Preserve all four half words and actual controls.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_history_mean_count",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHistory OutMean, immediately after UAV completion and before reuse",
+            "meaning_and_units": "RGB physical running mean; alpha is capped recurrence count, not lobe alpha or independent support.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_history_moment_hit",
+            "requested_dxgi_format": "R32G32_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHistory OutMoment, same parity as current mean",
+            "meaning_and_units": "x luma second moment in physical radiance squared, y median hit distance; neither correction variance nor truth.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_decision",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridBlur vertical output c.mean before HybridApply",
+            "meaning_and_units": "Actual (w,k) in RG plus remaining original stored channels; retain FP16 words before reinterpretation.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_pre_glass_selected",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "FSRDNrdFlatHybridApply immediately after base+saturate(w)*(k*rr-base), before Glass and final sanitize/store",
+            "meaning_and_units": "Actual float32 S with original current raw RR alpha. Do not invert final Blend.5 or introduce a half store.",
+            "availability": "New read-only diagnostic shader variant/staging hook required; not an existing trace role."
+          },
+          {
+            "role": "base_eligibility_bits",
+            "requested_dxgi_format": "R32_UINT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Frozen from unmodified original recovery mask, original geometry and pre-Glass R/S before candidate",
+            "meaning_and_units": "Document bits for original active specular mask, full vertical gate, original pre-Glass RGB-changed subset, and any unsupported region. Candidate t2 is their required intersection.",
+            "availability": "New diagnostic role; original BASE authority only."
+          },
+          {
+            "role": "nzr_virtual_transport",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "Inside FSRDNrdFlatHistory before history sample/update",
+            "meaning_and_units": "Requested diagnostic channels: previous full-render pixel q.x/q.y, sum of accepted bilinear weights, median hit. Invalid q is encoded deterministically with a separate flag.",
+            "availability": "New diagnostic role; actual source calculation, not surface MV or camera-only alignment."
+          },
+          {
+            "role": "nzr_virtual_tap_flags",
+            "requested_dxgi_format": "R32_UINT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Inside FSRDNrdFlatHistory same sampling decision as transport",
+            "meaning_and_units": "Bits0..15: Tap validity in row-major 4x4 footprint at floor(q)+(-1,-1). Bits16/17/18/19: finite valid q, HistoryValid admitted, recurrence restarted, all16 accepted. Document unused bits.",
+            "availability": "New diagnostic role; cannot infer solely from exported RGB."
+          },
+          {
+            "role": "nzr_base_with_detail",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutDetail c.variance before HybridApply, every frame",
+            "meaning_and_units": "RGB Base plus kept detail; alpha kept fraction. Capture actual D for freeze-w/freeze-k controls; never infer it by dividing S at w close to1.",
+            "availability": "existing native resource; new capture hook may be needed"
+          }
+        ],
+        "snapshot_roles": [
+          {
+            "role": "nzr_seed_reference",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailSeed OutColor before Refine/scratch reuse",
+            "meaning_and_units": "RGB fitted physical reference; alpha stored seed standard error.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_seed_statistics",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailSeed OutStatistics before scratch reuse",
+            "meaning_and_units": "Native statistics RGBA; x seed standard error, y local signal standard deviation, zw original zero.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_refine_reference",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailRefine OutColor before Base/scratch reuse",
+            "meaning_and_units": "Actual refined RGB and native statistics alpha; not a converged reference.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_refine_statistics",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailRefine OutStatistics before scratch reuse",
+            "meaning_and_units": "Actual original stored RGBA statistics; decode from the recorded shader revision.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_base",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailBase c.base immediately before HybridPrep",
+            "meaning_and_units": "Actual Base physical RGB and original alpha, with native flags and strength recorded.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_prep4",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutPrep4 before horizontal blur/reuse",
+            "meaning_and_units": "x clipped detail luma, y RR luma, z recovery support, w clipped mean luma; original stored values.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_prep2",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutPrep2 before horizontal blur/reuse",
+            "meaning_and_units": "x mature standard error, y mature mean luma, z maturity, w recovery support; source count proxy only.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_seed_support_diagnostic",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "FSRDFlatDetailSeed local values before output quantization",
+            "meaning_and_units": "Requested channels: second.w, weightSquares, directional, sigma2. These describe robust fit weights, not independent effective count or correction covariance.",
+            "availability": "New read-only diagnostic role exposing source float values; no captured pre-store values are assumed present."
+          }
+        ],
+        "boundary_state_roles_once": [
+          {
+            "role": "incoming_history_mean_count",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Incoming History parity before the first exported update",
+            "meaning_and_units": "The actual prior mean/count, preserving any pre-window native history.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "incoming_history_moment_hit",
+            "requested_dxgi_format": "R32G32_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Incoming History parity before the first exported update",
+            "meaning_and_units": "Actual prior luma second moment and hit; frame/context/parity provenance required.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "prior_original_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original geometry of the immediately previous SDK frame",
+            "meaning_and_units": "Extra captured prior geometry for external support diagnosis; native History does not itself read this field.",
+            "availability": "Capture previous chronological frame locally; mark absent support invalid if unavailable."
+          },
+          {
+            "role": "prior_input_depth",
+            "requested_dxgi_format": "R32_FLOAT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original depth of the immediately previous SDK frame",
+            "meaning_and_units": "Extra prior original depth for external support diagnosis.",
+            "availability": "Capture previous chronological frame locally; mark absent support invalid if unavailable."
+          }
+        ],
+        "maximum_useful_payload": {
+          "raw_tensor_formula": "pixels*(18*140 +8*72 +1*24); primary fields every frame, eight fixed detailed snapshots, one incoming state.",
+          "packed_raw_bytes_minimum_roi": 97044480,
+          "packed_raw_bytes_maximum_roi": 178913280,
+          "request_cap_bytes_including_metadata_and_selected_control_outputs": 209715200,
+          "compressed_size_bytes": null,
+          "scope": "Only this ROI/window. Return local full-render byte-check receipts and bounded mismatches, not full-game dumps. Optional native Glassmode0 output costs8bytes/pixel/frame; include within cap or return hashes/metrics plus selected frames."
+        }
+      },
+      "probe_b_conditional": {
+        "id": "2B_unlooped_motion_settle_light",
+        "condition": "Only if2A cannot distinguish support motion from true lighting/colour change, and the local scene can supply such a change; do not relabel a naturally noisy frame as known truth.",
+        "actual_capture_uuid": null,
+        "actual_sdk_frames": null,
+        "requested_relative_frames_inclusive": [
+          0,
+          47
+        ],
+        "requested_frame_count": 48,
+        "requested_schedule": {
+          "relative0_to11": "Unlooped motion of reflected feature, phase/coverage and a newly visible boundary. Preserve real current inputs.",
+          "relative12_to23": "Motion settles; current signal continues, no frozen inputs.",
+          "relative24": "A controlled moderate true lighting/colour change, if attainable; record actual event values/timestamp and upstream original input response.",
+          "relative25_to47": "Chronological response after change, no loop or artificial recurrent reset."
+        },
+        "true_light_event_actual_sdk_frame": null,
+        "true_light_event_actual_rgb_scale": null,
+        "true_light_event_mechanism": null,
+        "snapshot_relative_frames": [
+          0,
+          23,
+          24,
+          47
+        ],
+        "per_frame_roles": [
+          {
+            "role": "input_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "NRD_BRIDGE physical input role; separately attest original G3 source alias",
+            "meaning_and_units": "Physical native linear demodulated RGB; preserve original input alpha/hit-distance words.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "raw_rr_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "After provider radiance-scale restoration, before any flat recovery/Glass mutation",
+            "meaning_and_units": "Immutable physical native RR RGB and its original current alpha; this is R.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "selected_rr_specular",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Existing native flat recovery and existing Glass complete, before native encode/commit",
+            "meaning_and_units": "Actual protected mode-2 strength-0.5 final selected physical lobe; not clean truth or pre-Glass S.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "recovery_original_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original geometry before private Prepare compatibility-floor copy",
+            "meaning_and_units": "Export packed little-endian uint32 words; octahedral normal RG, roughness B, material A. No semantic relabelling.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Actual provider normal role after private Prepare floor when active",
+            "meaning_and_units": "Separate prepared/provider uint32 geometry; never substitute for original mask authority.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_depth",
+            "requested_dxgi_format": "R32_FLOAT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Same-recording original native input depth",
+            "meaning_and_units": "Original signed linear depth, float32 bits; preserve source convention and scale.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "input_motion",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Same-recording original native bridge motion input",
+            "meaning_and_units": "RG full-render UV displacement toward previous frame; B signed previous-minus-current depth delta. Preserve all four half words and actual controls.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_history_mean_count",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHistory OutMean, immediately after UAV completion and before reuse",
+            "meaning_and_units": "RGB physical running mean; alpha is capped recurrence count, not lobe alpha or independent support.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_history_moment_hit",
+            "requested_dxgi_format": "R32G32_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHistory OutMoment, same parity as current mean",
+            "meaning_and_units": "x luma second moment in physical radiance squared, y median hit distance; neither correction variance nor truth.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_decision",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridBlur vertical output c.mean before HybridApply",
+            "meaning_and_units": "Actual (w,k) in RG plus remaining original stored channels; retain FP16 words before reinterpretation.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_pre_glass_selected",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "FSRDNrdFlatHybridApply immediately after base+saturate(w)*(k*rr-base), before Glass and final sanitize/store",
+            "meaning_and_units": "Actual float32 S with original current raw RR alpha. Do not invert final Blend.5 or introduce a half store.",
+            "availability": "New read-only diagnostic shader variant/staging hook required; not an existing trace role."
+          },
+          {
+            "role": "base_eligibility_bits",
+            "requested_dxgi_format": "R32_UINT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Frozen from unmodified original recovery mask, original geometry and pre-Glass R/S before candidate",
+            "meaning_and_units": "Document bits for original active specular mask, full vertical gate, original pre-Glass RGB-changed subset, and any unsupported region. Candidate t2 is their required intersection.",
+            "availability": "New diagnostic role; original BASE authority only."
+          },
+          {
+            "role": "nzr_virtual_transport",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "Inside FSRDNrdFlatHistory before history sample/update",
+            "meaning_and_units": "Requested diagnostic channels: previous full-render pixel q.x/q.y, sum of accepted bilinear weights, median hit. Invalid q is encoded deterministically with a separate flag.",
+            "availability": "New diagnostic role; actual source calculation, not surface MV or camera-only alignment."
+          },
+          {
+            "role": "nzr_virtual_tap_flags",
+            "requested_dxgi_format": "R32_UINT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Inside FSRDNrdFlatHistory same sampling decision as transport",
+            "meaning_and_units": "Bits0..15: Tap validity in row-major 4x4 footprint at floor(q)+(-1,-1). Bits16/17/18/19: finite valid q, HistoryValid admitted, recurrence restarted, all16 accepted. Document unused bits.",
+            "availability": "New diagnostic role; cannot infer solely from exported RGB."
+          },
+          {
+            "role": "nzr_base_with_detail",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutDetail c.variance before HybridApply, every frame",
+            "meaning_and_units": "RGB Base plus kept detail; alpha kept fraction. Capture actual D for freeze-w/freeze-k controls; never infer it by dividing S at w close to1.",
+            "availability": "existing native resource; new capture hook may be needed"
+          }
+        ],
+        "snapshot_roles": [
+          {
+            "role": "nzr_seed_reference",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailSeed OutColor before Refine/scratch reuse",
+            "meaning_and_units": "RGB fitted physical reference; alpha stored seed standard error.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_seed_statistics",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailSeed OutStatistics before scratch reuse",
+            "meaning_and_units": "Native statistics RGBA; x seed standard error, y local signal standard deviation, zw original zero.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_refine_reference",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailRefine OutColor before Base/scratch reuse",
+            "meaning_and_units": "Actual refined RGB and native statistics alpha; not a converged reference.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_refine_statistics",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailRefine OutStatistics before scratch reuse",
+            "meaning_and_units": "Actual original stored RGBA statistics; decode from the recorded shader revision.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_base",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDFlatDetailBase c.base immediately before HybridPrep",
+            "meaning_and_units": "Actual Base physical RGB and original alpha, with native flags and strength recorded.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_prep4",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutPrep4 before horizontal blur/reuse",
+            "meaning_and_units": "x clipped detail luma, y RR luma, z recovery support, w clipped mean luma; original stored values.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_hybrid_prep2",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "FSRDNrdFlatHybridPrep OutPrep2 before horizontal blur/reuse",
+            "meaning_and_units": "x mature standard error, y mature mean luma, z maturity, w recovery support; source count proxy only.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "nzr_seed_support_diagnostic",
+            "requested_dxgi_format": "R32G32B32A32_FLOAT",
+            "packed_bytes_per_pixel": 16,
+            "exact_capture_stage": "FSRDFlatDetailSeed local values before output quantization",
+            "meaning_and_units": "Requested channels: second.w, weightSquares, directional, sigma2. These describe robust fit weights, not independent effective count or correction covariance.",
+            "availability": "New read-only diagnostic role exposing source float values; no captured pre-store values are assumed present."
+          }
+        ],
+        "boundary_state_roles_once": [
+          {
+            "role": "incoming_history_mean_count",
+            "requested_dxgi_format": "R16G16B16A16_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Incoming History parity before the first exported update",
+            "meaning_and_units": "The actual prior mean/count, preserving any pre-window native history.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "incoming_history_moment_hit",
+            "requested_dxgi_format": "R32G32_FLOAT",
+            "packed_bytes_per_pixel": 8,
+            "exact_capture_stage": "Incoming History parity before the first exported update",
+            "meaning_and_units": "Actual prior luma second moment and hit; frame/context/parity provenance required.",
+            "availability": "existing native resource; new capture hook may be needed"
+          },
+          {
+            "role": "prior_original_normal_roughness",
+            "requested_dxgi_format": "R10G10B10A2_UNORM",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original geometry of the immediately previous SDK frame",
+            "meaning_and_units": "Extra captured prior geometry for external support diagnosis; native History does not itself read this field.",
+            "availability": "Capture previous chronological frame locally; mark absent support invalid if unavailable."
+          },
+          {
+            "role": "prior_input_depth",
+            "requested_dxgi_format": "R32_FLOAT",
+            "packed_bytes_per_pixel": 4,
+            "exact_capture_stage": "Original depth of the immediately previous SDK frame",
+            "meaning_and_units": "Extra prior original depth for external support diagnosis.",
+            "availability": "Capture previous chronological frame locally; mark absent support invalid if unavailable."
+          }
+        ],
+        "protected_diffuse_and_alpha": "Still verify every full-render diffuseRGBA and specular/diffusealpha word locally for every paired frame. Return counts/hashes/mismatches; omit identical repeated diffuse payload from this conditional response window.",
+        "maximum_useful_payload": {
+          "raw_tensor_formula": "pixels*(48*116 +4*72 +1*24)",
+          "packed_raw_bytes_minimum_roi": 182891520,
+          "packed_raw_bytes_maximum_roi": 337182720,
+          "request_cap_bytes_including_metadata_and_selected_control_outputs": 367001600,
+          "compressed_size_bytes": null
+        },
+        "unavailable_rule": "Report unavailable if no independently identified light/colour event or trustworthy motion correspondence exists. Signal change cannot be separated from noise simply by collecting more of the same aligned output."
+      },
+      "optional_replica_pilot": {
+        "id": "2C_correction_noise_observability",
+        "condition": "Only if the local renderer can actually produce independently seeded matching-pose trajectories with matched history/setup. This capability is not assumed.",
+        "actual_available": null,
+        "actual_seed_control": null,
+        "requested_independent_trajectories_maximum": 16,
+        "requested_chronological_frames_per_trajectory": 16,
+        "requested_extent_width_height": [
+          64,
+          64
+        ],
+        "requested_global_origin_xy": null,
+        "origin_rule": "Select and freeze a64x64even-origin subcrop inside the original BASEglass region before examining candidate outcomes; retain full-render coordinates.",
+        "exact_stage_and_format": "Each replica/frame: original input_specularRGBA16F, raw_rr_specularRGBA16F, actual pre-Glass selectedRGBA32F;32packedbytes/pixel. Shared original geometry/masks/cameras only once if proven byte-identical; otherwise include within the cap with provenance.",
+        "needed_statistics": "Matched S/R covariance for traceCov(S-R), cross-pixel covariance of each2x2correction, temporal correlation/effective support, sparse-tail mass and uncertainty intervals. Expose individual replicas rather than averaging away tails.",
+        "provenance": "Independent RNG/trajectory setup, same controlled signal/camera/material/light and equivalent prehistory law; deterministic resets and identical repeated realizations are not independent replicas. Do not claim convergence from16replicas.",
+        "maximum_useful_payload": {
+          "raw_tensor_formula": "16trajectories*16frames*64*64pixels*32bytes",
+          "raw_tensor_bytes": 33554432,
+          "request_cap_bytes_with_shared_geometry_and_metadata": 67108864,
+          "compressed_size_bytes": null
+        },
+        "unavailable_rule": "If independent replicas or a validated alternative noise model are unattainable, label correction-noise covariance/effective support unobservable, keep t3/t4invalid and abstain. Captured count or luma moment alone is not a substitute."
+      }
+    }
+  ],
+  "d3d_debug_and_lifetime_checks": [
+    "Enable D3D12 debug and GPU-based validation for the small tests; return severity/count/text and any device removal. Zero unexpected errors or warnings is the local gate, not an executed result here.",
+    "Verify root signature and reflected t0..t4/u0/b0 formats/counts/32-byte layout; actual CBV upload alignment256 and root/profile compatibility.",
+    "All reads immutable and retained through completion; OutPreGlass is a distinct allocation with no input alias. Do not race neighbouring OutColor reads/writes.",
+    "Verify SRV/UAV/copy transitions and UAV barriers after every producer; capture reused native scratch at its named boundary before overwrite. Readback transitions must be restored and must not change native outputs.",
+    "Validate descriptor heaps, per-frame upload lifetime, recording ownership, cancellation, fences, resource generations and family admission/accounting. Test failed admission/family exhaustion returns untouched baseline and releases only owned resources.",
+    "Verify source original geometry/provider prepared geometry/G3 input authority and raw/current alpha ownership. Input alpha/hit distance is never replaced by uncertainty or history count.",
+    "Locally compare every diffuse RGBA16F word and every specular/diffuse alpha16 word over the entire actual render extent for every paired frame; return exact word counts, differing counts, hashes and bounded mismatch samples. Do not replace with an all-pixel identity percentage.",
+    "Compare original provider input/output and original geometry bytes before/after the new diagnostic; preserve encoded commit contracts, published native pointer ownership and fence lifetimes.",
+    "OFF must preserve existing dispatch list, settings words, output pointer/SRV selections, copies and output bytes. Missing/invalid support on ON must abstain at exactly the agreed pre-Glass boundary.",
+    "Test odd extents, alternating contexts, frame discontinuity, reset, DRS and unsupported polish/nonreflection paths. Retain the actual preset; unsupported paths abstain rather than being silently disabled."
+  ],
+  "tolerance_with_rationale": {
+    "native_off_and_protected_channels": "Zero differing words for native no-dispatch OFF, same-frame diffuse RGBA, current output alpha, original input/geometry and forbidden regions.",
+    "standalone_passthrough": "Exact float32 t1 output bytes for finite valid-domain OFF/unsupported/zero-variance/constant-correction cases; preserve signed zero and original alpha. Deliberately malformed optional metadata is a separate native host rejection/copy test, not Python exception parity.",
+    "standalone_active_arithmetic": {
+      "float32_ulps": 4,
+      "relative_to_max_input_rgb_in_block": 2e-07,
+      "combination": "Larger bound only; report max/percentiles/worst components and exact support/gain/range decisions. Investigate every branch mismatch rather than hiding it in RGB tolerance."
+    },
+    "final_half_store": "At most one FP16 ULP only when traced to an independently explained allowed float32 arithmetic difference; exact alpha words and exact forbidden/OFF regions remain mandatory. No extra half quantization before Glass.",
+    "rationale": "Short float32 arithmetic with requested precise/-Gis constraints may still differ by compiler rounding; this is a provisional small arithmetic tolerance, not an image quality threshold or a D3D sampler equivalence claim.",
+    "native_sampler": "Capture actual q/taps/store values for History; ideal NumPy interpolation is not the GPU sampler. Do not widen a geometry/hard-gate mismatch into an accepted numerical error.",
+    "quality": "No aggregate numerical tolerance can accept erased glints/text, phase-dependent flicker, stale true-light response or a worse user game verdict."
+  },
+  "timings_and_memory_scope": {
+    "executed": false,
+    "gpu_device_and_driver": null,
+    "compiler_build_time_seconds": null,
+    "standalone_gpu_microseconds": null,
+    "native_candidate_increment_ms": null,
+    "same_mode_sham_drift_ms": null,
+    "full_game_increment_ms": null,
+    "resident_vram_bytes": null,
+    "actual_family_allocation_bytes": null,
+    "actual_sidecar_producer_cost_ms": null,
+    "accepted_family_budget_bytes": null,
+    "accepted_full_game_budget_ms": null,
+    "measurement_method": "Use actual GPU timestamp queries around arithmetic, staging/copies, sidecar producer and finalGlass; report same-frame ON-minus-sham and ON-minus-nativeOFF with randomized balanced paired run order. Return sample count, resolution, warmup, clock/power/VSync/frame-limit state, median/percentiles and paired confidence intervals plus sham drift. Keep correlated frame blocks together in intervals.",
+    "memory_method": "Use GetResourceAllocationInfo for actual admitted resources and retain separate family high-water/admission/fallback accounting. Measure residency/full-game provider scope locally if available; logicaltensorbytes and compressed upload sizes are not VRAM estimates.",
+    "scope_rule": "Exclude readback/debug instrumentation from production timing or show it separately. Report native wrapper/mock/AMD/game scopes explicitly. No CPU wall time or oldGlass0.00264ms receipt estimates the new graph."
+  },
+  "visual_gate": {
+    "status": "Unexecuted local gate; current candidate remains research-only and rejected for visual shipping on existing CPU evidence.",
+    "requested_actual_native_game_ab": "Compare preserved user TemporalOFF NZR and existingGlassBlendmode2strength0.5, with matched crop, aspect, exposure, frame timing, camera motion/settle and true light/colour event. CandidateON is an isolated diagnostic only if all missing-sidecar/native gates are met; it is not recommended for installation.",
+    "controls": "Separate current rawRR, existing NZR-selected, existingBlend0.5, candidatepreGlass+sameBlend0.5, same-mode sham, reduce-correction/blur/freeze nulls by exact actual-native or derived-CPU stage labels.",
+    "failure_criteria": [
+      "Any visible thin-sign/text loss, broadened or erased true bright glint, phase-dependent contrast modulation/flicker or halo across glass/opaque/normal/depth boundaries.",
+      "Noise/grain/sparkle-tail or temporal-flicker regression on original fixedBASEmask, actualNZRchangedRGBsubset, edge bands, static texture or newly visible support despite a favorable full-image mean.",
+      "True-light/colour response attenuation/delay, movement trails or a win that comes only from stale RGB/history or changed correction strength.",
+      "Any protected diffuse/alpha/input/geometry/OFF byte change, settings drift, incorrect source units or source-role alias.",
+      "User prefers the existing sharp TemporalOFF result under the same viewing conditions. CPU scores cannot override that verdict."
+    ],
+    "report_separately": [
+      "grain and sparkle-tail distribution",
+      "temporal flicker",
+      "text/line contrast and four block phases",
+      "glint peak excess above fixed clean local level",
+      "low-band physical specular energy",
+      "lag/true-light response",
+      "changedRGB-subset exactness and finite/range violations",
+      "protected diffuse/alpha word counts"
+    ],
+    "final_composite_brightness_conservation": null,
+    "visual_failure_thresholds_native": null,
+    "visual_payload_cap_bytes": 16777216,
+    "visual_payload_scope": "Return a few synchronized same-exposure original/candidate crop frames or a short cropped clip plus timing/tonemap manifest. No full game video requested. Missing albedo/final composite prevents physical final-brightness proof."
+  },
+  "surgical_order": "First stage1small compute parity. Then2Aonly. Request2Bor2Conly if that missing observable is still needed and attainable; never request fullcaptures/gamehistory as a substitute for a precise diagnostic.",
+  "relevant_file_sha256": {
+    "research/astra20261020/candidates/05-glass-nzr/adapter/GlassNzrCorrection.hlsl": "2fdbc2483995bb63dcf8934c2038856330bda7caaa951d25ffc84a6fd057f767",
+    "research/astra20261020/candidates/05-glass-nzr/adapter/PRODUCTION.patch": "d24be4cf43353cfb85bfb6fef7e4aff2668e21e6ed6db41787509536bfd5fd0d",
+    "research/astra20261020/candidates/05-glass-nzr/adapter/SHADER_BUILD.json": "c39a624cafe6fa2f54454fcf586d100a793a8f9a27bb6459ae28af87f6bef42d",
+    "research/astra20261020/candidates/05-glass-nzr/REGISTRATION.json": "4c03702b467551cbcb1711a30a7db49f64ee6d5daaf882db96c52631e0a46afd",
+    "research/astra20261020/fixtures/glass/glass_crop.npz": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+    "research/astra20261020/fixtures/glass/manifest.json": "7bbdb9ec78569580adc65f434132c81a357afbf9d0db41032335c71f474d6e41",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHistory.hlsl": "0ea5b045d0539e50d8e5a1b0dba0598ec1f63963e5079afd89d6c2c58285fd5b",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply.hlsl": "8d090231399d96de869624bfe7ea225a0799a6e075d1ca1015a4af61d80e0ff9"
+  },
+  "blocked_data_request": "BLOCKED_DATA_REQUEST.json"
+}

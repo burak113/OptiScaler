@@ -1,0 +1,54 @@
+{
+  "protocol_version": 1,
+  "executor": "independent_skeptical_reviewer",
+  "frozen_before_candidate_inspection": true,
+  "base_tag": "astra-handoff-20261020",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "candidate_tuning_seeds_excluded": [17, 41, 73],
+  "holdout_seeds": [104729, 130363, 155921],
+  "phase_offsets_pixels": [0, 1, 2, 3, 4, 5, 6, 7],
+  "boundary_angles_degrees": [0, 27, 45, 73, 90],
+  "boundary_pairs": ["equal_luminance_red_blue", "equal_luminance_green_magenta"],
+  "boundary_guides": ["same_depth_different_normal", "same_normal_different_depth", "mixed_roughness", "same_guides_colour_only"],
+  "thin_feature_widths_pixels": [1, 2, 3],
+  "noise_families": ["independent_chromatic", "rare_chromatic_outliers", "temporal_AR", "sparse_zero_mass"],
+  "temporal_changes": ["constant_closure", "persistent_colour_step", "one_frame_flash", "moving_boundary"],
+  "hard_gates": {
+    "protected_RGBA_word_changes": 0,
+    "all_alpha_word_changes": 0,
+    "OFF_word_changes": 0,
+    "invalid_or_inactive_word_changes": 0,
+    "eligible_nonfinite_output_count": 0,
+    "clean_distinguishable_edge_extra_bleed": "at most the conservative local FP16 storage envelope; report worst phase, not only average",
+    "closure_detail_contrast_ratio_min": 0.95,
+    "true_colour_step_response_fraction_min_within_4_frames": 0.90,
+    "identity_cheat_rejected": "eligible interior must show nonzero correction, and quality must be compared at fixed or explicitly reported correction strength"
+  },
+  "metrics": [
+    "chroma_error_vs_analytic_truth_on_immutable_BASE_masks",
+    "low_band_bias_correction_fraction",
+    "chroma_temporal_high_frequency",
+    "spatial_boundary_contamination_maximum_and_mean",
+    "luminance_error_in_per_lobe_pre_remod_domain",
+    "detail_contrast",
+    "protected_and_eligible_coverage",
+    "grain_and_sparkle_tail",
+    "true_change_response"
+  ],
+  "required_negative_controls": [
+    "unmodified_B4_reference",
+    "unmodified_rejected_C8_soft2_quality_gate_exit_1",
+    "broken_protected_pixel_gate_mutant",
+    "OFF_is_forced_on_mutant",
+    "clean_target_dirty_upsampling_ablation",
+    "dirty_target_ideal_reconstruction_ablation"
+  ],
+  "epistemic_limits": [
+    "Synthetic truth is analytically specified and is not captured game truth.",
+    "Packaged frame63 contains CPU-warmed history and one recorded GPU comparison only.",
+    "No new GPU execution, AMD RR output, or final game observation is produced by this reviewer.",
+    "Luminance conservation per native lobe does not prove displayed composite luminance conservation.",
+    "Same-guide material changes are separately reported; geometry metadata alone cannot identify them.",
+    "Failure of a quality gate is retained as a negative result and may be compatible with a research-only deliverable."
+  ]
+}

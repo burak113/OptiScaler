@@ -1,0 +1,41 @@
+{
+  "executor": "independent skeptical_review agent",
+  "timestamp_utc": "2026-10-20T18:26:37.517928+00:00",
+  "review_kind": "final read-only evidence/report reconciliation; no broad rerun",
+  "executable_source_revision": "cd4207f3dc2b886ec0136a246dd2484966bdbfec",
+  "result_json_not_yet_generated_at_review": false,
+  "reviewed_file_sha256": {
+    "REPORT.md": "ceaaa7464153815d1575ed08af7a06011b3c3e52e24f7bc999bc8d7f0b85aaa6",
+    "evidence/experiments.json": "4d4fca54533295425483f9d8be5628393d6bbf40c0089f157c7437611f5de9c0",
+    "evidence/transport_metrics.json": "4af8c05d026c2e97e8bcbe58c15be12004d18eb635338288e746824c0f479335",
+    "evidence/execution.json": "bd5069c1dd072cbba51e4a0958ca9527cc9c204ba718a26a54b66457c0b7acc0",
+    "adapter/SupportCertifiedApply.hlsl": "7d85210aa07d55371c98379991a6c6174a2810b65f1b69747b3914dac5f8bfc4",
+    "adapter/PRODUCTION_ADAPTER.md": "82416294619a74d606408f0e150cca9913253b42286e2454fc079a6d58902731",
+    "GPU_REQUEST.json": "84705b869981ee3b638a3c464aa50086217d297a6e4d9f8f1df92d58c17aea49",
+    "BLOCKED_DATA_REQUEST.json": "895ffb5ea04e2ba7ee67bea10f6323728ad4d6853afb6c2a051b281e0d92d216"
+  },
+  "checks": {
+    "all_execution_source_hashes_match_current_files": true,
+    "report_phase_scene_count_matches": true,
+    "report_variant_row_count_matches": true,
+    "report_zero_common_dose_matches": true,
+    "report_zero_pairwise_dose_matches": true,
+    "exact_support_count_matches": true,
+    "exact_support_false_and_missed_zero": true,
+    "centre_gain_discrepancy_retained": true,
+    "separate_exact_footprint_error_zero": true,
+    "transport_correspondence_count_matches": true,
+    "history_event_count_matches": true,
+    "no_gpu_execution_claim": true
+  },
+  "observed_latest_candidate_test_log_count": 55,
+  "materially_incorrect_report_conclusions_found": false,
+  "recommendation": "keep_as_research",
+  "gpu_executed": false,
+  "remaining_limits": [
+    "source-level HLSL review only; no compiler/native GPU run",
+    "conditional eligibility/donor certificate, not captured support proof",
+    "synthetic temporal flicker/noise regression remains",
+    "continuous subpixel topology and unresolved capture history remain unidentifiable"
+  ]
+}

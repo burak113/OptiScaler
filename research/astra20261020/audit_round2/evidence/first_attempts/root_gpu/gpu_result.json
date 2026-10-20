@@ -1,0 +1,178 @@
+{
+  "schema": "astra-local-colour-gpu-v1",
+  "shader_sha256": "cbfb1be18162d1629dfb6054b3288772460b7f4813fb45bdaed5f746c3940014",
+  "dxil_sha256": "8a01b973956cc991cba2cd2cd1c08961f0a756511b4311617a912bb86f87ea82",
+  "compiler_sha256": "7c6918a0e2d4e437629fa8549f5ce800970494780f363bbbe1e3d3034f435aee",
+  "runner_sha256": "a3a5361a8e682b68cf401bd6db967a09f4051f06806cd8f5aa3933c88be1bb5a",
+  "test_sha256": "93137c1280699c17fc2a35e035cc256cb29ba7a1d5c0e48beb8ac2171a1aaa06",
+  "cases": [
+    {
+      "name": "off",
+      "checks": {
+        "alpha_exact": true,
+        "protected_exact": true,
+        "padding_exact": true,
+        "cpu_rgb_within_one_half_ulp": true,
+        "eligibility_exact": true,
+        "finite_rgb": true,
+        "debug_clean": false,
+        "full_word_identity": true
+      },
+      "max_half_ulp": 0,
+      "changed_pixels": 0,
+      "adapter": "AMD Radeon RX 9070",
+      "counters": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 8,
+        "chain_passes": 1,
+        "allocated_gpu_bytes": 524288,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    },
+    {
+      "name": "zero_strength",
+      "checks": {
+        "alpha_exact": true,
+        "protected_exact": true,
+        "padding_exact": true,
+        "cpu_rgb_within_one_half_ulp": true,
+        "eligibility_exact": true,
+        "finite_rgb": true,
+        "debug_clean": false,
+        "full_word_identity": true
+      },
+      "max_half_ulp": 0,
+      "changed_pixels": 0,
+      "adapter": "AMD Radeon RX 9070",
+      "counters": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 8,
+        "chain_passes": 1,
+        "allocated_gpu_bytes": 524288,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    },
+    {
+      "name": "log",
+      "checks": {
+        "alpha_exact": true,
+        "protected_exact": true,
+        "padding_exact": true,
+        "cpu_rgb_within_one_half_ulp": true,
+        "eligibility_exact": true,
+        "finite_rgb": true,
+        "debug_clean": false,
+        "non_vacuous_change": true
+      },
+      "max_half_ulp": 0,
+      "changed_pixels": 114,
+      "adapter": "AMD Radeon RX 9070",
+      "counters": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 8,
+        "chain_passes": 1,
+        "allocated_gpu_bytes": 524288,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    },
+    {
+      "name": "linear",
+      "checks": {
+        "alpha_exact": true,
+        "protected_exact": true,
+        "padding_exact": true,
+        "cpu_rgb_within_one_half_ulp": true,
+        "eligibility_exact": true,
+        "finite_rgb": true,
+        "debug_clean": false,
+        "non_vacuous_change": true
+      },
+      "max_half_ulp": 0,
+      "changed_pixels": 114,
+      "adapter": "AMD Radeon RX 9070",
+      "counters": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 8,
+        "chain_passes": 1,
+        "allocated_gpu_bytes": 524288,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    },
+    {
+      "name": "invalid_geometry",
+      "checks": {
+        "alpha_exact": true,
+        "protected_exact": true,
+        "padding_exact": true,
+        "cpu_rgb_within_one_half_ulp": true,
+        "eligibility_exact": true,
+        "finite_rgb": true,
+        "debug_clean": false,
+        "full_word_identity": true
+      },
+      "max_half_ulp": 0,
+      "changed_pixels": 0,
+      "adapter": "AMD Radeon RX 9070",
+      "counters": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 8,
+        "chain_passes": 1,
+        "allocated_gpu_bytes": 524288,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    }
+  ],
+  "passed": false,
+  "quality_accepted": false,
+  "scope": "Synthetic D3D12 transport/packing checks; no native graph, real RR replay or game visual acceptance"
+}

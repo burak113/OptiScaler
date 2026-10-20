@@ -1,0 +1,21 @@
+{
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "numpy": "2.3.5",
+  "platform": "Linux",
+  "runs": [
+    {
+      "command": "python research/astra20261020/validate_package.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.5835998490001657,
+      "log": "evidence/package_before.txt",
+      "executor": "root CPU / Linux / Python 3.12.14"
+    },
+    {
+      "command": "python research/astra20261020/run_cpu.py",
+      "exit_code": 0,
+      "elapsed_seconds": 5.587189879001016,
+      "log": "evidence/baseline_before.txt",
+      "executor": "root CPU / Linux / Python 3.12.14"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+__pycache__/
+*.pyc
+evidence/phase_sweep.csv

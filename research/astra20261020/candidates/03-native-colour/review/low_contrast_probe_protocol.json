@@ -1,0 +1,16 @@
+{
+  "purpose": "Additional skeptical counterexample search for same-guide low-contrast boundaries; no candidate tuning",
+  "scope": "Follow-up outside the original frozen heldout quality set. Does not replace, modify, or retrofit the original acceptance thresholds.",
+  "phases_pixels": [0, 1, 2, 3, 4, 5, 6, 7],
+  "angles_degrees": [0, 27],
+  "lobe_levels": {"diffuse": 0.3, "specular": 0.045},
+  "raw_left_relative_RGB": [1.08, 0.97, 1.04],
+  "raw_right_relative_RGB": [1.0, 1.0, 1.0],
+  "target_left_relative_RGB": [1.0, 1.0, 0.98],
+  "target_right": "exact original raw right RGB words",
+  "normalization": "Every palette colour is normalized to identical per-lobe luminance using (0.2126,0.7152,0.0722) BEFORE RNE half input storage.",
+  "geometry": "same signed depth10, normal(0,0,1), roughness0.2 on both sides",
+  "prediction": "A compact raw-RR colour guide still assigns positive support across a small chroma discontinuity inside its fixed0.35 radius. Left-only target correction can therefore tint an unchanged right side despite having no coarse grid or upsampler.",
+  "metrics": "Immutable unchanged-right4px band, max and mean L1 RGB change divided by original raw luma; original local half storage envelope and exact word gate unchanged.",
+  "candidate_configuration": "Unmodified frozen defaults, enabled=True; no threshold or strength search"
+}
