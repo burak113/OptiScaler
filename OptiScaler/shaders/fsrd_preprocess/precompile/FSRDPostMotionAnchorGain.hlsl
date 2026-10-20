@@ -6,7 +6,8 @@
 // The gain is then bounded by the T1 model band (dose(k) = A exp(-k/tau) + margin, hard cap), clamped to
 // [kGainLow, 1] so it can never brighten, and rejected outright when the measured excess is far above the band:
 // a real light change, an explosion or a muzzle flash is not the post-motion excess and keeps gain 1.
-// Cells with no recall fall back to the conservative model gain (kFallbackA), blended in with the coverage.
+// Cells with no recall fall back to NO correction (gain 1, the N2 guard), blended in with the coverage; the
+// model band still caps whatever the measurement does produce.
 // This pass also captures the keyframe the ring's next slice receives, for the frames the host marked settled.
 // The output is a single scalar per cell; the apply pass puts the same factor on R, G and B (luma only, so the
 // chroma is untouched - the pre-test's per-channel gain is what made the pink trail worse).
@@ -78,10 +79,15 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
         return;
     }
     // The fallback is the frame-level measured ratio (the prototype's shape) where the frame has a usable
-    // measurement, and the conservative model gain where it has none.
-    const float modelGain = 1.0f - Params2.y * exp(-max(Params3.w, 0.0f) / max(Params.y, 1e-3f));
-    const float fallback = (frameMeasured && frameCoverage >= 0.15f) ? min(frameRatio, 1.0f) : modelGain;
-    // A cell with no recalled, static data at all cannot measure anything: it takes the conservative model gain.
+    // measurement, and NO correction where it has none (SA18 2026-10-20, task 25 N2): the model gain darkened
+    // whole flick frames by 12-15 % unmeasured - the frames whose recall coverage falls under the gate are the
+    // fast-motion frames, where the keyframes cannot match by construction, and the measured prototype does
+    // nothing there. Measured out/in at the affected frames: 2405 f43 0.988 -> 0.840, 22f9 f13 0.971 -> 0.832,
+    // 87ee f8 0.952 -> 0.810; with this guard all of them return to the prototype's value within 0.004, and the
+    // 87ee f60 / 22f9 f52 / 2405 f92 table numbers are unchanged (<= 0.2 %).
+    const float fallback = (frameMeasured && frameCoverage >= 0.15f) ? min(frameRatio, 1.0f) : 1.0f;
+    // A cell with no recalled, static data at all cannot measure anything: with the N2 guard the fallback is 1
+    // (no correction), matching the measured prototype on the low-coverage frames.
     float measured = fallback;
     const bool measurable = coverage >= 0.5f && denominator > 1e-9f;
     if (measurable) measured = numerator / denominator;

@@ -476,7 +476,7 @@ namespace
                 const auto desc = target->GetDesc();
                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint {}; UINT rows; UINT64 copyRowBytes, total;
                 host.device->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, &rows, &copyRowBytes, &total);
-                for (uint16_t slice = 0; slice < 8; ++slice)
+                for (uint16_t slice = 0; slice < PostMotionAnchorMath::kRingSize; ++slice)
                 {
                     auto staging = buffer(host.device.Get(), total, D3D12_HEAP_TYPE_UPLOAD);
                     uint8_t* mapped; hr(staging->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));

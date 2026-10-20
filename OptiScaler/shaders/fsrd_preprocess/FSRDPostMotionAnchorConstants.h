@@ -25,7 +25,12 @@
 namespace PostMotionAnchorMath
 {
     // --- keyframe ring --------------------------------------------------------------------------------------
-    inline constexpr uint32_t kRingSize = 8u;
+    // 6, not 8 (SA18 2026-10-20, task 25 N1): with 8 slots the ring keeps a much older key whose view can
+    // differ by >14 deg. The depth test cannot reject it on fronto-parallel surfaces - the reprojection
+    // offset does not change the depth there - so the recall measures a view difference, not a temporal
+    // excess. Measured: 2405 f92's frame ratio 0.810 -> 0.714 and the applied correction 6.2 % -> 1.5 % of
+    // the level (lab out/in 0.941 -> 0.926 against the prototype's inert 0.940); 87ee/22f9 unchanged.
+    inline constexpr uint32_t kRingSize = 6u;
     // A keyframe is sampled while the camera is still, at most every kSampleFrames frames, and only after
     // kSettledFrames consecutive still frames: a frame right after its own flick still carries part of that
     // flick's excess, which would bias the measured ratio (SA1: the input's own decay is tau ~10 frames).
@@ -44,7 +49,8 @@ namespace PostMotionAnchorMath
     // --- the measured constants of the gain ------------------------------------------------------------------
     // The T1 model excess(k) = 1 + A exp(-k/tau); the shape is reliable, the amplitude is not (A = 0.00-0.53,
     // median 0.18), so it is used as an absolute band: the correction can never exceed it, and where nothing is
-    // recalled the conservative kFallbackA stands in for it.
+    // recalled the fallback is no correction (gain 1) since the N2 guard; kFallbackA is kept only for the
+    // constant layout (Params2.y) and is no longer read by the gain pass.
     inline constexpr float kBandA = 0.18f;
     inline constexpr float kBandTau = 10.0f;
     inline constexpr float kCapExtra = 0.05f;
@@ -194,14 +200,21 @@ namespace PostMotionAnchorMath
         const uint64_t lastMotionFrame = state.Frame - state.MotionFrames;
         for (int pass = 0; pass < 2; ++pass)
         {
-            for (int i = int(kRingSize) - 1; i >= 0; --i)
+            // Newest first WITHIN a group: the physical slot order only matches the capture order until the ring
+            // wraps (SA15 L2), and with the wrong order an old key is tried before the newer ones. Measured
+            // (SA18 2026-10-20): 2405 f92's frame ratio 0.810 -> 0.764 and the applied correction 6.2 % -> 4.0 %.
+            uint32_t group[kRingSize]; uint32_t groupCount = 0;
+            for (int i = 0; i < int(kRingSize); ++i)
             {
                 const auto& slot = state.Ring[i];
                 if (!slot.Valid) continue;
                 const bool preBurst = slot.CaptureFrame < lastMotionFrame;
                 if ((pass == 0) != preBurst) continue;
-                order[count++] = uint32_t(i);
+                group[groupCount++] = uint32_t(i);
             }
+            std::sort(group, group + groupCount, [&state](uint32_t a, uint32_t b) {
+                return state.Ring[a].CaptureFrame > state.Ring[b].CaptureFrame; });
+            for (uint32_t i = 0; i < groupCount; ++i) order[count++] = group[i];
         }
 
         stats.Projection = {DirectX::XMVectorGetX(currentProjection.r[0]), DirectX::XMVectorGetY(currentProjection.r[1]),
