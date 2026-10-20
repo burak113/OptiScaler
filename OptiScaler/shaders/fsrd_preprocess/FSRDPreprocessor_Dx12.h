@@ -137,6 +137,9 @@ class FSRDPreprocessor_Dx12
         DiffuseAlternate = 1 << 8, // The indirect-diffuse output is the unmodulated diffuse share
         StreakFilter = 1 << 9, // Diagnostic: average RR lighting across magnified-history streaks
         SpecularSignalDisabled = 1 << 5, // Specular was not denoised this frame
+        // Post-RR colour tracking (task 25 T2): write RR's input colour in output units into the composition's
+        // second UAV so the tracking passes read the same domain this pass reconstructs from.
+        ColourTrackTarget = 1 << 10,
 
         Debug =                 1 << 16,
         DebugModeMask =         0xFF << 16,
@@ -328,6 +331,17 @@ class FSRDPreprocessor_Dx12
         DirectX::XMFLOAT4X4 ViewMatrix {};
         DirectX::XMFLOAT4X4 ProjectionMatrix {};
         DirectX::XMFLOAT4X4 PrevViewMatrix {};
+
+        // Post-RR colour tracking (task 25 T2, default off): RR's colour lags a smooth global change by ~60 frames
+        // under the user's D16 settings, so after a flick its chroma holds the pre-flick colour. Three passes run at
+        // the start of composition - quarter-res statistics of the composite and of RR's input colour, the
+        // motion-reprojected EMA of that input colour, and the luminance-preserving per-channel gain applied in
+        // place to the composite - so the recovery chain, the flat detail and NZR all see the corrected colour.
+        // Nothing is allocated, bound or dispatched while the option is off.
+        bool ColourTrack = false;
+        float ColourTrackStrength = 1.0f;
+        float ColourTrackEmaWeight = 0.25f;
+        float ColourTrackRadius = 16.0f; // outermost smoothing tap distance in full-resolution pixels
 
         // Compare (split) view. 0 off, 1 RR only vs final, 2 Recovery v2 off/on,
         // 3 Flat Detail off/on, 4 Skin re-blur off/on. While nonzero the composition

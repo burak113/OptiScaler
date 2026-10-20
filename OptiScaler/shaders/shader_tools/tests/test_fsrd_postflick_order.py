@@ -56,6 +56,7 @@ from fsrd_toolchain import compile_cpp
 ROOT = Path(__file__).resolve().parents[4]
 PREPROCESSOR = ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp'
 POSTFLICK_HEADER = ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDPostFlickConstants.h'
+COLOUR_TRACK_HEADER = ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDColourTrackConstants.h'
 
 # The frame-start clear. It is the anchor of the historical mutant, so the test fails
 # loudly (instead of silently skipping the power check) if the production text moves it.
@@ -66,6 +67,11 @@ SIGNATURES = (
     'void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)',
     'void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)',
     'void DispatchPostFlick(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)',
+    # Post-RR colour tracking (task 25 T2): the same treatment - the production text, so the
+    # order it dispatches in and the option-OFF path are the production ones.
+    'bool ColourTrackFrame(const CompositionDesc& desc) const',
+    'bool PrepareColourTrack(const CompositionDesc& desc)',
+    'void DispatchColourTrack(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)',
 )
 
 
@@ -93,6 +99,7 @@ PREAMBLE = r'''
 #include <string>
 #include <vector>
 #include "___POSTFLICK_HEADER___"
+#include "___COLOUR_TRACK_HEADER___"
 
 // The extracted methods are compiled against these doubles: the resource, command-list,
 // pipeline-state and shader types are opaque handles the production text only passes
@@ -167,6 +174,7 @@ enum class CompFlags : uint32_t
     SpecularSignalDisabled = 1 << 5,
     ExtraDiffuse = 1 << 6,
     ExtraSpecular = 1 << 7,
+    ColourTrackTarget = 1 << 10,
     Debug = 1 << 16,
     DebugModeMask = 0xFF << 16,
     DebugFlatDetail = 25 << 17 | Debug,
@@ -199,12 +207,16 @@ struct CompositionDesc
     XMFLOAT4X4 ViewMatrix {};
     XMFLOAT4X4 ProjectionMatrix {};
     XMFLOAT4X4 PrevViewMatrix {};
+    bool ColourTrack = false;
+    float ColourTrackStrength = 1.0f;
+    float ColourTrackEmaWeight = 0.25f;
+    float ColourTrackRadius = 16.0f;
     uint32_t CompareView = 0;
 };
 
 namespace Composition
 {
-    constexpr UINT kOutputCount = 1;
+    constexpr UINT kOutputCount = 2;
     struct alignas(16) Constants
     {
         XMFLOAT4 DstTexSize;
@@ -219,7 +231,7 @@ namespace Composition
     };
     union Output
     {
-        struct Data { ID3D12Resource* OutColor; };
+        struct Data { ID3D12Resource* OutColor; ID3D12Resource* OutTarget; };
         Data Resources;
         ID3D12Resource* AsArray[kOutputCount];
     };
@@ -308,7 +320,9 @@ enum Res : int
     kFlatDetailReset, kFlatDetailReference0, kFlatDetailReference1, kFlatDetailStatistics0,
     kFlatDetailStatistics1, kFlatDetailBase, kFlatDetailMean, kFlatDetailVariance,
     kPostFlickKey0, kPostFlickKey1, kPostFlickKeyAux0, kPostFlickKeyAux1, kPostFlickAux0,
-    kPostFlickAux1, kPostFlickCur, kResourceCount
+    kPostFlickAux1, kPostFlickCur,
+    kColourTrackInput, kColourTrackStats, kColourTrackTarget, kColourTrackMotion, kColourTrackGain,
+    kColourTrackHistory0, kColourTrackHistory1, kResourceCount
 };
 constexpr const char* kResourceNames[kResourceCount] =
 {
@@ -319,7 +333,9 @@ constexpr const char* kResourceNames[kResourceCount] =
     "flat-reset", "flat-reference0", "flat-reference1", "flat-statistics0",
     "flat-statistics1", "flat-base", "flat-mean", "flat-variance",
     "post-flick-key0", "post-flick-key1", "post-flick-key-aux0", "post-flick-key-aux1", "post-flick-aux0",
-    "post-flick-aux1", "post-flick-cur"
+    "post-flick-aux1", "post-flick-cur",
+    "colour-track-input", "colour-track-stats", "colour-track-target", "colour-track-motion", "colour-track-gain",
+    "colour-track-history0", "colour-track-history1"
 };
 inline ID3D12Resource* Res(int id)
 {
@@ -365,6 +381,9 @@ struct Host
     bool m_skinOutputActive = false, m_flatDetailActive = false, m_flatTemporalActive = false;
     bool m_compareSnapshotsReady = false, m_compareFrozenValid = false;
     uint32_t m_postFlickParity = 0, m_postFlickWidth = 0, m_postFlickHeight = 0;
+    // Post-RR colour tracking (task 25 T2) state the extracted methods touch.
+    bool m_colourTrackValid = false, m_colourTrackWasEnabled = false, m_colourTrackActive = false;
+    uint32_t m_colourTrackWidth = 0, m_colourTrackHeight = 0, m_colourTrackHistoryIndex = 0;
     uint32_t m_compareView = 0, m_comparePresentWidth = 0, m_comparePresentHeight = 0;
     uint32_t m_albedoTrustResult = 0;
     PostFlickMath::KeyState m_postFlickKeyState {};
@@ -380,6 +399,9 @@ struct Host
     ComPtr<ID3D12Resource> m_flatDetailSignatureResource;
     ComPtr<ID3D12CommandSignature> m_flatDetailSignature;
     std::array<ComPtr<ID3D12Resource>, 2> m_postFlickKey, m_postFlickKeyAux, m_postFlickAux;
+    ComPtr<ID3D12Resource> m_colourTrackInput, m_colourTrackStats, m_colourTrackTarget, m_colourTrackMotion,
+        m_colourTrackGain;
+    std::array<ComPtr<ID3D12Resource>, 2> m_colourTrackHistory;
     struct
     {
         struct
@@ -389,12 +411,14 @@ struct Host
         } Resources;
     } m_out;
     ComputeState m_compShader, m_flatDetailClassifyShader, m_flatDetailSeedShader, m_flatDetailRefineShader,
-        m_flatDetailBaseShader, m_flatDetailApplyShader, m_postFlickPrepareShader, m_postFlickApplyShader;
+        m_flatDetailBaseShader, m_flatDetailApplyShader, m_postFlickPrepareShader, m_postFlickApplyShader,
+        m_colourTrackStatsShader, m_colourTrackTrackShader, m_colourTrackApplyShader;
 
     // ---- harness-only controls and the recording ----
     std::vector<Record> records;
     bool skinWritesOutput = false;
     bool ensurePostFlickSucceeds = true;
+    bool ensureColourTrackSucceeds = true;
 
     explicit Host()
     {
@@ -438,6 +462,8 @@ struct Host
             {&m_flatDetailSeedShader, "flat-detail-seed"}, {&m_flatDetailRefineShader, "flat-detail-refine"},
             {&m_flatDetailBaseShader, "flat-detail-base"}, {&m_flatDetailApplyShader, "flat-detail-apply"},
             {&m_postFlickPrepareShader, "post-flick-prepare"}, {&m_postFlickApplyShader, "post-flick-apply"},
+            {&m_colourTrackStatsShader, "colour-track-stats"}, {&m_colourTrackTrackShader, "colour-track-track"},
+            {&m_colourTrackApplyShader, "colour-track-apply"},
         };
         for (const auto& entry : shaders) { entry.first->host = this; entry.first->name = entry.second; }
     }
@@ -491,6 +517,22 @@ struct Host
         if (skinWritesOutput) { m_skinOutputActive = true; note("reblur-skin-write"); }
     }
     bool EnsurePostFlick() { note("ensure-post-flick"); return ensurePostFlickSucceeds; }
+    // The production EnsureColourTrack creates the size-bound textures; the harness only gives the members
+    // identities, because the dispatch guards and the records are what is under test here (the GPU fixture owns
+    // the real allocation, the pass arithmetic and the cost).
+    bool EnsureColourTrack()
+    {
+        note("ensure-colour-track");
+        if (!ensureColourTrackSucceeds) return false;
+        m_colourTrackInput = Res(kColourTrackInput);
+        m_colourTrackStats = Res(kColourTrackStats);
+        m_colourTrackTarget = Res(kColourTrackTarget);
+        m_colourTrackMotion = Res(kColourTrackMotion);
+        m_colourTrackGain = Res(kColourTrackGain);
+        m_colourTrackHistory[0] = Res(kColourTrackHistory0);
+        m_colourTrackHistory[1] = Res(kColourTrackHistory1);
+        return true;
+    }
     void ResetFlatTemporalHistory() {}
     void EnsureFlatDetail() {}
     void EnsureCompareSnapshots(UINT, UINT) {}
@@ -521,6 +563,8 @@ struct Frame
     std::vector<Record> records;
     bool flagEnd = false;
     int colorEnd = -1;
+    bool colourTrackActive = false, colourTrackWasEnabled = false;
+    int colourTrackTarget = -1, colourTrackInput = -1;
 };
 
 int main()
@@ -543,10 +587,11 @@ int main()
     desc.ViewMatrix = desc.ProjectionMatrix = desc.PrevViewMatrix = identity;
 
     std::vector<Frame> frames;
-    const auto run = [&](bool fix, bool skinWrites)
+    const auto run = [&](bool fix, bool skinWrites, bool colourTrack = false)
     {
         h.FrameStart();
         desc.PostFlickFix = fix;
+        desc.ColourTrack = colourTrack;
         h.skinWritesOutput = skinWrites;
         h.records.clear();
         h.DispatchComposition(&list, desc);
@@ -554,6 +599,10 @@ int main()
         frame.records = h.records;
         frame.flagEnd = h.m_postFlickActive;
         frame.colorEnd = ResId(h.CompositionColor());
+        frame.colourTrackActive = h.m_colourTrackActive;
+        frame.colourTrackWasEnabled = h.m_colourTrackWasEnabled;
+        frame.colourTrackTarget = ResId(h.m_colourTrackTarget.Get());
+        frame.colourTrackInput = ResId(h.m_colourTrackInput.Get());
         frames.push_back(std::move(frame));
     };
     const auto find = [](const Frame& frame, const char* site) -> const Record*
@@ -672,9 +721,57 @@ int main()
     check("no-consumer-before-the-post-flick-apply-sees-the-flag-set", early.empty(),
           early.empty() ? "flag false at every consumer up to the post-flick apply" : joined(early));
     // --- invariant (d): early returns inside DispatchPostFlick cannot leave the flag set ---
+    // --- post-RR colour tracking (task 25 T2): the option's own order and OFF path ---
+    run(false, false, true);    // colour tracking ON, post-flick OFF: its own frame
+    run(false, false, false);   // colour tracking OFF
+    const Frame& track = frames[4];
+    const Frame& trackOff = frames[5];
+    const auto indexOf = [](const Frame& frame, const char* site)
+    {
+        for (size_t index = 0; index < frame.records.size(); ++index)
+            if (frame.records[index].site == site) return int(index);
+        return -1;
+    };
+    const int composition = indexOf(track, "composition-main");
+    const int stats = indexOf(track, "colour-track-stats");
+    const int reproject = indexOf(track, "colour-track-track");
+    const int apply = indexOf(track, "colour-track-apply");
+    const int recovery = indexOf(track, "recovery-chain-enter");
+    check("colour-track-runs-after-composition-and-before-the-recovery-chain",
+          composition >= 0 && stats == composition + 1 && reproject == stats + 1 && apply == reproject + 1 &&
+          recovery == apply + 1,
+          "composition=" + std::to_string(composition) + " stats=" + std::to_string(stats) + " track=" +
+          std::to_string(reproject) + " apply=" + std::to_string(apply) + " recovery=" + std::to_string(recovery));
+    check("colour-track-apply-corrects-the-composition-output",
+          apply >= 0 && track.records[apply].target == kCompositionOutput &&
+          track.records[stats].source == kCompositionOutput,
+          show(apply >= 0 ? &track.records[apply] : nullptr) + " " +
+          show(stats >= 0 ? &track.records[stats] : nullptr) + " expected target/source=" +
+          ResName(kCompositionOutput));
+    check("colour-track-allocates-before-the-composition-writes-the-target",
+          indexOf(track, "ensure-colour-track") >= 0 &&
+          indexOf(track, "ensure-colour-track") < composition,
+          "ensure_colour_track=" + std::to_string(indexOf(track, "ensure-colour-track")) +
+          " composition=" + std::to_string(composition));
+    check("colour-track-on-frame-reports-active",
+          track.colourTrackActive && track.colourTrackWasEnabled,
+          "active=" + std::to_string(track.colourTrackActive) + " was_enabled=" +
+          std::to_string(track.colourTrackWasEnabled));
+    check("colour-track-off-frame-dispatches-nothing-and-stays-inactive",
+          indexOf(trackOff, "colour-track-stats") < 0 && indexOf(trackOff, "colour-track-track") < 0 &&
+          indexOf(trackOff, "colour-track-apply") < 0 && indexOf(trackOff, "ensure-colour-track") < 0 &&
+          !trackOff.colourTrackActive && !trackOff.colourTrackWasEnabled,
+          "stats=" + std::to_string(indexOf(trackOff, "colour-track-stats")) + " apply=" +
+          std::to_string(indexOf(trackOff, "colour-track-apply")) + " ensure=" +
+          std::to_string(indexOf(trackOff, "ensure-colour-track")) + " active=" +
+          std::to_string(trackOff.colourTrackActive));
+    check("colour-track-off-frame-keeps-the-composition-output-as-the-colour",
+          trackOff.colorEnd == kRecoveryOutput0,
+          end(trackOff) + " expected color=" + ResName(kRecoveryOutput0));
+
     h.m_postFlickWidth = 64; h.m_postFlickHeight = 64;  // a previous resolution, not the current one
     run(true, false);
-    const Frame& mismatch = frames[4];
+    const Frame& mismatch = frames[6];
     check("resolution-mismatch-cannot-leave-the-flag-set",
           !mismatch.flagEnd && !find(mismatch, "post-flick-apply") &&
           std::none_of(mismatch.records.begin(), mismatch.records.end(),
@@ -684,7 +781,7 @@ int main()
     const XMFLOAT4 renderSize = desc.DstTexSize;
     desc.DstTexSize = XMFLOAT4(0, 0, 0, 0);
     run(true, false);
-    const Frame& zero = frames[5];
+    const Frame& zero = frames[7];
     check("zero-render-size-cannot-leave-the-flag-set",
           !zero.flagEnd && !find(zero, "post-flick-apply") &&
           std::none_of(zero.records.begin(), zero.records.end(),
@@ -693,7 +790,7 @@ int main()
     desc.DstTexSize = renderSize;
     h.ensurePostFlickSucceeds = false;                  // injected failure on the real early-return path
     run(true, false);
-    const Frame& failed = frames[6];
+    const Frame& failed = frames[8];
     check("ensure-post-flick-failure-cannot-leave-the-flag-set",
           !failed.flagEnd && !find(failed, "post-flick-apply") && find(failed, "ensure-post-flick") &&
           std::none_of(failed.records.begin(), failed.records.end(),
@@ -730,6 +827,7 @@ def parse(output):
 def build_and_run(name, methods, output):
     source = output / f'fsrd_postflick_order_{name}.cpp'
     source.write_text(PREAMBLE.replace('___POSTFLICK_HEADER___', POSTFLICK_HEADER.as_posix())
+                      .replace('___COLOUR_TRACK_HEADER___', COLOUR_TRACK_HEADER.as_posix())
                       + '\n'.join(methods) + '\n};\n' + DISPATCH_DEFINITION + MAIN, encoding='utf-8')
     exe = output / f'fsrd_postflick_order_{name}.exe'
     compile_cpp(source, exe)
@@ -752,7 +850,7 @@ def historical_mutant(methods):
     composition = composition.replace(FRAME_START_CLEAR, '')
     brace = post_flick.index('{') + 1
     post_flick = post_flick[:brace] + '\n        m_postFlickActive = false;' + post_flick[brace:]
-    return (methods[0], composition, methods[2], post_flick)
+    return (methods[0], composition, methods[2], post_flick) + tuple(methods[4:])
 
 
 def frame_end_mutant(methods):
@@ -765,7 +863,7 @@ def frame_end_mutant(methods):
     composition = composition.replace(FRAME_START_CLEAR, '')
     closing = composition.rindex('}')
     composition = composition[:closing] + '        m_postFlickActive = false;\n    ' + composition[closing:]
-    return (methods[0], composition, methods[2], methods[3])
+    return (methods[0], composition, methods[2], methods[3]) + tuple(methods[4:])
 
 
 # Each mutant must be caught by at least these invariants. The first reproduces the bug

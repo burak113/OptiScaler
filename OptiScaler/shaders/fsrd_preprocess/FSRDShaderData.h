@@ -819,7 +819,10 @@ namespace FSRD
     namespace Composition
     {
         constexpr UINT kBackBufferCount = 9;
-        constexpr UINT kOutputCount = 1;
+        // u0 is the composite; u1 is RR's input colour in output units for the post-RR colour tracker
+        // (task 25 T2). The second slot is only written while that option is on and the flag is set;
+        // while off a null descriptor is bound there, so nothing is allocated or written.
+        constexpr UINT kOutputCount = 2;
 
         struct alignas(16) Constants
         {
@@ -839,7 +842,7 @@ namespace FSRD
         static_assert(offsetof(Constants, SpecularAlbedoDemodulation) == 48, "FSRDOutputComp modulation");
         union Output
         {
-            struct Data { ID3D12Resource* OutColor; };
+            struct Data { ID3D12Resource* OutColor; ID3D12Resource* OutTarget; };
             Data Resources;
             ID3D12Resource* AsArray[kOutputCount];
         };
@@ -1024,7 +1027,7 @@ namespace FSRD
     static_assert(Conversion::Input::kCount == 19, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 10, "FSRDInputConv MainRS UAV count");
     static_assert(Composition::Input::kCount == 14, "FSRDOutputComp MainRS SRV count");
-    static_assert(Composition::kOutputCount == 1, "FSRDOutputComp MainRS UAV count");
+    static_assert(Composition::kOutputCount == 2, "FSRDOutputComp MainRS UAV count");
     static_assert(TrustEvidence::Input::kCount == 11, "FSRDAlbedoTrustEvidence MainRS SRV count");
     static_assert(TrustEvidence::Output::kCount == 1, "FSRDAlbedoTrustEvidence MainRS UAV count");
     static_assert(TrustPropagate::Input::kCount == 3, "FSRDAlbedoTrustPropagate MainRS SRV count");

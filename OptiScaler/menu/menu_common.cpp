@@ -3385,6 +3385,49 @@ static bool DrawNrdBridgeTurnColour(Config* config)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("How much of the keyframe band is used (1 = the band is fully replaced on young pixels). Default 1.");
     ImGui::EndDisabled();
+    bool colourTrack = config->FfxDenoiserColourTrack.value_or_default();
+    if (ImGui::Checkbox("RR colour tracking (experimental)##NrdBridge", &colourTrack))
+    {
+        config->FfxDenoiserColourTrack = colourTrack;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("RR's colour lags a smooth global change by about a second under D16 settings, so right after a fast "
+                          "flick its output keeps the pre-flick tint (pink/red walls) while the game's own lighting has already "
+                          "moved. This tracks RR's input colour at quarter resolution and pushes the composite's chroma towards "
+                          "it through a motion-reprojected EMA, leaving every pixel's brightness exactly RR's (colour only, no "
+                          "level change). The correction runs before the detail recovery and NZR, so those keep the last word on "
+                          "the pixels they replace. Three quarter-resolution passes plus one full-resolution apply, only while it "
+                          "is on. Experimental; in-game quality is unmeasured. Default off.");
+    ImGui::BeginDisabled(!colourTrack);
+    float colourTrackStrength = config->FfxDenoiserColourTrackStrength.value_or_default();
+    if (ImGui::SliderFloat("Color track strength##NrdBridge", &colourTrackStrength, 0.0f, 1.0f, "%.2f"))
+    {
+        config->FfxDenoiserColourTrackStrength = colourTrackStrength;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How much of the tracked chroma is applied (1 = the full gain, 0 = off). Default 1.");
+    float colourTrackEma = config->FfxDenoiserColourTrackEmaWeight.value_or_default();
+    if (ImGui::SliderFloat("Color track EMA weight##NrdBridge", &colourTrackEma, 0.05f, 1.0f, "%.2f"))
+    {
+        config->FfxDenoiserColourTrackEmaWeight = colourTrackEma;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How fast the tracked colour follows the game's input: 0.25 takes about four frames to close most of a "
+                          "step, 0.5 about two. Higher follows a real light change faster and tracks flicker more. Default 0.25.");
+    float colourTrackRadius = config->FfxDenoiserColourTrackRadius.value_or_default();
+    if (ImGui::SliderFloat("Color track radius (px)##NrdBridge", &colourTrackRadius, 8.0f, 32.0f, "%.0f"))
+    {
+        config->FfxDenoiserColourTrackRadius = colourTrackRadius;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Distance of the outermost smoothing tap in pixels; the kernel keeps colours from bleeding across "
+                          "depth and normal edges. The value is quantised to whole quarter-resolution cells, and 16 is the "
+                          "measured shape. Default 16.");
+    ImGui::EndDisabled();
     ImGui::BeginDisabled(!enabled && !brightness);
     float degrees = config->FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
     if (ImGui::SliderFloat("Turn speed threshold (deg/frame)##NrdBridge", &degrees, 0.5f, 20.0f, "%.1f"))

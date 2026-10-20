@@ -1,5 +1,5 @@
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 14)), DescriptorTable(UAV(u0, numDescriptors = 1)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 14)), DescriptorTable(UAV(u0, numDescriptors = 2)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
 #define FLAGS_RAW_SOURCE_BLIT (1 << 0)
 #define FLAGS_SCALE_SRC (1 << 1)
 #define FLAGS_DIFFUSE_SIGNAL_INDIRECT (1 << 2)
@@ -24,6 +24,10 @@
 #define FLAGS_SPECULAR_SIGNAL_DISABLED (1 << 5)
 #define FLAGS_DEBUG_FLAT_DETAIL (25 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_FLAT_REFERENCE (26 << 17 | FLAGS_DEBUG)
+// Post-RR colour tracking (task 25 T2, experimental): write RR's input colour in output units into u1 so the
+// tracking passes read the same domain this pass reconstructs from, instead of re-deriving the albedo
+// modulation elsewhere. Set only while the option is on and never on a debug or raw-blit frame.
+#define FLAGS_COLOUR_TRACK_TARGET (1 << 10)
 Texture2D<half4> InIndirectSpecular : register(t0);
 Texture2D<half4> InSpecularAlbedo : register(t1);
 Texture2D<half4> InDirectDiffuse : register(t2);
@@ -39,6 +43,9 @@ Texture2D<half4> InIndirectDiffuseDenoised : register(t11);
 Texture2D<half4> InIndirectSpecularSignal : register(t12);
 Texture2D<half4> InDirectDiffuseSignal : register(t13);
 RWTexture2D<half4> OutColor : register(u0);
+// RR's input colour in output units, for the post-RR colour tracker (task 25 T2). Written only under
+// FLAGS_COLOUR_TRACK_TARGET; while the option is off the descriptor is null and nothing here is reached.
+RWTexture2D<half4> OutTarget : register(u1);
 SamplerState LinearSampler : register(s0);
 cbuffer CB_Comp : register(b0)
 {
@@ -66,6 +73,14 @@ float3 DiffuseMultiplier(int2 p)
 float3 DiffuseSignalInput(int2 p)
 {
     return float3(InDirectDiffuseSignal[p].rgb) * (IsSet(FLAGS_EXTRA_DIFFUSE) ? 2.0f : 1.0f);
+}
+// RR's input colour in output units (task 25 T2): the two signals the denoiser consumed, remodulated with the
+// same multipliers this pass reconstructs with. Writing it here is what keeps the tracker's "truth" in the same
+// domain as the composite without re-deriving the albedo modulation (or the extra-diffuse factor) anywhere else.
+float3 ColourTrackTarget(int2 p)
+{
+    return float3(InIndirectSpecularSignal[p].rgb) * SpecularMultiplier(p) +
+           DiffuseSignalInput(p) * DiffuseMultiplier(p);
 }
 // Blend weight toward the unmodulated specular path: how much of the nearby same-surface
 // albedo structure the light does not show (see FSRDAlbedoTrustEvidence/Propagate). Zero
@@ -283,6 +298,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         return;
     }
     float3 colour=Reconstruct(p);
+    [branch]
+    if (IsSet(FLAGS_COLOUR_TRACK_TARGET))
+        OutTarget[p]=half4(SanitizeRadiance(ColourTrackTarget(p)),1);
     if (IsSet(FLAGS_DEBUG))
     {
         switch (GetDebugMode())

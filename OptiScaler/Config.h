@@ -584,6 +584,15 @@ class Config
     // from the last settled frame before it, level matched. Default off; nothing is allocated or dispatched while off.
     CustomOptional<bool> FfxDenoiserPostFlickFix {false};
     CustomOptional<float> FfxDenoiserPostFlickStrength {1.0f};
+    // Post-RR colour tracking (task 25 T2, experimental): RR's chroma lags a smooth global change by ~60 frames
+    // under the user's D16 settings, so after a flick the composite keeps the pre-flick colour for a second or
+    // more. Three quarter-res passes push the composite's chroma towards a motion-reprojected EMA of RR's input
+    // colour, with the pixel's luminance restored exactly. Strength, EMA weight and the smoothing radius are the
+    // knobs. Default off; nothing is allocated, bound or dispatched while off.
+    CustomOptional<bool> FfxDenoiserColourTrack {false};
+    CustomOptional<float> FfxDenoiserColourTrackStrength {1.0f};
+    CustomOptional<float> FfxDenoiserColourTrackEmaWeight {0.25f};
+    CustomOptional<float> FfxDenoiserColourTrackRadius {16.0f};
     CustomOptional<float> FfxDenoiserNrdBridgeTurnColourDegrees {3.0f};
     // Post-turn brightness correction of RR's inputs: peak excess removed and frames until it is gone.
     CustomOptional<bool> FfxDenoiserNrdBridgeTurnBrightness {false};

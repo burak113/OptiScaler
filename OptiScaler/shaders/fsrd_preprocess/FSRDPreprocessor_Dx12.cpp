@@ -40,8 +40,12 @@
 #include "precompile/FSRDFlatDetailBase_Shader.h"
 #include "precompile/FSRDFlatDetailApply_Shader.h"
 #include "FSRDPostFlickConstants.h"
+#include "FSRDColourTrackConstants.h"
 #include "precompile/FSRDPostFlickPrepare_Shader.h"
 #include "precompile/FSRDPostFlickApply_Shader.h"
+#include "precompile/FSRDColourTrackStats_Shader.h"
+#include "precompile/FSRDColourTrackTrack_Shader.h"
+#include "precompile/FSRDColourTrackApply_Shader.h"
 #include "precompile/FSRDFlatTemporal_Shader.h"
 #include "precompile/FSRDFlatTemporalLP_Shader.h"
 #include "precompile/FSRDFlatTemporalStore_Shader.h"
@@ -397,6 +401,18 @@ struct FSRDPreprocessor_Dx12::Impl
     uint32_t m_postFlickParity = 0, m_postFlickWidth = 0, m_postFlickHeight = 0;
     bool m_postFlickValid = false, m_postFlickActive = false, m_postFlickWasEnabled = false;
     PostFlickMath::KeyState m_postFlickKeyState {};
+    // Post-RR colour tracking (task 25 T2), default off: RR's input colour in output units (written by the
+    // composition pass), the quarter-res statistics of the composite and of that input colour, the reprojected
+    // EMA target ping-pong, the gain field and the in-place apply. Created on first use only.
+    ComputeState m_colourTrackStatsShader, m_colourTrackTrackShader, m_colourTrackApplyShader;
+    ComPtr<ID3D12Resource> m_colourTrackInput;   // full resolution, RR's input colour in output units
+    ComPtr<ID3D12Resource> m_colourTrackStats, m_colourTrackTarget, m_colourTrackMotion, m_colourTrackGain;
+    std::array<ComPtr<ID3D12Resource>, 2> m_colourTrackHistory;
+    uint32_t m_colourTrackHistoryIndex = 0;
+    uint32_t m_colourTrackWidth = 0, m_colourTrackHeight = 0;
+    bool m_colourTrackValid = false, m_colourTrackWasEnabled = false;
+    // True on the frame whose composite the tracking passes have corrected in place; the composition clears it.
+    bool m_colourTrackActive = false;
     ComputeState m_flatDetailBaseShader, m_flatDetailApplyShader;
     ComPtr<ID3D12CommandSignature> m_flatDetailSignature;
     ComPtr<ID3D12Resource> m_flatDetailTiles, m_flatDetailArguments, m_flatDetailReset;
@@ -1369,6 +1385,13 @@ struct FSRDPreprocessor_Dx12::Impl
         m_postFlickParity = 0; m_postFlickWidth = 0; m_postFlickHeight = 0;
         m_postFlickValid = false; m_postFlickActive = false; m_postFlickWasEnabled = false;
         m_postFlickKeyState = PostFlickMath::KeyState {};
+        // The colour-tracking textures are size bound as well: drop them so EnsureColourTrack rebuilds them at the
+        // new extent instead of leaving the option silently dead (a size change is a context rebuild, not a toggle).
+        m_colourTrackInput.Reset(); m_colourTrackStats.Reset(); m_colourTrackTarget.Reset();
+        m_colourTrackMotion.Reset(); m_colourTrackGain.Reset();
+        for (auto& resource : m_colourTrackHistory) resource.Reset();
+        m_colourTrackHistoryIndex = 0; m_colourTrackWidth = 0; m_colourTrackHeight = 0;
+        m_colourTrackValid = false; m_colourTrackWasEnabled = false; m_colourTrackActive = false;
         for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
             for (auto& resource : *set) resource.Reset();
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
@@ -1749,6 +1772,140 @@ struct FSRDPreprocessor_Dx12::Impl
         m_postFlickParity ^= 1u;
         m_postFlickValid = true;
         m_postFlickActive = true;
+    }
+
+    // --- Post-RR colour tracking (task 25 T2), default off ------------------------------------------------
+    // RR's colour lags a smooth global change (about 60 frames to show half of one under the user's D16+G2), so
+    // after a flick its chroma holds the pre-flick colour while the game's input has already moved. Three passes
+    // run at the start of composition: quarter-res statistics of the composite and of RR's input colour, the
+    // motion-reprojected EMA of that input colour, and the luminance-preserving per-channel gain applied in place
+    // to the composite - so the recovery chain, the flat detail and NZR all see the corrected colour. Nothing is
+    // allocated, bound or dispatched while the option is off.
+    // True when this frame's composite can be colour tracked: the option is on, the frame is a real image, the
+    // extent is usable and the size-bound textures (if any) match it. The composition pass writes its target
+    // under this same decision, so the writer and the reader can never disagree about whether the pass runs.
+    bool ColourTrackFrame(const CompositionDesc& desc) const
+    {
+        if (!desc.ColourTrack) return false;
+        if ((desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) != 0u) return false;
+        const uint32_t width = uint32_t(desc.DstTexSize.x), height = uint32_t(desc.DstTexSize.y);
+        if (!width || !height) return false;
+        return (m_colourTrackWidth == 0 || (m_colourTrackWidth == width && m_colourTrackHeight == height));
+    }
+    bool EnsureColourTrack()
+    {
+        // The textures are size bound and released on a resolution change, so the pipeline state alone is not
+        // enough: recreate both whenever either is missing.
+        if (m_colourTrackStatsShader.m_pso && m_colourTrackInput) return true;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_colourTrackStatsShader.m_pso)
+        {
+            m_colourTrackStatsShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackStats_cso),
+                sizeof(ColourTrackMath::StatsConstants), 5, 3, L"FSRD_ColourTrack_Stats_Constants");
+            m_colourTrackTrackShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackTrack_cso),
+                sizeof(ColourTrackMath::TrackConstants), 4, 2, L"FSRD_ColourTrack_Track_Constants");
+            m_colourTrackApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackApply_cso),
+                sizeof(ColourTrackMath::ApplyConstants), 2, 1, L"FSRD_ColourTrack_Apply_Constants");
+        }
+        const uint32_t width = m_colourTrackWidth, height = m_colourTrackHeight;
+        const uint32_t quarterW = std::max(1u, width / 4), quarterH = std::max(1u, height / 4);
+        const auto create = [&](ComPtr<ID3D12Resource>& target, uint32_t w, uint32_t h, LPCWSTR name) {
+            target = CreateTexture2D(m_pDev, w, h, DXGI_FORMAT_R16G16B16A16_FLOAT, name, kSrvState);
+        };
+        create(m_colourTrackInput, width, height, L"FSR_ColourTrack_Input");
+        create(m_colourTrackStats, quarterW, quarterH, L"FSR_ColourTrack_Stats");
+        create(m_colourTrackTarget, quarterW, quarterH, L"FSR_ColourTrack_Target");
+        create(m_colourTrackMotion, quarterW, quarterH, L"FSR_ColourTrack_Motion");
+        create(m_colourTrackGain, quarterW, quarterH, L"FSR_ColourTrack_Gain");
+        create(m_colourTrackHistory[0], quarterW, quarterH, L"FSR_ColourTrack_History");
+        create(m_colourTrackHistory[1], quarterW, quarterH, L"FSR_ColourTrack_History");
+        m_colourTrackHistoryIndex = 0; m_colourTrackValid = false;
+        return true;
+    }
+    // Owns the size rules, the allocation and the rising edge, and runs before the composition dispatch because
+    // the composition pass is what fills the target texture this pass reads. Returns false on a frame that must
+    // not be tracked (option off, debug/raw frame, no extent, allocation failure).
+    bool PrepareColourTrack(const CompositionDesc& desc)
+    {
+        if (!desc.ColourTrack)
+        {
+            m_colourTrackWasEnabled = false;
+            return false;
+        }
+        if ((desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) != 0u)
+        {
+            m_colourTrackWasEnabled = false;
+            m_colourTrackValid = false;
+            return false;
+        }
+        const uint32_t width = uint32_t(desc.DstTexSize.x), height = uint32_t(desc.DstTexSize.y);
+        if (!width || !height) return false;
+        // A render-size change (dynamic resolution) releases the size-bound textures and rebuilds them here, so
+        // the option keeps working instead of going silently dead: SetMaxRenderSize is not the only path that can
+        // change the extent. The EMA restarts, which is the same fresh start a toggle gets.
+        if (m_colourTrackWidth && (m_colourTrackWidth != width || m_colourTrackHeight != height))
+        {
+            m_colourTrackInput.Reset(); m_colourTrackStats.Reset(); m_colourTrackTarget.Reset();
+            m_colourTrackMotion.Reset(); m_colourTrackGain.Reset();
+            for (auto& resource : m_colourTrackHistory) resource.Reset();
+            m_colourTrackHistoryIndex = 0; m_colourTrackWidth = 0; m_colourTrackHeight = 0;
+            m_colourTrackValid = false; m_colourTrackWasEnabled = false;
+        }
+        m_colourTrackWidth = width; m_colourTrackHeight = height;
+        if (!EnsureColourTrack())
+        {
+            m_colourTrackWasEnabled = false;
+            return false;
+        }
+        if (!m_colourTrackWasEnabled)
+        {
+            // Rising edge: the first frame after the option is switched on must not reuse the previous run's EMA
+            // (the target then starts from this frame's input colour, the prototype's t = 0 behaviour).
+            m_colourTrackValid = false;
+            m_colourTrackWasEnabled = true;
+        }
+        return true;
+    }
+    // Reads the composite and writes the corrected colour back into it (in place), so CompositionColor() needs no
+    // extra preference: every later consumer of this frame sees the corrected composite.
+    void DispatchColourTrack(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        if (!ColourTrackFrame(desc) || !m_colourTrackInput) return;
+        const uint32_t width = m_colourTrackWidth, height = m_colourTrackHeight;
+        const uint32_t quarterW = std::max(1u, width / 4), quarterH = std::max(1u, height / 4);
+        const float tapStep = ColourTrackMath::TapStepFromRadius(std::clamp(desc.ColourTrackRadius,
+            ColourTrackMath::kMinRadiusPixels, ColourTrackMath::kMaxRadiusPixels));
+        // --- statistics (quarter resolution) ---
+        const ColourTrackMath::StatsConstants statsConstants {
+            .Size = {float(width), float(height), float(quarterW), float(quarterH)}};
+        ID3D12Resource* statsInputs[] {m_compositionOutput.Get(), m_colourTrackInput.Get(),
+            m_out.Resources.Motion.Get(), m_LinearDepth.Get(), m_out.Resources.Normals.Get()};
+        ID3D12Resource* statsOutputs[] {m_colourTrackStats.Get(), m_colourTrackTarget.Get(),
+            m_colourTrackMotion.Get()};
+        m_colourTrackStatsShader.Dispatch(cmdList, GetAsByteSpan(statsConstants), statsInputs, statsOutputs,
+            {float(quarterW), float(quarterH)});
+        // --- reprojected EMA and the luminance-preserving gain (quarter resolution) ---
+        const ColourTrackMath::TrackConstants trackConstants {
+            .Size = {float(width), float(height), float(quarterW), float(quarterH)},
+            .Params = {std::clamp(desc.ColourTrackEmaWeight, 0.05f, 1.0f), 0.02f,
+                       std::clamp(desc.ColourTrackStrength, 0.0f, 1.0f), m_colourTrackValid ? 1.0f : 0.0f},
+            .Params2 = {tapStep, 0.0f, 0.0f, 0.0f}};
+        ID3D12Resource* trackInputs[] {m_colourTrackStats.Get(), m_colourTrackTarget.Get(),
+            m_colourTrackMotion.Get(), m_colourTrackHistory[m_colourTrackHistoryIndex].Get()};
+        ID3D12Resource* trackOutputs[] {m_colourTrackGain.Get(),
+            m_colourTrackHistory[m_colourTrackHistoryIndex ^ 1u].Get()};
+        m_colourTrackTrackShader.Dispatch(cmdList, GetAsByteSpan(trackConstants), trackInputs, trackOutputs,
+            {float(quarterW), float(quarterH)});
+        // --- apply (full resolution, in place) ---
+        const ColourTrackMath::ApplyConstants applyConstants {
+            .Size = {float(width), float(height), 1.0f / float(width), 1.0f / float(height)}};
+        ID3D12Resource* applyInputs[] {m_colourTrackGain.Get()};
+        ID3D12Resource* applyOutputs[] {m_compositionOutput.Get()};
+        m_colourTrackApplyShader.Dispatch(cmdList, GetAsByteSpan(applyConstants), applyInputs, applyOutputs,
+            {float(width), float(height)});
+        m_colourTrackHistoryIndex ^= 1u;
+        m_colourTrackValid = true;
+        m_colourTrackActive = true;
     }
 
     void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -3159,12 +3316,17 @@ struct FSRDPreprocessor_Dx12::Impl
         // DispatchPostFlick, after the flat detail) made the in-place flat-detail pass read and write the previous
         // frame's post-flick texture, which silently dropped the NZR correction while the option was on.
         m_postFlickActive = false;
+        // Post-RR colour tracking (T2): same rule, the flag describes this frame's composite.
+        m_colourTrackActive = false;
+        // The target texture must exist before the composition pass writes it and before the tracking passes read
+        // it, so the allocation and the size rules run here, ahead of the composition dispatch.
+        const bool colourTrackFrame = PrepareColourTrack(desc);
         auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
         {
             .DstTexSize = desc.DstTexSize,
-            .Flags = UINT(desc.Flags),
+            .Flags = UINT(desc.Flags) | (colourTrackFrame ? uint32_t(CompFlags::ColourTrackTarget) : 0u),
             .SourceUvScale = {1.0f, 1.0f},
             .SourceUvOffset = {},
             .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
@@ -3219,7 +3381,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDirectDiffuseSignal = outResources.Signals.DirectDiffuse.Get(),
         };
 
-        Composition::Output outputs { .Resources = { .OutColor=m_compositionOutput.Get() } };
+        Composition::Output outputs { .Resources = { .OutColor=m_compositionOutput.Get(),
+            .OutTarget = colourTrackFrame ? m_colourTrackTarget.Get() : nullptr } };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
@@ -3249,6 +3412,12 @@ struct FSRDPreprocessor_Dx12::Impl
                 EnsureCompareSnapshots(UINT(desc.DstTexSize.x), UINT(desc.DstTexSize.y));
             if (compare == 1u || compare == 2u)
                 capturedA = CaptureCompare(cmdList,m_compositionOutput.Get(),m_compareSnapshotA);
+            // Post-RR colour tracking (T2) runs before the recovery chain, the flat detail and NZR, so those
+            // passes see the corrected colour and their own writers keep the last word where they replace it.
+            // The compare view's A snapshot above is still the raw composition (RR only), which is what that
+            // view compares against.
+            if (colourTrackFrame)
+                DispatchColourTrack(cmdList, desc);
             DispatchRecoveryChain(cmdList, desc);
             if (compare == 2u)
                 capturedB = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotB);

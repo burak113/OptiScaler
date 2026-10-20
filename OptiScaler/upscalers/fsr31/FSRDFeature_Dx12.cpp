@@ -24,6 +24,7 @@
 #include "FSRDTaggedResourceExtent.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDPostFlickConstants.h"
+#include "shaders/fsrd_preprocess/FSRDColourTrackConstants.h"
 #include "shaders/fsrd_preprocess/FSRDShaderUtils.h"
 #include "MathUtils.h"
 #include "upscalers/dlssd/DLSSDFeature_Dx12.h"
@@ -2543,6 +2544,13 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
             .PostFlickFix = cfg.FfxDenoiserPostFlickFix.value_or_default(),
             .PostFlickStrength = std::clamp(cfg.FfxDenoiserPostFlickStrength.value_or_default(), 0.0f, 1.0f),
+            // Post-RR colour tracking (task 25 T2): the knobs are clamped to the domains the three passes accept,
+            // and the radius quantises to an integer number of quarter-res cells inside the tracking pass.
+            .ColourTrack = cfg.FfxDenoiserColourTrack.value_or_default(),
+            .ColourTrackStrength = std::clamp(cfg.FfxDenoiserColourTrackStrength.value_or_default(), 0.0f, 1.0f),
+            .ColourTrackEmaWeight = std::clamp(cfg.FfxDenoiserColourTrackEmaWeight.value_or_default(), 0.05f, 1.0f),
+            .ColourTrackRadius = std::clamp(cfg.FfxDenoiserColourTrackRadius.value_or_default(),
+                                            ColourTrackMath::kMinRadiusPixels, ColourTrackMath::kMaxRadiusPixels),
             .CompareView = uint32_t(std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4)),
         };
         // Post-flick blotch fix (task 24 T2 c): the pass pair needs the camera pair; the conversion desc carries the

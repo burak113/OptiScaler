@@ -215,6 +215,10 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeTurnColour.reset();
     FfxDenoiserPostFlickFix.reset();
     FfxDenoiserPostFlickStrength.reset();
+    FfxDenoiserColourTrack.reset();
+    FfxDenoiserColourTrackStrength.reset();
+    FfxDenoiserColourTrackEmaWeight.reset();
+    FfxDenoiserColourTrackRadius.reset();
     FfxDenoiserNrdBridgeTurnColourFrames.reset();
     FfxDenoiserNrdBridgeTurnColourDegrees.reset();
     FfxDenoiserNrdBridgeTurnBrightness.reset();
@@ -588,6 +592,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeTurnColour.set_from_config(readBool("FSR-RR", "NrdBridgeTurnColourFilter"));
         FfxDenoiserPostFlickFix.set_from_config(readBool("FSR-RR", "PostFlickFix"));
         FfxDenoiserPostFlickStrength.set_from_config(readFloat("FSR-RR", "PostFlickStrength"));
+        FfxDenoiserColourTrack.set_from_config(readBool("FSR-RR", "ColourTrack"));
+        FfxDenoiserColourTrackStrength.set_from_config(readFloat("FSR-RR", "ColourTrackStrength"));
+        FfxDenoiserColourTrackEmaWeight.set_from_config(readFloat("FSR-RR", "ColourTrackEmaWeight"));
+        FfxDenoiserColourTrackRadius.set_from_config(readFloat("FSR-RR", "ColourTrackRadius"));
             FfxDenoiserNrdBridgeTurnColourFrames.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourFrames"));
             FfxDenoiserNrdBridgeTurnColourDegrees.set_from_config(readFloat("FSR-RR", "NrdBridgeTurnColourDegrees"));
             FfxDenoiserNrdBridgeTurnBrightness.set_from_config(readBool("FSR-RR", "NrdBridgeTurnBrightness"));
@@ -1617,6 +1625,10 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFilter", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnColour.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostFlickFix", GetBoolValue(Instance()->FfxDenoiserPostFlickFix.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostFlickStrength", GetFloatValue(Instance()->FfxDenoiserPostFlickStrength.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ColourTrack", GetBoolValue(Instance()->FfxDenoiserColourTrack.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ColourTrackStrength", GetFloatValue(Instance()->FfxDenoiserColourTrackStrength.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ColourTrackEmaWeight", GetFloatValue(Instance()->FfxDenoiserColourTrackEmaWeight.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ColourTrackRadius", GetFloatValue(Instance()->FfxDenoiserColourTrackRadius.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFrames", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourFrames.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourDegrees", GetFloatValue(Instance()->FfxDenoiserNrdBridgeTurnColourDegrees.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnBrightness", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnBrightness.value_for_config()).c_str());

@@ -65,6 +65,11 @@ KEYS = {
     'FfxDenoiserRadianceClip': ('RadianceClipDeviation', 'Float'),
     'FfxDenoiserGaussKernRelax': ('GaussianKernelRelaxation', 'Float'),
     'FfxDenoiserDisocThreshold': ('DisocclusionThreshold', 'Float'),
+    # Post-RR colour tracking (task 25 T2, experimental): the option, its three knobs and the reset.
+    'FfxDenoiserColourTrack': ('ColourTrack', 'Bool'),
+    'FfxDenoiserColourTrackStrength': ('ColourTrackStrength', 'Float'),
+    'FfxDenoiserColourTrackEmaWeight': ('ColourTrackEmaWeight', 'Float'),
+    'FfxDenoiserColourTrackRadius': ('ColourTrackRadius', 'Float'),
     'FfxDenoiserNrdBridgeNativeDebugView': ('NrdBridgeNativeDebugView', 'Int'),
     'FfxDenoiserNrdBridgeNativeDebugViewport': ('NrdBridgeNativeDebugViewport', 'Int'),
 }
@@ -688,6 +693,28 @@ int main(){try{
  cfg.ResetFfxDenoiserSettings();
  need(!NrdBridge::ReadMotionStabilitySettings(cfg).enabled&&!NrdBridge::last.motionStability.enabled,
  "Full reset turns adaptive stability OFF in Config and runtime");
+ // Post-RR colour tracking (task 25 T2): the checkbox and its three sliders drive the stored values, the keys
+ // persist, and the full reset restores the measured defaults.
+ cfg.load("[FSR-RR]\n");
+ need(!cfg.FfxDenoiserColourTrack.value_or_default()&&cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f&&
+      cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.25f&&cfg.FfxDenoiserColourTrackRadius.value_or_default()==16.0f,
+ "Colour tracking defaults OFF with the measured strength, EMA weight and radius");
+ ImGui::frame();ImGui::floats["Color track strength##NrdBridge"]=0.5f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f,"Colour tracking sliders are inert while OFF");
+ ImGui::frame();ImGui::bools["RR colour tracking (experimental)##NrdBridge"]=true;drawBridge(&cfg);
+ need(cfg.FfxDenoiserColourTrack.value_or_default(),"Colour tracking checkbox drives the stored option");
+ ImGui::frame();ImGui::floats["Color track strength##NrdBridge"]=0.5f;ImGui::floats["Color track EMA weight##NrdBridge"]=0.4f;
+ ImGui::floats["Color track radius (px)##NrdBridge"]=24.0f;drawBridge(&cfg);
+ need(cfg.FfxDenoiserColourTrackStrength.value_or_default()==0.5f&&cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.4f&&
+      cfg.FfxDenoiserColourTrackRadius.value_or_default()==24.0f,"Colour tracking sliders write the stored values");
+ saved=cfg.save();reload.load(saved);
+ need(reload.FfxDenoiserColourTrack.value_or_default()&&reload.FfxDenoiserColourTrackStrength.value_or_default()==0.5f&&
+      reload.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.4f&&reload.FfxDenoiserColourTrackRadius.value_or_default()==24.0f,
+ "Colour tracking settings survive production INI save and reload");
+ cfg.ResetFfxDenoiserSettings();
+ need(!cfg.FfxDenoiserColourTrack.value_or_default()&&cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f&&
+      cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.25f&&cfg.FfxDenoiserColourTrackRadius.value_or_default()==16.0f,
+ "Full reset restores the colour tracking defaults");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
