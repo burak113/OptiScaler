@@ -22,6 +22,47 @@ BASE_COMMIT = 'f97d5d040'
 BASE_SOURCE = 'OptiScaler/shaders/fsrd_preprocess/precompile/FSRDOutputComp.hlsl'
 
 
+def binding_counts():
+    """Static guard for the wiring bug the first audit found: every ComputeState must be initialised with exactly the
+    SRV/UAV counts its shader declares and its dispatch binds, because ComputeState puts the UAV descriptor table at
+    heap index numSrvs - a mismatch silently moves u0 onto an unwritten descriptor (the correction then lands
+    nowhere, or on a foreign texture). Read from the sources, so the check follows the code."""
+    cpp = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp').read_text(encoding='utf-8')
+    pre = ROOT / 'OptiScaler/shaders/fsrd_preprocess/precompile'
+    checks = []
+    for name, shader in (('Stats', 'FSRDColourTrackStats.hlsl'), ('Track', 'FSRDColourTrackTrack.hlsl'),
+                         ('Apply', 'FSRDColourTrackApply.hlsl')):
+        text = (pre / shader).read_text(encoding='utf-8')
+        srvs = text.count('register(t')
+        uavs = text.count('register(u')
+        marker = f'm_colourTrack{name}Shader.Initialize('
+        start = cpp.index(marker)
+        call = cpp[start:cpp.index(');', start)]
+        declared = [int(x) for x in call.split(',')[-3:-1]]
+        dispatch_marker = f'm_colourTrack{name}Shader.Dispatch('
+        dstart = cpp.index(dispatch_marker)
+        dcall = cpp[dstart:cpp.index(');', dstart)]
+        bound_inputs = dcall.count('.Get()') if False else None
+        # The dispatch's input/output arrays are named per pass in the source; count their elements.
+        array_names = {'Stats': ('statsInputs', 'statsOutputs'), 'Track': ('trackInputs', 'trackOutputs'),
+                       'Apply': ('applyInputs', 'applyOutputs')}[name]
+        def array_len(array, after):
+            # Anchor the search after this pass's own Initialize call: the post-flick pass names its arrays
+            # applyInputs/applyOutputs too, and an unanchored search finds those (a test bug, not a wiring bug).
+            astart = cpp.index(f'ID3D12Resource* {array}[] {{', after)
+            body = cpp[astart:cpp.index('};', astart)]
+            return body.count(',') + 1
+        checks.append(dict(pass_name=name, shader=shader, declared_srvs=srvs, declared_uavs=uavs,
+                           initialized_srvs=declared[0], initialized_uavs=declared[1],
+                           bound_inputs=array_len(array_names[0], start),
+                           bound_outputs=array_len(array_names[1], start)))
+    assert all(c['declared_srvs'] == c['initialized_srvs'] == c['bound_inputs'] and
+               c['declared_uavs'] == c['initialized_uavs'] == c['bound_outputs'] for c in checks), checks
+    # The composition writes the tracker's target at FULL resolution (the stats pass box-averages it to quarter res).
+    assert '.OutTarget = colourTrackFrame ? m_colourTrackInput.Get() : nullptr' in cpp, 'composition target binding'
+    return checks
+
+
 def main():
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
@@ -76,9 +117,10 @@ def main():
         if line.startswith('colour-track cost at '):
             size = line.split(' at ')[1].split(':')[0]
             costs[size] = line
+    bindings = binding_counts()
     (out / 'result.json').write_text(json.dumps(dict(
         passed=True, seconds=time.perf_counter() - start, exe_sha256=hashlib.sha256(exe.read_bytes()).hexdigest(),
-        base_commit=BASE_COMMIT, costs=costs,
+        base_commit=BASE_COMMIT, costs=costs, bindings=bindings,
         scope='production colour-track CSOs + production composition CSO vs the base composition CSO (f97d5d040) on '
               'synthetic frames in the production conventions; no capture, no real RR, no in-game claim'),
         indent=2) + '\n')

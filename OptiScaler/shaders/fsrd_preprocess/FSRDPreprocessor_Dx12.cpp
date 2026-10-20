@@ -1805,7 +1805,7 @@ struct FSRDPreprocessor_Dx12::Impl
             m_colourTrackTrackShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackTrack_cso),
                 sizeof(ColourTrackMath::TrackConstants), 4, 2, L"FSRD_ColourTrack_Track_Constants");
             m_colourTrackApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDColourTrackApply_cso),
-                sizeof(ColourTrackMath::ApplyConstants), 2, 1, L"FSRD_ColourTrack_Apply_Constants");
+                sizeof(ColourTrackMath::ApplyConstants), 1, 1, L"FSRD_ColourTrack_Apply_Constants");
         }
         const uint32_t width = m_colourTrackWidth, height = m_colourTrackHeight;
         const uint32_t quarterW = std::max(1u, width / 4), quarterH = std::max(1u, height / 4);
@@ -3382,7 +3382,7 @@ struct FSRDPreprocessor_Dx12::Impl
         };
 
         Composition::Output outputs { .Resources = { .OutColor=m_compositionOutput.Get(),
-            .OutTarget = colourTrackFrame ? m_colourTrackTarget.Get() : nullptr } };
+            .OutTarget = colourTrackFrame ? m_colourTrackInput.Get() : nullptr } };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 

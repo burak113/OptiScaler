@@ -636,10 +636,13 @@ int main()
     run(true, true);    // 2: ON, skin writes -> the F2 frame (a stale flag would target frame 1's output)
     run(false, false);  // 3: OFF
     run(true, false);   // 4: ON again after OFF (rising edge)
-    const Frame& on1 = frames[0];
-    const Frame& on2 = frames[1];
-    const Frame& off = frames[2];
-    const Frame& on3 = frames[3];
+    // Copies, not references: the harness keeps appending frames below, so a reference would dangle once the
+    // vector reallocates and the checks would read freed memory (that is what made this test fail on unrelated
+    // source changes - the flag values it reported came from stale storage).
+    const Frame on1 = frames[0];
+    const Frame on2 = frames[1];
+    const Frame off = frames[2];
+    const Frame on3 = frames[3];
 
     // --- invariant (a): the in-place flat-detail apply targets the recovery output ---
     const Record* apply1 = find(on1, "flat-detail-apply");
@@ -724,8 +727,8 @@ int main()
     // --- post-RR colour tracking (task 25 T2): the option's own order and OFF path ---
     run(false, false, true);    // colour tracking ON, post-flick OFF: its own frame
     run(false, false, false);   // colour tracking OFF
-    const Frame& track = frames[4];
-    const Frame& trackOff = frames[5];
+    const Frame track = frames[4];
+    const Frame trackOff = frames[5];
     const auto indexOf = [](const Frame& frame, const char* site)
     {
         for (size_t index = 0; index < frame.records.size(); ++index)
@@ -771,7 +774,7 @@ int main()
 
     h.m_postFlickWidth = 64; h.m_postFlickHeight = 64;  // a previous resolution, not the current one
     run(true, false);
-    const Frame& mismatch = frames[6];
+    const Frame mismatch = frames[6];
     check("resolution-mismatch-cannot-leave-the-flag-set",
           !mismatch.flagEnd && !find(mismatch, "post-flick-apply") &&
           std::none_of(mismatch.records.begin(), mismatch.records.end(),
@@ -781,7 +784,7 @@ int main()
     const XMFLOAT4 renderSize = desc.DstTexSize;
     desc.DstTexSize = XMFLOAT4(0, 0, 0, 0);
     run(true, false);
-    const Frame& zero = frames[7];
+    const Frame zero = frames[7];
     check("zero-render-size-cannot-leave-the-flag-set",
           !zero.flagEnd && !find(zero, "post-flick-apply") &&
           std::none_of(zero.records.begin(), zero.records.end(),
@@ -790,7 +793,7 @@ int main()
     desc.DstTexSize = renderSize;
     h.ensurePostFlickSucceeds = false;                  // injected failure on the real early-return path
     run(true, false);
-    const Frame& failed = frames[8];
+    const Frame failed = frames[8];
     check("ensure-post-flick-failure-cannot-leave-the-flag-set",
           !failed.flagEnd && !find(failed, "post-flick-apply") && find(failed, "ensure-post-flick") &&
           std::none_of(failed.records.begin(), failed.records.end(),
