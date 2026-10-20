@@ -77,15 +77,18 @@ struct NativeMaterialTitle {
   hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso)));FrameSurvey::PipelineCreated(pso.Get(),pd);NrdBridge::RegisterPipelineRoleForTesting(pso.Get(),NrdBridge::Role::MaterialGuide,true);
  }
  void start(){auto zero=h.upload(0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);h.list->CopyBufferRegion(check.Get(),0,zero.Get(),0,256);h.barrier(check.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.uploads.push_back(zero);dispatchCount=0;}
- void dispatch(bool known,bool pixelOnly=false,bool badProfile=false,ID3D12Resource* aliasAfter=nullptr){
-  if(known)for(auto* r:{base.Get(),params.Get()}){h.barrier(r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_SOURCE);h.barrier(r,D3D12_RESOURCE_STATE_COPY_SOURCE,pixelOnly&&r==base.Get()?D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);}
-  if(aliasAfter){D3D12_RESOURCE_BARRIER alias{};alias.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;alias.Aliasing={nullptr,aliasAfter};h.list->ResourceBarrier(1,&alias);}
-  h.barrier(title.tex[2].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+ void bind(bool badProfile=false){
   h.list->SetComputeRootSignature(root.Get());ID3D12DescriptorHeap* heaps[]={heap.Get(),title.sampler.Get()};h.list->SetDescriptorHeaps(2,heaps);
   const UINT first[]={11,22,30},dims[]={title.width,title.height};h.list->SetComputeRoot32BitConstants(0,3,first,0);h.list->SetComputeRoot32BitConstant(0,40,5);h.list->SetComputeRoot32BitConstant(0,33,2);
   const auto gpu=heap->GetGPUDescriptorHandleForHeapStart();h.list->SetComputeRootDescriptorTable(1,gpu);h.list->SetComputeRootDescriptorTable(2,{gpu.ptr+UINT64(badProfile?10:8)*title.increment});
   h.list->SetComputeRootShaderResourceView(3,title.rootSrv->GetGPUVirtualAddress());h.list->SetComputeRootUnorderedAccessView(4,check->GetGPUVirtualAddress());h.list->SetComputeRootDescriptorTable(5,{gpu.ptr+UINT64(16)*title.increment});
   h.list->SetComputeRoot32BitConstants(6,2,dims,0);h.list->SetComputeRootDescriptorTable(7,title.sampler->GetGPUDescriptorHandleForHeapStart());h.list->SetComputeRootConstantBufferView(8,title.cb->GetGPUVirtualAddress());h.list->SetPipelineState(pso.Get());
+ }
+ void dispatch(bool known,bool pixelOnly=false,bool badProfile=false,ID3D12Resource* aliasAfter=nullptr){
+  if(known)for(auto* r:{base.Get(),params.Get()}){h.barrier(r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_SOURCE);h.barrier(r,D3D12_RESOURCE_STATE_COPY_SOURCE,pixelOnly&&r==base.Get()?D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);}
+  if(aliasAfter){D3D12_RESOURCE_BARRIER alias{};alias.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;alias.Aliasing={nullptr,aliasAfter};h.list->ResourceBarrier(1,&alias);}
+  h.barrier(title.tex[2].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+  bind(badProfile);
   h.list->Dispatch((title.width+7)/8,(title.height+7)/8,1);h.uav(check.Get());++dispatchCount;lastParam=badProfile?UINT(std::lround((128.f/1023)*65535)):0;
   h.barrier(title.tex[2].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
   if(pixelOnly)h.barrier(base.Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

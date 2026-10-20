@@ -8,7 +8,7 @@
 
 namespace NrdBridge
 {
-enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer, MaterialGuide };
+enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer, MaterialGuide, MaterialRead };
 enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
 enum class SignalEncoding : uint8_t { Rgb, YCoCg };
 // Deprecated compatibility input: the RR bridge never uses native NRD denoised RGB.

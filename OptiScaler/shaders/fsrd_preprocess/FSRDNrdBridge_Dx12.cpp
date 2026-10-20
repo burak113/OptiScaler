@@ -163,6 +163,49 @@ struct MaterialSnapshot
     NrdBridgeBirth::Token normalBirth;
     uint64_t serial = 0, normalGeneration = 0;
 };
+// A private copy made beside an exact title shader that actually reads t7/t9.
+// No full resource-state mask is inferred, and no source transition is emitted.
+// The later guide writer must match both exact identities in this recording.
+struct MaterialReadSnapshot
+{
+    NativeMaterialCapture::SnapshotLease snapshot;
+    std::array<FrameSurvey::BoundResource,2> sources {};
+    uint64_t serial = 0;
+    bool valid = false;
+    const char* invalidation = "not_captured";
+    bool Matches(const FrameSurvey::BoundResource& base, const FrameSurvey::BoundResource& params,
+                 uint64_t currentSerial) const noexcept
+    {
+        if (!valid || !snapshot || serial != currentSerial) return false;
+        const std::array<const FrameSurvey::BoundResource*,2> current {&base,&params};
+        for (size_t i=0;i<2;++i)
+            if (sources[i].resource != current[i]->resource || sources[i].resourceBirth != current[i]->resourceBirth ||
+                sources[i].resourceGeneration != current[i]->resourceGeneration || sources[i].subresource != current[i]->subresource)
+                return false;
+        return true;
+    }
+    void Observe(UINT count, const D3D12_RESOURCE_BARRIER* barriers) noexcept
+    {
+        if (!valid) return;
+        if (count && !barriers) { valid=false; invalidation="missing_barrier_packet"; return; }
+        for (UINT i=0;i<count;++i) for (const auto& source:sources)
+        {
+            const auto& b=barriers[i];
+            if (b.Type==D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && b.Transition.pResource==source.resource)
+                { valid=false; invalidation="source_transition"; } // A new use may overwrite the captured material.
+            if (b.Type==D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
+            {
+                const auto& a=b.Aliasing;
+                // Preserve an unrelated activation only with exact disjoint private-heap metadata.
+                // Both named endpoints must be disjoint: neither may alias a captured source.
+                const auto disjoint=[&](ID3D12Resource* r) { return r && r!=source.resource &&
+                    FrameSurvey::ResourcesOnDistinctPrivateHeaps(source.resource,source.resourceBirth,source.resourceGeneration,r); };
+                if (!a.pResourceAfter || !disjoint(a.pResourceAfter) || (a.pResourceBefore && !disjoint(a.pResourceBefore)))
+                    { valid=false; invalidation="source_or_unknown_alias"; }
+            }
+        }
+    }
+};
 // Two independent required transactions may coexist in one native recording.
 // A later B commit can never satisfy or replace an incomplete A token.
 struct NativeTransaction
@@ -222,6 +265,7 @@ struct ListState
     ConvertedResources inputs {};
     NativeTemporalCapture::SnapshotLease nativeMotionSnapshot;
     MaterialSnapshot pendingMaterial, material;
+    MaterialReadSnapshot materialRead;
     NativeMaterialStateWitness materialStates;
     uint64_t materialIdentityRevision = 0;
     DebugMode debug = DebugMode::Off;
@@ -1315,10 +1359,62 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         throw;
     }
 }
+// Exact shader 88c255d2... has TextureLoad instructions on t7 and t9 (space0),
+// unlike MaterialGuide, which only reads t9. Capture beside that legal title read
+// with no source barriers; do not invent an exact state mask or import another list.
+void CaptureMaterialReadForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
+{
+    std::shared_ptr<Service> owner; NrdBridgeBirth::Token birth; uint64_t serial=0;
+    MaterialReadSnapshot retired;
+    {
+        std::scoped_lock lock(gMutex); owner=gService; if (!owner) return;
+        const auto found=owner->lists.find(cmd);
+        if (found==owner->lists.end() || found->second.role!=Role::MaterialRead) return;
+        retired=std::move(found->second.materialRead); found->second.materialRead.valid=false;
+        if (!owner->window || !owner->rrSettings.nativeMaterialGuides || !ListLive(found->second)) return;
+        ++owner->status.nativeMaterialReaderAttempts; birth=found->second.birth; serial=owner->cancellationSerial;
+        owner->status.nativeMaterialReaderReason="checking_reader";
+    }
+    const auto reject=[&](const char* reason) { std::scoped_lock lock(gMutex);
+        if (gService==owner) owner->status.nativeMaterialReaderReason=reason; };
+    std::scoped_lock injection(gInjectionMutex);
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) { reject("reader_borrow_failed"); return; }
+    if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) || !D3D12Hooks::BridgePredicationDisabled(cmd))
+    { reject("reader_bindings_or_predication"); return; }
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> br {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,7,7,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> pr {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,9,0}}};
+    std::vector<FrameSurvey::BoundResource> base,params;
+    if (!FrameSurvey::ResolveComputeBindings(cmd,1,br,base) || !FrameSurvey::ResolveComputeBindings(cmd,2,pr,params) ||
+        base.size()!=1 || params.size()!=1 || !base[0].resource || !params[0].resource ||
+        base[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || params[0].viewFormat!=DXGI_FORMAT_R8G8B8A8_UNORM ||
+        base[0].subresource || params[0].subresource)
+    { reject("reader_source_profile"); return; }
+    {
+        std::scoped_lock lock(gMutex); const auto found=owner->lists.find(cmd);
+        if (gService!=owner || found==owner->lists.end() || found->second.birth!=birth || !ListLive(found->second) ||
+            found->second.role!=Role::MaterialRead || !gRuntime.load(std::memory_order_relaxed) ||
+            !owner->rrSettings.nativeMaterialGuides || serial!=owner->cancellationSerial) return;
+    }
+    std::string error; NativeMaterialCapture::SnapshotLease snapshot; bool captured=false;
+    {
+        InjectionScope guard(cmd);
+        captured=owner->nativeMaterialCapture.InitializeParams(owner->device.Get(),uint32_t(base[0].description.Width),base[0].description.Height,error) &&
+            owner->nativeMaterialCapture.CaptureParams(cmd,base[0].resource,params[0].resource,snapshot,error);
+    }
+    if (!captured) { reject(("reader_capture_failed: " + error).c_str()); return; }
+    {
+        std::scoped_lock lock(gMutex); const auto found=owner->lists.find(cmd);
+        if (gService!=owner || found==owner->lists.end() || found->second.birth!=birth || serial!=owner->cancellationSerial) return;
+        auto& target=found->second.materialRead;
+        target.snapshot=std::move(snapshot); target.sources={base[0],params[0]}; target.serial=serial; target.valid=true; target.invalidation="none";
+        ++owner->status.nativeMaterialReaderSnapshots; owner->status.nativeMaterialReaderReason="captured_at_title_read";
+    }
+}
 bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
 {
     std::shared_ptr<Service> owner; NrdBridgeBirth::Token receiverBirth; uint64_t serial = 0;
     MaterialSnapshot retiredMaterial;
+    MaterialReadSnapshot reader;
     {
         std::scoped_lock lock(gMutex); owner = gService; if (!owner) return false;
         const auto found = owner->lists.find(cmd);
@@ -1327,6 +1423,8 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
         owner->status.nativeMaterialBaseStateReason = owner->status.nativeMaterialParamsStateReason = "not_checked";
         owner->status.nativeMaterialBaseState = owner->status.nativeMaterialParamsState = 0;
         retiredMaterial = std::move(found->second.pendingMaterial); // Tombstone even if this writer cannot borrow/capture.
+        reader = std::move(found->second.materialRead);
+        found->second.materialRead.valid=false;
         if (!owner->rrSettings.nativeMaterialGuides || !owner->window || !ListLive(found->second))
         {
             owner->status.nativeMaterialCaptureReason = !owner->rrSettings.nativeMaterialGuides ? "disabled" :
@@ -1364,6 +1462,24 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
         base[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || params[0].viewFormat!=DXGI_FORMAT_R8G8B8A8_UNORM ||
         normal[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || base[0].subresource || params[0].subresource || normal[0].subresource)
     { return reject("format_or_subresource_profile",true); } // Optional unsupported provenance retains white guides.
+    if (reader.Matches(base[0],params[0],serial))
+    {
+        std::scoped_lock lock(gMutex); const auto found=owner->lists.find(cmd);
+        if (gService!=owner || found==owner->lists.end() || found->second.birth!=receiverBirth || serial!=owner->cancellationSerial) return true;
+        auto& pending=found->second.pendingMaterial;
+        pending.snapshot=std::move(reader.snapshot); pending.normal=normal[0].resource;
+        pending.normalBirth=normal[0].resourceBirth; pending.normalGeneration=normal[0].resourceGeneration; pending.serial=serial;
+        ++owner->status.nativeMaterialSnapshots; ++owner->status.nativeMaterialReaderApplied;
+        owner->status.nativeMaterialBaseStateReason=owner->status.nativeMaterialParamsStateReason="shader_read_snapshot";
+        owner->status.nativeMaterialCaptureReason="captured_from_reader";
+        return true;
+    }
+    if (reader.snapshot)
+    {
+        std::scoped_lock lock(gMutex);
+        if (gService==owner) owner->status.nativeMaterialReaderReason = !reader.valid ? reader.invalidation :
+            reader.serial!=serial ? "stale_reader_serial" : "reader_source_identity_changed";
+    }
     NativeMaterialCapture::SourceStates sourceStates {};
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
@@ -2460,12 +2576,13 @@ void ReportPeriodicPerf(const NrdBridgePerf::Periodic::Interval& interval) noexc
         if (runtime && materialStatus)
         {
             const auto& s = *materialStatus;
-            LOG_INFO("[NRD_MATERIAL] requested={} active={} writers={} attempts={} snapshots={} applied={} unknown_state={} unsupported_state={} binding_failures={} capture_failures={} admission_misses={} last_capture={} base_state={:#x} base_proof={} params_state={:#x} params_proof={} last_admission={} scope=service_totals_last_observations_not_pixel_coverage",
+            LOG_INFO("[NRD_MATERIAL] requested={} active={} writers={} attempts={} snapshots={} applied={} unknown_state={} unsupported_state={} binding_failures={} capture_failures={} admission_misses={} last_capture={} base_state={:#x} base_proof={} params_state={:#x} params_proof={} last_admission={} reader_attempts={} reader_snapshots={} reader_applied={} reader_reason={} scope=service_totals_last_observations_not_pixel_coverage",
                 materialsRequested,s.nativeMaterialGuidesActive,s.nativeMaterialWriters,s.nativeMaterialAttempts,s.nativeMaterialSnapshots,
                 s.nativeMaterialFramesApplied,s.nativeMaterialUnknownState,s.nativeMaterialUnsupportedState,s.nativeMaterialBindingFailures,
                 s.nativeMaterialCaptureFailures,s.nativeMaterialAdmissionMisses,s.nativeMaterialCaptureReason,
                 s.nativeMaterialBaseState,s.nativeMaterialBaseStateReason,s.nativeMaterialParamsState,s.nativeMaterialParamsStateReason,
-                s.nativeMaterialAdmissionReason);
+                s.nativeMaterialAdmissionReason,s.nativeMaterialReaderAttempts,s.nativeMaterialReaderSnapshots,
+                s.nativeMaterialReaderApplied,s.nativeMaterialReaderReason);
         }
         LOG_INFO("[NRD_BRIDGE] perf2 #{} seconds={:.1f} rendered_frames={} fps={:.1f} threads={} runtime={} active={} phase={} survey_bindings={} (bridge_window={} survey_armed={}) native_skipped_total={} "
             "hook_thread_ms_per_frame={:.3f} wait_ms_per_frame={:.3f} descriptors_copied_per_frame={:.0f} copy_calls_per_frame={:.0f} bridge_consumers={} | hooks:{} | parts:{} | locks:{} | waits:{}",
@@ -2647,13 +2764,13 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
                 found->second.graphicsConsumerBirth = pixelConsumer ? pipelineBirth : NrdBridgeBirth::Token {};
             }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
-                (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.nativeContractSeen || owner.retryPresents >= 60 ||
+                (role == Role::PrepLast || role == Role::Recon || ((role == Role::MaterialGuide || role == Role::MaterialRead) && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.nativeContractSeen || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
             {
                 StartWindow(owner); if (!owner.cache.Valid()) owner.status.reason = "NRD pipeline observed; waiting for complete bindings"; open = true;
             }
             seed = owner.window && (role == Role::PrepLast || role == Role::Recon ||
-                (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides));
+                ((role == Role::MaterialGuide || role == Role::MaterialRead) && owner.rrSettings.nativeMaterialGuides));
         }
         if (open) PublishBindingWindow();
         if (seed) SeedForWindow(cmd);
@@ -2718,7 +2835,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                 list.nativeContract = owner.roles.at(initial).nativeContract;
                 if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
-                    (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.nativeContractSeen || owner.retryPresents >= 60 ||
+                    (role == Role::PrepLast || role == Role::Recon || ((role == Role::MaterialGuide || role == Role::MaterialRead) && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.nativeContractSeen || owner.retryPresents >= 60 ||
                         (role == Role::Recon && !owner.everRecon)))
                 { StartWindow(owner); open = true; }
             }
@@ -2867,6 +2984,7 @@ void InvalidateRecordingProof(ID3D12GraphicsCommandList* cmd, const char* reason
         std::unique_lock lock(gMutex); if (!gService) return;
         const auto found = gService->lists.find(cmd); if (found == gService->lists.end()) return;
         auto& list = found->second;
+        list.materialRead.valid=false; list.materialRead.invalidation="opaque_recording_invalidation";
         uint32_t pending=0;
         for(size_t index=0;index<list.native.size();++index)
             if(list.native[index]&&!list.native[index]->committed&&!list.native[index]->invalidated)pending|=1u<<index;
@@ -3082,7 +3200,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     }
                 }
                 if(found->second.rrOnlyTransaction || (found->second.nativeContract && role==Role::Recon))gDispatchCandidate=cmd;
-                if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide &&
+                if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide && role != Role::MaterialRead &&
                     !(found->second.nativeContract && (role==Role::Recon || role==Role::PrePass))) return;
                 window = owner->window; following = found->second.followingRecon;
                 captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
@@ -3103,6 +3221,11 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         // A material writer is optional work, even if this recording already
         // contains a native transaction. The native dispatcher has no MaterialGuide
         // action: routing it there silently skipped capture and tombstoning.
+        if (role == Role::MaterialRead)
+        {
+            if (gRuntime.load(std::memory_order_relaxed) && captureMaterial) CaptureMaterialReadForCurrentPipeline(cmd);
+            return;
+        }
         if (role == Role::MaterialGuide)
         {
             if (gRuntime.load(std::memory_order_relaxed) && captureMaterial) CaptureMaterialForCurrentPipeline(cmd);
@@ -3492,6 +3615,7 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
                 if(gNativeMaterials.load(std::memory_order_relaxed))
                 {
                     owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
+                    found->second.materialRead.Observe(count,barriers);
                     // Existing lists must see every packet, including wildcard aliases.
                     found->second.materialStates.Observe(count,barriers,owner->cancellationSerial,&FrameSurvey::ResourcesOnDistinctPrivateHeaps);
                 }
@@ -3533,6 +3657,7 @@ void OnRecordingClosed(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
         if (found != gService->lists.end())
         {
             found->second.materialStates.Invalidate();
+            found->second.materialRead.valid=false; found->second.materialRead.invalidation="recording_closed";
             // Missing late Consumer remains an explicit BeforeSubmission denial;
             // Close never makes an incomplete native transaction submittable.
             for(const auto& stage:found->second.native)

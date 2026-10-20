@@ -122,7 +122,10 @@ using NrdBridge::NativeMaterialStateWitness;
 struct RecordingToken {};
 struct RetiredDebugSources {};
 struct NativeStage { bool committed=false,invalidated=false; uint64_t serial=1; Witness targetStates; };
-struct ListState { Token birth; Witness materialStates; uint64_t materialIdentityRevision=0;
+// The optional early-copy path is exercised by the native GPU fixture below;
+// this adapter preserves the existing state-witness gate tests.
+struct ReaderAdapter { void Observe(UINT,const D3D12_RESOURCE_BARRIER*) noexcept {} };
+struct ListState { Token birth; Witness materialStates; ReaderAdapter materialRead; uint64_t materialIdentityRevision=0;
     std::array<std::shared_ptr<NativeStage>,2> native{}; };
 struct Service { std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists; IdentityCache materialIdentities; uint64_t cancellationSerial=1; };
 std::shared_ptr<Service> gService;

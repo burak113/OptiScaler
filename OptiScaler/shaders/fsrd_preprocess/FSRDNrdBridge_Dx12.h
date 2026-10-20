@@ -9,6 +9,8 @@ struct Status
 {
     bool installed = false, runtimeEnabled = false, active = false;
     bool nativeMaterialGuidesActive = false;
+    uint64_t nativeMaterialReaderAttempts = 0, nativeMaterialReaderSnapshots = 0, nativeMaterialReaderApplied = 0;
+    std::string nativeMaterialReaderReason = "not_seen";
     bool nativeHistoryDirty = false, runtimeDisablePending = false;
     uint64_t nativeDispatchesSkipped = 0;
     std::string phase = "Off", reason = "Set [FSR-RR] NrdBridge=true and restart.", resources;
