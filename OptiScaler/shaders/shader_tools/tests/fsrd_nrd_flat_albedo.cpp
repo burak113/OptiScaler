@@ -311,8 +311,9 @@ void postFlickChecks(Host& host)
             capMaxAge = std::max(capMaxAge, capState.KeyAge);
         }
         // The cap is only evaluated on settled frames, and a single-frame flick costs two of them (the flick and
-        // the frame after it), so the age can overshoot the cap by that much before the next settled frame
-        // refreshes it.
+        // the frame after it), so in THIS sequence the age overshoots by exactly two before the next settled frame
+        // refreshes it. It is not a general bound: a ten-frame moving run overshoots by eleven (SA14 measured 75),
+        // which is why the assertion below is tied to this cadence and the comment says so.
         std::cout << "post-flick key age cap: max age " << capMaxAge << ", refreshes " << capRefreshes << std::endl;
         need(capMaxAge <= PostFlickMath::kMaxKeyAge + 2u,
             "post-flick: the key age is bounded by the cap plus the flick's unsettled frames");
