@@ -288,6 +288,35 @@ void postFlickChecks(Host& host)
         need(outputs.Refresh, "post-flick: the keyframe refreshes once the hold has expired");
         need(state.FramesSinceFlick >= PostFlickMath::kHoldFrames && state.SettledFrames >= PostFlickMath::kSettledFramesNeeded,
             "post-flick: the hold expired only after the still-frame counter filled");
+        // The key age cap (SA13/SA14): with flicks closer together than the hold the keyframe would never refresh
+        // again, and the production flows reached key ages of 121 frames. The cap must bound it while still
+        // requiring a settled camera, so it can never pick a flick frame.
+        PostFlickMath::KeyState capState;
+        PostFlickMath::Outputs capOutputs;
+        PostFlickMath::BuildFrame(capState, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), capOutputs);
+        need(capOutputs.Refresh, "post-flick: the first frame refreshes the keyframe (age cap sequence)");
+        uint32_t capRefreshes = 0, capMaxAge = 0;
+        for (uint32_t frameIndex = 1; frameIndex <= 200; ++frameIndex)
+        {
+            const bool flick = (frameIndex % 20u) == 0u;
+            PostFlickMath::BuildFrame(capState, W, H, true, 1.0f,
+                flick ? descForm(turned) : descForm(identity), descForm(projection), descForm(identity), capOutputs);
+            if (flick)
+                need(!capOutputs.Refresh, "post-flick: the age cap never refreshes on a flick frame");
+            if (capOutputs.Refresh)
+            {
+                ++capRefreshes;
+                need(capState.KeyAge == 0u, "post-flick: a refresh resets the key age");
+            }
+            capMaxAge = std::max(capMaxAge, capState.KeyAge);
+        }
+        // The cap is only evaluated on settled frames, and a single-frame flick costs two of them (the flick and
+        // the frame after it), so the age can overshoot the cap by that much before the next settled frame
+        // refreshes it.
+        std::cout << "post-flick key age cap: max age " << capMaxAge << ", refreshes " << capRefreshes << std::endl;
+        need(capMaxAge <= PostFlickMath::kMaxKeyAge + 2u,
+            "post-flick: the key age is bounded by the cap plus the flick's unsettled frames");
+        need(capRefreshes >= 2u, "post-flick: the key age cap refreshes the keyframe while the hold keeps resetting");
         need(outputs.Prepare[7] == 1.0f, "post-flick: valid history is reported to the age recursion");
         // The angle gate: with the keyframe 30 degrees away the correction is switched off, not applied.
         PostFlickMath::KeyState gateState;
@@ -570,6 +599,45 @@ void postFlickChecks(Host& host)
         need(std::abs(float(bestX) - expectedX) <= 2.0f && std::abs(float(bestY) - expectedY) <= 2.0f,
             "post-flick: the recalled spike lands at the reprojected pixel");
         need(std::abs(float(bestX) - spikeFullX) > 5.0f, "post-flick: the recall is reprojected, not sampled in place");
+        // C2) the depth tolerance has power: a keyframe depth 2 % off must be rejected at the shipped 1 % and
+        // accepted at the old 3 %, so the 3 % -> 1 % change is visible in a test rather than only in the numbers
+        // (SA14 measured that the fixture had no power over the tolerance at all before this).
+        std::vector<uint16_t> keyAuxOff(size_t(HW) * HH * 2, 0);
+        for (size_t p = 0; p < size_t(HW) * HH; ++p)
+        {
+            keyAuxOff[p * 2 + 0] = PackedVector::XMConvertFloatToHalf(10.2f);
+            keyAuxOff[p * 2 + 1] = PackedVector::XMConvertFloatToHalf(1.0f);
+        }
+        const auto peakDeviation = [&](float tolerance) {
+            upload(host, dummy, keyAux[parity].Get(), binary(keyAuxOff), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            host.submit(); host.reset();
+            PostFlickMath::Outputs toleranceOutputs;
+            PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(moved), descForm(projection), descForm(identity), toleranceOutputs);
+            need(!toleranceOutputs.Refresh, "post-flick: the tolerance case keeps the keyframe it was given");
+            toleranceOutputs.Apply[26] = tolerance;   // Extra.z: the depth tolerance the apply pass receives
+            frame(toleranceOutputs);
+            auto toleranceReadback = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            host.submit();
+            const auto toleranceData = packed(toleranceReadback, W, H, 8);
+            host.reset();
+            float peak = -1.0f;
+            for (uint32_t y = 0; y < H; ++y)
+                for (uint32_t x = 0; x < W; ++x)
+                {
+                    const uint8_t* p = toleranceData.data() + (size_t(y) * W + x) * 8;
+                    const uint8_t* q = reinterpret_cast<const uint8_t*>(colorData.data()) + (size_t(y) * W + x) * 8;
+                    const float deviation = std::abs(halfAt(p, 0) - halfAt(q, 0)) + std::abs(halfAt(p, 1) - halfAt(q, 1)) +
+                        std::abs(halfAt(p, 2) - halfAt(q, 2));
+                    peak = std::max(peak, deviation);
+                }
+            return peak;
+        };
+        const float shippedTolerance = peakDeviation(PostFlickMath::kDepthTolerance);
+        const float oldTolerance = peakDeviation(0.03f);
+        std::cout << "post-flick depth tolerance: peak " << shippedTolerance << " at " << PostFlickMath::kDepthTolerance
+                  << " and " << oldTolerance << " at 0.03 for a 2 % depth mismatch" << std::endl;
+        need(shippedTolerance < 0.05f, "post-flick: a 2 % depth mismatch is rejected at the shipped tolerance");
+        need(oldTolerance > 0.2f, "post-flick: the same mismatch is accepted at the old 3 % tolerance (test power)");
     }
     // D) the cost of the real pass pair at the user's resolution.
     std::vector<double> samples;

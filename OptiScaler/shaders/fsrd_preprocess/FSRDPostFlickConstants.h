@@ -25,6 +25,11 @@ namespace PostFlickMath
     // identity exactly while the blotches were visible: measured +1..+15 % blotch p90 on the 22f9/87ee windows,
     // against -8..-9 % with the key held (SA12, reproduced through the production code by SA13).
     inline constexpr uint32_t kHoldFrames = 32u;
+    // The keyframe must not outlive this either: with flicks closer together than the hold it would never refresh
+    // again, and the measured production flows reached key ages of 63/65/121/127 frames (82 open frames on 2405
+    // carried a key older than 32, up to 121). The cap still requires a settled camera, so a capped refresh can
+    // never pick a flick frame.
+    inline constexpr uint32_t kMaxKeyAge = 64u;
     // A frame at this much rotation restarts the hold: the age recursion's own depth test corresponds to
     // acos(1 - kDepthTolerance) = 14.1 degrees, and every frame at or above 15 degrees in the four captures has a
     // median pixel age of zero, i.e. it is a genuine flick frame rather than a slow pan.
@@ -39,7 +44,11 @@ namespace PostFlickMath
         DirectX::XMFLOAT4X4 View {}, Projection {};
         bool Valid = false;
         uint32_t SettledFrames = 0;
-        uint32_t FramesSinceFlick = 0;
+        // Starts at the hold: "no flick has happened yet" must not look like "a flick just happened", otherwise the
+        // legitimate pre-flick refresh is blocked and the window opens with a stale key (measured on 22f9: the key
+        // stayed at f0, 22.7 degrees away, and the gate closed the whole window).
+        uint32_t FramesSinceFlick = kHoldFrames;
+        uint32_t KeyAge = 0;
     };
 
     struct Outputs
@@ -99,12 +108,18 @@ namespace PostFlickMath
         key.FramesSinceFlick = (std::isfinite(degrees) && degrees >= kFlickDegrees)
             ? 0u : std::min(key.FramesSinceFlick + 1u, 100000u);
         outputs.Refresh = !key.Valid ||
-            (key.SettledFrames >= kSettledFramesNeeded && key.FramesSinceFlick >= kHoldFrames);
+            (key.SettledFrames >= kSettledFramesNeeded &&
+             (key.FramesSinceFlick >= kHoldFrames || key.KeyAge >= kMaxKeyAge));
         if (outputs.Refresh)
         {
             key.View = view;
             key.Projection = projection;
             key.Valid = true;
+            key.KeyAge = 0;
+        }
+        else
+        {
+            key.KeyAge = std::min(key.KeyAge + 1u, 100000u);
         }
         const uint32_t halfW = std::max(1u, width / 2u), halfH = std::max(1u, height / 2u);
         outputs.Prepare[0] = float(width);
