@@ -1,0 +1,20 @@
+{
+  "schema": "glass-nzr-shader-build-request-v1",
+  "shader": "adapter/GlassNzrCorrection.hlsl",
+  "entry_point": "CSMain",
+  "profile": "cs_6_2",
+  "requested_compiler": "DXC 1.8, actual binary/version hash to be recorded locally",
+  "flags": ["-O3", "-Gis", "-force-rootsig-ver", "rootsig_1_0"],
+  "thread_group": [8, 8, 1],
+  "constant_buffer_bytes": 32,
+  "srvs": 5,
+  "uavs": 1,
+  "compiled": false,
+  "compiler_sha256": null,
+  "cso_sha256": null,
+  "generated_header_sha256": null,
+  "gpu_executed": false,
+  "host_integrated": false,
+  "off_contract": "Default-off host branch dispatches no candidate pass and preserves existing native graph.",
+  "reason_pending": "DXC executable and native Windows/D3D12 integration are not available in the executed cloud CPU environment."
+}

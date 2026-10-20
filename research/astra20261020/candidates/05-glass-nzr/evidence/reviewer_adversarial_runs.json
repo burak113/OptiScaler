@@ -1,0 +1,45 @@
+{
+  "executor": "independent skeptical reviewer /root/skeptical_review, cloud Linux CPU",
+  "utc": "2026-10-20T18:23:01.014186+00:00",
+  "candidate_tuning_participation": false,
+  "gpu_executed": false,
+  "test_applicability_revision": "Uniform 0.005 correction added to the ambiguous-glint witness so every original tap is BASEchanged; peak measured above immutable uniform correction. Candidate source and holdout generator were not tuned. Prior generic-API measurements retained in reviewer_adversarial_measurements_api_only_v1.json; final receipts refer to current test source and logs.",
+  "runs": [
+    {
+      "command": "python research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.42971785299960175,
+      "output_path": "evidence/reviewer_adversarial_tests.log",
+      "output_sha256": "cb2fc1d11f3a91b4a7391ea319419a79448184a935d568d0671aa9e4228c7c98"
+    },
+    {
+      "command": "python research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py --measurements",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.4745208799995453,
+      "output_path": "evidence/reviewer_adversarial_measurements.json",
+      "output_sha256": "92cfd2f4563f5eccbc4d564c01816dbcd65dde83ae532d048418704573db0a44"
+    },
+    {
+      "command": "python research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py --mutation-alpha",
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.19230830000014976,
+      "output_path": "evidence/reviewer_alpha_mutation.log",
+      "output_sha256": "7f24c451f2981ce85925cbd8c5664fb86a9b031e6b2e208435f413c1b12b42d5",
+      "original_output_sha256_before_traceback_path_normalization": "be0824f20200509655f8505735860b1ca62a666ac47ac5795c172ea8a4e424ed",
+      "output_normalization": "Traceback paths only: removed repository checkout prefix and replaced absolute Python site-packages prefix with site-packages/. Assertion content, exit code and measured timing are unchanged."
+    },
+    {
+      "command": "python research/astra20261020/candidates/05-glass-nzr/tests/test_review_adversarial.py --audit-holdout",
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.16744864999964193,
+      "output_path": "evidence/reviewer_holdout_audit.json",
+      "output_sha256": "8793aac1e4ac70b9e38351c1269429764ca2ea4033749aa8b925a097754f0cd2"
+    }
+  ],
+  "source_sha256": "fda21a2aa138e6555e7c2ba520dfca844572a88a1b5df5ee5e6533cc1d2f7f67",
+  "independent_test_sha256": "376bd6916a52ecceef9cb24a8868e38d59b968fb265cc9d9c6b0a5817f07c3a1"
+}

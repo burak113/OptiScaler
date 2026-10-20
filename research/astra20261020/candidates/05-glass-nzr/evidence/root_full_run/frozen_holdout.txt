@@ -1,0 +1,6 @@
+holdout: independent_gaussian, 48 independent sequences, 4.988s
+holdout: sparse_heavy_tail, 48 independent sequences, 4.961s
+holdout: temporal_ar1, 48 independent sequences, 5.025s
+holdout: spatial_correlated_honest, 48 independent sequences, 5.480s
+holdout: spatial_correlated_false_contract, 48 independent sequences, 6.030s
+{"output": "evidence/synthetic_holdout.json", "sequences": 240, "elapsed_seconds": 26.483965979999994, "exit_code": 0}

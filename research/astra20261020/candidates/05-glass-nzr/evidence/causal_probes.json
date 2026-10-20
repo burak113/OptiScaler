@@ -1,0 +1,566 @@
+{
+  "schema": "glass-nzr-causal-probes-v1",
+  "gpu_executed": false,
+  "H1_reference_support": {
+    "kind": "source-shaped CPU subset, flat supplied geometry; independent sparse synthetic inputs",
+    "seeds": [
+      31000,
+      31001,
+      31002,
+      31003,
+      31004,
+      31005,
+      31006,
+      31007,
+      31008,
+      31009,
+      31010,
+      31011,
+      31012,
+      31013,
+      31014,
+      31015,
+      31016,
+      31017,
+      31018,
+      31019,
+      31020,
+      31021,
+      31022,
+      31023,
+      31024,
+      31025,
+      31026,
+      31027,
+      31028,
+      31029,
+      31030,
+      31031,
+      31032,
+      31033,
+      31034,
+      31035,
+      31036,
+      31037,
+      31038,
+      31039,
+      31040,
+      31041,
+      31042,
+      31043,
+      31044,
+      31045,
+      31046,
+      31047,
+      31048,
+      31049,
+      31050,
+      31051,
+      31052,
+      31053,
+      31054,
+      31055,
+      31056,
+      31057,
+      31058,
+      31059,
+      31060,
+      31061,
+      31062,
+      31063,
+      31064,
+      31065,
+      31066,
+      31067,
+      31068,
+      31069,
+      31070,
+      31071,
+      31072,
+      31073,
+      31074,
+      31075,
+      31076,
+      31077,
+      31078,
+      31079,
+      31080,
+      31081,
+      31082,
+      31083,
+      31084,
+      31085,
+      31086,
+      31087,
+      31088,
+      31089,
+      31090,
+      31091,
+      31092,
+      31093,
+      31094,
+      31095,
+      31096,
+      31097,
+      31098,
+      31099,
+      31100,
+      31101,
+      31102,
+      31103,
+      31104,
+      31105,
+      31106,
+      31107,
+      31108,
+      31109,
+      31110,
+      31111,
+      31112,
+      31113,
+      31114,
+      31115,
+      31116,
+      31117,
+      31118,
+      31119,
+      31120,
+      31121,
+      31122,
+      31123,
+      31124,
+      31125,
+      31126,
+      31127,
+      31128,
+      31129,
+      31130,
+      31131,
+      31132,
+      31133,
+      31134,
+      31135,
+      31136,
+      31137,
+      31138,
+      31139,
+      31140,
+      31141,
+      31142,
+      31143,
+      31144,
+      31145,
+      31146,
+      31147,
+      31148,
+      31149,
+      31150,
+      31151,
+      31152,
+      31153,
+      31154,
+      31155,
+      31156,
+      31157,
+      31158,
+      31159,
+      31160,
+      31161,
+      31162,
+      31163,
+      31164,
+      31165,
+      31166,
+      31167,
+      31168,
+      31169,
+      31170,
+      31171,
+      31172,
+      31173,
+      31174,
+      31175,
+      31176,
+      31177,
+      31178,
+      31179,
+      31180,
+      31181,
+      31182,
+      31183,
+      31184,
+      31185,
+      31186,
+      31187,
+      31188,
+      31189,
+      31190,
+      31191,
+      31192,
+      31193,
+      31194,
+      31195,
+      31196,
+      31197,
+      31198,
+      31199,
+      31200,
+      31201,
+      31202,
+      31203,
+      31204,
+      31205,
+      31206,
+      31207,
+      31208,
+      31209,
+      31210,
+      31211,
+      31212,
+      31213,
+      31214,
+      31215,
+      31216,
+      31217,
+      31218,
+      31219,
+      31220,
+      31221,
+      31222,
+      31223,
+      31224,
+      31225,
+      31226,
+      31227,
+      31228,
+      31229,
+      31230,
+      31231,
+      31232,
+      31233,
+      31234,
+      31235,
+      31236,
+      31237,
+      31238,
+      31239,
+      31240,
+      31241,
+      31242,
+      31243,
+      31244,
+      31245,
+      31246,
+      31247,
+      31248,
+      31249,
+      31250,
+      31251,
+      31252,
+      31253,
+      31254,
+      31255
+    ],
+    "raw_realizations_identical_across_support_interventions": true,
+    "selector_fixed": "identity",
+    "rows": [
+      {
+        "independent_history_samples": 1,
+        "truth": 0.029999999329447746,
+        "raw_centre": {
+          "mean": 0.028906248277053237,
+          "bias_from_analytic_truth": -0.0010937510523945093,
+          "rmse": 0.07033402030832081,
+          "p99_absolute_error": 0.1699999887496233,
+          "zero_fraction": 0.85546875
+        },
+        "unweighted_patch_mean_null": {
+          "mean": 0.029124998254701495,
+          "bias_from_analytic_truth": -0.0008750010747462511,
+          "rmse": 0.014508617313193011,
+          "p99_absolute_error": 0.03399999625980854,
+          "zero_fraction": 0.01953125
+        },
+        "source_shaped_seed": {
+          "full_5x5": {
+            "mean": 0.0068498915945838235,
+            "bias_from_analytic_truth": -0.023150107734863923,
+            "rmse": 0.037675505202778535,
+            "p99_absolute_error": 0.16995117254555225,
+            "zero_fraction": 0.84375
+          },
+          "diamond": {
+            "mean": 0.007280684523266245,
+            "bias_from_analytic_truth": -0.0227193148061815,
+            "rmse": 0.037755479424409356,
+            "p99_absolute_error": 0.16995117254555225,
+            "zero_fraction": 0.84375
+          }
+        },
+        "weight_effective_support_median": {
+          "full_5x5": 21.26720813997231,
+          "diamond": 11.0
+        },
+        "changed_values_full_vs_diamond": 31
+      },
+      {
+        "independent_history_samples": 4,
+        "truth": 0.029999999329447746,
+        "raw_centre": {
+          "mean": 0.027148435881827027,
+          "bias_from_analytic_truth": -0.0028515634476207197,
+          "rmse": 0.03595244049138284,
+          "p99_absolute_error": 0.11999999172985554,
+          "zero_fraction": 0.57421875
+        },
+        "unweighted_patch_mean_null": {
+          "mean": 0.029578123238025,
+          "bias_from_analytic_truth": -0.00042187609142274596,
+          "rmse": 0.00708431337790829,
+          "p99_absolute_error": 0.018000000156462193,
+          "zero_fraction": 0.0
+        },
+        "source_shaped_seed": {
+          "full_5x5": {
+            "mean": 0.02093527972101583,
+            "bias_from_analytic_truth": -0.009064719608431915,
+            "rmse": 0.023884164667784553,
+            "p99_absolute_error": 0.0313166135922074,
+            "zero_fraction": 0.44921875
+          },
+          "diamond": {
+            "mean": 0.021168160328670638,
+            "bias_from_analytic_truth": -0.008831839000777109,
+            "rmse": 0.024133274311006044,
+            "p99_absolute_error": 0.03901564404368398,
+            "zero_fraction": 0.44921875
+          }
+        },
+        "weight_effective_support_median": {
+          "full_5x5": 14.99999999999973,
+          "diamond": 8.000000000000002
+        },
+        "changed_values_full_vs_diamond": 86
+      },
+      {
+        "independent_history_samples": 16,
+        "truth": 0.029999999329447746,
+        "raw_centre": {
+          "mean": 0.030859373378916644,
+          "bias_from_analytic_truth": 0.0008593740494688973,
+          "rmse": 0.018271230495598388,
+          "p99_absolute_error": 0.044999996200203896,
+          "zero_fraction": 0.0625
+        },
+        "unweighted_patch_mean_null": {
+          "mean": 0.029871091901441105,
+          "bias_from_analytic_truth": -0.00012890742800664157,
+          "rmse": 0.003841081338376139,
+          "p99_absolute_error": 0.008999999612569809,
+          "zero_fraction": 0.0
+        },
+        "source_shaped_seed": {
+          "full_5x5": {
+            "mean": 0.02849405599408783,
+            "bias_from_analytic_truth": -0.001505943335359916,
+            "rmse": 0.008551195098813573,
+            "p99_absolute_error": 0.019987793639302254,
+            "zero_fraction": 0.0
+          },
+          "diamond": {
+            "mean": 0.028554002028613468,
+            "bias_from_analytic_truth": -0.0014459973008342786,
+            "rmse": 0.008929745373393172,
+            "p99_absolute_error": 0.021564170834608334,
+            "zero_fraction": 0.0
+          }
+        },
+        "weight_effective_support_median": {
+          "full_5x5": 13.377077609251618,
+          "diamond": 8.171348759756718
+        },
+        "changed_values_full_vs_diamond": 168
+      }
+    ],
+    "native_inference": "Not identified: real Seed/Refine/support/history tensors absent"
+  },
+  "H2_selector_gain": {
+    "kind": "synthetic algebra following HybridApply's pre-Glass formula",
+    "frames": 48,
+    "realizations": 4096,
+    "true_light_step": 1.25,
+    "controls": {
+      "selector_only": {
+        "current": {
+          "rmse_from_fixed_selector_gain_truth": 0.000904225753575328,
+          "temporal_error_rms": 0.0012766300277790234,
+          "light_step_ratio_frame24_over23": 1.2502382041018452
+        },
+        "replace_selector_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.0,
+          "temporal_error_rms": 0.0,
+          "light_step_ratio_frame24_over23": 1.2499999999999993
+        },
+        "replace_gain_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.000904225753575328,
+          "temporal_error_rms": 0.0012766300277790234,
+          "light_step_ratio_frame24_over23": 1.2502382041018452
+        },
+        "replace_both": {
+          "rmse_from_fixed_selector_gain_truth": 0.0,
+          "temporal_error_rms": 0.0,
+          "light_step_ratio_frame24_over23": 1.2499999999999993
+        },
+        "freeze_selector_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.0009096394995398437,
+          "temporal_error_rms": 2.930511642353401e-05,
+          "light_step_ratio_frame24_over23": 1.2500000000000002
+        },
+        "freeze_gain_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.000904225753575328,
+          "temporal_error_rms": 0.0012766300277790234,
+          "light_step_ratio_frame24_over23": 1.2502382041018452
+        },
+        "freeze_output_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.004574531465680115,
+          "temporal_error_rms": 0.0009298893207990782,
+          "light_step_ratio_frame24_over23": 1.0
+        }
+      },
+      "gain_only": {
+        "current": {
+          "rmse_from_fixed_selector_gain_truth": 0.0008151064682446911,
+          "temporal_error_rms": 0.0011535072098487532,
+          "light_step_ratio_frame24_over23": 1.2510364269179859
+        },
+        "replace_selector_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.0008151064682446911,
+          "temporal_error_rms": 0.0011535072098487532,
+          "light_step_ratio_frame24_over23": 1.2510364269179859
+        },
+        "replace_gain_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.0,
+          "temporal_error_rms": 0.0,
+          "light_step_ratio_frame24_over23": 1.2499999999999993
+        },
+        "replace_both": {
+          "rmse_from_fixed_selector_gain_truth": 0.0,
+          "temporal_error_rms": 0.0,
+          "light_step_ratio_frame24_over23": 1.2499999999999993
+        },
+        "freeze_selector_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.0008151064682446911,
+          "temporal_error_rms": 0.0011535072098487532,
+          "light_step_ratio_frame24_over23": 1.2510364269179859
+        },
+        "freeze_gain_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.0008262641361990538,
+          "temporal_error_rms": 2.6619080108276943e-05,
+          "light_step_ratio_frame24_over23": 1.25
+        },
+        "freeze_output_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.004570658640148907,
+          "temporal_error_rms": 0.0009298893207990782,
+          "light_step_ratio_frame24_over23": 1.0
+        }
+      },
+      "both": {
+        "current": {
+          "rmse_from_fixed_selector_gain_truth": 0.0012239879231242228,
+          "temporal_error_rms": 0.0017314889012607652,
+          "light_step_ratio_frame24_over23": 1.2513782492460066
+        },
+        "replace_selector_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.0008151064682446911,
+          "temporal_error_rms": 0.0011535072098487532,
+          "light_step_ratio_frame24_over23": 1.2510364269179859
+        },
+        "replace_gain_only": {
+          "rmse_from_fixed_selector_gain_truth": 0.000904225753575328,
+          "temporal_error_rms": 0.0012766300277790234,
+          "light_step_ratio_frame24_over23": 1.2502382041018452
+        },
+        "replace_both": {
+          "rmse_from_fixed_selector_gain_truth": 0.0,
+          "temporal_error_rms": 0.0,
+          "light_step_ratio_frame24_over23": 1.2499999999999993
+        },
+        "freeze_selector_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.0012282708026664774,
+          "temporal_error_rms": 0.0011702092190524077,
+          "light_step_ratio_frame24_over23": 1.2511042798577379
+        },
+        "freeze_gain_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.001232276325072613,
+          "temporal_error_rms": 0.0012961665197553222,
+          "light_step_ratio_frame24_over23": 1.2502489670269892
+        },
+        "freeze_output_first_frame": {
+          "rmse_from_fixed_selector_gain_truth": 0.004640210523292119,
+          "temporal_error_rms": 0.0009298893207990782,
+          "light_step_ratio_frame24_over23": 1.0
+        }
+      }
+    },
+    "different_latent_decomposition_max_output_error": 6.938893903907228e-18,
+    "native_inference": "Raw/selected alone cannot identify a unique hidden reference, selector and gain"
+  },
+  "H3_capped_count": {
+    "kind": "exact stationary scalar AR(1) analytic covariance; unit input variance",
+    "rows": [
+      {
+        "rho": 0.0,
+        "max_count": 16,
+        "actual_mean_variance": 0.03225806451612903,
+        "expected_hybridprep_variance": 0.06048387096774194,
+        "actual_over_source_estimate": 0.5333333333333333,
+        "effective_count_from_actual_variance": 31.0
+      },
+      {
+        "rho": 0.5,
+        "max_count": 16,
+        "actual_mean_variance": 0.08918406072106262,
+        "expected_hybridprep_variance": 0.056925996204933584,
+        "actual_over_source_estimate": 1.5666666666666669,
+        "effective_count_from_actual_variance": 11.212765957446807
+      },
+      {
+        "rho": 0.85,
+        "max_count": 16,
+        "actual_mean_variance": 0.2853598014888337,
+        "expected_hybridprep_variance": 0.044665012406947896,
+        "actual_over_source_estimate": 6.3888888888888875,
+        "effective_count_from_actual_variance": 3.5043478260869567
+      },
+      {
+        "rho": 0.95,
+        "max_count": 16,
+        "actual_mean_variance": 0.5576036866359447,
+        "expected_hybridprep_variance": 0.027649769585253454,
+        "actual_over_source_estimate": 20.166666666666668,
+        "effective_count_from_actual_variance": 1.793388429752066
+      }
+    ]
+  },
+  "H4_virtual_transport": {
+    "kind": "analytic moving reflected feature; surface fixed and virtual correspondence explicitly known",
+    "surface_mv_pixels": 0,
+    "reflected_feature_pixels_per_frame": 2,
+    "frames": 32,
+    "true_light_step": 1.25,
+    "controls": {
+      "surface_zero_motion": {
+        "feature_mae": 0.025905952101702268,
+        "all_pixel_rmse": 0.009357474817047746,
+        "first_light_change_feature_relative_error": 0.6516935092238502
+      },
+      "true_virtual_feature_motion": {
+        "feature_mae": 0.0017717203428699814,
+        "all_pixel_rmse": 0.0011497124538137117,
+        "first_light_change_feature_relative_error": 0.17500000000000002
+      }
+    },
+    "native_inference": "Surface-MV improvement does not certify reflected-feature transport"
+  },
+  "source_subset_sha256": "bf90ada576c14f1a1c39363ccc9fb34c09419dc0e91f941cc07603891bd3688e"
+}

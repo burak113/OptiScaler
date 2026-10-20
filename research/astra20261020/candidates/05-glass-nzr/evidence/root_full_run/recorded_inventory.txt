@@ -1,0 +1,183 @@
+{
+  "output": "recorded.json",
+  "clip_inventory": [
+    {
+      "name": "bottle_track7.npz",
+      "frames": [
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186
+      ],
+      "nzr_changed_specular_pixels": 152
+    },
+    {
+      "name": "facade16.npz",
+      "frames": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "nzr_changed_specular_pixels": 1090
+    },
+    {
+      "name": "foliage23.npz",
+      "frames": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "nzr_changed_specular_pixels": 526
+    }
+  ],
+  "glass_common_mask": {
+    "pixels": 6497,
+    "sha256": "5216f5fd5161fc4874bdde3b980454a1249b52f9d11140d731f47af582a00446"
+  },
+  "glass_fixed_base_metrics": {
+    "nzr_selected": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.08453057706356049,
+      "hp_cv_fixed_base_p50": 0.03238876536488533,
+      "hp_cv_fixed_base_p90": 0.09212057292461395,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.2540567219257355,
+      "flicker_abs_hp_step_fixed_base_p95": 0.1372302770614624,
+      "detail_energy_proxy": 0.0006692720926366746,
+      "mean_pre_remod_composite_luma": 0.004335098899900913,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0,
+      "noise_truth_available": false
+    },
+    "raw_rr": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07452967017889023,
+      "hp_cv_fixed_base_p50": 0.02801801636815071,
+      "hp_cv_fixed_base_p90": 0.07471585273742676,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.1734444499015808,
+      "flicker_abs_hp_step_fixed_base_p95": 0.1201915368437767,
+      "detail_energy_proxy": 0.0003178186889272183,
+      "mean_pre_remod_composite_luma": 0.004591844044625759,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0019691733177751303,
+      "noise_truth_available": false
+    },
+    "blend_05": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07360083609819412,
+      "hp_cv_fixed_base_p50": 0.029967576265335083,
+      "hp_cv_fixed_base_p90": 0.07784199714660645,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.18607473373413086,
+      "flicker_abs_hp_step_fixed_base_p95": 0.12237798422574997,
+      "detail_energy_proxy": 0.00047470733989030123,
+      "mean_pre_remod_composite_luma": 0.004463471472263336,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0009845866588875651,
+      "noise_truth_available": false
+    },
+    "blend_075": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07865780591964722,
+      "hp_cv_fixed_base_p50": 0.030968256294727325,
+      "hp_cv_fixed_base_p90": 0.08512882143259048,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.2122141718864441,
+      "flicker_abs_hp_step_fixed_base_p95": 0.12790149450302124,
+      "detail_energy_proxy": 0.0005692339036613703,
+      "mean_pre_remod_composite_luma": 0.004399285186082125,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0004922933294437826,
+      "noise_truth_available": false
+    },
+    "reduce_strength_025": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07194356620311737,
+      "hp_cv_fixed_base_p50": 0.02897416055202484,
+      "hp_cv_fixed_base_p90": 0.07416073232889175,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.1728387027978897,
+      "flicker_abs_hp_step_fixed_base_p95": 0.1188265010714531,
+      "detail_energy_proxy": 0.00038857985055074096,
+      "mean_pre_remod_composite_luma": 0.004527657758444548,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0014768801629543304,
+      "noise_truth_available": false
+    },
+    "candidate_missing_sidecar": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.08453057706356049,
+      "hp_cv_fixed_base_p50": 0.03238876536488533,
+      "hp_cv_fixed_base_p90": 0.09212057292461395,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.2540567219257355,
+      "flicker_abs_hp_step_fixed_base_p95": 0.1372302770614624,
+      "detail_energy_proxy": 0.0006692720926366746,
+      "mean_pre_remod_composite_luma": 0.004335098899900913,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0,
+      "noise_truth_available": false
+    },
+    "candidate_missing_sidecar_plus_blend05": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07360083609819412,
+      "hp_cv_fixed_base_p50": 0.029967576265335083,
+      "hp_cv_fixed_base_p90": 0.07784199714660645,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.18607473373413086,
+      "flicker_abs_hp_step_fixed_base_p95": 0.12237798422574997,
+      "detail_energy_proxy": 0.00047470733989030123,
+      "mean_pre_remod_composite_luma": 0.004463471472263336,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0009845866588875651,
+      "noise_truth_available": false
+    },
+    "spatial_blur_sigma2_null": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.07765268534421921,
+      "hp_cv_fixed_base_p50": 0.017424937337636948,
+      "hp_cv_fixed_base_p90": 0.05086848884820938,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.1386735737323761,
+      "flicker_abs_hp_step_fixed_base_p95": 0.08064927160739899,
+      "detail_energy_proxy": 0.0002760847855824977,
+      "mean_pre_remod_composite_luma": 0.004274726379662752,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0010645807487890124,
+      "noise_truth_available": false
+    },
+    "freeze_specular_first_frame_null": {
+      "pixels": 6497,
+      "fine_cv_fixed_base_p50": 0.02689957804977894,
+      "hp_cv_fixed_base_p50": 0.009186333976686,
+      "hp_cv_fixed_base_p90": 0.03558336943387985,
+      "sparkle_positive_hp_departure_fixed_base_p995": 0.127884179353714,
+      "flicker_abs_hp_step_fixed_base_p95": 0.060266658663749695,
+      "detail_energy_proxy": 0.0005857886862941086,
+      "mean_pre_remod_composite_luma": 0.004415234085172415,
+      "mean_specular_rgb_l1_change_from_nzr": 0.0006596751045435667,
+      "noise_truth_available": false
+    }
+  }
+}

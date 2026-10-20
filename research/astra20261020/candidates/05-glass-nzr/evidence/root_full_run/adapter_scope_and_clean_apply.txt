@@ -1,0 +1,19 @@
+{
+  "schema": "glass-nzr-adapter-source-validation-v1",
+  "base_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "patch_applies": true,
+  "patch_adds_only": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatGlassUncertainty.hlsl",
+  "source_sha256": "2fdbc2483995bb63dcf8934c2038856330bda7caaa951d25ffc84a6fd057f767",
+  "patch_sha256": "d24be4cf43353cfb85bfb6fef7e4aff2668e21e6ed6db41787509536bfd5fd0d",
+  "protected_original_sha256": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply.hlsl": "8d090231399d96de869624bfe7ea225a0799a6e075d1ca1015a4af61d80e0ff9",
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDFlatDetailBindings.hlsli": "dad0f645927f161b26319e6787e16dfd3362c1832ef97be562099df642010696"
+  },
+  "elapsed_seconds": 0.012003017000097316,
+  "hlsl_compiled": false,
+  "gpu_executed": false,
+  "native_graph_integrated": false
+}

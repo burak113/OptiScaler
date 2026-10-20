@@ -1,0 +1,46 @@
+{
+  "scope": "captured historical glass; metrics-only nulls, no ground truth, preserve current equal diffuse",
+  "fixture_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+  "mask_sha256": "5216f5fd5161fc4874bdde3b980454a1249b52f9d11140d731f47af582a00446",
+  "fixed_pixels": 6497,
+  "rows": {
+    "nzr": {
+      "fine_temporal_cv_p50": 0.08453057706356049,
+      "hp_temporal_cv_p50": 0.03238876536488533,
+      "detail": 0.0006692720926366746,
+      "level": 0.004335098899900913,
+      "deviation_from_current_selected_mean_abs": 0.0
+    },
+    "raw_rr": {
+      "fine_temporal_cv_p50": 0.05390767753124237,
+      "hp_temporal_cv_p50": 0.022178910672664642,
+      "detail": 0.0003178186889272183,
+      "level": 0.004591844044625759,
+      "deviation_from_current_selected_mean_abs": 0.0019691733177751303
+    },
+    "blend_half": {
+      "fine_temporal_cv_p50": 0.060510098934173584,
+      "hp_temporal_cv_p50": 0.0256235022097826,
+      "detail": 0.00047470733989030123,
+      "level": 0.004463471472263336,
+      "deviation_from_current_selected_mean_abs": 0.0009845866588875651
+    },
+    "blur_sigma2": {
+      "fine_temporal_cv_p50": 0.07323585450649261,
+      "hp_temporal_cv_p50": 0.016864115372300148,
+      "detail": 0.0002760847855824977,
+      "level": 0.004274726379662752,
+      "deviation_from_current_selected_mean_abs": 0.0010645807487890124
+    },
+    "freeze_spec_frame46": {
+      "fine_temporal_cv_p50": 0.025903191417455673,
+      "hp_temporal_cv_p50": 0.008884735405445099,
+      "detail": 0.0005857886862941086,
+      "level": 0.004415234085172415,
+      "deviation_from_current_selected_mean_abs": 0.0006596751045435667
+    }
+  },
+  "candidate_seen": false,
+  "gpu_executed": false,
+  "elapsed_seconds": 0.3042889219996141
+}
