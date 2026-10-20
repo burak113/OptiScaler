@@ -248,8 +248,13 @@ namespace PostMotionAnchorMath
                     DirectX::XMMatrixInverse(nullptr, currentView));
                 keyP32 = DirectX::XMVectorGetZ(keyProjection.r[3]);
             }
-            stats.Relative[k] = relative;
-            stats.SlotExtra[k] = {keyP32, valid ? 1.0f : 0.0f, 0.0f, 0.0f};
+            // SLOT-indexed, not priority-indexed (SA22, 2026-10-20): KeySlice[k] carries the ring slot and the
+            // shader reads KeyRel[slot]/SlotExtra[slot], so storing at the priority position made the recall
+            // reproject with another keyframe's camera whenever the priority order was not the identity (i.e. on
+            // every frame after the ring wraps). The unused slot entries stay zero and are never referenced.
+            const uint32_t store = valid ? order[k] : k;
+            stats.Relative[store] = relative;
+            stats.SlotExtra[store] = {keyP32, valid ? 1.0f : 0.0f, 0.0f, 0.0f};
         }
         gain.Params = {kBandA, kBandTau, kCapExtra, kCapHard};
         gain.Params2 = {std::clamp(strength, kStrengthMin, kStrengthMax), kFallbackA, kTapStepCells, kCoverageTaps};
