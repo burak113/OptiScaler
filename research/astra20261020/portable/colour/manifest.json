@@ -1,0 +1,75 @@
+{
+  "platform_verified": "Windows CPU",
+  "Linux_executed": false,
+  "runtime_dependencies": [
+    "Python standard library",
+    "numpy==2.3.5"
+  ],
+  "total_bytes_without_manifest": 9190848,
+  "files": {
+    "colour_portable.py": {
+      "bytes": 9460,
+      "sha256": "6f0703e6b0ef9443005ad0cecd9c00d383093a86aa82ff2a65d66d9ee68055d7"
+    },
+    "compare.py": {
+      "bytes": 4534,
+      "sha256": "9942f36a951fb8d420dc1eea699cd3f73206d93aedae6ad2e1ae9007313cb813"
+    },
+    "evidence/actual_B4_edge_gpu.json": {
+      "bytes": 2497,
+      "sha256": "90f17bf3cb328a3aa3dbff3dfc2bc231f7c9db629629323b41358fcd52c526d0"
+    },
+    "evidence/depth_edge_phase4.png": {
+      "bytes": 15881,
+      "sha256": "d5ddbdb69580ef2e7cae2068ef4188970a310a753194bc1d1c468693a11bb7fd"
+    },
+    "evidence/fullwarmup_gpu.json": {
+      "bytes": 3766,
+      "sha256": "eefb0e3f60213b21c79df0599579f581bdd8a1b41a8c4eec056b7ea3d5d228e6"
+    },
+    "evidence/normal_edge_phase4.png": {
+      "bytes": 15891,
+      "sha256": "eb75fb0db2c041151619b5c55559624eb4cbd6f183b0a00379d8ded8c96331e6"
+    },
+    "fixtures/provenance.json": {
+      "bytes": 8905,
+      "sha256": "4181fa27e57dcbe52e81d66782210a084a72a2c9e7bdf13e82d894f779643d74"
+    },
+    "fixtures/soft2_gpu_87ee63.npz": {
+      "bytes": 9101728,
+      "sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2"
+    },
+    "OPEN_TASK.md": {
+      "bytes": 2692,
+      "sha256": "d2dcdf764c2c98cd4339734d97fad28fb43c31621e33d61771b6c73c066c3cbf"
+    },
+    "README.md": {
+      "bytes": 7000,
+      "sha256": "8e6f346b43b83c7e1a36a3b5a2bc6b59b021ce9aa1614276885bb2dc142c8519"
+    },
+    "requirements.txt": {
+      "bytes": 14,
+      "sha256": "b278f1339f69781eefd2f8fc58f11e4c07a5fbd9134324562c8c0f65599b34c5"
+    },
+    "test_colour_portable.py": {
+      "bytes": 5387,
+      "sha256": "a8e698434938ddc056a30eca355d5ee98db5c3ec70c9ce397b09f0aa917d6d81"
+    },
+    "verification/comparison.json": {
+      "bytes": 7396,
+      "sha256": "4d45e221cdd35b71225fc4a0f732619597c73e0b6d3cd6cf798e75f738bdef75"
+    },
+    "verification/equivalence_windows.json": {
+      "bytes": 3334,
+      "sha256": "b486210a6f379b9ed7c15cc5cee72a7c2a39c835a4dcb262571d2a9e7ddcc760"
+    },
+    "verification/isolated_import_windows.json": {
+      "bytes": 405,
+      "sha256": "e35668eebc7a45af3ef6df897da2581e60d71633d53287fd71ac316998e21dd9"
+    },
+    "verification/unittest_windows.txt": {
+      "bytes": 1958,
+      "sha256": "b5be489c454d93a107e723eca8d49b0c8c39128c29ad11cb8d0414662f364638"
+    }
+  }
+}

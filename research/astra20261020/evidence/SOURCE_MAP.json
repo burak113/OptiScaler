@@ -1,0 +1,54 @@
+[
+  {
+    "file": "evidence/performance.json",
+    "source_basename": "performance.json",
+    "source_sha256": "5bf069698fd60d058ce0c828153fbc24acf113119b724fd32e516132fd508bc4",
+    "sanitized": true,
+    "scope": "historical local receipt, not a cloud rerun"
+  },
+  {
+    "file": "evidence/interplay.json",
+    "source_basename": "interplay.json",
+    "source_sha256": "61693fdbd775e3a8cd8ece10ca926cb8e2f40a52fa9c519f24d381f70d05acee",
+    "sanitized": true,
+    "scope": "historical local receipt, not a cloud rerun"
+  },
+  {
+    "file": "evidence/source_manifest.json",
+    "source_basename": "source_manifest.json",
+    "source_sha256": "384dbe2f298885db131f8ee4406b76c30afcdf040faef9b5052aa44121b042bc",
+    "sanitized": true,
+    "scope": "historical local receipt, not a cloud rerun"
+  },
+  {
+    "file": "evidence/tests.json",
+    "source_basename": "tests.json",
+    "source_sha256": "d945d7690fa1965c13b60f78896d40762394c3a06388fd2bcda1770d05f145e4",
+    "sanitized": true,
+    "scope": "historical local receipt, not a cloud rerun"
+  },
+  {
+    "file": "images/glass87ee_f55_sign_crop.png",
+    "source_sha256": "03e67e51ad430ecb76b116f6152f8e52703bb214b1b5668457742d0cc0190e68",
+    "sanitized": false,
+    "scope": "historical diagnostic image"
+  },
+  {
+    "file": "images/bottle_spec_micro_f185.png",
+    "source_sha256": "20e2422404281fd1b2d457a471431c9bdae66552b5c475a7a9c18587552ae9ec",
+    "sanitized": false,
+    "scope": "historical diagnostic image"
+  },
+  {
+    "file": "images/foliage_natural_roi.png",
+    "source_sha256": "e61097379099c25329f45f7615efa3d43b5477c56644dc5f577f020d418fe904",
+    "sanitized": false,
+    "scope": "historical diagnostic image"
+  },
+  {
+    "file": "images/native_06_control_levels.png",
+    "source_sha256": "bb3948a07c26ae643ffcc0e387ff632797e2fa5e36f03aee06fd7c16d3c0b87e",
+    "sanitized": false,
+    "scope": "historical diagnostic image"
+  }
+]

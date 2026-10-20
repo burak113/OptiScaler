@@ -1,0 +1,41 @@
+{
+  "files": {
+    "full_roi_evidence.json": {
+      "bytes": 1558,
+      "sha256": "524b694ade6ac07d4c2804d1b24c4bf771e302fa6c19e2682ea9838ac377abc5"
+    },
+    "glass_crop.npz": {
+      "bytes": 19310928,
+      "sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d"
+    },
+    "glass_fixture.py": {
+      "bytes": 15290,
+      "sha256": "1bd8b0707e73ce2331ab687801017853d73fcf02356ffe2639036fe281064d81"
+    },
+    "manifest.json": {
+      "bytes": 39179,
+      "sha256": "7bbdb9ec78569580adc65f434132c81a357afbf9d0db41032335c71f474d6e41"
+    },
+    "README.md": {
+      "bytes": 2910,
+      "sha256": "bb6fc862759b6b37e43f4c4d45b051a07c78d962a4256cc117513b6376cf01c1"
+    },
+    "test_fixture.py": {
+      "bytes": 1441,
+      "sha256": "175b8bb153633eb1bc191e68a48820cd905f0ac69d597bd2f7c01281d98b897a"
+    },
+    "test_glass.py": {
+      "bytes": 86,
+      "sha256": "ee9ec9c9f140b3e582ab776209b9aaf95ab37e2254354638a5d787d313671eed"
+    },
+    "test_result.json": {
+      "bytes": 1109,
+      "sha256": "f291654feb8e3d1bfd99cfec89da3ebda53a24990284c9d754f3e9e2fae762bc"
+    }
+  },
+  "total_bytes_excluding_this_inventory": 19372501,
+  "largest_file_bytes": 19310928,
+  "no_private_absolute_paths_in_text": true,
+  "gpu_used": false,
+  "reference": "captured old NZR; no ground truth"
+}

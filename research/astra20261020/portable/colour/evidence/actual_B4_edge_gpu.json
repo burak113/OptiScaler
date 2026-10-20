@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "kind": "normal",
+      "phase": 4,
+      "edge_x": 124,
+      "B4_actualGPU": {
+        "right_bleed_mean": 0.057179879397153854,
+        "right_bleed_p95": 0.17098446190357208
+      },
+      "candidate_actualGPU": {
+        "right_bleed_mean": 0.0980754941701889,
+        "right_bleed_p95": 0.19170984625816345
+      },
+      "B4_GPU_vs_CPU": {
+        "max_abs": 0.0,
+        "p99_abs": 0.0,
+        "mean_abs": 0.0,
+        "max_half_ulp": 0.0,
+        "p99_half_ulp": 0.0,
+        "over_2_half_ulp": 0,
+        "finite": true,
+        "elements": 98304
+      },
+      "validation": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 11,
+        "chain_passes": 3,
+        "allocated_gpu_bytes": 1441792,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    },
+    {
+      "kind": "depth",
+      "phase": 4,
+      "edge_x": 124,
+      "B4_actualGPU": {
+        "right_bleed_mean": 0.057179879397153854,
+        "right_bleed_p95": 0.17098446190357208
+      },
+      "candidate_actualGPU": {
+        "right_bleed_mean": 0.0975203663110733,
+        "right_bleed_p95": 0.19096964597702026
+      },
+      "B4_GPU_vs_CPU": {
+        "max_abs": 0.000244140625,
+        "p99_abs": 0.0,
+        "mean_abs": 9.5367431640625e-07,
+        "max_half_ulp": 1.0,
+        "p99_half_ulp": 0.0,
+        "over_2_half_ulp": 0,
+        "finite": true,
+        "elements": 98304
+      },
+      "validation": {
+        "median": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "stddev": 0,
+        "samples": 1,
+        "warmup": 0,
+        "chain_resources": 11,
+        "chain_passes": 3,
+        "allocated_gpu_bytes": 1441792,
+        "timestamp_frequency": 100000000,
+        "debug_layer": 1,
+        "validation_errors": 0,
+        "validation_warnings": 0
+      }
+    }
+  ],
+  "baseline_shader_sha256": {
+    "FSRDColourTrackApply_Shader.cso": "9a9d14ab1a6178da4a83e7909b7f0bf980cdbc80ee83f80c9acb10be11fe58c7",
+    "FSRDColourTrackStats_Shader.cso": "a1e62eca74ceefee7c89bf44928f360b89c539e87e266c6ffd7ee633d76bbe53",
+    "FSRDColourTrackTrack_Shader.cso": "6f0ef8ab0329833d567fc1e1f0217ec266507f6436cfec382f2631df18f8597f"
+  }
+}

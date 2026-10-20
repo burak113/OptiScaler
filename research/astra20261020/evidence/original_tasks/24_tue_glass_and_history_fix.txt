@@ -1,0 +1,98 @@
+HISTORICAL TASK CONTEXT — machine paths sanitized; current COMMON_PROTOCOL governs this cloud job.
+
+TASK 24 (TUESDAY 2026-10-20) - GLASS GRAIN (orientation-aware NZR) + POST-FLICK BLOTCHES (not at RR input)
+Task id: 24-glass-hfix. Model: Sol 6.1 max (you are the LEAD). FIRST read local-only:/FSRD/sol_batch/24_26_shared_context.txt
+completely (findings, captures, pre-tests, tools, rules), then COMMON_RULES.txt and SUBAGENT_RULES.txt. Reply to the
+user in Turkish. Report: local-only:/FSRD/sol_batch/24-glass-hfix/report.md. Work WITHOUT asking until 20:00 local time on
+2026-10-20; run `date` at the start of every cycle; record every decision in progress.md.
+Base: commit adccf08fdeed706f79a0984224bce80ded2efdc5 (task-23 V20.1). Worktree OSA-24-glass-hfix, branch
+sol/24-glass-hfix. All new options default OFF; OFF must be byte-identical to the base (golden test).
+
+=====================================================================================================================
+SUB-AGENT PLAN (rules: shared context section E; start SA1-SA3 in the first 30 minutes)
+=====================================================================================================================
+SA1 "nzr-map" (60 min): read the NZR implementation (FSRDNrdFlatAlbedoRecovery_Dx12.h + HLSL, reflection history,
+    RR fallback, noise selector) and its tests; report where the final NZR/RR choice is made, which normals/buffers
+    are bound there, the cheapest place for an orientation weight, and which tests prove puddles unchanged.
+SA2 "glass-modes" (120 min): numpy prototype of T1 modes a-d on the recorded 87ee/22f9 outputs + the puddle
+    captures; glass fine CV, blotch CV, sharpness vs NZR, crop sheets of the sign region, puddle byte-identity.
+    You re-run the winning mode's numbers before implementing it.
+SA3 "rr-short-history" (120 min): T2 b) - from local-only:/FSRD/amd_rr_reverse_20261018/report.md and the DXIL, find where
+    history length / confidence drives RR's spatial path; propose 2-3 concrete patch points (shader hash, operand,
+    expected effect) for RR Lab patches/. Then, if you approve, it runs those patch replays with postflick_exp.py.
+Next wave (as slots free up): SA4 "keyframe-lf" - T2 c) numpy prototype on replay outputs incl. ghost checks on
+moving content (2405); SA5 "scale-schedule" - T2 a) one post-motion schedule test (stop if < 10 %);
+SA6 "audit" - independent audit of your HLSL/C++ diff (OFF path dispatches nothing, CRLF, golden, menu/INI).
+
+=====================================================================================================================
+T1. GLASS GRAIN: ORIENTATION-AWARE NEAR ZERO-ROUGH RECOVERY (first DLL by ~14:00)
+=====================================================================================================================
+Problem (shared context C1, D1): NZR doubles temporal noise on vertical storefront glass; turning NZR off there
+(RR output) halves the noise but visibly softens the signs/posters seen in the glass. Puddles (horizontal) must stay
+exactly as they are (the user's chosen look).
+1. Read the NZR implementation (FSRDNrdFlatAlbedoRecovery_Dx12.h + its HLSL, reflection history, RR fallback,
+   noise selector) and its tests. Find where the final NZR/RR selection happens and which normals it has (provider
+   normals: octahedral RG of the R10G10B10A2 normals; world Z up).
+2. Offline prototype first (numpy on the recorded 87ee1fba/22f9ca14 outputs: selected_rr_* = NZR result, raw_rr_* =
+   RR, inputs + normals), then HLSL. Candidate modes for NON-horizontal NZR pixels (weight from |n.z| with a smooth
+   ramp, e.g. full NZR at |n.z|>=.8, vertical policy at |n.z|<=.5):
+     a) RR (the D1 gate).
+     b) Blend: RR + k*(NZR-RR), k slider.
+     c) Noise-gated detail: keep NZR's high-frequency detail only where its own short temporal variance (reprojected,
+        camera still) is low; elsewhere RR. ("restore detail RR lost, gated by measured noise" = COMMON_RULES.)
+     d) Stabilised NZR on glass: short reprojected history (4-8 frames) of the NZR result on vertical pixels only,
+        clamped to an RR-based neighbourhood box; reset on disocclusion/motion.
+   Metrics on glass pixels (87ee f46-63, 22f9 f23-31 and f44-53): fine temporal CV (camera-aligned), blotch CV,
+   sharpness = high-pass energy of the temporal mean relative to NZR (the signs/posters must not go soft), and a
+   same-exposure crop sheet of the sign region (87ee rows 60-300, cols 0-260) per mode. Puddle captures d6d2a083,
+   8ab8afe7, cb550300, c7294a8e: byte-identical output required (prove it).
+3. Implement the best one or two modes as ONE default-off option "NZR on vertical surfaces" with a mode selector and
+   strength slider (menu in the NZR section + INI keys). Repo tests (flat albedo/NZR, menu, native, golden).
+   Intermediate DLL to local-only:/FSRD/sol_batch/24-glass-hfix/t1/ with a short OKU.txt.
+
+=====================================================================================================================
+T2. POST-FLICK BLOTCHES - NOT AT RR'S INPUT (Claude's pre-blur pre-test FAILED, see shared context "D2 RESULT")
+=====================================================================================================================
+Problem (C3): after a flick RR has no history and paints low-frequency blotches on flat walls for 10-20 frames.
+Measured facts you must design around: the game's input noise is WHITE; ANY smoothing of RR's input (pre-blur,
+recalled pixel prior) makes the blotches BIGGER (smooth error = RR "signal"); RR keys relax/normal: no lever;
+D16 (-13..-40 %) and G2 (-4..-28 %) already help; the anchored level gain (task 25's topic) lowered 22f9 f44-53 blotch
+p90 .082 -> .065 (part of the "blotch" is the post-flick level/colour excess). Baseline = d16+G2 (user's settings).
+Metrics: local-only:/FSRD/rrlab/tmp/postflick_exp.py (pass variants as arguments; windows 22f9 f23-31/f44-53, 87ee f44-52/
+f46-63), `rrlab.cmd bench` (f2ef/06fa/d6d2 within the 3 % noise floor), step fixtures, same-exposure HTML of 22f9 f10-63.
+READ the shared context section "ROUND 2 PRE-TESTS" first (A, D: already measured). Try, in this order, and stop at
+the first clear win (blotch p90 clearly below d16+G2, no detail loss once settled, no new halos, lighting steps not
+slower):
+ b) RR-INTERNAL LOW-HISTORY SPATIAL STRENGTH (main candidate; research, PSO swap): from
+    local-only:/FSRD/amd_rr_reverse_20261018/report.md and RR Lab patches/ + rrlab/bitpatch.py + dxil_hash.py, find where RR
+    chooses the spatial footprint for short history (Warp history length -> U-Net inputs, Atrous0-3 weights,
+    FinalizeUnet blend). Patch ONLY the short-history path (e.g. faster/slower history-length ramp, wider Atrous for
+    history < N). Hash-pinned, research only unless the bridge already ships a patch mechanism.
+ c) RECALLED-KEYFRAME LOW-FREQUENCY BAND, POST-RR (label it "experimental, outside COMMON_RULES' detail-only rule";
+    the user explicitly allowed new filters). Claude's simple EMA of LP(RR) over young pixels FAILED (round 2 D: it
+    imports the worst early post-flick frames). What is still untested: for young pixels that reproject (MVs + depth)
+    into a SETTLED keyframe of RR's own output from before the flick, out = HP(rr_t) + LP(keyframe) * (current/keyframe
+    level ratio at sigma >= 32); fade out with age; never touches settled pixels or HP detail. Prototype on RR Lab
+    replay outputs (numpy; the ROI replays have few truly settled keyframes - say so), then HLSL if it wins.
+ a) TRANSIENT LOW INPUT SCALE: measured weak (d8/d4 blotch p90 -1..-9 %, and lower scale slows light response).
+    Only one quick test of a post-motion-only schedule (output_scale hook); drop it if < 10 %.
+ Note: the anchored level gain (task 25 T3) already lowered 22f9 f44-53 blotch p90 by 21-24 % - part of the
+ "blotch" is the post-flick level excess, which task 25 handles.
+If one wins: default-OFF option (menu "Post-flick blotch fix (experimental)" + INI keys), GPU <= 0.3 ms at 2560x1440,
+tests + golden. If none wins: honest numbers/images and what would be needed. Do not reopen input pre-blur.
+
+=====================================================================================================================
+T3. IF TIME REMAINS (research only, written into report.md)
+=====================================================================================================================
+- Moving glossy objects (2405579e bottle f178-186): is the white smear in the input, RR, or reflections moving
+  differently from the surface MVs? Check per lobe (specular vs diffuse) and propose a fix (e.g. specular history
+  drop on fast-moving objects via motion.B, like G3).
+- Foliage (87ee planter): quantify per lobe; ideas for RR inputs (material category / roughness / normals) that
+  could calm it.
+
+DELIVERABLES (local-only:/FSRD/sol_batch/24-glass-hfix/): dxgi.dll (+SHA256) with T1 and (if accepted) T2 options, both default
+OFF and all task-23 options intact; report.md (Turkish summary first: which option, which mode, where to look:
+storefront glass + signs, wet puddles unchanged, walls right after a fast flick, thin objects); kullanici_adimlari.txt;
+gorseller/ (same exposure; first image = overall before/after on the user's captures); RR Lab reports; tests with
+counts and times; progress.md; branch sol/24-glass-hfix with small commits; memory note (author: codex) + index line.
+End-of-day line for task 25: the final commit hash and whether T2 shipped.

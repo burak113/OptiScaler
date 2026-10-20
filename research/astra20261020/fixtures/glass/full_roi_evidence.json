@@ -1,0 +1,55 @@
+{
+  "scope": "FULL ORIGINAL 512x512 ROI, not the bundled small crop",
+  "common_mask_pixels": 8048,
+  "frames": [
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63
+  ],
+  "reference": 54,
+  "metrics": {
+    "Glass Off (captured NZR)": {
+      "fine_temporal_cv_p50": 0.08864346891641617,
+      "hp_temporal_cv_p50": 0.03574063628911972,
+      "detail": 0.0006428358610719442,
+      "level": 0.004292116034775972
+    },
+    "Glass RR": {
+      "fine_temporal_cv_p50": 0.058001432567834854,
+      "hp_temporal_cv_p50": 0.025560304522514343,
+      "detail": 0.0003532776318024844,
+      "level": 0.00456627132371068
+    },
+    "Glass Blend 0.5": {
+      "fine_temporal_cv_p50": 0.0649728775024414,
+      "hp_temporal_cv_p50": 0.029156632721424103,
+      "detail": 0.00048163923202082515,
+      "level": 0.004429193213582039
+    },
+    "Glass Blend 0.75": {
+      "fine_temporal_cv_p50": 0.07472296804189682,
+      "hp_temporal_cv_p50": 0.03192280977964401,
+      "detail": 0.0005598214920610189,
+      "level": 0.004360654857009649
+    }
+  },
+  "calibration_against_prior_measured_numbers": true,
+  "composition_order": "sum FP16-decoded specular+diffuse as float32 before bilinear sampling; then cast float32",
+  "source_capture_manifest_sha256": "e5e66eadc911cb2f4e2c89f5fa512c0d9dbb4c7d87b9cab6fae1b6cc0e07adf6",
+  "recompute": "export --source-capture PATH; source data is required for full-ROI reproduction"
+}

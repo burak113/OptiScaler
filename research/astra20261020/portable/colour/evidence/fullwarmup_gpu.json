@@ -1,0 +1,160 @@
+{
+  "name": "fullwarmup_87ee63",
+  "dimensions": [
+    512,
+    512
+  ],
+  "stats": {
+    "max_abs": 0.0,
+    "p99_abs": 0.0,
+    "mean_abs": 0.0,
+    "max_half_ulp": 0.0,
+    "p99_half_ulp": 0.0,
+    "over_2_half_ulp": 0,
+    "finite": true,
+    "elements": 12288
+  },
+  "target": {
+    "max_abs": 0.0,
+    "p99_abs": 0.0,
+    "mean_abs": 0.0,
+    "max_half_ulp": 0.0,
+    "p99_half_ulp": 0.0,
+    "over_2_half_ulp": 0,
+    "finite": true,
+    "elements": 12288
+  },
+  "depth": {
+    "max_abs": 0.0078125,
+    "p99_abs": 0.0,
+    "mean_abs": 3.814697265625e-06,
+    "max_half_ulp": 1.0,
+    "p99_half_ulp": 0.0,
+    "over_2_half_ulp": 0,
+    "finite": true,
+    "elements": 4096
+  },
+  "normal_packed_exact": true,
+  "gain": {
+    "max_abs": 0.1943359375,
+    "p99_abs": 0.0009765625,
+    "mean_abs": 0.0001852114946814254,
+    "max_half_ulp": 385.0,
+    "p99_half_ulp": 1.0,
+    "over_2_half_ulp": 63,
+    "finite": true,
+    "elements": 12288
+  },
+  "history": {
+    "max_abs": 0.01153564453125,
+    "p99_abs": 3.0517578125e-05,
+    "mean_abs": 7.530034054070711e-06,
+    "max_half_ulp": 560.0,
+    "p99_half_ulp": 3.0,
+    "over_2_half_ulp": 231,
+    "finite": true,
+    "elements": 16384
+  },
+  "output": {
+    "max_abs": 0.0087890625,
+    "p99_abs": 1.52587890625e-05,
+    "mean_abs": 2.494614136594464e-06,
+    "max_half_ulp": 327.0,
+    "p99_half_ulp": 2.0,
+    "over_2_half_ulp": 5073,
+    "finite": true,
+    "elements": 786432
+  },
+  "alpha_exact": true,
+  "validation": {
+    "median": 0,
+    "p95": 0,
+    "min": 0,
+    "max": 0,
+    "mean": 0,
+    "stddev": 0,
+    "samples": 1,
+    "warmup": 0,
+    "chain_resources": 11,
+    "chain_passes": 3,
+    "allocated_gpu_bytes": 8781824,
+    "timestamp_frequency": 100000000,
+    "debug_layer": 1,
+    "validation_errors": 0,
+    "validation_warnings": 0
+  },
+  "timings": {
+    "__chain__": {
+      "median": 0.04924,
+      "p95": 0.04924,
+      "min": 0.04924,
+      "max": 0.04924,
+      "mean": 0.04924,
+      "stddev": 0.0,
+      "samples": 1.0,
+      "warmup": 0.0
+    },
+    "stats": {
+      "median": 0.02848,
+      "p95": 0.02848,
+      "min": 0.02848,
+      "max": 0.02848,
+      "mean": 0.02848,
+      "stddev": 0.0,
+      "samples": 1.0,
+      "warmup": 0.0
+    },
+    "track": {
+      "median": 0.00812,
+      "p95": 0.00812,
+      "min": 0.00812,
+      "max": 0.00812,
+      "mean": 0.00812,
+      "stddev": 0.0,
+      "samples": 1.0,
+      "warmup": 0.0
+    },
+    "apply": {
+      "median": 0.01252,
+      "p95": 0.01252,
+      "min": 0.01252,
+      "max": 0.01252,
+      "mean": 0.01252,
+      "stddev": 0.0,
+      "samples": 1.0,
+      "warmup": 0.0
+    }
+  },
+  "export_sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+  "export_reference_output": {
+    "max_abs": 0.0087890625,
+    "p99_abs": 1.52587890625e-05,
+    "mean_abs": 2.498504045433947e-06,
+    "max_half_ulp": 327.0,
+    "p99_half_ulp": 2.0,
+    "over_2_half_ulp": 5072,
+    "finite": true,
+    "elements": 786432
+  },
+  "export_reference_gain": {
+    "max_abs": 0.1943359375,
+    "p99_abs": 0.0009765625,
+    "mean_abs": 0.0001852114946814254,
+    "max_half_ulp": 385.0,
+    "p99_half_ulp": 1.0,
+    "over_2_half_ulp": 63,
+    "finite": true,
+    "elements": 12288
+  },
+  "export_reference_history": {
+    "max_abs": 0.01153564453125,
+    "p99_abs": 3.0517578125e-05,
+    "mean_abs": 7.530034054070711e-06,
+    "max_half_ulp": 560.0,
+    "p99_half_ulp": 3.0,
+    "over_2_half_ulp": 231,
+    "finite": true,
+    "elements": 16384
+  },
+  "history_scope": "CPU unlooped warmup 0..62, actual CSO executes frame63 only; no steady-state loop."
+}

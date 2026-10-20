@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-20",
+  "command": "python -m unittest discover -s tests -v",
+  "tests_passed": 7,
+  "tests_failed": 0,
+  "seconds_reported_by_unittest": 1.941,
+  "combined_actual_cso_calibration_frames": 133,
+  "native_policy_actual_cso_calibration_frames": 7,
+  "combined_max_absolute_gain_error": 0.00048828125,
+  "native_policy_max_absolute_gain_error": 0.00048828125,
+  "raw_array_payload_bytes": 8421108,
+  "fixture_manifest_sha256": "4327eb0150498fe0eabd6390fc82a4426b67e6c9eed482435d6a94e80a0f1510",
+  "reference_module_sha256": "54a0e71041fee427721e27972b2b6a5484583c0a89e0166e3fc4cd6d878039b6",
+  "limits": "CPU reference only. Native policy data is actual CSO output on an extracted combined-host schedule, not proof of native routing or rendered RR quality. Native atomics are bounded estimates, never labelled exact. No algorithm improvement, GPU run, build, production edit or memory edit was performed for this handoff."
+}

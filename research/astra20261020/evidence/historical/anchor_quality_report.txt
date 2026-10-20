@@ -1,0 +1,74 @@
+HISTORICAL LOCAL REPORT — links and commands may refer to artifacts not exported here.
+Treat all claims as scoped evidence to inspect, not fresh cloud execution. Paths sanitized.
+
+# Anchor quality — 2026-10-20
+
+Yeni native-policy hareketli NPC'ye yayılan yanlış karartmayı belirgin biçimde azaltıyor: f210 hareket maskesinde eski .86635 yerine **0.99982** RR seviyesi (baseline=1). Işık tepkisi kabul ölçütü yüzünden anchor'ı **önerilen preset'te OFF** tutmayı öneriyorum; ayrı default-off A/B seçeneği olarak umut verici. Tam native host + G3 V20.1 + NZR bileşimi bu deneyde doğrulanmadı.
+
+Kullanıcının iki post-flick penceresinde native-policy: 87ee1fba f60: 1.072622 -> 1.043282, kalan fazla seviye azalması 40.4%; 22f9ca14 f52: 1.146582 -> 1.092408, kalan fazla seviye azalması 37.0%. Referans, değişmemiş input'un pencere sonundaki ortalaması; 22f9'un kısa duraklaması hâlâ kirli olabilir. Bunlar steady ground truth veya orijinal “en az yarıya” koşulunun PASS'i değildir.
+
+Gerçek ışık enjeksiyonunda x1.1 ilk 22 frame tepki alanı bazın **0.9336**, x1.25 **0.8997** katı. Enjeksiyon fiziksel RGB'ye, actual CSO'lardan önce uygulandı. x2 / x0.5 tek başına bu kaybı yakalamıyor. Sonrasında G3 V20.1 yeniden hesaplanmadı; bu, anchor'ın izole falsifier'ıdır.
+
+Görseller: [post-flick](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_01_postflick.png), [NPC f183/f214](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_02_npc_183_214.png), [driving f106/f370](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_05_driving_106_370.png), [unlooped post-flick animasyonu](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_04_postflick.webp), [kontrol seviyeleri](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_06_control_levels.png). Tümü doğal ROI oranında ve A/B'de aynı exposure; ham RR'dir, NZR sonrası oyun görüntüsü değildir.
+
+## Evidence and interpretation
+
+**Promising:** local identity/coverage guard. NPC f210 fixed original motion-residual mask (64257 pixels): old combined input .82994/output .86635 -> native input 0.99964/output 0.99982. Native f183 moving-mask output 0.99548; f214 1.00024. The mask visually tracks the NPC body, while the background wall is largely excluded. This is a policy regression removal, not proof of the NPC's correct absolute lighting.
+
+**Rejected for recommended preset:** small real-light attenuation and residual control dimming. Driving f106 improves old .89160 -> 0.97137; native worst driving frame f265 is 0.95630. Native worst whole-frame NPC f90 is 0.94593. Their causes are not inferred from these ratios.
+
+**Untested here:** live native scheduling/resources/reset, V20.1 G3 re-evaluation on injected lights, full-screen history outside the ROI, final NZR/recovery composition, in-game verdict, and light settling after the available 22 post-step frames. The user captures carry their recorded V14 motion.B. The G2 schedule is `23_motion_stability.py`; diffuse/specular scales are 16/256.
+
+### Fixed geometry-mask metrics, native policy versus fresh baseline RR
+
+Masks use only unmodified capture geometry and/or the baseline. Raw temporal CV includes the level-correction trajectory; shape-CV in the JSON removes only each frame's scalar mean. Detail here is high-pass temporal-mean amplitude divided by mean level, not an oracle of visual sharpness.
+
+| Capture | Inclusive frames | Mean level | Blotch p90 | Fine CV p50 | Detail / level |
+|---|---|---:|---:|---:|---:|
+| 87ee1fba | 44-52 | -3.00% | -0.82% | -1.01% | +0.02% |
+| 87ee1fba | 46-63 | -2.88% | -3.26% | -3.24% | +0.02% |
+| 22f9ca14 | 23-31 | -3.71% | -6.76% | -9.80% | +0.97% |
+| 22f9ca14 | 44-53 | -5.60% | -12.47% | -13.78% | +0.54% |
+| 2405579e | 53-64 | -0.85% | +0.64% | +0.90% | +0.12% |
+| 2405579e | 88-101 | no joint ROI support | — | — | — |
+| 2405579e | 140-152 | -1.93% | -0.01% | -0.46% | +0.38% |
+| 2405579e | 178-186 | -4.28% | +0.25% | -1.02% | +0.20% |
+| 2405579e | 209-221 | -1.87% | -0.16% | +0.02% | -0.61% |
+| ccbc3897 | 40-63 | no joint ROI support | — | — | — |
+| ccbc3897 | 178-201 | no joint ROI support | — | — | — |
+| ccbc3897 | 354-377 | -0.20% | +0.27% | -1.54% | +0.38% |
+| d6d2a083 | 104-127 | -0.03% | +0.26% | +0.01% | -0.47% |
+
+Calibration against the known bad NZR glass output reproduces the user's ordering: 87ee recorded raw RR CV .055879 -> selected NZR .116794; 22f9 .049286 -> .098661. No aggregate blur/grain score is used. Static d6d2 is a paired identical-input control; its small differences are fresh-RR repeat variation, not an anchor improvement. Its native input is 256/256 lobe-frame byte-identical.
+
+### Known physical-light intervention at 87ee f44, whole RGB, unlooped
+
+Response is `(step/no-step - 1)` for each policy relative to its own no-step run; the table's area is absolute response over f44..65 divided by baseline response area. f64 compares the corresponding step amplitudes. All masks and input reference are fixed. This tests a known intervention; it does not identify the cause of real captured excess. No t50 or long-tail claim is made from 22 frames.
+
+| Gain | Old combined response area | Native response area | Native response / baseline at f64 |
+|---:|---:|---:|---:|
+| 1.1 | 0.7922 | 0.9336 | 0.9534 |
+| 1.25 | 0.8107 | 0.8997 | 0.9194 |
+| 1.4 | 0.9699 | 0.9788 | 0.9676 |
+| 2 | 1.0218 | 1.0282 | 1.0164 |
+| 0.5 | 0.9756 | 1.0063 | 1.0044 |
+
+All pre-step actual-CSO inputs are byte-identical between step/no-step fixtures: 880 checks. Original CSO host replay and the native-policy adaptation use the RRLab ROI-cropped projection and rescaled captured motion; no extra jitter is added to captured motion. The standalone fixture treats the ROI as the full render extent.
+
+## Reproduction and provenance
+
+- Native actual CSOs: Stats `e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142`, Gain `c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c`.
+- Native policy fixture EXE `2303bc23c699b2095402dbb9b2f31e8c2b2b29e1e3fb2ba5b26520d15507c433`. [Exact adaptation](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_fixture.diff): native Stats/Gain headers, native policy flag 1, 32-byte sum/reset ABI; the approved [physical-light injection](local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/step_injection.diff) runs before original uploads.
+- Initial source/input identity: `local-only:/FSRD/sol_batch/26-integration/scratch/anchor_quality/identity.json`. Every seven-input/controls file and capture manifest is hashed, as are pinned host/CSO outputs. RRLab runs use explicit source/output hashes inside hook content plus forced-fresh execution; `local-only:/FSRD/sol_batch/26-integration/scratch/anchor_quality/runs.json`, `local-only:/FSRD/sol_batch/26-integration/scratch/anchor_quality/native_policy_rr.json`, `local-only:/FSRD/sol_batch/26-integration/scratch/anchor_quality/step_rr_runs.json`, `local-only:/FSRD/sol_batch/26-integration/scratch/anchor_quality/native_policy_step_rr.json` record result keys/paths/SHA and metadata.
+- Lead independent rows: `local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/lead_recompute_rows.json`; exact whole common masks, reference frame/S, actual raw-RR cache paths and hashes. Per-frame data: `local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_metrics.json`; full motion-mask data: `local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/motion_mask_cost.json`; release transitions: `local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/release_transitions.json`.
+- GPU fixture evidence is read from actual stdout: 1542 frames, 13968 checks, 0 debug errors/warnings across 15 jobs. Extra independent identity checks: 1136 PASS / 0 FAIL. These are fixture checks, not DLL or in-game tests. No DLL build/install, production source edit, shared-library edit, memory write or commit was performed.
+- CPU: one sequential Python process, BelowNormal, 2 BLAS/OMP threads, TEMP/TMP local-only:/FSRD/tmp; GPU shared lock used for fixtures, RRLab self-lock for RR (never double-locked). Large generated outputs are archived through verified own-folder junctions to `local-only:/FSRD_arsiv_F/FSRD/sol_batch/26-integration/anchor_quality/`; original captures are read in place.
+
+Mechanistic caution: a local one-sided gain can darken even when the frame-wide recalled/current ratio is at least 1. The measured improvement therefore cannot be described as proof that a measured global input excess was removed. A genuine small light change and an apparent level excess can inhabit the same statistic; the known-light result exposes that ambiguity.
+
+
+Additional chroma check (median red share, sigma 6, fixed common reference mask):
+- 87ee1fba f60: input 0.335583, baseline RR 0.376259, native-policy RR 0.376476.
+- 87ee1fba f64: input 0.328447, baseline RR 0.374654, native-policy RR 0.374850.
+- 22f9ca14 f52: input 0.404237, baseline RR 0.408383, native-policy RR 0.408464.
+The anchor makes no measured substantial pink-tail correction in these rows; colour tracking is a separate experiment.

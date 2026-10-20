@@ -1,0 +1,1114 @@
+{
+  "schema": "captured-glass-cpu-fixture-v1",
+  "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+  "capture_status": {
+    "published_frames": 66,
+    "complete": false,
+    "only_published_frames_read": true
+  },
+  "source_capture_manifest_sha256": "e5e66eadc911cb2f4e2c89f5fa512c0d9dbb4c7d87b9cab6fae1b6cc0e07adf6",
+  "frames": [
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63
+  ],
+  "reference_frame": 54,
+  "original_roi": {
+    "origin": [
+      496,
+      167
+    ],
+    "extent": [
+      512,
+      512
+    ]
+  },
+  "render_extent": [
+    1505,
+    847
+  ],
+  "fixture_crop_in_original_roi_xyxy": [
+    50,
+    180,
+    242,
+    340
+  ],
+  "crop_selection": "maximum original common-mask coverage for 192x160 initial crop, before reading quality metrics; 6px metric halo excluded",
+  "fixture_common_mask_pixels": 6497,
+  "full_roi_common_mask_pixels_separate_evidence": 8048,
+  "fixture_metrics": {
+    "Glass Off (captured NZR)": {
+      "fine_temporal_cv_p50": 0.08453057706356049,
+      "hp_temporal_cv_p50": 0.03238876536488533,
+      "detail": 0.0006692720926366746,
+      "level": 0.004335098899900913
+    },
+    "Glass RR": {
+      "fine_temporal_cv_p50": 0.053907670080661774,
+      "hp_temporal_cv_p50": 0.02217891626060009,
+      "detail": 0.0003178186889272183,
+      "level": 0.004591844044625759
+    },
+    "Glass Blend 0.5": {
+      "fine_temporal_cv_p50": 0.06051008775830269,
+      "hp_temporal_cv_p50": 0.025623517110943794,
+      "detail": 0.00047470733989030123,
+      "level": 0.004463471006602049
+    },
+    "Glass Blend 0.75": {
+      "fine_temporal_cv_p50": 0.07079373300075531,
+      "hp_temporal_cv_p50": 0.028289571404457092,
+      "detail": 0.0005692339036613703,
+      "level": 0.004399285186082125
+    }
+  },
+  "data_file": "glass_crop.npz",
+  "data_sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+  "data_bytes": 19310928,
+  "display_exposure": 23.608131408691406,
+  "exposure_origin": "0.8 / p97(luma(selected specular+diffuse)), original full ROI frame55",
+  "display_tonemap": "uint8(255 * (max(rgb,0)*exposure/(1+max(rgb,0)*exposure))**(1/2.2))",
+  "policy": "raw + float32(k)*(selected-raw), k=.5 or .75; common full vertical gate |nz|<=.5; no output FP16 re-quantization",
+  "fixture_composition_order": "aligned float32 specular + aligned float32 equal diffuse; differs in rounding order from separate prior full-ROI evidence",
+  "alignment": "reference-depth camera-only reprojection, P00/P11 convention, bilinear source sampling; no source-depth occlusion or dynamic-motion compensation",
+  "geometry_provenance": "original_* arrays are UNWARPED source-frame crop values in exact stored dtype; aligned eligibility/masks are separate booleans",
+  "eligibility": "original roughness code<=2, finite abs(depth)>1e-5 and<500; independent of modified variants",
+  "prior_glass_mask": "original captured raw-vs-selected spec RGB difference AND decoded abs(nz)<=.5 AND abs(depth)<500, warped >.999; frozen before all policy variants",
+  "reference_warning": "Game capture has NO ground truth. Captured selected is OLD NZR output, not a reference for a new algorithm.",
+  "diffuse_equality": {
+    "full_roi_fp16_words": 18874368,
+    "differing_words": 0,
+    "frames": [
+      {
+        "frame": 46,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "8f9675dc45c63fc1b1ec7344d3b2c380f2dba8e7f03a3183ca8248a7b0348cab",
+        "selected_sha256": "8f9675dc45c63fc1b1ec7344d3b2c380f2dba8e7f03a3183ca8248a7b0348cab"
+      },
+      {
+        "frame": 47,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "e9a44b427363025db94a1492a8858223f27bfda79be9e04cbdf83b84add6f187",
+        "selected_sha256": "e9a44b427363025db94a1492a8858223f27bfda79be9e04cbdf83b84add6f187"
+      },
+      {
+        "frame": 48,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "f61a6e69ab6723374f41fa7e0911aced0ccf75f7e4662b8f4322257176f84edb",
+        "selected_sha256": "f61a6e69ab6723374f41fa7e0911aced0ccf75f7e4662b8f4322257176f84edb"
+      },
+      {
+        "frame": 49,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "12a95e633a262496d334afe00bb4afe16754fca0f9a47203b1122adfccd0f970",
+        "selected_sha256": "12a95e633a262496d334afe00bb4afe16754fca0f9a47203b1122adfccd0f970"
+      },
+      {
+        "frame": 50,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "4cc1bb1fad90288dc4a829266662d496c8bacf3d9c82d38f7674c1844d7e5c8f",
+        "selected_sha256": "4cc1bb1fad90288dc4a829266662d496c8bacf3d9c82d38f7674c1844d7e5c8f"
+      },
+      {
+        "frame": 51,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "982627fe26511b18319c85a009a543fb0a1fe5ea26841f15bb4ce5689673c83a",
+        "selected_sha256": "982627fe26511b18319c85a009a543fb0a1fe5ea26841f15bb4ce5689673c83a"
+      },
+      {
+        "frame": 52,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "88459f6111c2b91615b748a9b031b5cc54b5e7df8e4738dd76dd8ae68b611319",
+        "selected_sha256": "88459f6111c2b91615b748a9b031b5cc54b5e7df8e4738dd76dd8ae68b611319"
+      },
+      {
+        "frame": 53,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "61e3ea9bd3054868092f1eca1f82a89946d8166df3703dc9bf607cae3b591d21",
+        "selected_sha256": "61e3ea9bd3054868092f1eca1f82a89946d8166df3703dc9bf607cae3b591d21"
+      },
+      {
+        "frame": 54,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "251d0826dd57eaa5d884fab89cd309f889900f024c66f75b37d6864c90f8ca1b",
+        "selected_sha256": "251d0826dd57eaa5d884fab89cd309f889900f024c66f75b37d6864c90f8ca1b"
+      },
+      {
+        "frame": 55,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "ffe104e2a05810522b008279dba01c2f6ce6cce4a135f9801af60115b636e5dc",
+        "selected_sha256": "ffe104e2a05810522b008279dba01c2f6ce6cce4a135f9801af60115b636e5dc"
+      },
+      {
+        "frame": 56,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "e542f9bb427c009bffcbfa04bd856ccc306e041450b89dfdc96a5dac82d45d68",
+        "selected_sha256": "e542f9bb427c009bffcbfa04bd856ccc306e041450b89dfdc96a5dac82d45d68"
+      },
+      {
+        "frame": 57,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "1dcad2f2956c56e15ccc06f08aafd42572bbe94f9adf4518065e9571a2f9964b",
+        "selected_sha256": "1dcad2f2956c56e15ccc06f08aafd42572bbe94f9adf4518065e9571a2f9964b"
+      },
+      {
+        "frame": 58,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "7db5b6b30d7012590f1cd89a4ef0dec74b2a16351b2691e8ea684ea94403bea3",
+        "selected_sha256": "7db5b6b30d7012590f1cd89a4ef0dec74b2a16351b2691e8ea684ea94403bea3"
+      },
+      {
+        "frame": 59,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "5432710d56c1abf0da65ab55948e381407668fe79101e425dd3f6a58f3487504",
+        "selected_sha256": "5432710d56c1abf0da65ab55948e381407668fe79101e425dd3f6a58f3487504"
+      },
+      {
+        "frame": 60,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "fd488c8bd43a10571599804e1c1b36e9ad08824e01b47cf37ed686373e41491b",
+        "selected_sha256": "fd488c8bd43a10571599804e1c1b36e9ad08824e01b47cf37ed686373e41491b"
+      },
+      {
+        "frame": 61,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "8071d0a31edbdfa0183e5a6405e635b8e2a781882a8d275dcd5b62d32d5db175",
+        "selected_sha256": "8071d0a31edbdfa0183e5a6405e635b8e2a781882a8d275dcd5b62d32d5db175"
+      },
+      {
+        "frame": 62,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "a7a87f7b5107bdf63d6d2cde05ebcba1c6b8e401d63e6fa84fb091345902e04c",
+        "selected_sha256": "a7a87f7b5107bdf63d6d2cde05ebcba1c6b8e401d63e6fa84fb091345902e04c"
+      },
+      {
+        "frame": 63,
+        "words": 1048576,
+        "differing_words": 0,
+        "raw_sha256": "92bbbe5d50a1703033685680ea73127bc627b1529134afaadbb7ec726c9d5512",
+        "selected_sha256": "92bbbe5d50a1703033685680ea73127bc627b1529134afaadbb7ec726c9d5512"
+      }
+    ]
+  },
+  "source_payloads": {
+    "54/input_depth": {
+      "file": "frames/54/input_depth.bin",
+      "sha256": "f6abfd3e2376e853bf85d3cd672fd75f8efa56404f82ce4e0964f19ec4006a8e",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "46/raw_rr_specular": {
+      "file": "frames/46/raw_rr_specular.bin",
+      "sha256": "8e3b5f72881ca6d106e0a2d4a9ea9a5906d878302d79fc57c787a24b671fe999",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "46/selected_rr_specular": {
+      "file": "frames/46/selected_rr_specular.bin",
+      "sha256": "44c839a7075d2e6226f7f24a10617c198488c008bee29f327c32af635d7f5925",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "46/raw_rr_diffuse": {
+      "file": "frames/46/raw_rr_diffuse.bin",
+      "sha256": "8f9675dc45c63fc1b1ec7344d3b2c380f2dba8e7f03a3183ca8248a7b0348cab",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "46/selected_rr_diffuse": {
+      "file": "frames/46/selected_rr_diffuse.bin",
+      "sha256": "8f9675dc45c63fc1b1ec7344d3b2c380f2dba8e7f03a3183ca8248a7b0348cab",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "46/input_normal_roughness": {
+      "file": "frames/46/input_normal_roughness.bin",
+      "sha256": "28b0dc445a956d315eef875a1b4d7c7d22d4b0f1ab7d0a8eb9c8f3f681cbc826",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "46/input_depth": {
+      "file": "frames/46/input_depth.bin",
+      "sha256": "ebffd9fa1f5738020e3bec57442d087ac2ea1f034e10272810b3431edead8d73",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "46/input_motion": {
+      "file": "frames/46/input_motion.bin",
+      "sha256": "eabefdac42cbd9f774dffcd0f0ff5888439957f2900e04be30b8bc4397641126",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "47/raw_rr_specular": {
+      "file": "frames/47/raw_rr_specular.bin",
+      "sha256": "8346e655c064f0acc04d9619bd0a6f29235f7a353e9bb52247a313824cb17715",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "47/selected_rr_specular": {
+      "file": "frames/47/selected_rr_specular.bin",
+      "sha256": "3e64edcbbb9148b9455cf9252873a447e4ef1f82215f267b0611a866760e3007",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "47/raw_rr_diffuse": {
+      "file": "frames/47/raw_rr_diffuse.bin",
+      "sha256": "e9a44b427363025db94a1492a8858223f27bfda79be9e04cbdf83b84add6f187",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "47/selected_rr_diffuse": {
+      "file": "frames/47/selected_rr_diffuse.bin",
+      "sha256": "e9a44b427363025db94a1492a8858223f27bfda79be9e04cbdf83b84add6f187",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "47/input_normal_roughness": {
+      "file": "frames/47/input_normal_roughness.bin",
+      "sha256": "6296d6a43ba09814f2c7b56676a1dbbc6722355cdb42805a4376eb17fd4cbd2e",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "47/input_depth": {
+      "file": "frames/47/input_depth.bin",
+      "sha256": "70059e0f61521b49de7b318e8029b8b75d3e59c17820cc7e9876f8433bdfa578",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "47/input_motion": {
+      "file": "frames/47/input_motion.bin",
+      "sha256": "a9ec0bf3a09ac353b7de1dc06cc444e7ac1b0ad0c8eda65901637927b3493f06",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "48/raw_rr_specular": {
+      "file": "frames/48/raw_rr_specular.bin",
+      "sha256": "6c9dba0e5e7e90b63ff80ce420d255e03d3e2342de45129d08407bce9e9b3f09",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "48/selected_rr_specular": {
+      "file": "frames/48/selected_rr_specular.bin",
+      "sha256": "d2171fabed7c80ce97a58bb31a11cd07ae96870b18afe8fa3e9b9f22fbcd3f79",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "48/raw_rr_diffuse": {
+      "file": "frames/48/raw_rr_diffuse.bin",
+      "sha256": "f61a6e69ab6723374f41fa7e0911aced0ccf75f7e4662b8f4322257176f84edb",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "48/selected_rr_diffuse": {
+      "file": "frames/48/selected_rr_diffuse.bin",
+      "sha256": "f61a6e69ab6723374f41fa7e0911aced0ccf75f7e4662b8f4322257176f84edb",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "48/input_normal_roughness": {
+      "file": "frames/48/input_normal_roughness.bin",
+      "sha256": "4deb1843f475daa9669de3900a15a8162b4d2e75d6f6eda260a9369d719f8942",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "48/input_depth": {
+      "file": "frames/48/input_depth.bin",
+      "sha256": "9350175737e2ba5d60c6fb876d17ca41891496753eceb7e4b0a3978139b2a4b6",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "48/input_motion": {
+      "file": "frames/48/input_motion.bin",
+      "sha256": "e938198bcb7c7e4bc134572c7dd4666d1fbd5d2cd285884f2f9882e2e6dacb9e",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "49/raw_rr_specular": {
+      "file": "frames/49/raw_rr_specular.bin",
+      "sha256": "c05f70e926702273e4f88c0f6a9fb8a4a9b99b8ed77bf7785fb3a7f6d582698b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "49/selected_rr_specular": {
+      "file": "frames/49/selected_rr_specular.bin",
+      "sha256": "b88ca423efdfc9ecd2b1149305123cde42ece02f3d6d02bf288c67dda1956ff7",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "49/raw_rr_diffuse": {
+      "file": "frames/49/raw_rr_diffuse.bin",
+      "sha256": "12a95e633a262496d334afe00bb4afe16754fca0f9a47203b1122adfccd0f970",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "49/selected_rr_diffuse": {
+      "file": "frames/49/selected_rr_diffuse.bin",
+      "sha256": "12a95e633a262496d334afe00bb4afe16754fca0f9a47203b1122adfccd0f970",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "49/input_normal_roughness": {
+      "file": "frames/49/input_normal_roughness.bin",
+      "sha256": "a8dc13b38e702f225c5396c77f8a13e42e7cab0a0912c282a311dc88b79a84d6",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "49/input_depth": {
+      "file": "frames/49/input_depth.bin",
+      "sha256": "484dd28ed89ec0a0fda9dc87a5195aaaf33e60784c21bf8398a17c9f0ccbd2b0",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "49/input_motion": {
+      "file": "frames/49/input_motion.bin",
+      "sha256": "27d764125d4fc5e1dd100f4b2c2371d988e5d8fdeb4bf858d3a01981dc0951bb",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "50/raw_rr_specular": {
+      "file": "frames/50/raw_rr_specular.bin",
+      "sha256": "e45d157a92c6be5b245c4d5bea576436ccc29ddcbf2613faa4b941e0a94b9698",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "50/selected_rr_specular": {
+      "file": "frames/50/selected_rr_specular.bin",
+      "sha256": "bfa16e59f2855e6b898d9b42604c1680b820eaa33fa51f5206d90ec0262a0b5e",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "50/raw_rr_diffuse": {
+      "file": "frames/50/raw_rr_diffuse.bin",
+      "sha256": "4cc1bb1fad90288dc4a829266662d496c8bacf3d9c82d38f7674c1844d7e5c8f",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "50/selected_rr_diffuse": {
+      "file": "frames/50/selected_rr_diffuse.bin",
+      "sha256": "4cc1bb1fad90288dc4a829266662d496c8bacf3d9c82d38f7674c1844d7e5c8f",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "50/input_normal_roughness": {
+      "file": "frames/50/input_normal_roughness.bin",
+      "sha256": "bc33a0190107930e75564856ca6d3321666cdd0add9074b048eec6a96314bc1e",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "50/input_depth": {
+      "file": "frames/50/input_depth.bin",
+      "sha256": "a35aa232ded2fbf55576092abb9813d8559a522e3d1008280f71e66920a12bac",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "50/input_motion": {
+      "file": "frames/50/input_motion.bin",
+      "sha256": "968124cc1abeddc759e6a0f5f7edf752ffe87e21195c827e2fe0891d8ccadbb7",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "51/raw_rr_specular": {
+      "file": "frames/51/raw_rr_specular.bin",
+      "sha256": "93d15da8960000d04c889c853f5ebde5e03588084f07623e5a52b5675efa9642",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "51/selected_rr_specular": {
+      "file": "frames/51/selected_rr_specular.bin",
+      "sha256": "982096deff294331518efd9e382e406a7dd116a7740613721eb66e179da473ef",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "51/raw_rr_diffuse": {
+      "file": "frames/51/raw_rr_diffuse.bin",
+      "sha256": "982627fe26511b18319c85a009a543fb0a1fe5ea26841f15bb4ce5689673c83a",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "51/selected_rr_diffuse": {
+      "file": "frames/51/selected_rr_diffuse.bin",
+      "sha256": "982627fe26511b18319c85a009a543fb0a1fe5ea26841f15bb4ce5689673c83a",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "51/input_normal_roughness": {
+      "file": "frames/51/input_normal_roughness.bin",
+      "sha256": "d7a243f16b6931379637de590f2675c71beb5d1e9f6e8ff47719c35e00b32523",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "51/input_depth": {
+      "file": "frames/51/input_depth.bin",
+      "sha256": "57b7b3fbb4a37e8b723bc9738130dd5caf00f3eece7c6fb48b428b1b2c64777a",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "51/input_motion": {
+      "file": "frames/51/input_motion.bin",
+      "sha256": "4aa5117d344a275b160edb8d690caa01e6761945c863f89553665b45d4da4b6a",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "52/raw_rr_specular": {
+      "file": "frames/52/raw_rr_specular.bin",
+      "sha256": "3f705fa53156729e89641bf429b66386b876d80f9f3f2000e8241498d13b0616",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "52/selected_rr_specular": {
+      "file": "frames/52/selected_rr_specular.bin",
+      "sha256": "adb47e5f6ec58232cf0d56bf45ff93022813e74ee6e9bcd1a683b3edb9a67a0e",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "52/raw_rr_diffuse": {
+      "file": "frames/52/raw_rr_diffuse.bin",
+      "sha256": "88459f6111c2b91615b748a9b031b5cc54b5e7df8e4738dd76dd8ae68b611319",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "52/selected_rr_diffuse": {
+      "file": "frames/52/selected_rr_diffuse.bin",
+      "sha256": "88459f6111c2b91615b748a9b031b5cc54b5e7df8e4738dd76dd8ae68b611319",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "52/input_normal_roughness": {
+      "file": "frames/52/input_normal_roughness.bin",
+      "sha256": "cd3292366cb833528d9668ebed6a09a75fa2c9a6ec9d543f66e5fce8a7fbab02",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "52/input_depth": {
+      "file": "frames/52/input_depth.bin",
+      "sha256": "cb430de06e28e96dd995c6bb94e08391e1432161f660010d60dce56ab5cf4907",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "52/input_motion": {
+      "file": "frames/52/input_motion.bin",
+      "sha256": "1b3ca97feaa35de69824ec523db3e8bf752fcd9a361d83e6c192946c5b469fd6",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "53/raw_rr_specular": {
+      "file": "frames/53/raw_rr_specular.bin",
+      "sha256": "0421888753091879ee97d7c9a82eae14774658e5b361b0036d71c8685315b17b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "53/selected_rr_specular": {
+      "file": "frames/53/selected_rr_specular.bin",
+      "sha256": "cb533403d44e299f47b18819e1b27780e9e0355bc8b8dbe033fdc69b89e3d1ad",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "53/raw_rr_diffuse": {
+      "file": "frames/53/raw_rr_diffuse.bin",
+      "sha256": "61e3ea9bd3054868092f1eca1f82a89946d8166df3703dc9bf607cae3b591d21",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "53/selected_rr_diffuse": {
+      "file": "frames/53/selected_rr_diffuse.bin",
+      "sha256": "61e3ea9bd3054868092f1eca1f82a89946d8166df3703dc9bf607cae3b591d21",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "53/input_normal_roughness": {
+      "file": "frames/53/input_normal_roughness.bin",
+      "sha256": "9917b525fd2b80fcc6d2197518df80c6867d3bfbe6d2519cd9c5bdf622c4dffa",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "53/input_depth": {
+      "file": "frames/53/input_depth.bin",
+      "sha256": "fa3808940b93d04adf031ee0e4c87dcde2b4b4adcdcc2a1b0df716ce36f3fcac",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "53/input_motion": {
+      "file": "frames/53/input_motion.bin",
+      "sha256": "456aa85a8ffbfca5aa917e84ad72f63b49c1d1a90b14b5fdb97d00964d45fdde",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "54/raw_rr_specular": {
+      "file": "frames/54/raw_rr_specular.bin",
+      "sha256": "abd7b29388d2b719ab2cb5d8b46c1e40507c080f26e8826cffd732b433d88248",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "54/selected_rr_specular": {
+      "file": "frames/54/selected_rr_specular.bin",
+      "sha256": "2349f8f6f8c2cbebfddab7f1f425994b0c257680f2c32264a47009405f9aa153",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "54/raw_rr_diffuse": {
+      "file": "frames/54/raw_rr_diffuse.bin",
+      "sha256": "251d0826dd57eaa5d884fab89cd309f889900f024c66f75b37d6864c90f8ca1b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "54/selected_rr_diffuse": {
+      "file": "frames/54/selected_rr_diffuse.bin",
+      "sha256": "251d0826dd57eaa5d884fab89cd309f889900f024c66f75b37d6864c90f8ca1b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "54/input_normal_roughness": {
+      "file": "frames/54/input_normal_roughness.bin",
+      "sha256": "89b910899773f9166c4db3f5b90d05f8443dcc300298a784c4aa7dbb260409dd",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "54/input_motion": {
+      "file": "frames/54/input_motion.bin",
+      "sha256": "b20ebb2712c6d83e4b40a9619616accf27cbd3512a1f54da26d08a97fad5f859",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "55/raw_rr_specular": {
+      "file": "frames/55/raw_rr_specular.bin",
+      "sha256": "6162b4203ebbcf3a331f51471362cadf2f5e78412e25c8c292626fafd1369042",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "55/selected_rr_specular": {
+      "file": "frames/55/selected_rr_specular.bin",
+      "sha256": "67429c5b2e79524a5cb60ea39ce598bcecc3611bfcdabd554b03ef67a4ae02b6",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "55/raw_rr_diffuse": {
+      "file": "frames/55/raw_rr_diffuse.bin",
+      "sha256": "ffe104e2a05810522b008279dba01c2f6ce6cce4a135f9801af60115b636e5dc",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "55/selected_rr_diffuse": {
+      "file": "frames/55/selected_rr_diffuse.bin",
+      "sha256": "ffe104e2a05810522b008279dba01c2f6ce6cce4a135f9801af60115b636e5dc",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "55/input_normal_roughness": {
+      "file": "frames/55/input_normal_roughness.bin",
+      "sha256": "651142171b0f823f25efbe978a9fc1dac848a733be5b18771ff7b9280bcc075c",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "55/input_depth": {
+      "file": "frames/55/input_depth.bin",
+      "sha256": "636c45247352fddec64775e44c9a55d18c475f0bf2f7e286c555d0f3e7d8b001",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "55/input_motion": {
+      "file": "frames/55/input_motion.bin",
+      "sha256": "aa8a57ccf37ac9a43f56d81119da772a0f0319ea1853407bdbfbe4d0cbbfd27b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "56/raw_rr_specular": {
+      "file": "frames/56/raw_rr_specular.bin",
+      "sha256": "7fde80bbb2a46cd3244d38625419af0670f786f06b9bc428d2a5c0be28c2eaf3",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "56/selected_rr_specular": {
+      "file": "frames/56/selected_rr_specular.bin",
+      "sha256": "7a5f6463d188e58dfac661cc1a3433cefdd8caf95f281e00fd4c71598dd0124e",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "56/raw_rr_diffuse": {
+      "file": "frames/56/raw_rr_diffuse.bin",
+      "sha256": "e542f9bb427c009bffcbfa04bd856ccc306e041450b89dfdc96a5dac82d45d68",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "56/selected_rr_diffuse": {
+      "file": "frames/56/selected_rr_diffuse.bin",
+      "sha256": "e542f9bb427c009bffcbfa04bd856ccc306e041450b89dfdc96a5dac82d45d68",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "56/input_normal_roughness": {
+      "file": "frames/56/input_normal_roughness.bin",
+      "sha256": "13ed16ce14370863ed4249d558588b084d454a4436d66979eb5a89a5b8191816",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "56/input_depth": {
+      "file": "frames/56/input_depth.bin",
+      "sha256": "c011988f3fadc1d9892a2d4c501f930075bf658e85e4ab278d07807c0f0b97bb",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "56/input_motion": {
+      "file": "frames/56/input_motion.bin",
+      "sha256": "3f12e0f7aaae98dbcb406b4bd77957b40346b4868814106cd063f0eb19231111",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "57/raw_rr_specular": {
+      "file": "frames/57/raw_rr_specular.bin",
+      "sha256": "431d697acee4f9b84ec426a4bd2c2c01faedc8aeb5f53a1fb4a55a5380bd2c8d",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "57/selected_rr_specular": {
+      "file": "frames/57/selected_rr_specular.bin",
+      "sha256": "fc3383f2ee6244ec47aaa6f51b6df1dec1db293871efcbe6c58b5422652eef2e",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "57/raw_rr_diffuse": {
+      "file": "frames/57/raw_rr_diffuse.bin",
+      "sha256": "1dcad2f2956c56e15ccc06f08aafd42572bbe94f9adf4518065e9571a2f9964b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "57/selected_rr_diffuse": {
+      "file": "frames/57/selected_rr_diffuse.bin",
+      "sha256": "1dcad2f2956c56e15ccc06f08aafd42572bbe94f9adf4518065e9571a2f9964b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "57/input_normal_roughness": {
+      "file": "frames/57/input_normal_roughness.bin",
+      "sha256": "262d37aa89f9a7fb1e5039a8f963b2909eb40a9aa885d1acdeb1d88d520d4066",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "57/input_depth": {
+      "file": "frames/57/input_depth.bin",
+      "sha256": "58ac3dd5d5b2acd884ef69ae3a42f7bc7f40e597e9e5e7e1c5c171a3a8afc266",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "57/input_motion": {
+      "file": "frames/57/input_motion.bin",
+      "sha256": "18eeb21423a3c7b60d1d24d0e57686621382fa5291402f7ee1113b10a34b4fa5",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "58/raw_rr_specular": {
+      "file": "frames/58/raw_rr_specular.bin",
+      "sha256": "e706e05223151b24c2eff2bb57444d7167e1ef1ecab4fb0c80a7579840ee4f09",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "58/selected_rr_specular": {
+      "file": "frames/58/selected_rr_specular.bin",
+      "sha256": "aaa00db865be4e6cd697730a8b631d2b08672605f37d05b4679faa76572d3a11",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "58/raw_rr_diffuse": {
+      "file": "frames/58/raw_rr_diffuse.bin",
+      "sha256": "7db5b6b30d7012590f1cd89a4ef0dec74b2a16351b2691e8ea684ea94403bea3",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "58/selected_rr_diffuse": {
+      "file": "frames/58/selected_rr_diffuse.bin",
+      "sha256": "7db5b6b30d7012590f1cd89a4ef0dec74b2a16351b2691e8ea684ea94403bea3",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "58/input_normal_roughness": {
+      "file": "frames/58/input_normal_roughness.bin",
+      "sha256": "e2274eedb7078e110a37b42bf6fb6d5cef7331556de3e833927abb0cf8f12e05",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "58/input_depth": {
+      "file": "frames/58/input_depth.bin",
+      "sha256": "782bd3574f090f31f693384d9d96e4ab0281a0769bba4a52e902aa05b5cfe17c",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "58/input_motion": {
+      "file": "frames/58/input_motion.bin",
+      "sha256": "20267bf428b209a1c58d3f2c274a992c6a78fa375fb7e6dcba17091ce34b343f",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "59/raw_rr_specular": {
+      "file": "frames/59/raw_rr_specular.bin",
+      "sha256": "822407481602aec63a9d1552c803568dd5099a7330ab9690e493f175d1b749ae",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "59/selected_rr_specular": {
+      "file": "frames/59/selected_rr_specular.bin",
+      "sha256": "50fece6b340dac9afd900b83d9880dd47374480a065c1a1f29bac78cfc88cbee",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "59/raw_rr_diffuse": {
+      "file": "frames/59/raw_rr_diffuse.bin",
+      "sha256": "5432710d56c1abf0da65ab55948e381407668fe79101e425dd3f6a58f3487504",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "59/selected_rr_diffuse": {
+      "file": "frames/59/selected_rr_diffuse.bin",
+      "sha256": "5432710d56c1abf0da65ab55948e381407668fe79101e425dd3f6a58f3487504",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "59/input_normal_roughness": {
+      "file": "frames/59/input_normal_roughness.bin",
+      "sha256": "a58098c4d3df7d40b42a6f789acd734938243617737cb78d419c7f54f88feca9",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "59/input_depth": {
+      "file": "frames/59/input_depth.bin",
+      "sha256": "e877fed80180676d7c9144d6e7884d2c5461525184aaeecb18bb9c7d939998fb",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "59/input_motion": {
+      "file": "frames/59/input_motion.bin",
+      "sha256": "a9cd5938bd91cd518e8e56d9e6a4bd001ce408a9741cb6d0811ed3533dde1620",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "60/raw_rr_specular": {
+      "file": "frames/60/raw_rr_specular.bin",
+      "sha256": "2e7c19f1d3bf367a8898d15f6ceb1063ceb7f2f8bc19849631553fb4b1cced16",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "60/selected_rr_specular": {
+      "file": "frames/60/selected_rr_specular.bin",
+      "sha256": "67ab1d9416be1ae91a37362fc5a116ad62b378719484b2d5fc7a25618735a4da",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "60/raw_rr_diffuse": {
+      "file": "frames/60/raw_rr_diffuse.bin",
+      "sha256": "fd488c8bd43a10571599804e1c1b36e9ad08824e01b47cf37ed686373e41491b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "60/selected_rr_diffuse": {
+      "file": "frames/60/selected_rr_diffuse.bin",
+      "sha256": "fd488c8bd43a10571599804e1c1b36e9ad08824e01b47cf37ed686373e41491b",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "60/input_normal_roughness": {
+      "file": "frames/60/input_normal_roughness.bin",
+      "sha256": "b5476c3cd09d35dc83c41e9226036cfcab65b958ee3bfbbf81fd231ca882fe67",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "60/input_depth": {
+      "file": "frames/60/input_depth.bin",
+      "sha256": "06c4366f5e299b5855f0b9704b0941f20e63c2e3d80008647bc21e4c109ae0b9",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "60/input_motion": {
+      "file": "frames/60/input_motion.bin",
+      "sha256": "61a880734285f2485cf43191d1293398d0ae4142a414684e0b4c28813507bb40",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "61/raw_rr_specular": {
+      "file": "frames/61/raw_rr_specular.bin",
+      "sha256": "b6af9abfff3b1a4bdbdbb5b20650c37197a61f0e28fa264eec08f0b0cd52b11f",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "61/selected_rr_specular": {
+      "file": "frames/61/selected_rr_specular.bin",
+      "sha256": "dab212215dc378c82ce029d3c5b662f071313438e6655258e12c1656bc754195",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "61/raw_rr_diffuse": {
+      "file": "frames/61/raw_rr_diffuse.bin",
+      "sha256": "8071d0a31edbdfa0183e5a6405e635b8e2a781882a8d275dcd5b62d32d5db175",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "61/selected_rr_diffuse": {
+      "file": "frames/61/selected_rr_diffuse.bin",
+      "sha256": "8071d0a31edbdfa0183e5a6405e635b8e2a781882a8d275dcd5b62d32d5db175",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "61/input_normal_roughness": {
+      "file": "frames/61/input_normal_roughness.bin",
+      "sha256": "1bc75c077938cfd844b6c1f28825ce47fa530554fa7fa14d023f026bdf3f1f18",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "61/input_depth": {
+      "file": "frames/61/input_depth.bin",
+      "sha256": "ba471f7f6fdb2574494edcffe55dab31e99a8ab1f491828c1bc2930a8aec8c59",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "61/input_motion": {
+      "file": "frames/61/input_motion.bin",
+      "sha256": "c93e8190c203b200a3924d443e1bafe6417b733a83078080e15035237e96c8c3",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "62/raw_rr_specular": {
+      "file": "frames/62/raw_rr_specular.bin",
+      "sha256": "fa9c1ee7bb30c35f042999c00b175e616524f593b9f9f9b50601e3d8cefde7c4",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "62/selected_rr_specular": {
+      "file": "frames/62/selected_rr_specular.bin",
+      "sha256": "34b79fd8a8e62f1ddf60794eaa2699119cc1002dd33f9cde70a1ef6bf75db540",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "62/raw_rr_diffuse": {
+      "file": "frames/62/raw_rr_diffuse.bin",
+      "sha256": "a7a87f7b5107bdf63d6d2cde05ebcba1c6b8e401d63e6fa84fb091345902e04c",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "62/selected_rr_diffuse": {
+      "file": "frames/62/selected_rr_diffuse.bin",
+      "sha256": "a7a87f7b5107bdf63d6d2cde05ebcba1c6b8e401d63e6fa84fb091345902e04c",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "62/input_normal_roughness": {
+      "file": "frames/62/input_normal_roughness.bin",
+      "sha256": "6b7c81abe9a5b86cfc0769a67ad9e430cc771a2830f81ec65cb3eb378940923a",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "62/input_depth": {
+      "file": "frames/62/input_depth.bin",
+      "sha256": "9c5560ae6a8eda7efb563fd1c8ef6f0ddc8e354092cd8a17d86487f799c77f08",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "62/input_motion": {
+      "file": "frames/62/input_motion.bin",
+      "sha256": "3d2a091a5b00586169317f0f8439e3c3347b5039e88f84ae1e94f8fe9c90476d",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "63/raw_rr_specular": {
+      "file": "frames/63/raw_rr_specular.bin",
+      "sha256": "95724eb259be2b8c4f64e59ce24babbf95dbe55e4c5a688e8b3fdf11d52f3741",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "63/selected_rr_specular": {
+      "file": "frames/63/selected_rr_specular.bin",
+      "sha256": "65b832babd302e49eb7f5b3949a0cd103315c39efb30cc061ea59ffe8012fd25",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "63/raw_rr_diffuse": {
+      "file": "frames/63/raw_rr_diffuse.bin",
+      "sha256": "92bbbe5d50a1703033685680ea73127bc627b1529134afaadbb7ec726c9d5512",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "63/selected_rr_diffuse": {
+      "file": "frames/63/selected_rr_diffuse.bin",
+      "sha256": "92bbbe5d50a1703033685680ea73127bc627b1529134afaadbb7ec726c9d5512",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    },
+    "63/input_normal_roughness": {
+      "file": "frames/63/input_normal_roughness.bin",
+      "sha256": "d19ea57d85ece768cec656150454791955c18f3e28876c33d5f99e814c746da8",
+      "bytes": 1048576,
+      "dtype": "<u4",
+      "channels": 1
+    },
+    "63/input_depth": {
+      "file": "frames/63/input_depth.bin",
+      "sha256": "5d5e237e197118ce762abedb136e5416375cbe54ac24bab25327452b0d212ad1",
+      "bytes": 1048576,
+      "dtype": "<f4",
+      "channels": 1
+    },
+    "63/input_motion": {
+      "file": "frames/63/input_motion.bin",
+      "sha256": "3c608232f235f5f5c23a24dd72f397e2fb0412ce414e80b0727fbaf9b015e3f7",
+      "bytes": 2097152,
+      "dtype": "<f2",
+      "channels": 4
+    }
+  },
+  "export_code_sha256": "1bd8b0707e73ce2331ab687801017853d73fcf02356ffe2639036fe281064d81",
+  "dependencies": [
+    "Python standard library",
+    "NumPy"
+  ]
+}

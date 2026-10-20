@@ -1,0 +1,54 @@
+HISTORICAL LOCAL REPORT — links and commands may refer to artifacts not exported here.
+Treat all claims as scoped evidence to inspect, not fresh cloud execution. Paths sanitized.
+
+Soft2 colour estimator — independent actual-GPU validation, 2026-10-20
+
+Türkçe sonuç
+
+Öneri: üretime alınmasın. 8×8 örnekli soft2 adayını üç yerel HLSL/CSO ile gerçek D3D12 GPU üzerinde çalıştırdım. Hücreye hizalı kenarda olumlu görünen sonuç, kenar hücrenin ortasını kesince tersine dönüyor. Aynı R16 input bytes ile gerçek üretim B4 CSO'suna karşı normal kenarında 0–4 px ortalama renk taşması 0.05717988 → 0.09807549 (+71.5 %), depth kenarında 0.05717988 → 0.09752037 (+70.6 %). Bu sentetik, ölçülmüş karşıörnek; oyundaki görünümün ölçümü değildir.
+
+Görseller normal_edge_phase4.png ve depth_edge_phase4.png: iki yöntem de gerçek GPU. Üstte 256×128 doğal görüntüler, altta aynı 64×64 crop'un 4× izotropik büyütmesi, tüm panellerde aynı pozlama/sRGB dönüşümü. 32 CPU kenar fazı taramasının en kötü dört durumu gerçek GPU ile doğrulandı; aday CPU/GPU farkı bu kenarlarda en fazla 1 half ULP.
+
+64 impulse fazı, R16 RTZ store, 2048 packed oct değeri, signed depth ve finite kontrolü: 5/5 PASS. Alpha ve current-source authority byte koruması; 64×32 aktif / 128×64 allocation DRS kontrolü; 67×35 floor-grid kontrolü doğrulandı. 25 benzersiz GPU job yapılandırmasının tamamı debug layer açıkken toplam 0 hata / 0 uyarı verdi.
+
+CPU referansının tüm sayısal çıktısına sıkı eşitlik sağlanmadı. Unlooped CPU 0..62 warmup'ından sonraki 87ee f63 GPU çıktısında max fark 0.0087890625, p99 1.525878906e-05. Gerçek hardware history sample probe'u 4096 hücrenin 9'unda continuous numpy referansından farklı depth kabul kararı buldu; 1/256 fraction modelinde karar farkı 0. Gerçek GPU stats ve gerçek sampler değerleriyle bağımsız track matematiği en fazla 1 half ULP, p99 0 fark verdi. Büyük farkı gizlemedim; portable CPU fixture tek başına tam GPU parity kanıtı değildir.
+
+Üretim dosyası, game folder, DLL, INI, menu veya native bridge değiştirilmedi. Bu adayın native RR bridge bağlantısı yoktur. Son DLL'e dahil edilmemeli. Oyunda iyileşme, uzun gerçek-GPU temporal kazanç veya performans ölçtüğümü iddia etmiyorum.
+
+English details
+
+Scope and mechanism
+
+- Scratch implementation only: integer 64-load 8×8 stats; 5×5/step1 coarse surface weights and RR-chroma sigma .2; target EMA .25 with existing hard depth history validation; gain clamp [.75,1.33]; 4-corner JBU with depth-gradient prediction and chroma sigma .4; ordinary bilinear gain fallback and confidence saturate(2*sum weights).
+- Apply preserves the original full RGBA alpha. Current-source authority target.a<.5 returns without writing any channel. This respects the live combined-path authority contract without assuming native specular alpha is disposable.
+- Captured RGB domains are published pre-remod input and raw-RR lobe sums. Skip and final native per-lobe remodulation are not reconstructed. No native hook, game replay or in-game verdict follows from these fixtures.
+- Captured input_motion is full-render UV. Integer stats uses Size.xy=(1505,847) to obtain physical-pixel motion while quarter extent is the 512×512 ROI / 8; apply uses a separate 512×512 extent. This avoids pretending a cropped UV field was ROI-normalized.
+
+Counterexample and limits
+
+- The first synthetic edge at x128 aligns with both coarse grids; the candidate measured right-band contamination .00240563 on the same plane and zero on depth/normal edges. That alignment is a biased safety test.
+- Sweeping x120..127 across same-plane, depth, normal and diagonal edges exposes the failure at x124. A single 8×8 cell contains both surfaces and a mixed colour/gain/geometry representation. Geometry-aware corner weights can reject that mixed guide, but fallback restores the ordinary bilinear gain carrying the mixed tint. This is a representation limit of the proposed single coarse field.
+- The actual-B4 reference is the current production three-CSO sequence, same RTZ RGB bytes and typed R10 normal input. Its normal-edge output matches the independent B4 CPU model exactly; depth-edge difference is <=1 half ULP. Both candidate and reference use debug-clean descriptor bindings.
+- Right bleed = mean(sum(abs(corrected-half_RTZ(raw)), RGB) / luma(half_RTZ(raw))) over the right 0–4 px band. It measures unintended chroma movement on the neutral side. No arbitrary contrast scaling is used in images.
+- This work does not repeat or supplant audit_colour's real-capture chroma temporal measurements. A temporal noise win does not erase these geometry-edge counterexamples.
+
+Numerical calibration
+
+- All 64 subpixel impulse positions contribute exactly 1 to the 8×8 mean (one value 64 per cell).
+- An exact mean 1.0009307861328125 distinguishes half store modes: RNE=1.0009765625, RTZ=1.0; actual GPU stats=1.0. The first fixture attempt accidentally assigned through a non-contiguous reshape copy and therefore did not contain the three lower samples. The input construction was corrected and a direct box-mean assertion added; no output tolerance/assert was weakened. Final unit suite 5 PASS / 0 FAIL.
+- Oct input uses typed R10 normalized [0,1] pairs. Packed value floor(sat(oct)*[63,31]+.5).x*32+qy is an exactly representable integer 0..2047 in R16. All 2048 legal values were verified exactly. The small angle error in that grid is only a roundtrip-on-quantization-levels result, not a worst-case quantization guarantee for arbitrary normals.
+- RGB stats on the four captured frames match the independent CPU box reference exactly. Some depth means differ by 1 half ULP from float32 reduction order; the captured model's hard rejection makes small representation differences potentially discontinuous.
+- Fresh captured frame 87ee f63 output max abs 7.62939453125e-5, p99 0; 22f9 f9 max 1.8310546875e-4, p99 0. The two-frame 87ee f64 case has max abs .0036163330078125 and p99 1.52587890625e-5; four history-gate decisions differ with continuous CPU bilinear sampling.
+- The fullwarmup f63 original-CPU mismatched cells are [[8, 59], [9, 59], [15, 44], [23, 60], [26, 58], [28, 59], [31, 45], [33, 59], [45, 16]]. Max output difference is at (y,x,c)=[228, 476, 0]; max gain difference is at quarter (y,x,c)=[33, 59, 2]. Actual GPU stats+sampler values isolate the remaining track formula error to <=1 half ULP.
+- Nearest 1/256 fractions reproduce all measured validation decisions here, but not every hardware-filtered RGB bit. This is an observed calibration for these frames, not a universal specification of texture-filter arithmetic.
+- DRS stats read integer texels inside the active extent, independent of larger allocation dimensions. Outside active RGBA bytes stay unchanged. The 67×35 test only establishes parity with the CPU floor-grid convention; border-footprint semantics in a future full native implementation need separate review.
+- The initial alpha/DRS expectation compared RTZ against NumPy's RNE upload bytes and incorrectly reported false byte identity. The checks now compare the actual uploaded half bytes, including all outside-active RGBA. They pass; these were harness expectation errors, not shader changes.
+
+Evidence and reproduction
+
+- result.json preserves the first run; captured_rerun.json and special_rerun.json contain the corrected diagnostic fields/check expectations. summary.json is the final aggregate.
+- unit_gpu.json, edge_phase.json, actual_B4_edge.json, sampler_probe.json, fullwarmup.json and fullwarmup_diagnosis.json retain quantitative details.
+- Scratch scripts and CSOs: local-only:/FSRD/sol_batch/26-integration/scratch/colour_gpu/. CPU helper snapshots: cpu_snapshot/ under that folder. Per-job result.json retains descriptors, passes, formats, adapter, debug counters and timestamps; timings are single dispatch observations and are not a performance benchmark.
+- Runner SHA256: fc21c89491064a63697e52105d62e11960eb538b4f9e2aaf3ad401dcb2c3be62.
+- All three candidate shader compile records, original CPU reference hashes, baseline CSO hashes and the portable warmup fixture hash are in summary.json/fullwarmup.json. No DLL was compiled or delivered.
+- Commands log: commands.log. Final source/CSO/image/script hashes: manifest.json.

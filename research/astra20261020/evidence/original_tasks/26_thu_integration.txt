@@ -1,0 +1,93 @@
+HISTORICAL TASK CONTEXT — machine paths sanitized; current COMMON_PROTOCOL governs this cloud job.
+
+TASK 26 (THURSDAY 2026-10-22) - INTEGRATION + RECOMMENDED PRESET + MOVING OBJECTS / FOLIAGE
+Task id: 26-integration. Model: Sol 6.1 max (LEAD). FIRST read local-only:/FSRD/sol_batch/24_26_shared_context.txt fully, then
+COMMON_RULES.txt, SUBAGENT_RULES.txt, and the reports of tasks 24 and 25
+(local-only:/FSRD/sol_batch/24-glass-hfix/report.md, local-only:/FSRD/sol_batch/25-postflick-level/report.md) plus their progress.md
+"open items". Reply in Turkish. Report: local-only:/FSRD/sol_batch/26-integration/report.md. Work WITHOUT asking until 20:00
+local time on 2026-10-22; `date` every cycle; decisions in progress.md.
+Base: task 25's final commit (its report names it); if 25 failed use 24's, else adccf08fdeed706f79a0984224bce80ded2efdc5
+- say which. Worktree OSA-26-integration, branch sol/26-integration. New options default OFF; OFF == base.
+
+GOAL OF THE DAY: the user gets ONE DLL with everything from tasks 23-25 that won, a recommended preset that is safe
+to switch on together, and a clear before/after on their own four captures. Then push the two remaining problems
+(moving glossy objects, foliage) as far as the evidence allows.
+
+=====================================================================================================================
+SUB-AGENT PLAN (rules: shared context section E; start SA1-SA3 in the first 30 minutes)
+=====================================================================================================================
+SA1 "interplay-A" and SA2 "interplay-B" (each ~150 min): T2's RR Lab interplay matrix split by capture (A: 87ee,
+    22f9, 2405, ccbc, c7294; B: f2ef, 06fa, d6d2, 8ab8, cb55 + any new user capture); same metric script, one table
+    each. You choose the preset from their tables after re-running the decisive rows.
+SA3 "bottle-foliage" (150 min): T5/T6 research (per-lobe analysis, RR Lab tests with motion/tuning hooks), concrete
+    proposals with numbers.
+Next wave: SA4 "before-after" - T4 sheets and HTML viewers; SA5 "audit" - final diff, golden OFF, INI preset
+round-trip, perf table sanity; SA6 - carry-over items from tasks 24/25 that are research-only.
+
+=====================================================================================================================
+T1. CARRY-OVER FIXES (morning, max 2 h)
+=====================================================================================================================
+Read the "open items" / rejected / "needs more time" lists of tasks 24 and 25. Finish only items that are small and
+measured (bugs, missing tests, menu text, INI round-trip, perf regressions). Anything big goes to "next round" in the
+report with the evidence.
+
+=====================================================================================================================
+T2. INTERPLAY MATRIX + RECOMMENDED PRESET
+=====================================================================================================================
+Options to combine (whichever exist and were accepted): G2 Motion-adaptive stability, G3 Lighting validation (V20.1),
+task 24 "NZR on vertical surfaces" (+ mode), task 24/25 post-flick blotch option (if any shipped), task 25
+"RR colour tracking" and "Post-motion level anchor", D16/S256 shared scale, NZR reflection history / RR fallback / diffuse RR (the
+user's current NZR set), Turn colour filter (old; probably superseded by the level anchor - decide with numbers).
+1. In RR Lab (hooks for the RR-side options) on: 87ee1fba, 22f9ca14, 2405579e, ccbc3897, f2ef375f, 06fadf38,
+   d6d2a083, 8ab8afe7, cb550300, c7294a8e (plus any capture the user took Tue/Wed - check GAME_TRACE dates, read
+   only). Metrics: bench (boiling, static_cv, post_turn ABSOLUTE level, specks), step fixtures (local + whole, gain 2
+   and 0.5), postflick_exp.py windows, absolute post-flick level + R share (anchor_exp.py style, warp per window),
+   detail ratio. NZR/post-RR options: numpy prototype on recorded outputs or the repo's NZR test harness.
+2. Look for bad interactions: G3 history drops + level anchor both firing after a flick (double correction?), G2
+   moving stability .5 vs anchored level, NZR vertical mode vs reflection history, anything that makes the OFF path or
+   puddles change.
+3. Pick a RECOMMENDED PRESET (and at most one "strong" alternative). Write it as an INI block the user can paste and
+   as menu steps. Every option must still be individually switchable.
+
+=====================================================================================================================
+T3. FINAL DLL + PROOF
+=====================================================================================================================
+Golden OFF == base (byte-identical), recommended preset on all repo test suites (flat albedo/NZR, native, menu,
+lifetime/reset, trace contract, G2/G3 tests), 1440p GPU timing of the preset vs OFF (existing timing harness; report
+ms per pass and total; budget: preset <= +1.0 ms over task 23's G2+G3), VRAM delta at 1440p. Build with
+lead_ops/Build-FsrdQueued.ps1. Deliver local-only:/FSRD/sol_batch/26-integration/dxgi.dll + SHA256. Never install it.
+
+=====================================================================================================================
+T4. BEFORE/AFTER ON THE USER'S FOUR CAPTURES (what the user will look at)
+=====================================================================================================================
+Same-exposure sheets and HTML viewers (rrlab.cmd report ...): 87ee storefront glass + signs (grain), 87ee/22f9 walls
+right after flicks (trail, pink, blotches), 2405 neck/shoulder/bottle, ccbc driving (must not get worse). For
+post-RR options use the recorded-output prototype and say so. First image = overall verdict. In report.md list per
+problem: fixed / better / unchanged / worse, with the number and the image file.
+
+=====================================================================================================================
+T5. MOVING GLOSSY OBJECTS (2405579e bottle f178-186) - research -> prototype if clear
+=====================================================================================================================
+Shared context C4: MVs are right, the bottle moves 80-150 px/frame, white streaks sit on the glossy bottle. Task 24
+T3 may have measured more (read it). Questions: is the streak in the INPUT specular (game's reflection is
+smeared/lagging), or RR's specular history (reflections move differently from the surface; RR reprojects specular
+with surface MVs)? Test in RR Lab: per-lobe replay, specular history drop where motion is fast in screen space and
+depth says "object" (G3-style motion.B sentinel only on fast object pixels), RR material ID for dynamic objects (as
+the old idea for vehicles), lower specular stability on fast object pixels via the existing G2 schedule (only if a
+per-pixel path exists). Accept only what removes the streak without adding boiling on the bottle when it is still.
+If it works: default-OFF option "Fast object specular reset (experimental)".
+
+=====================================================================================================================
+T6. FOLIAGE - research only unless something clearly wins
+=====================================================================================================================
+87ee planter bushes have the highest RR fine CV (C5). Measure per lobe, vs roughness, normals, alpha-tested edges
+(depth discontinuity density). Ideas to test in RR Lab: RR normal strength / relaxation per material (if RR takes a
+material id), feeding a smoothed normal on dense foliage, disocclusion threshold only on foliage-like pixels. Write
+what you found; no production code unless a test shows a clear win with no loss on signs/text.
+
+DELIVERABLES (local-only:/FSRD/sol_batch/26-integration/): dxgi.dll + SHA256, report.md (Turkish summary first: the recommended
+preset as an INI block + menu steps, what each option fixes, where to look in game, what to capture next if something
+still bothers them - concrete GAME_TRACE capture recipes), kullanici_adimlari.txt, gorseller/ (first = overall
+before/after), RR Lab reports, interplay table, timing/VRAM table, tests with counts and times, progress.md, branch
+commits, memory note (author: codex) + index line, RR Lab Changelog. End with the final commit hash and a short
+"next round" list ranked by expected visible gain.

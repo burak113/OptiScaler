@@ -1,0 +1,22 @@
+name: Astra portable CPU evidence
+on:
+  workflow_dispatch:
+  push:
+    branches: [sol/26-integration]
+    paths: ['research/astra20261020/**', '.github/workflows/astra-cpu.yml']
+  pull_request:
+    paths: ['research/astra20261020/**', '.github/workflows/astra-cpu.yml']
+permissions:
+  contents: read
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r research/astra20261020/requirements.txt
+      - run: python research/astra20261020/validate_package.py
+      - run: python research/astra20261020/run_cpu.py

@@ -1,0 +1,2892 @@
+{
+  "version": 1,
+  "description": "Frozen NumPy gain reference and actual shader-grid calibration; no rendered RR quality claims",
+  "limits": [
+    "Recall is already measured by actual GPU CSOs; raw six-slice key arrays and RGB RR outputs are not exported.",
+    "Native-policy runs change Stats/Gain variants, sums ABI and policy flag on the extracted combined-host harness; they do not validate production native routing.",
+    "Exact native pre-store 16.16 atomics were not exported. Native frame ratio is an estimate bounded by the original FP16 cell rounding intervals."
+  ],
+  "fields": {
+    "stats": "FP16 NHW4: current_level, depth, static, zero",
+    "recalled": "FP16 NHW4: warped_key_level, valid, physical_slice, static",
+    "gain": "FP16 NHW scalar actual GPU gain (original other channels are zero)",
+    "fixed_mask": "bool NHW frozen valid/static mask",
+    "frame_ratio": "float64 N; combined exact GPU atomic ratio, native bounded stored-field estimate",
+    "frame_ratio_bounds": "native float64 Nx3: central, lower, upper",
+    "k": "int32 motion-window age",
+    "frames": "int32 original capture ordinal"
+  },
+  "groups": [
+    {
+      "id": "combined",
+      "scope": "Actual fixed_host1 source-driven corrected combined scheduling, Stats/Recall/Gain CSOs; exact1/1024 counters separately read back",
+      "captures": [
+        {
+          "capture": "87ee1fba",
+          "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+          "published": 66,
+          "roi": [
+            496,
+            167,
+            512,
+            512
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            64,
+            64
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 6,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "4cbe0f45b846cf0ea5ceef11722d44b1bf5b0aec40ea3c2f21254abcab56af66",
+                "recalled": "12d37eff10cee6820b178f2307adbbbce6eb31dab93bbf4a52a33d559101b3c9",
+                "gain": "33d781ea89a7e57e150ead69187478924ed7076abf200e43ed9b3a70e72661c1"
+              },
+              "frame_ratio": 1.0509157592085305,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                44171,
+                46420,
+                2196,
+                0
+              ]
+            },
+            {
+              "frame": 7,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "4175bd70629e9e0b1279720b73c52a414e12578388d2a1aca683dd0080ae44b1",
+                "recalled": "a7a42913c368dbf50d2f95f5cc1bd5693004e94e431afc810678dd750cf85aa7",
+                "gain": "df1eb90dfc9ee465d16a63e9efc46a5a01b5a1af66db4f153b6698768d0f94be"
+              },
+              "frame_ratio": 0.9843849585723391,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                3138,
+                3089,
+                119,
+                0
+              ]
+            },
+            {
+              "frame": 14,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "01f5ea2ae7b72843d8113b4d04f961f5ef4fd8fdeab0acff5dd98926216168e8",
+                "recalled": "84cfb6725fe645f5eddc5bca8d96cbe790acecc017c2dafe85b759e75f43507f",
+                "gain": "37c066ceade8341bb2c1a0c04c14d8ba81bb537e163ddec6882c3d935b326cff"
+              },
+              "frame_ratio": 1.0368499648629657,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                45536,
+                47214,
+                2966,
+                0
+              ]
+            },
+            {
+              "frame": 15,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "eea04fd19fb42c94a54c33f1bc98a0a645a5e6e9406161d641d2bae18c62c285",
+                "recalled": "f3c1080b37fb3055212bda411d79d20d54f98e974b714ce25774ebbd4f8953a6",
+                "gain": "9577d38f211034d3b57720ef6f0b6fc28cdda3e50dc957042c712f9803b8c2d2"
+              },
+              "frame_ratio": 1.0682878679109835,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                11144,
+                11905,
+                627,
+                0
+              ]
+            },
+            {
+              "frame": 16,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "7f8ea208233540093215249770d195bd5606c49c1aa7f75de7afd32f7bc5643a",
+                "recalled": "3b6df1cf0f24d62baf41524cddc235cca30bc3fbeba75dabed54e792b5bf0088",
+                "gain": "e7d42641b5182981bf8243ca0e59c4ee5a498ec9ce7a618957385a863de8530a"
+              },
+              "frame_ratio": 0.9694634348456598,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                24135,
+                23398,
+                1089,
+                0
+              ]
+            },
+            {
+              "frame": 17,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "0a9ef39e3cb770f97a1d657a0f0a064c5e7275995192a8aa7a9076c88dd739d0",
+                "recalled": "fa8f6d595e04fdadcb308efefd202a3e6a6868ea916f928d2873a3ae824ca9f4",
+                "gain": "6aaff0afd61d1e65f574981e3b81e0189c5c87f00f94e979843805a1f257b7b5"
+              },
+              "frame_ratio": 1.0377864395839023,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                40279,
+                41801,
+                1991,
+                0
+              ]
+            },
+            {
+              "frame": 18,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "19b204fa28293e38050d7418b89ae8920af8e60e8cff93575adf15d929dc4086",
+                "recalled": "83c890a734cddbfc124617e9f559f30b313c670bd275645e6635ec32156ac4ab",
+                "gain": "95419f3ae14772154ce12eaef70f7a84c5802e7a5ec6ad881477e46965a41096"
+              },
+              "frame_ratio": 1.0522234530780186,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                50552,
+                53192,
+                2518,
+                0
+              ]
+            },
+            {
+              "frame": 19,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "5935ee8fa4b769b522dd469866d1200c7a4dd17b722bbf81bdd7527c5a59f960",
+                "recalled": "3cdb69f078ee973722004aba00222e799e0ee255b1cc5119d4b3968c46be48d2",
+                "gain": "39c199cd034d1d5aa54e5b1aeb9a14e4c8721bcf3d11b9da0638eb637f7b2cb7"
+              },
+              "frame_ratio": 1.096296148552965,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                50137,
+                54965,
+                2592,
+                0
+              ]
+            },
+            {
+              "frame": 20,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "415759a3e9409f902d062e64a2a5caac0109a41a04f283c921286daf26a1cdff",
+                "recalled": "dd13b99fea02950cfbaeda411713d96334b27a7298f0c873673332dbdc2e6a92",
+                "gain": "4ae3910bdfc9ffff1b8f0bb6b36e8f2e4697a4445de53394634177f300198da7"
+              },
+              "frame_ratio": 1.0981344450234498,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                47975,
+                52683,
+                2479,
+                0
+              ]
+            },
+            {
+              "frame": 22,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "72c744bcd88489e179d26ca21270f99b26d6e202da0e5964b54d0d85d8befd59",
+                "recalled": "18b9ede7b0f651ab79800146aa1ea60d6a2d1f59fd7e98b285021ec2e33e8ff0",
+                "gain": "4766159af810ca644f6065e1ae30c64d5e7721cd42cf52acc42a6f13542fe411"
+              },
+              "frame_ratio": 1.0154517161267698,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                45626,
+                46331,
+                2259,
+                0
+              ]
+            },
+            {
+              "frame": 23,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "17a2ca52a870d8438817d3920510ae67bd31920714068a43780b7602de9834f5",
+                "recalled": "1a500f4ab08e7a458923f4a387b15b28567980cc7272900b731873ed1ccab232",
+                "gain": "9992c5d6e1e26ec7a32457ec189e0ae69ed011ab6c2f7c8ead3080403e0e1127"
+              },
+              "frame_ratio": 1.043763353716938,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                13573,
+                14167,
+                559,
+                0
+              ]
+            },
+            {
+              "frame": 24,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "7f68eea2ba048cb24d32c7c02cb347e84cf5a22e9f51b1a279a2e2b5199cd431",
+                "recalled": "da0051ee496c4895e3d485fb8f74606e4a48f6d075226d10b35cf8f92b353f91",
+                "gain": "2c9d886d2d25cd53778d35c8c56c95a9838aae76b134a4e635d1eae0607a86e1"
+              },
+              "frame_ratio": 1.0164563681652987,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                24489,
+                24892,
+                1695,
+                0
+              ]
+            },
+            {
+              "frame": 25,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "d19f14a1b0f4eba2bb2f3e188e2f825e89f3135c8202565d0dbbd87ada3fc523",
+                "recalled": "81d7607690180bfd96e589d2d48af7c2bd97867a1729ba12e38d29f336b792c1",
+                "gain": "fb2008e2301db2d5e186e1a877689c6a8ca53e07c1fb36523e8a8865610bcd6e"
+              },
+              "frame_ratio": 0.938839931605945,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                53221,
+                49966,
+                3058,
+                0
+              ]
+            },
+            {
+              "frame": 26,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "cf8e51bec0f6cd3ef4312a67356792b8f42a2df7e2674a7b198025d3373221af",
+                "recalled": "8e60a396d469122294b36288c88d4463f51c9784767ea9bab6d6ba53f60a19cf",
+                "gain": "fe717a9892b7f6beb631f3d7d3b81abf02762de571c11fc990e0f59d212e23d2"
+              },
+              "frame_ratio": 0.9573207569231968,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                51313,
+                49123,
+                2978,
+                0
+              ]
+            },
+            {
+              "frame": 27,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "a88d859e877871f19a0c95113a1e29663f2488edddceec570663646bde158f20",
+                "recalled": "d60302f4a7e94a5d01902a88c0d6a484434ae2c42e35cc7d057f05947a68a237",
+                "gain": "25558269a0b0f32261d3b665f566de282dbc3fc83d17f063526c2d6a454cf7ff"
+              },
+              "frame_ratio": 1.003219538215347,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                52492,
+                52661,
+                3149,
+                0
+              ]
+            },
+            {
+              "frame": 28,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "f78660a5bd04d362e4a5ac1151f10ca504ed01a7b8ad7b24344b6a4252066136",
+                "recalled": "c78774e98b65af0d6c4654791edd890b4532a6832d369a643d28b9de952f89e6",
+                "gain": "8d2d19050d219b900aedc56b3553cfc7e42f02cee20a1cf92b1fb7a3c0127be2"
+              },
+              "frame_ratio": 1.0070820174179347,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                52245,
+                52615,
+                3168,
+                0
+              ]
+            },
+            {
+              "frame": 29,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "252ae7b90e5fe893239f92620b276ed358578b0ef26f850b691eeb8c6a955e1a",
+                "recalled": "ac130ae437b5e8b516421a4fa010d857b4aaabda200faef545e2d4062c9ad2c2",
+                "gain": "0b96f37eae398163c26e48b9f73f097ddb4c41ec9a6eefdbe83ada1ed3b1377c"
+              },
+              "frame_ratio": 1.0272620636654128,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                49446,
+                50794,
+                3080,
+                0
+              ]
+            },
+            {
+              "frame": 32,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "729fea2723e735ee4f29b7ed1c32a97ffb4040300dd9888f4004cc0a6eeecea7",
+                "recalled": "7f3b403d57575acd759701272ddea26a2d7d89300ae0bff22d7fdf1fd32597cd",
+                "gain": "e13b9360e2218edd91812ef3b4ea6cc5c9f6cd373b67df9cfd0531cf556fd694"
+              },
+              "frame_ratio": 1.0425094073377235,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                34016,
+                35462,
+                2415,
+                0
+              ]
+            },
+            {
+              "frame": 33,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "06aaca7a88cb12dfc17830f706c2f43713306ebd8f5facc15d9740a98cf41046",
+                "recalled": "5d56478b6fdf2fc9f4b68f7654b853ca796615313759c7a32c536089889b4270",
+                "gain": "f48eebb8d97956b9a4490bf037f5f12214d7ecee13ff6028c5f5cb5fd058bae8"
+              },
+              "frame_ratio": 1.0872784977519174,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                7562,
+                8222,
+                459,
+                0
+              ]
+            },
+            {
+              "frame": 34,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "e2217c1798b35b943d2d6aa8dfab976217b23090b329ae054c63600bfae0dc37",
+                "recalled": "2db95922def053bf9b127aec656575b31e5813306ecc54d106f71532749b8e40",
+                "gain": "5b00c02b65d99f4b12c33d4e6f1a7b6c4b96c41c3889ca801fb3f1cc1e99fde0"
+              },
+              "frame_ratio": 0.8906807751147374,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                31376,
+                27946,
+                1158,
+                0
+              ]
+            },
+            {
+              "frame": 35,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "458cc6b962cb6d09edbda89e62c3f18d6646cff48d31f291531e8eaf4151fc90",
+                "recalled": "138ba993256b98fb876b4aa07e3a5196769bcdd3b54e95101b68cc82085ab096",
+                "gain": "6cf5f5745fe28c80d134cd5b63e1a2fee7515eb7b91ec0439b87dc72bec70bf6"
+              },
+              "frame_ratio": 0.8670621923602403,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                53431,
+                46328,
+                2266,
+                0
+              ]
+            },
+            {
+              "frame": 36,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "0e633c16bc132f8aec95c1ae92f7fda8c313cb17c7fdc5aa96be4d9ba0f9aacb",
+                "recalled": "3392e31336b8e1024428264a4fc811b71af3e3397d1330cff45e56a04cd9708f",
+                "gain": "b713f3fabc20528c3acefd760b0b7b2e31b7e675e9f9bb145bedf574c40c560c"
+              },
+              "frame_ratio": 0.8877762017875147,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                58517,
+                51950,
+                2581,
+                0
+              ]
+            },
+            {
+              "frame": 37,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "071c41d5c2bfea25f748106e8a4e48b1ab6827003737048f51dc58fd26c4367e",
+                "recalled": "88e337cafc3ce93db67fc84400221f4955982fd16cee82ee2455feae4dd87002",
+                "gain": "f0d2ec4a5f54e89d01fe23ab5445b3120701a1f0685c67d98482c00a5988c7f4"
+              },
+              "frame_ratio": 0.9246846846846847,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                55500,
+                51320,
+                2549,
+                0
+              ]
+            },
+            {
+              "frame": 38,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "8c77804833381e1dd9398bb31bded8936920c5d6c4313db71995db175166e615",
+                "recalled": "f326faef2944a15835f650c9d472e7f4ac987c1bc7733ea740037edd7176cd7a",
+                "gain": "eecd358a6114ce0abb6ac922533da61b4a341c3beabdf305a5b70dc05f45f043"
+              },
+              "frame_ratio": 0.9504611476224665,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54321,
+                51630,
+                2540,
+                0
+              ]
+            },
+            {
+              "frame": 39,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "4ce6b099cf8ea1dfed5a95f2bb721244a71d57498d8afdea4cd0f1aa55affc29",
+                "recalled": "1d6fd7a9f771194786ad991951a6637ee8a5bce50f4e6e6cadcd8ac48c7da753",
+                "gain": "d9ee856d20d11f91b03a9d0ad28b4b42b2b722f10f9d53bcf4f0d390de3e0a35"
+              },
+              "frame_ratio": 0.9896046213793291,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                73398,
+                72635,
+                3294,
+                0
+              ]
+            },
+            {
+              "frame": 41,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "5a7c01cc75dc8cacbc47a0371a43aac27463e32882ed6f1650a77f9d062f863d",
+                "recalled": "f4a6349cf429be30488f9e800838653c4988963ac6e65edafee6d5eca5b4db7a",
+                "gain": "f92b4b7f582ea86f76a58ed6981f4506247c4ce98550962cebec246c4e119256"
+              },
+              "frame_ratio": 1.0309610177285036,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                39146,
+                40358,
+                1490,
+                0
+              ]
+            },
+            {
+              "frame": 42,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "6bb56a2d6c2a136cebd227c881bc6c3921b7759045f69af4e0cc72a3c6f2a08b",
+                "recalled": "aade91e0a5c6916f6c541c5462decafe65cf384625800d905ce30644443f5a44",
+                "gain": "834f67bb5b5b1d259d5b728de10746625d21eb89da18ff2cc638d18698ebbfb9"
+              },
+              "frame_ratio": 0.9958051108374384,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                25984,
+                25875,
+                1608,
+                0
+              ]
+            },
+            {
+              "frame": 43,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "97ccc93db10b1fa40958db3dede7d4e558957f59f016327e3449398e8a878687",
+                "recalled": "2abf7aedb483e805eaa2e4b2c41b08ed97eb491ee63dfbf3887e78ef25d704c3",
+                "gain": "84a4498585c818737e04510d8da91c4e032aece0b7ec0498173d76e02e6186cb"
+              },
+              "frame_ratio": 0.9276703111858705,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                39237,
+                36399,
+                2447,
+                0
+              ]
+            },
+            {
+              "frame": 44,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "3f0c7ab752653a2053473b07024c421b6b1eea10f6995ecb84afe19619e56d45",
+                "recalled": "b0419acb7657b03da5a43dbba3925bf22366ccff765a1d0bd0d57e8256dc525c",
+                "gain": "02c5eb36f8dcb25fb6f15a9aca28aeec23a1070fbb8c0629d859669c2e165a21"
+              },
+              "frame_ratio": 0.9725251455796717,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                37780,
+                36742,
+                2458,
+                0
+              ]
+            },
+            {
+              "frame": 45,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "e1bdacca6f2515eaf98e5d4a4978bfeee06e3fd5c8cae9bb3093792263df3ce8",
+                "recalled": "e0e5f0e25b8d531acf9930bb783126bf162beac96fd0ed5c11a2aaf7cd826618",
+                "gain": "10b424a35fece462af0be2b0c6a620caea564735a54abdbf1a0c9c383762b1dc"
+              },
+              "frame_ratio": 0.9905286165303975,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                37059,
+                36708,
+                2462,
+                0
+              ]
+            },
+            {
+              "frame": 46,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "86e163921382e4b241cd7d53fbce39ab77f7c59e28f83f80ec4450a835b52645",
+                "recalled": "3d2b7b3cc21c4a0c672c04314efc083a4217a33e1cb6f6eeff1c8c86e41f6950",
+                "gain": "4f6e7ed6ecf259488b54a4adec62ed88e6a30945199b19b81b17f692a223603b"
+              },
+              "frame_ratio": 1.0158730158730158,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                59157,
+                60096,
+                3529,
+                0
+              ]
+            },
+            {
+              "frame": 47,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "d4c57876811116789aa0d4beb20e2db93333b7f6fead03c9a10c5248a5a1c722",
+                "recalled": "3f908d8f4639ca774cc2905ec98e28249858ed90112a61be01e6fbdc82fb413b",
+                "gain": "46a83be32ba02eced2d0d094d348d7e388c9f8e0e7e442f077d5f4f1a9e9b6a1"
+              },
+              "frame_ratio": 1.0449066666666667,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                56250,
+                58776,
+                3481,
+                0
+              ]
+            },
+            {
+              "frame": 48,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "1a81206c72ea48be0fcf4749ea28c463114c9c01dffb1c4cadd85e33e03902f9",
+                "recalled": "73eb55610582cef007d660304b83546325f7e6da9912eca59e2719a4044b1003",
+                "gain": "3c2f19e738b907c2ec44c396152eedc6af6ad73be6b42acdbbd80c41971dc026"
+              },
+              "frame_ratio": 1.0531390576554296,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                55797,
+                58762,
+                3494,
+                0
+              ]
+            },
+            {
+              "frame": 49,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "566b058266215ecd2fdc6264c9b9ad09f744aa38acbded8b60ef417a2ad925d4",
+                "recalled": "763c81a36e24e1ffb0031011b22b2ff28b63329d9ee0e7e77580f52a39e49126",
+                "gain": "8861f77db3bd3a8265ab17c4a956dbdfb727ad5907fc0b6cf0bb9a9e84b671ef"
+              },
+              "frame_ratio": 1.0755116703203582,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54283,
+                58382,
+                3467,
+                0
+              ]
+            },
+            {
+              "frame": 50,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "95140df04aaf038c41e0e288d19b57d8864b065de0bc989d671f50919cb69547",
+                "recalled": "1fba34eff4bfcde2bde33b04773e59873ca49ec3885bee737f391a3338331c3a",
+                "gain": "e996d18ce9ee9ee13476747316dcd99f09f6af96094c4ed1ab7d150f91831077"
+              },
+              "frame_ratio": 1.0756729741839866,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                58026,
+                62417,
+                3719,
+                0
+              ]
+            },
+            {
+              "frame": 51,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "3d24133b8db9fcfbb719f8d4bb7ebeaa46efa4c13b1ccbe26641d71f8085be10",
+                "recalled": "d1334c6013fd7aa54f3c7217ac2ef804d8303651e08e8f0c95dbe13440121daa",
+                "gain": "f8590431acfe4273a4d11444a321c68b0f44abbea6b3f6ac4b14497938b22908"
+              },
+              "frame_ratio": 1.081679389312977,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                57640,
+                62348,
+                3718,
+                0
+              ]
+            },
+            {
+              "frame": 52,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "40d2bbef677fec9e836140fb374b806f8782dea0a7cca355eaa167933e2c31c1",
+                "recalled": "db67f29bd71e169937b85cc0a4e8b897e7befa9cb6cab0c371593b73469a19f9",
+                "gain": "4908d2017bf1129da01d2d6f4d9ed7e9bad4e1213ebb6b982179ae0b00d626bb"
+              },
+              "frame_ratio": 1.1245907098063155,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54057,
+                60792,
+                3630,
+                0
+              ]
+            },
+            {
+              "frame": 53,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "5e14fc0eb4544dbd0b849581d23cea31569aaa8677d1546ae5a3fbe42454eeb8",
+                "recalled": "371d6350d772bc203594a283847602c22c1463dcb8a9bce732f6d278c5bb3fba",
+                "gain": "2ed35b31da5837b9dd82b30aa64696abe7f82ba1fd5381eb676038f2be7aff92"
+              },
+              "frame_ratio": 1.1257842248413419,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                55150,
+                62087,
+                3713,
+                0
+              ]
+            },
+            {
+              "frame": 54,
+              "k": 11,
+              "source_binary_sha256": {
+                "stats": "6f6d0404350c59b90a4546502c4eb9c138db8fa6e2195cd0ce9e00afc1cf0ac9",
+                "recalled": "66246d5ad7d9704d41d1acaf3e09c1d0350944ed95daefc45f03b29b2456bd6e",
+                "gain": "bf23b0d3674ba136a68ddbf6c5bfbf4dde14349d7b75618c4be74543dc47f738"
+              },
+              "frame_ratio": 1.097163183637172,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                56225,
+                61688,
+                3772,
+                0
+              ]
+            },
+            {
+              "frame": 55,
+              "k": 12,
+              "source_binary_sha256": {
+                "stats": "1e2215923cb79291717e46b0fac072a9fd2152ade854183bf101573b76fffd53",
+                "recalled": "165cb3e5954ca60ad4aef9b76d2a65f516b4f521c995faf6dc7025742534201f",
+                "gain": "11192e3161f2870a2632b1c1675db3fbd9d8e6449eb5f7a455d73e12702b2195"
+              },
+              "frame_ratio": 1.1229867688792246,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54266,
+                60940,
+                3726,
+                0
+              ]
+            },
+            {
+              "frame": 56,
+              "k": 13,
+              "source_binary_sha256": {
+                "stats": "b060d6e3dd75e4e53684c1607d9432394ee7382cba15c7659031a5adda3c4711",
+                "recalled": "132a14bb033f4a40330a4ed3771eccd598f194ab2a5f4a7db108a03a888f4bb8",
+                "gain": "5f39e85b4c353785ab13a26519bbda339dcd58802255b9ab94d1a6e39120fc35"
+              },
+              "frame_ratio": 1.136432034776793,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                53829,
+                61173,
+                3757,
+                0
+              ]
+            },
+            {
+              "frame": 57,
+              "k": 14,
+              "source_binary_sha256": {
+                "stats": "cff9db9ad5d9a4b20da3dc08d8bb2ea4e8fa899af05879fa66488f0056b65fee",
+                "recalled": "3131c8b3caa7e931908b29e424cc9386533901fd1eda6c7aac4718e32297c986",
+                "gain": "e27facf23b5b2c75109906e206870e6a9199aae6576a3065540326b8a9a6d1bc"
+              },
+              "frame_ratio": 1.1375823614229135,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54789,
+                62327,
+                3824,
+                0
+              ]
+            },
+            {
+              "frame": 58,
+              "k": 15,
+              "source_binary_sha256": {
+                "stats": "4fbc8d0bb8f61e41f701552c7a0dee92c75b2ce3cd03a4491636b21015abdd37",
+                "recalled": "ff1728fb6228cd410b18ffa8b0f90d1409258830e8766377002a0ed2fce63a63",
+                "gain": "033b9768394e1fa6bc0ce17a1bbb718745b947ede7a025d8a48541330475c7f4"
+              },
+              "frame_ratio": 0.9955493176235941,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54149,
+                53908,
+                3769,
+                0
+              ]
+            },
+            {
+              "frame": 59,
+              "k": 16,
+              "source_binary_sha256": {
+                "stats": "a2eac86dd39e5326b7d6f4dd8aed4d7a69cdc8a34766165be88a6e3fa983cadd",
+                "recalled": "707d9f1e663f6811afc8cbfb8655ce8bb5db4b4076a697ae1861a73518b1fe46",
+                "gain": "099777400234b1da97b29351139d2c1e6ec26d44cf8218992a85c55e6245c7e6"
+              },
+              "frame_ratio": 1.0109489722687375,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                54343,
+                54938,
+                3838,
+                0
+              ]
+            },
+            {
+              "frame": 60,
+              "k": 17,
+              "source_binary_sha256": {
+                "stats": "a4fe69df4b580a41398a4c8b6c00220efb668beec1349720f7235132c0f8186a",
+                "recalled": "05e44ef3381041d5170caca5fa554de76b9904b2f2b3a94036a4c39329a88ad1",
+                "gain": "d9e6ffbe5d5c9bd53d8fa9c31fac2ed413fe252de8f33b86f6751668ae14cd6c"
+              },
+              "frame_ratio": 1.015229381976996,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                53121,
+                53930,
+                3771,
+                0
+              ]
+            }
+          ],
+          "output_metadata_sha256": "9448f64b9d37d70fbcc47e674af1f74bdafb86adc4b40f65fb3cdf0230813cd0",
+          "exact_counter_metadata_sha256": "bcd65e510884d08ec89d0fe027d94498ea84cd23a1089efd8dc73d0c6c74626b",
+          "file": "fixtures/combined/87ee1fba.npz",
+          "frame_count": 45,
+          "stored_bytes": 1103676,
+          "array_bytes": 3503520
+        },
+        {
+          "capture": "22f9ca14",
+          "capture_uuid": "22f9ca14-5425-4904-a129-a710f2b88387",
+          "published": 64,
+          "roi": [
+            496,
+            167,
+            512,
+            512
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            64,
+            64
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 4,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "22b3b42d54e94bac823a0cd07223eb8e9ed06df96b37c64a076fafbe57710848",
+                "recalled": "a8717fa476e7cc79e828de6578a50f06ea1d4ea9a484b1469450de3dea390e70",
+                "gain": "7985bcb20d773b6a97872611a3f97c749f77b18748bffac403775631dac9e1e6"
+              },
+              "frame_ratio": 1.0035683599572147,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                114058,
+                114465,
+                3770,
+                0
+              ]
+            },
+            {
+              "frame": 5,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "e7aaa25deaf1433e00d6198c9f3b236c6753f064f11b1259bc5dd95b4fdf0e44",
+                "recalled": "48a251855f72b8fba085f2974616ef2923e6a858fce13cb9114644309a6f6e54",
+                "gain": "36492921ee3e97be2fc78c6c23222059acb6e4973b411ec25088ff4abf719753"
+              },
+              "frame_ratio": 1.0168029345472223,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                113135,
+                115036,
+                3804,
+                0
+              ]
+            },
+            {
+              "frame": 6,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "f7fe340f5930fee26d573012efda8d47b5578615e043b07e4d9b8c509d134be4",
+                "recalled": "b4cf361b04c4a02f836e4a495cd39e1b0c752bcac3f5645f09d9ce3620edcd5b",
+                "gain": "ba95ca7629d215ee0074b50a0c0c37cae72cdbc024df981d802ea9255463b332"
+              },
+              "frame_ratio": 1.0138731173141082,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                113601,
+                115177,
+                3801,
+                0
+              ]
+            },
+            {
+              "frame": 7,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "e23bc633a588208d124bbaac3b7c05de29782ccbfcebbe692c243d6d6c86edcd",
+                "recalled": "9edc96ef108721372e03d82dc776997b66e67cd28dc622927371a93fa4045145",
+                "gain": "4e879e1eadced1e052600d812661fb454b4c3e96dec82f560c2c8b1251eaea28"
+              },
+              "frame_ratio": 1.022373056257339,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                112412,
+                114927,
+                3781,
+                0
+              ]
+            },
+            {
+              "frame": 8,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "4a420054829a862f977e5a81f62e13dbf075aa08cbdeca3e0728e1e1e9ae44de",
+                "recalled": "84a3fa2c67013297dfa92463beb19062266ea554380ce02323cc1f9e9ac9bbb8",
+                "gain": "9f67a42db6c023390707b1a2726de23bf85a25d6fc353fe454c436d4bce4c180"
+              },
+              "frame_ratio": 0.9949089773722691,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                115301,
+                114714,
+                3889,
+                0
+              ]
+            },
+            {
+              "frame": 9,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "1ce2bf04778eac242235471ad9512ae3e095b3ae87d2c76601214f00dfa43c47",
+                "recalled": "ca9c8457e84b70edffcf1651150dafd3374f5e7cb35cff8fb3fb746d54047e1b",
+                "gain": "a9223e4aaa9ea6189b54bd11aaef2071d8eb7108fc1f233f41742b9ba22cf9c2"
+              },
+              "frame_ratio": 1.0067849503839545,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                114076,
+                114850,
+                3921,
+                0
+              ]
+            },
+            {
+              "frame": 10,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "4b6cf7d7eb811992aee4472bfab51fe3bb6f2a24ab7723c0f2879c737e04fdd9",
+                "recalled": "a5b3cb5df4ada0e1cd105e26e0c5579546badeb29efd1998080b11179c1184bc",
+                "gain": "ec854eeb0941fe15260f20df3bfc62a01ce62a60fdf5cc43dc42120a3cba54f2"
+              },
+              "frame_ratio": 1.0241599728980377,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                112169,
+                114879,
+                3902,
+                0
+              ]
+            },
+            {
+              "frame": 11,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "d33070911de04d1d800e18e0cbbb41fb7864b7b4ffbda216ca0998630e6a11f3",
+                "recalled": "ddd383a0f6f11a285ffb07a6a9f6fba6bdbb6290fcf4a51c72a58c9c8d43423b",
+                "gain": "fe78301c50222e7d8418228b2868cc09ef3cdcaf4154bb00e2d7d817504eeafc"
+              },
+              "frame_ratio": 1.0245955289237152,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                108475,
+                111143,
+                3728,
+                0
+              ]
+            },
+            {
+              "frame": 12,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "511b1e7f5f1470ebe0d29727a7a20455cb48f8bf46b7cd560ec12ddd06308b34",
+                "recalled": "ae7ddbe4237ba48368d7a347869be0a0c201aa8d2c6fe986c20b453537855162",
+                "gain": "027161aa5639fd262f35acf87e8f58f8091e715aac7784b0b2a2cbbb7cfd0f88"
+              },
+              "frame_ratio": 1.0170533180080223,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                85262,
+                86716,
+                2669,
+                0
+              ]
+            },
+            {
+              "frame": 19,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "8ec19a1ec876ba0e058ada03694ea879c43525512823018d8776079bfaf54029",
+                "recalled": "7e1f2b02236c3f2e476338dd751dd18ad8588c9a4dca862a224dbdc911ad92a3",
+                "gain": "40cef92f874f3c975ac621054810c019755c6b6dca645d75a3342195a6dfd63d"
+              },
+              "frame_ratio": 0.9149649497104542,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                22967,
+                21014,
+                723,
+                0
+              ]
+            },
+            {
+              "frame": 20,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "5a78011409e3fd801624c2290694f41bbc849591ffbad80e61000d9e34c98068",
+                "recalled": "e6f880ed825eb841afe446badf379317454f119beb2ec4006bbe3e71366eb716",
+                "gain": "e5dbfd3334dc044012ff213bef03e3fca790649cdd281f11241a6168bd9e2f50"
+              },
+              "frame_ratio": 0.9368232944391884,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                76104,
+                71296,
+                2412,
+                0
+              ]
+            },
+            {
+              "frame": 21,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "c8db998133a80fdc362165ac0f934fa3b8b554a04896fae56b4b5fc8d108b72f",
+                "recalled": "9e33f5fe1825fa28ee85eebacc17739f1324edfea8f0296700cb9716ae6a2aec",
+                "gain": "fb468402d400e4f594261ae36f9de312a11c13db5e32580c38fba318e2992b11"
+              },
+              "frame_ratio": 0.9338889605364973,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                62032,
+                57931,
+                2076,
+                0
+              ]
+            },
+            {
+              "frame": 22,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "0b12c480b4e0db647242af81ab6472319cd94e36d4d1fad70fdb2a6781ec2d1e",
+                "recalled": "88696a710f58d3413f0cb108e85fbf84ca68615f75512650920129294de5848f",
+                "gain": "af3b656523a56124a581b4998658fa08e3d9887893990be42c1a027b84e52b67"
+              },
+              "frame_ratio": 0.9207231317503448,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                73237,
+                67431,
+                2354,
+                0
+              ]
+            },
+            {
+              "frame": 23,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "0697136a0e7edc013b98f2f137cd2739525ca2f00af02d37a49fa445aa22a52c",
+                "recalled": "4dc962cb51f57f1199498703af5acf1bb7d6b84f88e649489f3ae7ffa4fe6e49",
+                "gain": "463bb096fb90238daeecc568d108ec0fccdae51a56de46718c758033c7f59564"
+              },
+              "frame_ratio": 0.9527736131934033,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                70702,
+                67363,
+                2354,
+                0
+              ]
+            },
+            {
+              "frame": 24,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "fdb284caca2c4774f5b9cd28a1c9e90b0fd49eb5b08ac320d8b99b38211ab474",
+                "recalled": "66674c489340b032b2a82087116ae6990f0bf316dfa62762f723d2209f0a262f",
+                "gain": "dc2a9cf4e919a7274efdf37564f1f58da20fd4ff5318b5a4dbb1584373b0bf53"
+              },
+              "frame_ratio": 0.9652108067949652,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                69993,
+                67558,
+                2361,
+                0
+              ]
+            },
+            {
+              "frame": 25,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "2408f5a8996852a98f8361b99ffbc1f0aa578dcce913a1337036407d5a5dc13f",
+                "recalled": "7bf51b8811d7f0c3c65f3960843fd7243ab2e9ff812fd6f89f80a5e4368a6bf9",
+                "gain": "2f86ca4deb3e07b9ce7e94a145d8b2a9a01e5e5c810ec984c9867a1513d5f6a7"
+              },
+              "frame_ratio": 0.9885220323176528,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                111518,
+                110238,
+                3969,
+                0
+              ]
+            },
+            {
+              "frame": 26,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "a631e5411e24142e7d654595491389b808650064a9856a30a08eb7c6751da7e2",
+                "recalled": "e116fff753e3b487fddcaf4eae505705fefc9567166ba866f39de19f8f04d957",
+                "gain": "2cca028a20c9885b514e2b8bb437a3165a9a628404c1ff289d9cd330c4818310"
+              },
+              "frame_ratio": 1.0027043350490836,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                110933,
+                111233,
+                3999,
+                0
+              ]
+            },
+            {
+              "frame": 27,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "ab32baf8dae8f9329ca6a42ba4e5ff6284b9c5007a67ab02fe929f19059b8ade",
+                "recalled": "f834a855532651644c234e1275cc1d9f95b1506f7e0407a5fb48f3ac46758fa3",
+                "gain": "f392eb89eb9d4b03582b5065366b62ead8454c3a23c481c1204674e76a98254b"
+              },
+              "frame_ratio": 1.0056770927499548,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                110620,
+                111248,
+                3998,
+                0
+              ]
+            },
+            {
+              "frame": 28,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "94b836b525e19baa44f3b995a8066d1d61e111ca9d47a7041514e9f2363a6efe",
+                "recalled": "ffea854d4ef6ea1ca5f4772097122eefe5162f0cf44d2e3b11497cf260b877b0",
+                "gain": "6abf55b0b008b96bb47ac8ef7bbb8efff39b99779f370b37cb560e63361f06a3"
+              },
+              "frame_ratio": 1.0236727845942533,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                108479,
+                111047,
+                3985,
+                0
+              ]
+            },
+            {
+              "frame": 29,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "1cbb7462ed432307535df57324346008952fad5f0d28fbf4b586c26f4c9390c0",
+                "recalled": "8a85ecdceac9838c9cb9551dd4ed52896c0b600288e6d24c80b820797885a946",
+                "gain": "3f4bd33cae756ddc9be511ca57d32503e1ad6220b7062f465e6893a55cecdbfa"
+              },
+              "frame_ratio": 1.0171209876997525,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                108697,
+                110558,
+                4016,
+                0
+              ]
+            },
+            {
+              "frame": 30,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "7ee38ded7f0150eb3109210b4cf817d64297248d778c199b722d56926df59772",
+                "recalled": "c31da4c84e8e77f8468e2f1e29100c4aa350466f2212a8f953afb7b619a10095",
+                "gain": "537cc911e0d7c82558deec1bd42fd5e74bedfd2705bab652331c8075b7f51890"
+              },
+              "frame_ratio": 1.0408126504996114,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                105482,
+                109787,
+                3997,
+                0
+              ]
+            },
+            {
+              "frame": 31,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "e4e4bf81e2fbe572d0747bdc7435a288d09458e8d0e8cf153e9afdae3a2e6d4b",
+                "recalled": "3783917827332e8f6c1beae1c37648af44fb929c5d4a9b76d2a1f7e33043b9a7",
+                "gain": "5dd6de239356fac142e01733d4f2e0c88a03840211410c97181a9a90f206efb5"
+              },
+              "frame_ratio": 1.0715999569087935,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                102109,
+                109420,
+                3968,
+                0
+              ]
+            },
+            {
+              "frame": 33,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "0b677d0fbbb19a549ae3246c24451d6d9e1d1c14dfe4ca82aef427d5e65c1b22",
+                "recalled": "1f0c9a54515db8caf02dae81235725fb89b6562adbba2681510a132fe3ff7248",
+                "gain": "e64eb8e8a4558e7b823669e9037764fc5291a01dea71cafa5f19b7c3ca80fe25"
+              },
+              "frame_ratio": 1.0242610501583838,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                95338,
+                97651,
+                3196,
+                0
+              ]
+            },
+            {
+              "frame": 41,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "15afaddf8363becf4f859696d4d08cab799ff42bc7c9e6759186e8809ad6a184",
+                "recalled": "4bbff8cfc2a8c7cdb30b761a2935e3e3f011d39ac7cc8169592a41e822a66d4c",
+                "gain": "5f3ccd5652707acbe3d042d6610ffa7cce552d93a94ad47f3e4a69d03831fc26"
+              },
+              "frame_ratio": 0.840970043386868,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                96573,
+                81215,
+                2591,
+                0
+              ]
+            },
+            {
+              "frame": 42,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "576c73272cfaf76f52f039f48b344bfe069755a74298f42df574e9215c9b4305",
+                "recalled": "c06254532b5e4a8f2d2db3e70cb685f539832e65d912f69e8f165f0777992c52",
+                "gain": "40bcab4895d8ffb32fcdb74f2c019121cf5fe175594b7a68715153ca760dc4ae"
+              },
+              "frame_ratio": 0.8375781339288069,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                113747,
+                95272,
+                3225,
+                0
+              ]
+            },
+            {
+              "frame": 43,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "4bee91b54546ae1f6d7ddb240adba1ca077d35fe62914072bd5de4ab610c36dd",
+                "recalled": "9a933f0f125341d2e40389e953111d3a33c816afad7f975039757cab9b6630e5",
+                "gain": "dac7dfdefa0158c1054885b9cd45d8cfba858be8c72daf8ec4fd9ccf920778c7"
+              },
+              "frame_ratio": 0.8650331391845753,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                109538,
+                94754,
+                3220,
+                0
+              ]
+            },
+            {
+              "frame": 44,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "92551a07284ac063b17e8b2b64d739af10a427c45abb0f608cec8e08af8d3800",
+                "recalled": "7dac0b748b1496e79ebd3c3e5413230ee22527d7dbcf4d0dfb7b48e739eb009d",
+                "gain": "948f34fea3fa1deba29df36e46893a717f3b06dc894e6fa477097bba514f4596"
+              },
+              "frame_ratio": 0.8915224455864571,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                105856,
+                94373,
+                3199,
+                0
+              ]
+            },
+            {
+              "frame": 45,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "c3f77dc22d0cc012dc99e81092914e83d1e6b148e22dad9d0dd96ea44e82eb50",
+                "recalled": "9a061728cc470497979a6f471a319f8332bc0cac32d1a2bfb3808069a72e947e",
+                "gain": "f29209037fdf212f4ced66abe691e68361e0f572e81c93e500fefd5458dcd2b3"
+              },
+              "frame_ratio": 0.9030738982400613,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                104265,
+                94159,
+                3194,
+                0
+              ]
+            },
+            {
+              "frame": 46,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "83c16434484efad811913592c034cdf0a29eb573443348c32ed5654f7db488ae",
+                "recalled": "4003dee38f84c693a002dfb4a4b1df80945efdf06b9f11e58d90de1db7edd5b3",
+                "gain": "0a70683ea03692d91223ff49c2ae1631f70fbf932c4ad6949e92edbacd3afd41"
+              },
+              "frame_ratio": 0.9347875519750519,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                123136,
+                115106,
+                3776,
+                0
+              ]
+            },
+            {
+              "frame": 47,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "ec21c926e22f84e172eeec766204c37fff4b19f2b3758fc8a88c4117b942376b",
+                "recalled": "4b9ff9d7d45a6a6d33fbfde910ce3e0749b57541fe08e7d91cfd8a3741fdb7eb",
+                "gain": "a35153e9ba26f874e8b3556e3cf4fde55e867130e0952d81d952bac24a3211d6"
+              },
+              "frame_ratio": 0.94364015391841,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                121363,
+                114523,
+                3774,
+                0
+              ]
+            },
+            {
+              "frame": 48,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "6d758eaffd6e9cd4247b5a7d530a9c0bf43f6f90d68e4ad473a47109980720a7",
+                "recalled": "a975ffff800aa8c11d5d43d3cd76b79520efa380b475af8e6f9805a1c812aba4",
+                "gain": "c61f483da521eaef2403c502702c0eb2e0bc22feb2ec47cb0dc3079e3c14bb3e"
+              },
+              "frame_ratio": 0.9620102387348574,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                118374,
+                113877,
+                3747,
+                0
+              ]
+            },
+            {
+              "frame": 49,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "d7ae26f7e44a392a45b2dadcba06afd404192b5ece004394f66e5c27c94a2cad",
+                "recalled": "e3bba28a6e1b78960e25116c5d221e4e9023fe8140af615546a07ca5bd9cb1e6",
+                "gain": "92b9fd32c2db15d6fcc16a54378572a6557bb11daa28bf167ad80c29a3ef1d1c"
+              },
+              "frame_ratio": 0.9930023354381109,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                115610,
+                114801,
+                3760,
+                0
+              ]
+            },
+            {
+              "frame": 50,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "a825751651bd4ac1a2e8a27d3d42b8b7925d98a53f2365383c8f2032673a3210",
+                "recalled": "b87b507c6f0717f4ff96917f8be1b9ae9f4568f221d49a9d26ae4ccec494a00a",
+                "gain": "abc55d12c024d9b00dc2f8520f799ed48bceb3a795c96b5303497afd9b47b345"
+              },
+              "frame_ratio": 0.9907286711958633,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                115841,
+                114767,
+                3859,
+                0
+              ]
+            },
+            {
+              "frame": 51,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "e42a8ebbd1d781e983e5effe3851b0b2c4eb870225c45bb92bb87af22df057a8",
+                "recalled": "f29a21a1d6f0752e8391ed23a05c56513e44922958f768224cedd5e25e9782cc",
+                "gain": "3b679f65ddd75a4414b71de620c96f350fc3a7fb5ab68b8cf3ce5761ea5c7423"
+              },
+              "frame_ratio": 1.0132731289553132,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                113613,
+                115121,
+                3857,
+                0
+              ]
+            },
+            {
+              "frame": 52,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "bfa393c5c252fd888c946facae7a1d76734ab9c5ae0369beb459a08a0c9d0590",
+                "recalled": "8fb002521b524646446bac5e36867d55562bbb5e665303b5c2cdfdecde424061",
+                "gain": "c3970109e6b0b50ef53a9102651049d679e734323fd070707ac7755259c3d244"
+              },
+              "frame_ratio": 1.026133695234864,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                112001,
+                114928,
+                3859,
+                0
+              ]
+            }
+          ],
+          "output_metadata_sha256": "9db8c98b55c31e51aeec0acb114b9c0088dab319f362de6bedad6e59763dc03f",
+          "exact_counter_metadata_sha256": "d5d20b3eeb203b7ee5b2ec3b7dee06fa4211b9c4f8a797a505cbde19be57d5db",
+          "file": "fixtures/combined/22f9ca14.npz",
+          "frame_count": 35,
+          "stored_bytes": 927216,
+          "array_bytes": 2724960
+        },
+        {
+          "capture": "2405579e",
+          "capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+          "published": 222,
+          "roi": [
+            688,
+            0,
+            128,
+            847
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            16,
+            105
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 6,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "26229219e91da139e0a121e4144e751d4b1a9c85d5782a7aaa88ead105c19e02",
+                "recalled": "8d701ac06541b32f103c7713eb359850d44b06b71382033a559ae740b4a33054",
+                "gain": "1019801372ac60302848ab4e739c86b6eeea4aae4975ff95f4190ac838fcc9dd"
+              },
+              "frame_ratio": 1.0194301142664288,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                20741,
+                21144,
+                872,
+                0
+              ]
+            },
+            {
+              "frame": 17,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "165515bf5288d89c87276b520b0dab41f3ad77a65c3a4bde813a78655db218ae",
+                "recalled": "af6895caa6c40455e2e0eab74be2a3cb600ca5c58d5feff7e476e752446b7c49",
+                "gain": "d52d84012584169a4550eeb196e57298f8cbfbc870ce31fffccf5a905ac76933"
+              },
+              "frame_ratio": 0.9962492471116465,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                36526,
+                36389,
+                1316,
+                0
+              ]
+            },
+            {
+              "frame": 18,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "c6fed63cb0d0d64206fc9280775aef019388315d8756af3e72efe156cb33ae37",
+                "recalled": "3a2873a2099814ab9551b5fab61d09fbadd0d336a3ed38acb5b22995c0db1787",
+                "gain": "e6c57de5e8fbdf11b67727c6b8a31d9b1175c41fd153e7ca0ab3e181b1e984ab"
+              },
+              "frame_ratio": 0.9742067173872704,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                37723,
+                36750,
+                1316,
+                0
+              ]
+            },
+            {
+              "frame": 19,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "066ebee220f4e129ba45e0967f3318898e5fb33fb9b88ca53cb873110913f657",
+                "recalled": "a52fa31436704369c2326f2fee218b60768235d6fda2a997e037fa3bb19d706b",
+                "gain": "c1687624841be3d02acd7accf4d309f0db3fefb0bd8ddf495756996efb31a754"
+              },
+              "frame_ratio": 0.9807297731935896,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                36066,
+                35371,
+                1292,
+                0
+              ]
+            },
+            {
+              "frame": 20,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "991bcd516ef907579a6ff6641289a865269f06e6a6b653b2b4db515ebe05a46a",
+                "recalled": "bc152c6dd0e60b907addbef405e6a9da8e3453fd68c4d39ccfee363397361fc9",
+                "gain": "cbfc5f2a8fce0f1831238eaa8307ae951f697f74a1c2156121f1cc46788da347"
+              },
+              "frame_ratio": 0.9915979758760065,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                31421,
+                31157,
+                1134,
+                0
+              ]
+            },
+            {
+              "frame": 21,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "a9ae7e07a57acbc918db857cbebf4e8c221e321a8e472fb7f5bc2be30afc4174",
+                "recalled": "06d8cbb4ecb75b1a21938b2c1978f2fb026c6aa9aaf9ff9fc6afc45be6999c44",
+                "gain": "4bc2cdfe08ebf6b0e70cd0a3266d33a1939d221852670c553fce524a19fe1776"
+              },
+              "frame_ratio": 0.9816679251615068,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                23838,
+                23401,
+                811,
+                0
+              ]
+            },
+            {
+              "frame": 31,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "fc7a535dfea2c5db3d267fd8897f0c87d30ea72a3130459b80dd05d0810f92e2",
+                "recalled": "b9e64a595ccbc03c5c1a8d49ded63d8c20543d60451c37d81a22b3a240fb18cd",
+                "gain": "150194b9b16d2cc896900695e8f2da4f04d3374e209790bc5e3281043e85ca61"
+              },
+              "frame_ratio": 1.0268231100549532,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                33665,
+                34568,
+                1404,
+                0
+              ]
+            },
+            {
+              "frame": 32,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "a135f8797f5c0171dba6c2e70b8126164579ba62e770582bad5cc1701297eed4",
+                "recalled": "13a4f00b6cd292d30c934c0d2e70251ea74928f1328df5b10dfc1e0abb59ae29",
+                "gain": "bc299b6e3fcfa9ded22d77de241acf326895885049cc13c5ff167b03f7f05eec"
+              },
+              "frame_ratio": 1.0584486997024194,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                30916,
+                32723,
+                1341,
+                0
+              ]
+            },
+            {
+              "frame": 33,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "6c2a950d98bc194d8240181c9dca0a1cfcc919e4863e92c83d0d56fd3375deff",
+                "recalled": "df655e987bbbfe522dc5f0e7b7bf6cd2ac1af6fef38aaefbe880787d17e88882",
+                "gain": "011c8d8ef3f3a6680b022d098182dbf7560561c8be0c2da1e9259f7fb2035320"
+              },
+              "frame_ratio": 1.085892241234973,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                29863,
+                32428,
+                1329,
+                0
+              ]
+            },
+            {
+              "frame": 34,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "e1a92d09ee582406b27313a0036d849f5398d03412a5611b448df5e0acf09983",
+                "recalled": "576125abefd712b668f2f3156a9cbea945d28839629ee28695abfd0673f26648",
+                "gain": "d9b8b9dc5b884ca39ca180c70acf1f3dfce7c19ce1b21ec3c12aae97f99e52af"
+              },
+              "frame_ratio": 1.0959329820294554,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                29604,
+                32444,
+                1320,
+                0
+              ]
+            },
+            {
+              "frame": 35,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "758d5826dc53d63dc74411cd1aa019d4f87952e6a51d28f08e978b8d546579c0",
+                "recalled": "a34e4d4b21eb946c934d7fc703b743000a1007a0613dd8163ed9c50a73d96892",
+                "gain": "531a46b8c708c2ad7f2180a3017b6c2bd9363a2f6e26ddc92d0ca10da699bf88"
+              },
+              "frame_ratio": 1.075727395603614,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                28114,
+                30243,
+                1333,
+                0
+              ]
+            },
+            {
+              "frame": 36,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "02a1060f69be105fb35decd8613203f7ef6eb4893ab3a65dd611fdc20bc00d2d",
+                "recalled": "428d150f6c8196e20ee2b463655bd9d958f9bcaa3c7dd810c9f26b2ca62dd86b",
+                "gain": "29eaa6cafc70f51732625ae2932f56b7469ca87c62513d26886f9a4e8687fb9f"
+              },
+              "frame_ratio": 1.04875573133597,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                28571,
+                29964,
+                1349,
+                0
+              ]
+            },
+            {
+              "frame": 37,
+              "k": 11,
+              "source_binary_sha256": {
+                "stats": "0435e021206ccc33b4ae28c01e39c315143de084f615acf35be38b3fb7c19c78",
+                "recalled": "a6b3d9a1dfb3fbcaae5863970c145fddfa312d6b009a950df22c1598d494b0b8",
+                "gain": "61eaa15e29175ff633d4009f64d978bf6968ed285581e2a13b6091ae739f61e0"
+              },
+              "frame_ratio": 1.1053871650493192,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                25041,
+                27680,
+                1249,
+                0
+              ]
+            },
+            {
+              "frame": 38,
+              "k": 12,
+              "source_binary_sha256": {
+                "stats": "817cf9ccca03ccb9364fe55d6ef72d1258eb3afd0379116b9649bc67dfb76c11",
+                "recalled": "3fe6fd9af8da9c3ccdfd9985e13bce2a529daddfec99a8449e2b4c99d53e8132",
+                "gain": "5ff1abaaef7a691fdc698e775d742f528dc759c068b3f7a81c30a36aa44b74f8"
+              },
+              "frame_ratio": 1.1295076568417586,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                24292,
+                27438,
+                1252,
+                0
+              ]
+            },
+            {
+              "frame": 39,
+              "k": 13,
+              "source_binary_sha256": {
+                "stats": "939d98ae80975792034feac70c1fb09c38a4145b606f8a0c31c07c2dd1eaeabe",
+                "recalled": "677145677d493327d153adb25c7ca1fbf886018043cc283a49e2c96ce22dbf8a",
+                "gain": "c3bbe151914da1fac5e7e50a2e8fa847a3335a8f53b74db2b676ffb3ae08b4a9"
+              },
+              "frame_ratio": 1.043853101440621,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                26794,
+                27969,
+                1458,
+                0
+              ]
+            },
+            {
+              "frame": 40,
+              "k": 14,
+              "source_binary_sha256": {
+                "stats": "c53267cc741d8c462002d183c84145b284f874d1b9bfbf64d7e326a56cb07770",
+                "recalled": "eb6e6ecb97438d496adae24db43ac6230a0c6baaac0c58ae015e7db9f6330f16",
+                "gain": "bdeef1f13801490706473abbfdf5ed975dc9d7ef80aeebc37516c5f86010690d"
+              },
+              "frame_ratio": 1.0498703006832049,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                27371,
+                28736,
+                1427,
+                0
+              ]
+            },
+            {
+              "frame": 41,
+              "k": 15,
+              "source_binary_sha256": {
+                "stats": "797001a87be3197b19a0c17c3f77280841bf9b3a55a75d942f5d828f89f593e0",
+                "recalled": "d04f72f6fd344c8e685fd99618adbb2d079ef6f2a895f2f6ad964054fe4836c0",
+                "gain": "38c7801dc11781bdafe3fa32bc15c896fb7df79bd38a62992d9cd6c5ff97a28c"
+              },
+              "frame_ratio": 1.0868859114900529,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                27093,
+                29447,
+                1444,
+                0
+              ]
+            },
+            {
+              "frame": 42,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "41ee931ec4b520d1719b0572df599366f126be291e14cfdd62f9d2de07bfa3a0",
+                "recalled": "a503db7d4630b4a277058a986e7a5be11b072c9998e23b067e3e15044fb83048",
+                "gain": "124a25b9fd08ba2cb50636d39b1c5741a22c80df2e1c6faeeb6b8628945e8320"
+              },
+              "frame_ratio": 1.0491665734422195,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17878,
+                18757,
+                1000,
+                0
+              ]
+            },
+            {
+              "frame": 45,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "7826d432decb7775016d3ae49718bdc4ca0bc8bbe25078d59ab6e31f386d7955",
+                "recalled": "155d548fd2784d6c8c8a53d5ab397aa17d4c77e781b2b1c9500f59e7c433327d",
+                "gain": "28f6328079788102410cec5a7d28863265de3379657dac4ac553357ee5cebf1e"
+              },
+              "frame_ratio": 1.3241379310344827,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                4060,
+                5376,
+                171,
+                0
+              ]
+            },
+            {
+              "frame": 46,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "c88ba0f069f5bdcdba44879168f538973715edf453dfacd206ebb52ab3172d4f",
+                "recalled": "289e79ec6bd28f2b547e3270c9973558637310a11f439a5fc6709440e27697ce",
+                "gain": "cfbf33dabbc8b770cc52bbfd43de77bd35afa8190fa7088405af1511629bca4c"
+              },
+              "frame_ratio": 1.308180783042831,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                22834,
+                29871,
+                1072,
+                0
+              ]
+            },
+            {
+              "frame": 47,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "2928fb3a18cdbf50cc18fd3cf87f71081144bf718e439299442c97b7c6f81109",
+                "recalled": "31c996d8cc4b15a24c84d0f51f18efcd014cc126035a0df52198dc9df2fd0733",
+                "gain": "d8e5130d55194e2ce2337a2cef13d485c034517950750a07a0ba86ed58c4a0f0"
+              },
+              "frame_ratio": 1.3411231668057708,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                8387,
+                11248,
+                369,
+                0
+              ]
+            },
+            {
+              "frame": 48,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "7f42762593b0cbdc10f6bb7ed33f9e309049576092a9ee32bf9e8145beeae46b",
+                "recalled": "35d7b6a042d91f770277d10207775b06f0891c9456f9d95be70e212c2130df05",
+                "gain": "ac2551f4afacf290bfcc9da4560865c43851d28d276cccd10e7ed9010df603da"
+              },
+              "frame_ratio": 1.2314363143631437,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                23985,
+                29536,
+                1030,
+                0
+              ]
+            },
+            {
+              "frame": 49,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "35a79e94c6f48378716be62d08622a7f62c34d3c30666d9daac3b0cca07bf084",
+                "recalled": "67bdf88c9bc47023f0622ce31c1b40b9484068704a0ae8a0f2c5a5f787110a6a",
+                "gain": "aff0f251cb29ced669a51e902f5f9d4b421b9fa9484500e1fbac4df8cb379744"
+              },
+              "frame_ratio": 1.544030084612974,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                3191,
+                4927,
+                152,
+                0
+              ]
+            },
+            {
+              "frame": 53,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "b532274761c64ed60b0b69dbbdb171a93c747e8c32d1196e10bf543874d976c2",
+                "recalled": "9c50a4fa240bca6ab7b3fb1c533701bf31784f396f8abadc967c32e5f15a1644",
+                "gain": "f84d46fee9dadb013eb1a9549e92c6a8fac858ded0dacec2b9f39347dfecb941"
+              },
+              "frame_ratio": 0.9551158301158301,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                2072,
+                1979,
+                136,
+                0
+              ]
+            },
+            {
+              "frame": 54,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "39758a37b47fa95543ca8e1ee7e1a12572e5030dc68d545d44ae4cf6289232d5",
+                "recalled": "17ff4b7bd791357682fc3bd7b39638d31b592c08b04619fcaa492fa1a017aa02",
+                "gain": "27e41222cb10ba2979d48dedcf9406bf7ab503272815afc4256390eff6ed44b0"
+              },
+              "frame_ratio": 0.9657170449058425,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                2071,
+                2000,
+                137,
+                0
+              ]
+            },
+            {
+              "frame": 55,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "2b6b35e8fd386fe7044de648e536424257179f6eda6ad9cb31a88258b424205f",
+                "recalled": "642df29196b71285fa5694788b5967da9f31bf79ff0be6da9269ef0b2d2c0c73",
+                "gain": "f7330e9e41e1f77bbca39dd2a56cf2b8f9234d7cbccc35d0f8fda24468162c7a"
+              },
+              "frame_ratio": 0.9483720930232559,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                2150,
+                2039,
+                139,
+                0
+              ]
+            },
+            {
+              "frame": 56,
+              "k": 3,
+              "source_binary_sha256": {
+                "stats": "3cc4595ace13d07a99b73fa7786201a6f8c7ad50e4b032f95739b1834e3b4a30",
+                "recalled": "d1834090ba359e700765082579a5d22f20c21e6dd30e8982af1ae286b9c2faec",
+                "gain": "85a2f82b3148f006fea585d26bcee82ba59564277d95b10c4c6b450bd4fbdf77"
+              },
+              "frame_ratio": 0.9784418459169434,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                20781,
+                20333,
+                1459,
+                0
+              ]
+            },
+            {
+              "frame": 57,
+              "k": 4,
+              "source_binary_sha256": {
+                "stats": "7d79e6675540ca1df62d2c89c2e28402bc4ded548db37a29a0405e11cd1320bf",
+                "recalled": "23f298bbb7f153cdbe8ced7675a6b768fd1ef4dbbe2763470227351b8ebbb704",
+                "gain": "97451d25110fff8e340c66d7f4c4f0f388a02e5b2c2f935d9f1499084d5eca0c"
+              },
+              "frame_ratio": 0.9939773665549565,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                20589,
+                20465,
+                1455,
+                0
+              ]
+            },
+            {
+              "frame": 58,
+              "k": 5,
+              "source_binary_sha256": {
+                "stats": "0e13c19f2efedd476cb1a5a66a01ad0b7e7b201566b49a4e5353b004cf5c1cef",
+                "recalled": "80eb2a15bcc862f1964b38e3fbdc0c9d99d0aa2bd5f97337cf463e80d9b09e6d",
+                "gain": "090dda1d542a7e08c55bc11d1179467955543915d362d03d7882795fe1196a72"
+              },
+              "frame_ratio": 1.0478772854044003,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                19362,
+                20289,
+                1441,
+                0
+              ]
+            },
+            {
+              "frame": 59,
+              "k": 6,
+              "source_binary_sha256": {
+                "stats": "a75ba88c93f011c0f6d98fe47ced823ffc5444c08aa4e6934622f119cde555d7",
+                "recalled": "12da2c72217cf77dbf1120c8bd664b77846da01b06378c22cb064a2d0947c2b8",
+                "gain": "d5c2fb533cf73b105d1796dac18d3515524dff985cf8ad22177ab0902d9e4a03"
+              },
+              "frame_ratio": 1.0368918012486457,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                19381,
+                20096,
+                1432,
+                0
+              ]
+            },
+            {
+              "frame": 60,
+              "k": 7,
+              "source_binary_sha256": {
+                "stats": "2b6b3ac00472a594c301bf042ea938c2b60be05a3ec15eb68566d3cf16abac27",
+                "recalled": "bf861c0c61ed7d0df9f8bf29cd0d0b24b4ca8571b336ca1b914cb24bbd85bcb5",
+                "gain": "9f58b6135028fe89807c9f4fa38046182955d0be0a6cd41afbfb261c787a53b4"
+              },
+              "frame_ratio": 1.0235693701111568,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                19432,
+                19890,
+                1459,
+                0
+              ]
+            },
+            {
+              "frame": 61,
+              "k": 8,
+              "source_binary_sha256": {
+                "stats": "243e6e898bb26e08de82def53f030419db8bcb28da61894de6627cca8f637946",
+                "recalled": "7b07cbdb6dbd444e293a0fef02ec717f8340ed65214d4515f41eb40353c639a1",
+                "gain": "1041044ebe42453b775c3164edc167917ea2539e4a83478f8bdff3fb17bfd8df"
+              },
+              "frame_ratio": 1.023748763085256,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                19201,
+                19657,
+                1448,
+                0
+              ]
+            },
+            {
+              "frame": 62,
+              "k": 9,
+              "source_binary_sha256": {
+                "stats": "da9677cc1e2955e4f772aa29ca54d98833e5cd40c3e85c378f99bdbb02bbc574",
+                "recalled": "b522f425d99098411b1454f69595d8c1e516b08c344fcbc6f18d673403848424",
+                "gain": "945b7cb53c23fa6dd9dd939e42c96e24ccf92f54fc65caa2256b778732a5bd10"
+              },
+              "frame_ratio": 1.0648634172469202,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                18670,
+                19881,
+                1474,
+                0
+              ]
+            },
+            {
+              "frame": 63,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "0ea2e17faab2c18ecf63ba6bdeba9c49329f02e090431c2636b579de6be0fd61",
+                "recalled": "2bdf54de859244d510fbb5fd870b9ab14e0bdca77721b19bc673b03ac53fa24d",
+                "gain": "21b74b3931b2171b92309c8e37cfef490664f0ad14ed7b8c8a833baa1fab57eb"
+              },
+              "frame_ratio": 1.046481178396072,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                18330,
+                19182,
+                1420,
+                0
+              ]
+            },
+            {
+              "frame": 64,
+              "k": 11,
+              "source_binary_sha256": {
+                "stats": "cdb9c321fa7d89709bd560afc0d2f473aca0a43f5fc574f30273f1f499228af5",
+                "recalled": "3600fe7a59aec8b825d719addd6f96927f5f14dca92fa35d7f5dbde97d772579",
+                "gain": "b8dfed603691cc172eeb4f0caea8c4e7752993d32084992488b1dee792ab6ffb"
+              },
+              "frame_ratio": 1.0453482190324295,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                18810,
+                19663,
+                1504,
+                0
+              ]
+            },
+            {
+              "frame": 65,
+              "k": 12,
+              "source_binary_sha256": {
+                "stats": "687170f3ef03bb0395c3b2f0c485ea5c9a9a35b15e5def132f749a2d61403770",
+                "recalled": "edeba111d5fbbc444030c611b17e15fb2c46afd41bb1a8a78d1c007c2ca8cde7",
+                "gain": "903b5d53efabe9e249b811dab9b83e321cfabd22b99ca79e04568ef7884ea46c"
+              },
+              "frame_ratio": 1.0892013434280186,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17567,
+                19134,
+                1460,
+                0
+              ]
+            },
+            {
+              "frame": 66,
+              "k": 13,
+              "source_binary_sha256": {
+                "stats": "9ab455f0f4ef27d2bf47b3c969831a05a6b386670e75fea69a57122abc24eec3",
+                "recalled": "0c00ed44524dc9247657851fcaf0f5eeec71bf12468c78b123ceb92d6fc3d8e5",
+                "gain": "cb67b0473fdd7b96709f23f81391a5d8a7334d131cd95ca18298aad6fe008161"
+              },
+              "frame_ratio": 1.1076157982998902,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17293,
+                19154,
+                1459,
+                0
+              ]
+            },
+            {
+              "frame": 67,
+              "k": 14,
+              "source_binary_sha256": {
+                "stats": "57aea3558a81eeaa797e0c5d1b9201b297e1fd3d37eaf4155221a3743673e616",
+                "recalled": "fddbd9c359c6575364703e1ccf2bf773b7023677911317d33e5dfd0929ebe9d6",
+                "gain": "46d8c107659380f030e05e0f5e976e56ea7fca5f3f89334e1664ed3df11aafb2"
+              },
+              "frame_ratio": 1.102058270140829,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17539,
+                19329,
+                1465,
+                0
+              ]
+            },
+            {
+              "frame": 68,
+              "k": 15,
+              "source_binary_sha256": {
+                "stats": "35ba8c2ccb345be26189aa72f4d0b298eeff6853f413de39445cfabcdadf00ad",
+                "recalled": "7416f46030d6ff20552998b164f8d69526035048485f988f1ccc98a4bcef775b",
+                "gain": "47625568b883d5b4abb1b1d546d7515e473b37df8d5a83dc29ff915d9dc3b6a4"
+              },
+              "frame_ratio": 1.0132058040323895,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                18401,
+                18644,
+                1516,
+                0
+              ]
+            },
+            {
+              "frame": 69,
+              "k": 16,
+              "source_binary_sha256": {
+                "stats": "8cc7c50123c8c563f2ca1551555191c5c07241fa3ea9ea4ef05771bc4819c34f",
+                "recalled": "cbdf53b8fcae089aea94f8d439a31102001aa313ed6fa4ffb8ea07027fc65122",
+                "gain": "7fa5fc1782f8f751efcedc6755b4524d2a28c34b3d0912d505d71b84d6673124"
+              },
+              "frame_ratio": 1.068768751103006,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                16999,
+                18168,
+                1481,
+                0
+              ]
+            },
+            {
+              "frame": 70,
+              "k": 17,
+              "source_binary_sha256": {
+                "stats": "72f4af0f7c52dfd1f6c946834dc11b8160230dccd0239264b81b8c1c8751a138",
+                "recalled": "6db55c0d20a6b8838c19cd3b3352201cd6d705e362707939a5dccc4d1320b4e0",
+                "gain": "1c0fc74942d9db15876c32ed276c99742c9377d0d9a6e293459033a2b42ed905"
+              },
+              "frame_ratio": 1.0338036279873308,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17365,
+                17952,
+                1482,
+                0
+              ]
+            },
+            {
+              "frame": 71,
+              "k": 18,
+              "source_binary_sha256": {
+                "stats": "417deddb82096ba95e988bbb1cf3445e5b7b547244ac1bd9c02df06774a6102d",
+                "recalled": "55a88149e636c327bd771ae287e4d1e92faa5a39252e6e12c6bb248e855bd8d4",
+                "gain": "6a31872fbfda45265d971da7bd189e71d540da595f478c9adedd741c5ddf0e18"
+              },
+              "frame_ratio": 1.0808450876228857,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                16377,
+                17701,
+                1465,
+                0
+              ]
+            },
+            {
+              "frame": 72,
+              "k": 19,
+              "source_binary_sha256": {
+                "stats": "7b210c5a59a8140d9662248f104a118c9ec0ea92546e7308d5f017904b23f1ad",
+                "recalled": "c22209b1caffbf41d9af2087aa402ea07a31123aa4e79b81e1389c7e9b3a94a7",
+                "gain": "e2121811e225419a3e2c44773cf96a0b9d41528e514ff00f53f85f0f96cf4220"
+              },
+              "frame_ratio": 1.0153828292796192,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17227,
+                17492,
+                1498,
+                0
+              ]
+            },
+            {
+              "frame": 73,
+              "k": 20,
+              "source_binary_sha256": {
+                "stats": "02d0f4210913cec44bb07f66eba0a2b69bfddd21389604a440ce566fa2d55960",
+                "recalled": "c7f23a0633ec51c17e0cfcd47e29b124e586ca30397562e9ed464af14f97498d",
+                "gain": "34e3500d41a6abfd72371abfec048365644985e177ca44c540a75df755a17298"
+              },
+              "frame_ratio": 0.9986132399094957,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                13701,
+                13682,
+                1079,
+                0
+              ]
+            },
+            {
+              "frame": 74,
+              "k": 21,
+              "source_binary_sha256": {
+                "stats": "8f7cb52245e5d38f26ca97d7c4d7dfa6733245ccbc4ae64fc177265bcf2a2cd4",
+                "recalled": "ee68f087cee82454e491de767780ec8be0317d6354d846e00ab3280c4db975a5",
+                "gain": "1593ca5e40bc44ba6bb478059dfc596e9672c75693ca0242c9473db4d5259402"
+              },
+              "frame_ratio": 0.9860202465394945,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                14521,
+                14318,
+                1147,
+                0
+              ]
+            },
+            {
+              "frame": 75,
+              "k": 22,
+              "source_binary_sha256": {
+                "stats": "800d1792be823a6eb93b64ce33068acde939ead0d89b379a849c731df3c546b3",
+                "recalled": "a1d97953e4aca4b05aebbdeaa8115791bbeee8030a5a750304874a92a2593ad0",
+                "gain": "99c5d245eb7244a3191ddafbe766ced572ded1e1d3f238f396628a9e7eaf2a80"
+              },
+              "frame_ratio": 0.9914774711840727,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                14315,
+                14193,
+                1151,
+                0
+              ]
+            },
+            {
+              "frame": 76,
+              "k": 23,
+              "source_binary_sha256": {
+                "stats": "07a6ac21a15187a0c018c8db9267fb984d74ba9340452d3d6f3206d12e3dc77d",
+                "recalled": "9f6e0f265a3bcb5b50be1d0cca1c0b178d68ca15e1495917a43f3444911a0294",
+                "gain": "fc271273916b6c8f44d351e9d18d79f871b105ae96d0dc6787e29c60a95deeed"
+              },
+              "frame_ratio": 0.9829594853069031,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                17253,
+                16959,
+                1375,
+                0
+              ]
+            },
+            {
+              "frame": 77,
+              "k": 24,
+              "source_binary_sha256": {
+                "stats": "1fe28f07ea46c9b2158da38d3d2e6163b6d211832655ee8348400676b988df3b",
+                "recalled": "97473466684131c03860f5a8108ccc261fb991c45ebedcc61b79aa23cd5fe37e",
+                "gain": "454b40e07db4bdabdc30fba65edc0d6f77d99d98cf4942a09cc653014b7026c4"
+              },
+              "frame_ratio": 0.961617932502661,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                15971,
+                15358,
+                1211,
+                0
+              ]
+            },
+            {
+              "frame": 78,
+              "k": 25,
+              "source_binary_sha256": {
+                "stats": "096318c984040f3d72b26171b48b5b12925acb2cd4fe3802dfc95ecee2c13ad2",
+                "recalled": "91164d9696da7bc905140c5886f20ea994ea2a376fb070287e209a9a4b364228",
+                "gain": "f30815623ba93d622f5fec71061972b4ebde4a001b2a996afd98da856f6a837d"
+              },
+              "frame_ratio": 1.011517753697267,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                14673,
+                14842,
+                1158,
+                0
+              ]
+            },
+            {
+              "frame": 82,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "666d30112a7a73f508e140005f96a9fd1365fe2163253ef30c721befa1b9290b",
+                "recalled": "675669696b4988776695374aa1b641eafa60e4d889869c8aba2512a10c2df66c",
+                "gain": "c4eadc29eb63190286098a1e0fbc73a8ccff9786c57bedd425e0b7216a44f0a9"
+              },
+              "frame_ratio": 0.9759835867728699,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                8286,
+                8087,
+                497,
+                0
+              ]
+            },
+            {
+              "frame": 90,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "5a379481d8d93565acc8a135ad40c1f518b9eff5a6fcc030ff14d570df287144",
+                "recalled": "703c7a1ec483cf042684626137d7525ee5ba912d6b26da51f6985e0b0c1d2841",
+                "gain": "639d20ac1d053d06252e83505858d921f86a1b2d9531d166b46ffaf03b1eed93"
+              },
+              "frame_ratio": 0.673537578238976,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                21249,
+                14312,
+                1089,
+                0
+              ]
+            },
+            {
+              "frame": 91,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "e8daae8b4df633931326d1aa14fa703bc508b6f99b9576540de32b8743a63bf9",
+                "recalled": "1e9756e30f7f9814e4843ae1789e561bc785f3fb583db45a5209188e7013480b",
+                "gain": "639d20ac1d053d06252e83505858d921f86a1b2d9531d166b46ffaf03b1eed93"
+              },
+              "frame_ratio": 0.6373107747105966,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                11230,
+                7157,
+                658,
+                0
+              ]
+            },
+            {
+              "frame": 92,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "3f0425aaa8bf2f842c3a5f1ff3c19041a52c2c5c6fdd481b603127c5254eba8d",
+                "recalled": "de90b447b914af06ab4cbd1cd80b1e950a9d6f35d202a8e18d060b1cb3bfeaba",
+                "gain": "dcde3125f560ce41b820477e3a5a49cd8ce1a745555371623189935a24e2eb4c"
+              },
+              "frame_ratio": 0.7018123560628817,
+              "frame_ratio_kind": "exact actual GPU1/1024 atomic numerator/denominator",
+              "sums_u32": [
+                9987,
+                7009,
+                641,
+                0
+              ]
+            }
+          ],
+          "output_metadata_sha256": "267e39a3b82e20d7a12a61ebc733ce911a85ebcc7a4cf969935a81527948fce1",
+          "exact_counter_metadata_sha256": "a8f020f7dbc0f64300635051199703845d138eceb81459d17df6b50f9cb7147d",
+          "file": "fixtures/combined/2405579e.npz",
+          "frame_count": 53,
+          "stored_bytes": 532809,
+          "array_bytes": 1693456
+        }
+      ]
+    },
+    {
+      "id": "native_policy",
+      "scope": "Actual native Stats/Gain CSOs on same extracted host schedule,physical inputs,32B counters,native Params4.w=1; native bridge routing NOT proven",
+      "captures": [
+        {
+          "capture": "87ee1fba",
+          "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+          "published": 66,
+          "roi": [
+            496,
+            167,
+            512,
+            512
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            64,
+            64
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 41,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "5a7c01cc75dc8cacbc47a0371a43aac27463e32882ed6f1650a77f9d062f863d",
+                "recalled": "f4a6349cf429be30488f9e800838653c4988963ac6e65edafee6d5eca5b4db7a",
+                "gain": "f92b4b7f582ea86f76a58ed6981f4506247c4ce98550962cebec246c4e119256"
+              },
+              "frame_ratio": 1.0304664049963508,
+              "frame_ratio_bounds": [
+                1.0297233475425434,
+                1.0312082235798516
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            },
+            {
+              "frame": 44,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "3f0c7ab752653a2053473b07024c421b6b1eea10f6995ecb84afe19619e56d45",
+                "recalled": "b0419acb7657b03da5a43dbba3925bf22366ccff765a1d0bd0d57e8256dc525c",
+                "gain": "899ed536d892adc00b96efaed519d9d9adea46fd281dc3a2e2634c931087112f"
+              },
+              "frame_ratio": 0.9753926884504956,
+              "frame_ratio_bounds": [
+                0.9746516539910213,
+                0.9760176004339833
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            },
+            {
+              "frame": 60,
+              "k": 17,
+              "source_binary_sha256": {
+                "stats": "a4fe69df4b580a41398a4c8b6c00220efb668beec1349720f7235132c0f8186a",
+                "recalled": "05e44ef3381041d5170caca5fa554de76b9904b2f2b3a94036a4c39329a88ad1",
+                "gain": "443122bf50826c497843ecbf2318e25ecd3bbcfc218afbd7f6240a86d227c093"
+              },
+              "frame_ratio": 1.0148379684740458,
+              "frame_ratio_bounds": [
+                1.0141209932023094,
+                1.0155564410542495
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            }
+          ],
+          "output_metadata_sha256": "04ae6ac6a4c16809424ca98103b125bf720869162e26de2a4d691f6e5e705488",
+          "file": "fixtures/native_policy/87ee1fba.npz",
+          "frame_count": 3,
+          "stored_bytes": 73746,
+          "array_bytes": 233604
+        },
+        {
+          "capture": "22f9ca14",
+          "capture_uuid": "22f9ca14-5425-4904-a129-a710f2b88387",
+          "published": 64,
+          "roi": [
+            496,
+            167,
+            512,
+            512
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            64,
+            64
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 41,
+              "k": 0,
+              "source_binary_sha256": {
+                "stats": "15afaddf8363becf4f859696d4d08cab799ff42bc7c9e6759186e8809ad6a184",
+                "recalled": "4bbff8cfc2a8c7cdb30b761a2935e3e3f011d39ac7cc8169592a41e822a66d4c",
+                "gain": "9054d28be3bca85bff8c4bfb2a108ecaad6a73ba4776f1f73387794bd0c26dbd"
+              },
+              "frame_ratio": 0.8431222354341971,
+              "frame_ratio_bounds": [
+                0.8424919215695291,
+                0.8436798656296167
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            },
+            {
+              "frame": 44,
+              "k": 2,
+              "source_binary_sha256": {
+                "stats": "92551a07284ac063b17e8b2b64d739af10a427c45abb0f608cec8e08af8d3800",
+                "recalled": "7dac0b748b1496e79ebd3c3e5413230ee22527d7dbcf4d0dfb7b48e739eb009d",
+                "gain": "0f168bed43a6ff966c944d60e7498ad48181eed87c4d70959bff91ab97936b4c"
+              },
+              "frame_ratio": 0.8934918415366174,
+              "frame_ratio_bounds": [
+                0.8928337099842909,
+                0.894086290052429
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            },
+            {
+              "frame": 52,
+              "k": 10,
+              "source_binary_sha256": {
+                "stats": "bfa393c5c252fd888c946facae7a1d76734ab9c5ae0369beb459a08a0c9d0590",
+                "recalled": "8fb002521b524646446bac5e36867d55562bbb5e665303b5c2cdfdecde424061",
+                "gain": "c3970109e6b0b50ef53a9102651049d679e734323fd070707ac7755259c3d244"
+              },
+              "frame_ratio": 1.025620470908844,
+              "frame_ratio_bounds": [
+                1.024900489271087,
+                1.0263348715201692
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            }
+          ],
+          "output_metadata_sha256": "934c562b36210fba3601b25d7ee07402696285978b2eb4b840406998a9cff8fe",
+          "file": "fixtures/native_policy/22f9ca14.npz",
+          "frame_count": 3,
+          "stored_bytes": 78999,
+          "array_bytes": 233604
+        },
+        {
+          "capture": "2405579e",
+          "capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+          "published": 222,
+          "roi": [
+            688,
+            0,
+            128,
+            847
+          ],
+          "render": [
+            1505,
+            847
+          ],
+          "grid": [
+            16,
+            105
+          ],
+          "fixture_limits": "ROI whole-screen replay; no outside-ROI history; first frame has no prior camera",
+          "frames": [
+            {
+              "frame": 92,
+              "k": 1,
+              "source_binary_sha256": {
+                "stats": "3f0425aaa8bf2f842c3a5f1ff3c19041a52c2c5c6fdd481b603127c5254eba8d",
+                "recalled": "de90b447b914af06ab4cbd1cd80b1e950a9d6f35d202a8e18d060b1cb3bfeaba",
+                "gain": "a51d2e4b10a9dd76fcdb06ddcdafe736fa7852219cfe535a6250c7c33783671e"
+              },
+              "frame_ratio": 0.7105948090713844,
+              "frame_ratio_bounds": [
+                0.7100397793708398,
+                0.7110398824727467
+              ],
+              "frame_ratio_kind": "bounded stored-FP16-derived16.16 estimate, NOT actual pre-store atomics"
+            }
+          ],
+          "output_metadata_sha256": "4fae958e80d673277a1f928a692347ac2a8b58fb8c31ae0f5b979dc22b7e0414",
+          "file": "fixtures/native_policy/2405579e.npz",
+          "frame_count": 1,
+          "stored_bytes": 11221,
+          "array_bytes": 31964
+        }
+      ],
+      "harness_identity": {
+        "base_step_identity": "afb37ab33791b0c07e449c83a2e6730c6a34cefba9c30780642a67dfc778aa7a",
+        "native_shader_pins": {
+          "FSRDNrdPostMotionAnchorStatsRecall_Shader.h": "7e8d7dcf81f108b9af833cf074c16550b84142deaba85d54d9ded711f6ceb2e1",
+          "FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+          "FSRDNrdPostMotionAnchorStatsRecall.hlsl": "0faa3f9460ceee5402133cafe775041069e9f29c4b1dcb9b3007caa9d04254c0",
+          "FSRDNrdPostMotionAnchorGain_Shader.h": "969c142df718037a07f0534ef3037e3b1ef843702a2bef6898fce94c16c121e1",
+          "FSRDNrdPostMotionAnchorGain_Shader.cso": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+          "FSRDNrdPostMotionAnchorGain.hlsl": "16d15e239d6d65bde2df215e00f37a3139dce972f7ca9a5844766dc92314a08d"
+        },
+        "cpp_sha256": "adc9fa8bca82d9f562b44a56191f13df9c7ed165eb3a0f4202ae9a3620206890",
+        "exe_sha256": "2303bc23c699b2095402dbb9b2f31e8c2b2b29e1e3fb2ba5b26520d15507c433",
+        "diff_sha256": "262d3fa2df17ab1c05caace973486e04e1f9b3f465d253a2a0c70de261bf175d",
+        "limits": "Actual native Stats/Gain shaders on physical capture inputs with 32B ABI and exact native flag; production native route scheduling NOT proven."
+      }
+    }
+  ],
+  "source_files": {
+    "source/FSRDPostMotionAnchorStatsRecall.hlsl": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorStatsRecall.hlsl",
+      "sha256": "ed2b9c20997c01e3da3c26be106dae9bbe449f2c10f04b87b18f8dc9fbcaebca",
+      "scope": "combined"
+    },
+    "source/FSRDPostMotionAnchorGain.hlsl": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorGain.hlsl",
+      "sha256": "a26c62b8eade0d1686d0d784cb32ed50a4f7f551605033bcfb3cc9004c8602d7",
+      "scope": "combined"
+    },
+    "source/FSRDPostMotionAnchorApply.hlsl": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorApply.hlsl",
+      "sha256": "fe45244176f63517b6c3df765383a75078d771e1e2035a69eb4b0488b2d465fc",
+      "scope": "combined"
+    },
+    "source/FSRDPostMotionAnchorConstants.h": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorConstants.h",
+      "sha256": "7d866e8986d0e535eeeca1cd1c75df04bfbe184730ef94dbf45ce58acf58edfd",
+      "scope": "combined"
+    },
+    "source/FSRDNrdPostMotionAnchorStatsRecall.hlsl": {
+      "source_original": "local-only:/anchor_quality/native_policy_fixture/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+      "sha256": "0faa3f9460ceee5402133cafe775041069e9f29c4b1dcb9b3007caa9d04254c0",
+      "scope": "native_policy"
+    },
+    "source/FSRDNrdPostMotionAnchorGain.hlsl": {
+      "source_original": "local-only:/anchor_quality/native_policy_fixture/FSRDNrdPostMotionAnchorGain.hlsl",
+      "sha256": "16d15e239d6d65bde2df215e00f37a3139dce972f7ca9a5844766dc92314a08d",
+      "scope": "native_policy"
+    },
+    "FSRDPostMotionAnchorStatsRecall_CSO": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorStatsRecall_Shader.cso",
+      "sha256": "68d11ef1fab3c487602201c02e1f3ffe6e3ba539b30b6972bf3f4165fd267377",
+      "scope": "combined",
+      "not_bundled": true
+    },
+    "FSRDPostMotionAnchorGain_CSO": {
+      "source_original": "local-only:/replay/snapshots/fixed_host1/FSRDPostMotionAnchorGain_Shader.cso",
+      "sha256": "687d33ccc0d6dda57fe2c2e1117d0cb14dea5d14c52ce382c14baa033b42186c",
+      "scope": "combined",
+      "not_bundled": true
+    },
+    "FSRDNrdPostMotionAnchorStatsRecall_CSO": {
+      "source_original": "local-only:/anchor_quality/native_policy_fixture/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso",
+      "sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+      "scope": "native_policy",
+      "not_bundled": true
+    },
+    "FSRDNrdPostMotionAnchorGain_CSO": {
+      "source_original": "local-only:/anchor_quality/native_policy_fixture/FSRDNrdPostMotionAnchorGain_Shader.cso",
+      "sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+      "scope": "native_policy",
+      "not_bundled": true
+    }
+  },
+  "payload_sha256": {
+    "fixtures/combined/87ee1fba.npz": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+    "fixtures/combined/22f9ca14.npz": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+    "fixtures/combined/2405579e.npz": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+    "fixtures/native_policy/87ee1fba.npz": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+    "fixtures/native_policy/22f9ca14.npz": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+    "fixtures/native_policy/2405579e.npz": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4"
+  },
+  "null_cases": [
+    {
+      "capture": "87ee1fba",
+      "frame": 41,
+      "k": 0,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9900424383782789,
+          "input_gain_min": 0.98934070592818,
+          "input_gain_max": 0.9909100761723852,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.7501273763542713e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9834556508172478,
+          "input_gain_min": 0.9817805349997543,
+          "input_gain_max": 0.9853844494992156,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.4128512521315315e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9780786408591788,
+          "input_gain_min": 0.973331935434425,
+          "input_gain_max": 0.9820394473073623,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.329324400029975e-09
+        }
+      ]
+    },
+    {
+      "capture": "87ee1fba",
+      "frame": 44,
+      "k": 1,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.980946893364431,
+          "input_gain_min": 0.9792715987848061,
+          "input_gain_max": 0.9828771015795529,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.5237067990957485e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9709780312453548,
+          "input_gain_min": 0.9689014242034943,
+          "input_gain_max": 0.9732720227447026,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.957578099620605e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9679231595950697,
+          "input_gain_min": 0.9642776714943556,
+          "input_gain_max": 0.9717940397181882,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.6556753462969596e-09
+        }
+      ]
+    },
+    {
+      "capture": "87ee1fba",
+      "frame": 60,
+      "k": 17,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9809538159677896,
+          "input_gain_min": 0.9799584573464385,
+          "input_gain_max": 0.9827092061565343,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.869092658424165e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9725465063611174,
+          "input_gain_min": 0.9700557824321054,
+          "input_gain_max": 0.9747962401574687,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.3371240498448742e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.969853085871321,
+          "input_gain_min": 0.9673222047945458,
+          "input_gain_max": 0.9728860386627091,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.1229082936002897e-09
+        }
+      ]
+    },
+    {
+      "capture": "22f9ca14",
+      "frame": 41,
+      "k": 0,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9726297755618516,
+          "input_gain_min": 0.9706888116393522,
+          "input_gain_max": 0.9739279205683423,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.8538055535088915e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9592172367169474,
+          "input_gain_min": 0.9562085476552551,
+          "input_gain_max": 0.9628364492960044,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.6669239322197882e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9622665735454126,
+          "input_gain_min": 0.9585910920309355,
+          "input_gain_max": 0.968143624662519,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.721775944041326e-09
+        }
+      ]
+    },
+    {
+      "capture": "22f9ca14",
+      "frame": 44,
+      "k": 2,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9823272331428752,
+          "input_gain_min": 0.9808690679928985,
+          "input_gain_max": 0.9833322473158546,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.122246739981847e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9694356399535928,
+          "input_gain_min": 0.9673231197602443,
+          "input_gain_max": 0.9716860729575993,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.420994877321391e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9580457601254454,
+          "input_gain_min": 0.9542791367041463,
+          "input_gain_max": 0.9632028385900326,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 3.0967344244459127e-09
+        }
+      ]
+    },
+    {
+      "capture": "22f9ca14",
+      "frame": 52,
+      "k": 10,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9865489399041792,
+          "input_gain_min": 0.9855921942002501,
+          "input_gain_max": 0.9875367720274704,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.3886223282355559e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9761835323105379,
+          "input_gain_min": 0.9745510475276036,
+          "input_gain_max": 0.9785051012710545,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 2.0700112735028142e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9651772911064134,
+          "input_gain_min": 0.9624847809756119,
+          "input_gain_max": 0.9680109276410465,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 1.705739549606733e-09
+        }
+      ]
+    },
+    {
+      "capture": "2405579e",
+      "frame": 92,
+      "k": 1,
+      "null": [
+        {
+          "residual_amplitude": 0.25,
+          "realizations": 32,
+          "input_gain_mean": 0.9795993106249108,
+          "input_gain_min": 0.9748687753427664,
+          "input_gain_max": 0.9826330569039275,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 3.1836087099890165e-09
+        },
+        {
+          "residual_amplitude": 0.5,
+          "realizations": 32,
+          "input_gain_mean": 0.9696365424018489,
+          "input_gain_min": 0.9660871117949017,
+          "input_gain_max": 0.9747628718387228,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 3.204973841874903e-09
+        },
+        {
+          "residual_amplitude": 1.0,
+          "realizations": 32,
+          "input_gain_mean": 0.9706179950130525,
+          "input_gain_min": 0.9647950232558168,
+          "input_gain_max": 0.9749125492615913,
+          "global_gate_input_gain_mean": 1.0,
+          "max_global_ratio_rounding_error": 3.502717671466371e-09
+        }
+      ]
+    }
+  ],
+  "prior_evidence": {
+    "combined_reference_calibration": "bias_falsifier.json PASS196,133 active/counter-valid frames; freshly retested in this package",
+    "manifest_source_sha256": "c5f83632cadbf6fb8ee7b85eaeb7c81d1c8dc847f70d7016864b6b5020caaa7a"
+  },
+  "raw_array_payload_bytes": 8421108,
+  "handoff_export": {
+    "source_manifest_sha256_before_path_sanitization": "4327eb0150498fe0eabd6390fc82a4426b67e6c9eed482435d6a94e80a0f1510",
+    "change": "Machine absolute source labels only; arrays/source hashes unchanged."
+  }
+}

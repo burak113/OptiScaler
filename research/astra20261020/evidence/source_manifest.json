@@ -1,0 +1,235 @@
+{
+  "base": "a79473353d7bc93920f881dbe88f5dfbcf761d1f",
+  "commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "working_tree_clean": true,
+  "files": {
+    "OptiScaler/Config.h": {
+      "sha256": "ee5579bd7d766777585a0e01b08db92a862853f37b5d29914fe2d6d47311ecb9",
+      "bytes": 45091
+    },
+    "OptiScaler/menu/menu_common.cpp": {
+      "sha256": "9a25ee2c167bcbd2f6797926b0cd98d5915e048709d6fe5ba2bfcb11f3f5b6be",
+      "bytes": 468937
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h": {
+      "sha256": "02b7c90f42d9e76676b4acbb1327dc0cdea5c6168c04e274c01470a3d41daee5",
+      "bytes": 9630
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp": {
+      "sha256": "94bcfa59e9707ee78ca7b9325f0ef4078241c81aa0b9a1aeb187e6e7314fc582",
+      "bytes": 171188
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": {
+      "sha256": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+      "bytes": 114515
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": {
+      "sha256": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+      "bytes": 18622
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp": {
+      "sha256": "67aa64d681c4d3090d07193adddbf363033094e0aa94fbd14cbbb951dfe6b15e",
+      "bytes": 259889
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h": {
+      "sha256": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+      "bytes": 21896
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h": {
+      "sha256": "54199dc53705363b2f1ce13646da2c8ca9c278655aced4352e222fef6866cd43",
+      "bytes": 16037
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp": {
+      "sha256": "8c1a6e4deb0bda69826f48b81ac03aeadeb1e95584f8d54ce7b49321df3f35d0",
+      "bytes": 244839
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply.hlsl": {
+      "sha256": "8e7b17747942b0b319408c63de26f0674709beda252ec2c94fee3d754d1c9e63",
+      "bytes": 2413
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply_Shader.cso": {
+      "sha256": "cb18daf686193806e4d01d33550233d216841e6d9a7ecdb59249446b5cd9ff38",
+      "bytes": 2912
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackApply_Shader.h": {
+      "sha256": "42f2e61f72dcace52a7600d0df3c1d98400249e6906c6978b5e14f21d8856db4",
+      "bytes": 28567
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats.hlsl": {
+      "sha256": "a4f425869c6d7f621bff30819b85bbcc3dbe26132b01d7ef04d63ca1fdc17e5c",
+      "bytes": 4903
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats_Shader.cso": {
+      "sha256": "a1e62eca74ceefee7c89bf44928f360b89c539e87e266c6ffd7ee633d76bbe53",
+      "bytes": 4456
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackStats_Shader.h": {
+      "sha256": "6247e2649842ec3d58628db63e821eb9dfc43a4cf3422d91480230a5d24ab0e0",
+      "bytes": 53026
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl": {
+      "sha256": "f2f34586fa4896cd9e3862197f6f387bf8179bce7cf7fda6661a16bd76c411d0",
+      "bytes": 6080
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack_Shader.cso": {
+      "sha256": "6f0ef8ab0329833d567fc1e1f0217ec266507f6436cfec382f2631df18f8597f",
+      "bytes": 15092
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack_Shader.h": {
+      "sha256": "3eea5afdda17719790b7f5639ec467b0cf97f98d3deed2a7e4ecef7f9cf56651",
+      "bytes": 216865
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatSelectApply.hlsl": {
+      "sha256": "58495368f6dfb1cb2506a56d2fb4ccf6de1714a63639bbbe8aa43e38a4c21e61",
+      "bytes": 2113
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatSelectApply_Shader.cso": {
+      "sha256": "c307acaaea239422a091234755568173c58da1435785becdf2aabdb17c8b54b7",
+      "bytes": 7924
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatSelectApply_Shader.h": {
+      "sha256": "7d400f2c0de02748c3d111d10b443160840c6bc5f6f3466a229f8403b54bb455",
+      "bytes": 104528
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain.hlsl": {
+      "sha256": "ecf6de6ace3a6c4f9e78c23b549d56d2cd4588e13454be14ba7196f434f0bd46",
+      "bytes": 4391
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso": {
+      "sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+      "bytes": 7424
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h": {
+      "sha256": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c",
+      "bytes": 76251
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl": {
+      "sha256": "e1014611999e46836be21b293a5c107f9d50531bde95176236d1ba21d1c99a10",
+      "bytes": 7374
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": {
+      "sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+      "bytes": 10440
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h": {
+      "sha256": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce",
+      "bytes": 114118
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDOutputComp.hlsl": {
+      "sha256": "4c46606ba6ac017b45b4aa2f040fa7df38b01619153314542ebf75fac975af73",
+      "bytes": 16394
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDOutputComp_Shader.cso": {
+      "sha256": "85bffb0d13fccade8d3d8530ce75894b885c1cc00c6beb57b91d0809d959173e",
+      "bytes": 19612
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDOutputComp_Shader.h": {
+      "sha256": "17cee0eae8fafdceaa255f16ac6dbd2d80987248df3789599d21a287a1f9fed6",
+      "bytes": 286788
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickApply.hlsl": {
+      "sha256": "2b0ff6874a15c2584d6d5d63a18d707e9dcf22dfc4d8dcedc60fcc5f0337258a",
+      "bytes": 5781
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickApply_Shader.cso": {
+      "sha256": "ae3c77437463b5ae0a7f27ae228ff3eb6e38fd2a17367fade83e2bbb91b9586e",
+      "bytes": 4752
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickApply_Shader.h": {
+      "sha256": "e60f6553c9da0fac8ee6deab131729127d6c0fe0b8f1450fffd6c02f0e840bfa",
+      "bytes": 55170
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickPrepare.hlsl": {
+      "sha256": "3fdc6fe9d6914974e2f182aacdc9a46613736fa7c3fb42720c2deabe51f09948",
+      "bytes": 5075
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickPrepare_Shader.cso": {
+      "sha256": "0d50b3f61d3f9ad12d7ed88565a460727a6c91612e9910c2c833a7441aa3fb16",
+      "bytes": 11792
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostFlickPrepare_Shader.h": {
+      "sha256": "99ad74473c9ebb33e77dc27e00a2659619d96a996ed87a28d11f8c2632789bce",
+      "bytes": 180478
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain.hlsl": {
+      "sha256": "a26c62b8eade0d1686d0d784cb32ed50a4f7f551605033bcfb3cc9004c8602d7",
+      "bytes": 7483
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain_Shader.cso": {
+      "sha256": "687d33ccc0d6dda57fe2c2e1117d0cb14dea5d14c52ce382c14baa033b42186c",
+      "bytes": 4512
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorGain_Shader.h": {
+      "sha256": "9f23614b32166f0a593874aca57aff827ce60791aec5aac56578ef742f2afda0",
+      "bytes": 53105
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall.hlsl": {
+      "sha256": "a7d0cc3cfa95577579c8849f9afe5125527979c710c93ee730c73ef993c4d985",
+      "bytes": 12023
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall_Shader.cso": {
+      "sha256": "ea806fa83aba7f78934ecfc264af293bce501d79328ea1f9a544b9e8f40d6312",
+      "bytes": 6660
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorStatsRecall_Shader.h": {
+      "sha256": "9d3e089f1808c0f3562976426b9de8a505181c9c32e53692514071b0b4d44109",
+      "bytes": 83999
+    },
+    "OptiScaler/shaders/shader_tools/build_fsrd_shader.py": {
+      "sha256": "d9e417f530f8d585dc8557314c9d8a5b96e6cb455ff6549f1be1da14c9dc624a",
+      "bytes": 17748
+    },
+    "OptiScaler/shaders/shader_tools/tests/fsrd_colour_track.cpp": {
+      "sha256": "d61e782e0e838961e486a8a9c8ca3e04871f4c42b99246aabda1f2d7b89d405e",
+      "bytes": 59471
+    },
+    "OptiScaler/shaders/shader_tools/tests/fsrd_native_post_motion_anchor.cpp": {
+      "sha256": "61b1bded7307052ef9efcdaeebbb99d2de91c2b61283bf5dfcdaf5933c896f5e",
+      "bytes": 17891
+    },
+    "OptiScaler/shaders/shader_tools/tests/fsrd_nrd_anchor_shared_family.cpp": {
+      "sha256": "bbcb67d0cc35328c95584027854bc29a5124dd508150b5d768ea0bc272be6989",
+      "bytes": 7022
+    },
+    "OptiScaler/shaders/shader_tools/tests/fsrd_nrd_game_trace_bridge.cpp": {
+      "sha256": "69b374582c3986013fdfeb50f003c1784828be08b832a093516dd77055248984",
+      "bytes": 40387
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_native_post_motion_anchor.py": {
+      "sha256": "ccbeb75cddfa7ac4397fd9e3ce40f55b7d5d52594688091c3219660088fa1352",
+      "bytes": 7772
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_anchor_shared_family.py": {
+      "sha256": "0ebc0540cbd40bbacef022d6eb5be82e9f2d165e6adcdf441208ef79b78642b1",
+      "bytes": 3323
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_game_trace_bridge.py": {
+      "sha256": "e40c309a78cac38c99f36fffe232a8c443c1942cf02def257c8e7ff928912720",
+      "bytes": 11807
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py": {
+      "sha256": "1f5f4545baded9eed61b1c82f461b55383a8a44e5ca49c92ad79836d443cb668",
+      "bytes": 84247
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_adversarial.py": {
+      "sha256": "664a8b08b1c7fb7dbfacc9b46a62ead223c5211a5b2920dc7f10b189d1f4ee30",
+      "bytes": 7181
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_order.py": {
+      "sha256": "905606790f7c00711209973dfa6ab45bb8618fdc254f91e6de68034f8dd77f97",
+      "bytes": 48137
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_title_history.py": {
+      "sha256": "6859e4cc0e3edabc5da506d68115666f003b6ae48a1ee81efa545f4625fd0ab2",
+      "bytes": 8785
+    },
+    "OptiScaler/shaders/shader_tools/tests/test_fsrd_shader_artifact_contract.py": {
+      "sha256": "1735233af24b55718a47d478d58dcecb4fb56e4649069ef420c78903d35929a8",
+      "bytes": 9725
+    },
+    "OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp": {
+      "sha256": "03812416e975b3d98ba1968b5c569b20e1388f89eacbbbf35de15949b1bac2c0",
+      "bytes": 271150
+    }
+  }
+}

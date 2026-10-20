@@ -474,3 +474,7 @@ CyberFSR/imgui.ini
 !**/notice*
 !**/CMakeLists.txt
 !**/requirements*.txt
+
+# Explicit public Astra research handoff (2026-10-20).
+!/research/astra20261020/**/*.md
+!/research/astra20261020/**/*.txt

@@ -1,0 +1,20 @@
+COMMAND: python -B -m unittest -v
+test_captured_stats_history_gain_packing_and_bilinear_exact (test_colour_portable.CapturedFixtureContracts.test_captured_stats_history_gain_packing_and_bilinear_exact) ... ok
+test_soft2_fixture_precision_caveat_is_bounded (test_colour_portable.CapturedFixtureContracts.test_soft2_fixture_precision_caveat_is_bounded) ... ok
+test_all_11bit_payloads_are_exact_half_values (test_colour_portable.NumericContracts.test_all_11bit_payloads_are_exact_half_values) ... ok
+test_apply_preserves_luma_within_half_storage_error (test_colour_portable.NumericContracts.test_apply_preserves_luma_within_half_storage_error) ... ok
+test_gray_identity_and_signed_depth (test_colour_portable.NumericContracts.test_gray_identity_and_signed_depth) ... ok
+test_ideal_bilinear_has_known_values_and_edge_clamp (test_colour_portable.NumericContracts.test_ideal_bilinear_has_known_values_and_edge_clamp) ... ok
+test_module_imports_only_numpy_and_standard_library (test_colour_portable.NumericContracts.test_module_imports_only_numpy_and_standard_library) ... ok
+test_normal_pack_preserves_axes_and_all_decodes_are_unit (test_colour_portable.NumericContracts.test_normal_pack_preserves_axes_and_all_decodes_are_unit) ... ok
+test_normalized_16bit_payload_cannot_survive_half_storage (test_colour_portable.NumericContracts.test_normalized_16bit_payload_cannot_survive_half_storage) ... ok
+test_rtz_never_overshoots_and_is_idempotent (test_colour_portable.NumericContracts.test_rtz_never_overshoots_and_is_idempotent) ... ok
+test_all_32_phase_cases_are_present (test_colour_portable.RejectedCandidateContracts.test_all_32_phase_cases_are_present) ... ok
+test_candidate_remains_rejected_on_shifted_geometry_edges (test_colour_portable.RejectedCandidateContracts.test_candidate_remains_rejected_on_shifted_geometry_edges) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 3.006s
+
+OK
+
+EXIT: 0

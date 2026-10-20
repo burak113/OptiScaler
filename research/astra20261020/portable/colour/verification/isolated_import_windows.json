@@ -1,0 +1,10 @@
+{
+  "imported_module": "colour_portable.py",
+  "numpy": "2.3.5",
+  "forbidden_modules_loaded": [],
+  "cwd_empty_after_import": true,
+  "pythonpath_has_only_portable_source": true,
+  "exit_code": 0,
+  "command": "PYTHONPATH=<portable directory> PYTHONNOUSERSITE=1 python -B -c <import assertion>; cwd=<empty isolated directory>",
+  "platform_execution": "Windows CPU only; Linux not executed."
+}

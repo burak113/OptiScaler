@@ -1,0 +1,57 @@
+{
+  "pass": true,
+  "synthetic_origin_and_invalid_border": "PASS",
+  "fixtures": [
+    {
+      "fixture": "bottle_track7",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": [
+        {
+          "frame": 181,
+          "pixels": 9430,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 182,
+          "pixels": 9560,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 183,
+          "pixels": 9864,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 184,
+          "pixels": 8730,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 185,
+          "pixels": 5479,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 186,
+          "pixels": 3114,
+          "prior_inside_track_fraction": 1.0
+        }
+      ]
+    },
+    {
+      "fixture": "foliage23",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": []
+    },
+    {
+      "fixture": "facade16",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": []
+    }
+  ],
+  "npz_bytes": 30013243,
+  "source_access_required_offline": false
+}

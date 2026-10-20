@@ -1,0 +1,141 @@
+HISTORICAL TASK CONTEXT — machine paths sanitized; current COMMON_PROTOCOL governs this cloud job.
+
+TASK 25 (WEDNESDAY 2026-10-21) - POST-FLICK PINK/BRIGHT TRAIL: POST-RR COLOUR TRACKING + LEVEL TRACKING/ANCHOR
+Task id: 25-postflick-level. Model: Sol 6.1 max (LEAD). FIRST read local-only:/FSRD/sol_batch/24_26_shared_context.txt fully
+(especially C2, "D2 RESULT" and "ROUND 2 PRE-TESTS" - the latter overrides older hints), then COMMON_RULES.txt, SUBAGENT_RULES.txt, and
+task 24's report (local-only:/FSRD/sol_batch/24-glass-hfix/report.md) for what shipped yesterday. Reply in Turkish.
+Report: local-only:/FSRD/sol_batch/25-postflick-level/report.md. Work WITHOUT asking until 20:00 local time on 2026-10-21;
+`date` every cycle; decisions in progress.md.
+Base: task 24's final commit (its report names it). If task 24 did not finish, base on adccf08fdeed706f79a0984224bce80ded2efdc5
+and say so. Worktree OSA-25-postflick-level, branch sol/25-postflick-level. New options default OFF; OFF == base.
+
+WHY THESE ARE THE MOST PROMISING LEVERS (measured by Claude, 2026-10-19):
+- After fast flicks the GAME INPUT is +16-22 % brighter and redder for ~15 frames (globally; even pixels seen before
+  the flick). RR turns it into a weaker but longer trail. A FIXED gain (Turn brightness correction) did not help in
+  game.
+- Recall coverage: 45-79 % of the post-flick view was visible in the previous 0.5-1 s (players flick back and forth).
+- Pre-test "anchored gain" (RR Lab hooks local-only:/FSRD/rrlab/hooks/claude_anchor_w10a12.py / w10a20.py, script
+  local-only:/FSRD/rrlab/tmp/anchor_exp.py): for young pixels (MV+depth age < 12/20 frames) the input is multiplied by a
+  smooth (sigma 24 px) gain = recalled settled level / current input level, measured from pixels that reproject into
+  a recent settled frame (frame-median fallback elsewhere). On 87ee the post-flick replay output level went from
+  1.141x the steady input to 0.999x (+12 frames: 1.087 -> 0.977), blotch unchanged (p90 .068 -> .066), relative
+  detail unchanged; 22f9 blotch p90 f44-53 .082 -> .065. BUT the per-channel gain made the pink tint WORSE (R share
+  .384 -> .403) and on 2405 it pulled the level to .77-.86 of the end-of-capture input (correct or over-correction:
+  unresolved). Pixel-level priors (recall blended into the input) and input pre-blur FAILED (smooth input error
+  becomes RR "signal").
+- DECISIVE (shared context "ROUND 2 PRE-TESTS", read it): with the user's settings (D16 + G2) RR needs ~60 frames to
+  show HALF of any smooth global change, colour or level (static step fixture; base x256: 4 frames, d16: 20). After
+  a flick RR therefore keeps the first post-flick colour/level for a second or more: 87ee f44->f64 input R share
+  .374 -> .328, RR .385 -> .374. Input-side colour control is capped by this lag (closed loop ~25 % of the gap).
+  POST-RR COLOUR TRACKING (round 2 "I": RR * smooth luminance-preserving gain towards an EMA of the sigma-24 smoothed
+  input colour) closed the gap FULLY (87ee f64 .374 -> .328 = input; 22f9 f10 .318 -> .348, input .352) with blotch,
+  fine CV, detail and level unchanged. Naive post-RR LEVEL tracking fixed the bright trail (out/in 1.073 -> 1.023)
+  but added blotches (+18..41 %); a robust version is the open question.
+
+=====================================================================================================================
+SUB-AGENT PLAN (rules: shared context section E; start SA1-SA3 in the first 30 minutes)
+=====================================================================================================================
+SA1 "excess-model" (120 min): T1's numpy diagnosis on the captures (per lobe/channel excess vs frames since motion,
+    flick size, region/material, pixel age) and the compact model + its accuracy.
+SA2 "colour-track" (150 min): T2's numpy prototype hardening (edge-aware smoothing, MV reprojection, guards, halo
+    and moving-object checks on 87ee/22f9/2405/ccbc); you re-run the final numbers and write the HLSL.
+SA3 "engine-research" (90 min): what in CP77's path tracer can produce a global brighter/warmer input after fast
+    camera motion (ReSTIR DI/GI temporal reuse, reservoir ages, radiance cache / SHaRC-like caches, denoiser
+    settings exposed by CET/INI); draft the <= 4-capture in-game test plan with reasons. Then extend the step-response
+    table (local box steps, f2ef/06fa, G3 on) with RR Lab.
+Next wave: SA4 "level-track" - T3 (i) robust post-RR level tracking sweep; SA5 "anchor-guards" - T3 (ii) guards on
+the step fixtures and 2405; SA6 "audit" -
+independent audit of the production diff and the OFF golden proof; SA7 - task 24's unfinished blotch items (T5).
+
+=====================================================================================================================
+T1. DIAGNOSE THE GAME'S POST-MOTION EXCESS (first 1-2 h; it decides the design)
+=====================================================================================================================
+On 87ee1fba, 22f9ca14, 2405579e, 06fadf38, 05129a1d (and other flick captures, `rrlab.cmd captures`): per lobe
+(diffuse vs specular) and per channel, the input level after the end of fast motion vs frames since motion ended,
+flick angle/duration, translation; uniform or material/region dependent (sky? emissive? bright vs dark?); does it
+depend on pixel age at all (fsrd-turn-0512-analysis.md says seen-before pixels overshoot MORE). Fit a compact model
+excess(lobe, channel, frames_since_motion, motion_amount) and report its accuracy (it is the fallback when nothing is
+recalled). Also measure how fast the excess decays vs RR's own trail.
+Hypothesis to check (label it): the game's ReSTIR temporal reuse is invalidated globally during fast camera motion
+(RTXDI MaxHistoryLength 20, ReSTIR GI MaxHistoryLength 8, MaxReservoirAge 32 in debug.ini), so spatial-only reuse
+has a different (brighter, warmer) bias until reservoirs refill (another hypothesis: the radiance cache needs
+frames to re-converge for newly visible cells). Write a short in-game test plan for the user (at most 4 settings,
+each with one 128-frame flick capture) in report.md; the user runs it later. NOTE: the user already tried Ultra
+Plus / CET denoiser settings (EnableGradients, history lengths, permutation, boiling filter) against BOILING with no
+help - this plan is only about the post-flick excess, say why each setting could matter.
+Claude's step-response numbers (round 2 F) used whole-frame steps on d6d2 only (hooks claude_cstep.py /
+claude_lstep.py, script tmp/ideas2_f.py). Extend them: local (box) steps, f2ef/06fa, with G3 on; add a chroma option
+to `rrlab.cmd step` (Changelog). These numbers are the "before" for T2/T3.
+
+=====================================================================================================================
+T2. POST-RR COLOUR TRACKING (the pink tail) - do this FIRST: it already closed the whole gap with no side effect
+=====================================================================================================================
+Start from local-only:/FSRD/rrlab/tmp/ideas2_ij.py / ideas2_j2.py (function track(); numpy on cached replays). Label it in
+the report: "post-RR, colour only, very low frequency, target = average of ~10^4 noisy samples (noise-free); it
+restores the colour RR's lag lost, it does not denoise". Make it production-grade:
+- Per lobe or on the composite? Decide with numbers (the bridge composes diffuse + specular after RR; colour lag
+  differs per lobe). Luminance must stay exactly RR's.
+- Edge-aware smoothing (joint bilateral / guided by depth + normal + albedo, or per-material tiles) so colour never
+  bleeds between differently coloured surfaces (check signs, neon, coloured walls next to grey ones; halo test).
+- Reprojection of the EMA with the provider MVs (not camera-only) + depth test; reset on disocclusion; EMA weight
+  .25-.5 (Claude: .5 tracked 87ee exactly). Fireflies: clip before smoothing.
+- Guards: sky / emissive / particles (material id), very dark pixels (colour of noise), NZR-replaced pixels (keep
+  NZR's own colour).
+- Moving coloured objects (2405 NPC, ccbc cars), neon flicker, real colour changes (chroma step fixture: it should
+  now follow in a few frames; no overshoot > 2 %).
+Secondary (only if T2 has a blocker): the input-side closed-loop controller (hooks claude_cloop_*: converged ~25 %
+of the gap; RR's lag caps it).
+
+=====================================================================================================================
+T3. THE BRIGHT TRAIL: ROBUST POST-RR LEVEL TRACKING vs ANCHORED INPUT LEVEL (prototype both, then choose)
+=====================================================================================================================
+Two routes; the user decides in game, so ship the better one (or both, separately switchable):
+ (i) POST-RR LEVEL TRACKING (round 2 J/J2): same structure as T2 but on luminance. Naive J fixed the trail and added
+     blotches (noisy level target). Read Claude's J2 line (robust: firefly clip, sigma 48-64, slower EMA, dead band)
+     and push it: a noise-calibrated dead band (expected EMA noise per tile from the input variance), act only when
+     the RR-vs-target gap is consistent over several frames, cap per frame. It must not add blotch/fine CV (<= 3 %)
+     while cutting the post-flick level excess (87ee f60 out/in 1.07, 22f9 f52 1.12) at least in half. Label it like
+     T2; it is closer to COMMON_RULES' limit (it moves light level) - say so.
+ (ii) ANCHORED INPUT LEVEL (input side) - build on claude_anchor_*.py (copy to hooks/25_*.py). Required improvements:
+- Luminance-only gain (same factor on RGB, noise stays white). Colour is T2's job; never import colour from
+  recalled RR outputs (they carry RR's chroma inertia).
+- Keyframe memory that production can afford: e.g. a ring of 4-8 half-resolution (or 1/4-res) RR output + depth +
+  camera matrices sampled every N frames while settled; per tile choose the most recent valid keyframe. In RR Lab you
+  may keep using the game's recorded raw RR (two-pass approximation) but ALSO try your own replay outputs as the
+  memory (state which).
+- Where nothing is recalled (new view): use the T1 model gain, or the frame-level gain measured on the recalled part.
+- Robustness: real lighting changes must not be "corrected away": compare the recalled vs current ratio per tile with
+  the expected post-motion excess; outliers (e.g. a light switched on, explosions, muzzle flash) keep gain 1. Run the
+  lighting step fixtures (`rrlab.cmd step ... --gain 2/0.5, --box`) and the G3 cases; nothing may get slower.
+- Metrics: ABSOLUTE post-flick level and chroma vs the steady input (warp to the final still frame; never the
+  normalised trail metric alone), blotch/fine CV in the pause windows (postflick_exp.py), detail ratio (relative to
+  level), bench (f2ef/06fa/d6d2 unchanged within 3 %), same-exposure HTML reports for 87ee and 22f9.
+- Combine-check with G2 (motion-adaptive stability) and G3 (V20 hook) on.
+
+=====================================================================================================================
+T4. PRODUCTION (T2 if colour tracks without side effects; a T3 route if the level excess is at least halved)
+=====================================================================================================================
+Separate default-OFF options (each with menu item + INI keys), so the user can judge colour and level apart:
+- "RR colour tracking (experimental)": strength, EMA weight, smoothing radius. Passes: downsampled (1/4 or 1/8 res)
+  input colour stats + EMA buffer reprojected with MVs, edge-aware upsample of the gain, applied to RR's output
+  (per lobe before composition, or on the composite - as T2 decided).
+- "RR level tracking (experimental)" and/or "Post-motion level anchor (experimental)" (T3's winner): same
+  infrastructure; the anchor adds keyframe capture (only while settled), age map and a luminance gain on RR's input
+  before the shared radiance scale.
+GPU budget <= 0.3 ms each at 2560x1440, memory <= 64 MB total at 1440p. Tests: golden OFF, native, menu,
+lifetime/reset, trace contract. DLL with all earlier options intact.
+
+=====================================================================================================================
+T5. IF TIME REMAINS
+=====================================================================================================================
+Post-flick BLOTCHES (shared context C3/D2): continue task 24's T2 list (a transient low input scale, b RR-internal
+short-history spatial strength via PSO swap, c post-RR low-frequency stabiliser for young pixels) from where task 24
+stopped - read its report; do not repeat what it rejected, do not reopen input pre-blur. Re-measure the blotch
+windows WITH your T2/T3 options on: the anchored gain already lowered 22f9 f44-53 blotch p90 by 21-24 %.
+Also, if quick: does RR's chroma inertia also hold the post-turn colour on moving content (06fadf38 white trace)?
+
+DELIVERABLES (local-only:/FSRD/sol_batch/25-postflick-level/): dxgi.dll + SHA256 (all earlier options intact + this one),
+report.md (Turkish summary first: what to try - fast flicks back and forth, looking at walls and storefronts; the
+in-game ReSTIR test plan for the user), kullanici_adimlari.txt, gorseller/ (same exposure, first = overall), RR Lab
+reports, tests, progress.md, branch commits, memory note (author: codex) + index line, RR Lab Changelog. End with the
+final commit hash for task 26.

@@ -1,0 +1,18 @@
+{
+  "executed_at_utc": "2026-10-20T17:54:45.636155+00:00",
+  "platform": "win32",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "command": "python research/astra20261020/run_cpu.py",
+  "exit_code": 0,
+  "seconds": 6.545999999972992,
+  "suites": [
+    "anchor",
+    "colour",
+    "clips",
+    "glass"
+  ],
+  "gpu_executed_for_this_export": false,
+  "linux_status_at_commit": "Pending GitHub Actions; inspect the run on this commit.",
+  "scope": "Portable CPU baseline/fixture calibration, not a new algorithm or game-quality acceptance"
+}

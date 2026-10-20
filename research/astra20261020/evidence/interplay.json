@@ -1,0 +1,3758 @@
+{
+  "schema": "fsrd-task26-evidence-coverage-v1",
+  "generated_at": "2026-10-20T20:28:32+03:00",
+  "author_scope": "Evidence audit; no tests executed by this generator.",
+  "task_source": {
+    "path": "local-only:/FSRD/sol_batch/26_thu_integration.txt",
+    "sha256": "40fc844077dc7df00d3a2a0321675331943ee8f5af77af597de0fcbbd4ecf9d3",
+    "bytes": 8377
+  },
+  "requested_original_capture_ids": [
+    "87ee1fba",
+    "22f9ca14",
+    "2405579e",
+    "ccbc3897",
+    "f2ef375f",
+    "06fadf38",
+    "d6d2a083",
+    "8ab8afe7",
+    "cb550300",
+    "c7294a8e"
+  ],
+  "full_10_capture_all_options_matrix_pass": false,
+  "source_state": {
+    "git_HEAD": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+    "note": "Frozen final commit and file hashes are both recorded; older result pins remain their original historical snapshots.",
+    "release_source_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+    "post_preset_comment_cleanup": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/comment_cleanup.json",
+      "sha256": "ced1d7261148457c463d118018290e529678b1e3d3d8b78ca312e43a98b38290",
+      "bytes": 526
+    },
+    "native_export_manifest": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/scratch/native/native-anchor-final-manifest.json",
+      "sha256": "4455f8ff0407f09ffcf004fa844383ee5cadb7018a038a5eff67cd53e811e1f5",
+      "bytes": 4643
+    },
+    "native_export_vs_current": [
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+        "current_sha256": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+        "native_export_sha256": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h",
+        "current_sha256": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+        "native_export_sha256": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+        "current_sha256": "67aa64d681c4d3090d07193adddbf363033094e0aa94fbd14cbbb951dfe6b15e",
+        "native_export_sha256": "d5c0747cf13872bec721e8e8b7c109612904be48527ef77bf64e4bf1acecc05a",
+        "equals_native_export": false
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp",
+        "current_sha256": "94bcfa59e9707ee78ca7b9325f0ef4078241c81aa0b9a1aeb187e6e7314fc582",
+        "native_export_sha256": "94bcfa59e9707ee78ca7b9325f0ef4078241c81aa0b9a1aeb187e6e7314fc582",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h",
+        "current_sha256": "02b7c90f42d9e76676b4acbb1327dc0cdea5c6168c04e274c01470a3d41daee5",
+        "native_export_sha256": "d9b5de5f9e8609e632fac7ae447cbf1092659941e9ad2f6970b634b826c8453c",
+        "equals_native_export": false
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h",
+        "current_sha256": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+        "native_export_sha256": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/menu/menu_common.cpp",
+        "current_sha256": "9a25ee2c167bcbd2f6797926b0cd98d5915e048709d6fe5ba2bfcb11f3f5b6be",
+        "native_export_sha256": "9a25ee2c167bcbd2f6797926b0cd98d5915e048709d6fe5ba2bfcb11f3f5b6be",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+        "current_sha256": "e1014611999e46836be21b293a5c107f9d50531bde95176236d1ba21d1c99a10",
+        "native_export_sha256": "e1014611999e46836be21b293a5c107f9d50531bde95176236d1ba21d1c99a10",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h",
+        "current_sha256": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce",
+        "native_export_sha256": "7e8d7dcf81f108b9af833cf074c16550b84142deaba85d54d9ded711f6ceb2e1",
+        "equals_native_export": false
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain.hlsl",
+        "current_sha256": "ecf6de6ace3a6c4f9e78c23b549d56d2cd4588e13454be14ba7196f434f0bd46",
+        "native_export_sha256": "ecf6de6ace3a6c4f9e78c23b549d56d2cd4588e13454be14ba7196f434f0bd46",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h",
+        "current_sha256": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c",
+        "native_export_sha256": "969c142df718037a07f0534ef3037e3b1ef843702a2bef6898fce94c16c121e1",
+        "equals_native_export": false
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso",
+        "current_sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "native_export_sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "equals_native_export": true
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso",
+        "current_sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "native_export_sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "equals_native_export": true
+      }
+    ],
+    "other_source_hashes": [
+      {
+        "path": "repository:/OptiScaler/Config.h",
+        "sha256": "ee5579bd7d766777585a0e01b08db92a862853f37b5d29914fe2d6d47311ecb9",
+        "bytes": 45091
+      },
+      {
+        "path": "repository:/OptiScaler/Config.cpp",
+        "sha256": "901d57f53e6249899d05e9d5d7b85ab868f27a4981b6dda534467f28939c52ba",
+        "bytes": 146087
+      },
+      {
+        "path": "repository:/OptiScaler/menu/menu_common.cpp",
+        "sha256": "9a25ee2c167bcbd2f6797926b0cd98d5915e048709d6fe5ba2bfcb11f3f5b6be",
+        "bytes": 468937
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "sha256": "d9e417f530f8d585dc8557314c9d8a5b96e6cb455ff6549f1be1da14c9dc624a",
+        "bytes": 17748
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py",
+        "sha256": "1f5f4545baded9eed61b1c82f461b55383a8a44e5ca49c92ad79836d443cb668",
+        "bytes": 84247
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_native_post_motion_anchor.py",
+        "sha256": "ccbeb75cddfa7ac4397fd9e3ce40f55b7d5d52594688091c3219660088fa1352",
+        "bytes": 7772
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/shader_tools/tests/fsrd_native_post_motion_anchor.cpp",
+        "sha256": "61b1bded7307052ef9efcdaeebbb99d2de91c2b61283bf5dfcdaf5933c896f5e",
+        "bytes": 17891
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp",
+        "sha256": "8c1a6e4deb0bda69826f48b81ac03aeadeb1e95584f8d54ce7b49321df3f35d0",
+        "bytes": 244839
+      },
+      {
+        "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h",
+        "sha256": "54199dc53705363b2f1ce13646da2c8ca9c278655aced4352e222fef6866cd43",
+        "bytes": 16037
+      }
+    ]
+  },
+  "resource_budget_scope": {
+    "current_coordinator_source": {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+      "sha256": "67aa64d681c4d3090d07193adddbf363033094e0aa94fbd14cbbb951dfe6b15e",
+      "bytes": 259889
+    },
+    "positive_anchor_shared_service_family_gates_present": true,
+    "limit": "Within-family graph limit is2GiB; do not describe earlier private-wrapper admission as an across-Service limit. Predicate+wrapper tests are distinct from full Service runtime proof. Allocation counters are not resident VRAM."
+  },
+  "performance_summary": {
+    "artifact": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/performance.json",
+      "sha256": "5bf069698fd60d058ce0c828153fbc24acf113119b724fd32e516132fd508bc4",
+      "bytes": 130373
+    },
+    "claims": {
+      "actual_d3d12_gpu_timestamps": true,
+      "actual_production_shader_bytes": true,
+      "actual_amd_rr_provider": false,
+      "game_frame_time": false,
+      "full_game_plus_1ms_target_proven": false,
+      "glass_added_passes": 0,
+      "glass_added_allocation_bytes": 0,
+      "anchor_is_separate_experiment": true
+    },
+    "scope": "Actual timestamped HybridApply and allocation charges; deterministic mock provider, not full game/actual AMD timing. See GPU_TIMING_ALLOCATION."
+  },
+  "durable_test_index": "local-only:/FSRD/sol_batch/26-integration/tests.json",
+  "recommendation": {
+    "preset": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/onerilen_preset.ini",
+      "sha256": "1410b2848736567adf0675fb719b15829d65fb7e26938349a5de4a769fd26df7",
+      "bytes": 717
+    },
+    "preset_sha256": "1410b2848736567adf0675fb719b15829d65fb7e26938349a5de4a769fd26df7",
+    "anchor": "OFF",
+    "post_flick": "OFF; unavailable on native bridge",
+    "colour_track": "OFF; unavailable on native bridge",
+    "glass": "Blend0.5 as a recorded-policy grain/detail trade-off;0.75 if reflected text becomes too soft",
+    "existing_controls": "Preserve accepted D16/S256 +G2/G3 and the user NZR/history/fallback/diffuseRR settings.",
+    "claim": "Conservative recommendation with bounded component evidence; not a demonstrated all10capture final preset quality PASS."
+  },
+  "option_coverage": {
+    "D16_S256": {
+      "tested": [
+        "PRESET_CPU",
+        "NATIVE_GPU",
+        "ANCHOR_CSO_RR_ROI"
+      ],
+      "limit": "Held as the reference setting in the five real-RR ROI experiments; not a new ten-capture scale factorial."
+    },
+    "G2_motion_stability": {
+      "tested": [
+        "PRESET_CPU",
+        "NATIVE_GPU",
+        "ANCHOR_CSO_RR_ROI"
+      ],
+      "limit": "G2/G3 are enabled together in native seam; real-RR ROI uses the G2 hook, not an independent current G2/G3 factorial."
+    },
+    "G3_lighting_validation": {
+      "tested": [
+        "PRESET_CPU",
+        "NATIVE_GPU"
+      ],
+      "component_test": "final_native2_temporal_control",
+      "limit": "Current source guard fixture is separate from real-AMD quality; captured ROI tests retain recorded V14 B and do not recompute live V20.1 on injected lights."
+    },
+    "NZR_vertical_glass": {
+      "tested": [
+        "PRESET_CPU",
+        "GLASS_POLICY",
+        "PUDDLE_GATE"
+      ],
+      "component_test": "final_native2_nrd_flat_albedo",
+      "limit": "Recorded-output policy in two captures plus CPU gate in three puddle captures; no final full ten-capture image matrix."
+    },
+    "NZR_history_RR_fallback_diffuse_RR_temporal_OFF": {
+      "tested": [
+        "PRESET_CPU"
+      ],
+      "component_test": "final_native2_nrd_flat_albedo",
+      "native_anchor_pair_completed": true,
+      "limit": "Native shader/setting correctness is distinct from real-AMD final composition quality."
+    },
+    "PostFlickFix": {
+      "tested": [
+        "PF_CORRECTNESS",
+        "PRESET_CPU"
+      ],
+      "native_status": "NOT_IMPLEMENTED",
+      "recommended": "OFF"
+    },
+    "ColourTrack": {
+      "tested": [
+        "CT_CORRECTNESS",
+        "CT_SOFT2_RESEARCH",
+        "PRESET_CPU"
+      ],
+      "native_status": "NOT_IMPLEMENTED",
+      "recommended": "OFF"
+    },
+    "PostMotionAnchor": {
+      "tested": [
+        "NATIVE_GPU",
+        "ANCHOR_CSO_RR_ROI",
+        "ANCHOR_LIGHT_STEPS",
+        "PRESET_CPU"
+      ],
+      "recommended": "OFF",
+      "limit": "Original >=50% trail target is not passed; native isolated measurements show roughly40%/37% remaining-excess reduction and attenuate small real-light steps."
+    },
+    "old_turn_colour_and_brightness": {
+      "tested": [
+        "PRESET_CPU"
+      ],
+      "recommended": "OFF",
+      "limit": "Current native old-turn-vs-CT decisive quality row was not run."
+    },
+    "bottle_and_foliage_new_options": {
+      "tested": [
+        "BOTTLE_FOLIAGE"
+      ],
+      "native_status": "NO_NEW_PRODUCTION_OPTION",
+      "recommended": "No new change from rejected research families."
+    }
+  },
+  "evidence": [
+    {
+      "id": "NATIVE_GPU",
+      "class": "actual_native_gpu_mock_provider",
+      "captures": [],
+      "result": {
+        "frames": 240,
+        "checks": 9596644,
+        "debug_errors": 0,
+        "debug_warnings": 0
+      },
+      "cases": [
+        "d16_g2_g3_off",
+        "d16_g2_g3_on",
+        "joint_nzr_glass_off",
+        "joint_nzr_glass_on",
+        "off",
+        "on"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/run.json",
+        "sha256": "60330fc9c5949ceea49955321cb1e12cac30888eaae6dc0e662ae0bbdd9264a1",
+        "bytes": 649
+      },
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/result.json",
+        "sha256": "659ca6453f99fc29bb92762cc68a0dbe8302d17c3feb9d84d1ed614a4dfb5a60",
+        "bytes": 3094
+      },
+      "scope": "Actual RRSettings Configure/RecordOwned/native anchor CSOs/provider-input copies/physical witness/CommitOwned; synthetic 64x64 and DRS96x72; existing mock AMD provider.",
+      "baseline_cases": "Anchor OFF/ON with legacy256, and OFF/ON with D16/S256+G2+G3 enabled together.",
+      "nzr_glass_pair_executed": true,
+      "does_not_prove": [
+        "actual AMD inference quality",
+        "the ten captured game sequences",
+        "real-light discrimination",
+        "final composed display quality"
+      ]
+    },
+    {
+      "id": "ANCHOR_CSO_RR_ROI",
+      "class": "actual_csos_to_actual_amd_rr_roi",
+      "captures": [
+        "87ee1fba",
+        "22f9ca14",
+        "2405579e",
+        "ccbc3897",
+        "d6d2a083"
+      ],
+      "published_frames": {
+        "87ee1fba": 66,
+        "22f9ca14": 64,
+        "2405579e": 222,
+        "ccbc3897": 402,
+        "d6d2a083": 128
+      },
+      "policy": "Native Stats/Gain + original Apply CSOs in adapted source-driven combined fixture; D16/S256 +23_motion_stability.py G2; captures retain recorded V14 motion.B.",
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_metrics.json",
+          "sha256": "e396eb7e0aa31b449d3811545135e662ff2835e687fad824b019ac4b7b64a073",
+          "bytes": 236177
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/verified_checks.json",
+          "sha256": "2c4672b7e5e21d76c329018c6cf2e8b3de5e404fe4beb94712ebef79442ffedf",
+          "bytes": 3613
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/report.md",
+          "sha256": "2ab5715bbcd473cecdcb9fb3779058dea247234c5f2641915d4756a851d2b8f4",
+          "bytes": 8938
+        }
+      ],
+      "gpu_fixture_jobs": 15,
+      "gpu_fixture_frames": 1542,
+      "gpu_fixture_checks": 13968,
+      "extra_identity_checks": 1136,
+      "does_not_prove": [
+        "live native host scheduling/lifetime",
+        "V20.1 G3 recomputed on injected lights",
+        "final native NZR/recovery composition",
+        "history outside ROI",
+        "in-game win"
+      ]
+    },
+    {
+      "id": "ANCHOR_LIGHT_STEPS",
+      "class": "actual_csos_to_actual_amd_rr_roi_known_intervention",
+      "captures": [
+        "87ee1fba"
+      ],
+      "intervention": "Whole physical RGB multiplied at f44 before the actual CSOs; unlooped f44..65 response area.",
+      "response_area_ratio_to_baseline": {
+        "1.1": 0.9336317498444564,
+        "1.25": 0.8997493509075516,
+        "1.4": 0.9787876687546322,
+        "2.0": 1.028203714509583,
+        "0.5": 1.0063405897598325
+      },
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_steps.json",
+          "sha256": "547777cbfd26f53735d4dd162b794d77a99a5b573aa7829a5fcae26a2da1341f",
+          "bytes": 6931
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/report.md",
+          "sha256": "2ab5715bbcd473cecdcb9fb3779058dea247234c5f2641915d4756a851d2b8f4",
+          "bytes": 8938
+        }
+      ],
+      "verdict": "Small real-light response is attenuated; anchor OFF recommended. Whole2x/0.5x alone is an insufficient falsifier.",
+      "not_run": [
+        "local-box light steps in final native+G3+NZR chain",
+        "settling beyond the available22frames",
+        "multiple independent captured noise realizations"
+      ]
+    },
+    {
+      "id": "COMBINED_HOST_GPU",
+      "class": "actual_source_extracted_combined_host_gpu",
+      "captures": [
+        "87ee1fba",
+        "22f9ca14",
+        "2405579e",
+        "ccbc3897",
+        "d6d2a083"
+      ],
+      "frames": 882,
+      "checks": 7968,
+      "debug_errors": 0,
+      "debug_warnings": 0,
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/replay/result.md",
+          "sha256": "9100d229a15c510901f73700952b5a8612ca87a16de1ec1bc4be99830a7794f7",
+          "bytes": 17676
+        }
+      ],
+      "scope": "Corrected actual ComputeState/Ensure/Dispatch + actual combined-anchor CSOs; ROI-cropped projection/rescaled captured motion. No AMD inference inside this fixture.",
+      "does_not_prove": [
+        "native routing",
+        "final native preset interplay",
+        "full-screen quality"
+      ]
+    },
+    {
+      "id": "GLASS_POLICY",
+      "class": "recorded_native_output_policy_cpu",
+      "captures": [
+        "87ee1fba",
+        "22f9ca14"
+      ],
+      "windows": {
+        "87ee1fba_46_63": {
+          "frames": [
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "fixed_common_pixels": 8048
+        },
+        "22f9ca14_23_31": {
+          "frames": [
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31
+          ],
+          "fixed_common_pixels": 9557
+        },
+        "22f9ca14_44_53": {
+          "frames": [
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53
+          ],
+          "fixed_common_pixels": 133
+        }
+      },
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/glass_capture_results.json",
+          "sha256": "60bccf860c0367904cd78f33b3ad65fa30474f2476a97e70649eb2735e6f53c9",
+          "bytes": 4630
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/result.md",
+          "sha256": "a700a7a067eac4368c672a7a4b8c983a434d14292acc5067671e432f900d72db",
+          "bytes": 21993
+        }
+      ],
+      "verdict": "Blend0.5 recommended as grain/detail trade-off; recorded raw/selected policy, not the new DLL output."
+    },
+    {
+      "id": "PUDDLE_GATE",
+      "class": "captured_geometry_cpu_gate",
+      "captures": [
+        "d6d2a083",
+        "8ab8afe7",
+        "cb550300"
+      ],
+      "frames": 301,
+      "gate_overlap": 0,
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/puddle_conservative_eligible.json",
+          "sha256": "46b69110dbc229cc3140f2a047673af1af372ae07f733da0fcc6d7a1959590aa",
+          "bytes": 652
+        }
+      ],
+      "scope": "Original-normal conservative NZR-eligible superset; no horizontal eligible pixel enters glass gate. Not a full preset replay."
+    },
+    {
+      "id": "PF_CORRECTNESS",
+      "class": "actual_combined_shaders_gpu_plus_source_cpu",
+      "captures": [],
+      "gpu_cases": 10,
+      "cpu_lifecycle_checks": 16,
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/gpu_results_fixed.json",
+          "sha256": "fc36d514cb2734ed295129321737076aa0742d76e5fcbcd90005dd3deaa12a18",
+          "bytes": 3295
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/cpu_all16_results.json",
+          "sha256": "61fb4324c8a253349b9e9b0ecc509b02bf817c848542a6aa2e0ef67587e52f1c",
+          "bytes": 2292
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/result.md",
+          "sha256": "a700a7a067eac4368c672a7a4b8c983a434d14292acc5067671e432f900d72db",
+          "bytes": 21993
+        }
+      ],
+      "scope": "Offscreen recall/age, odd extent, active controls, exact glass midpoint, title/reset failure paths. PF remains unavailable in native route."
+    },
+    {
+      "id": "CT_CORRECTNESS",
+      "class": "actual_combined_shaders_gpu_plus_source_cpu",
+      "captures": [
+        "87ee1fba",
+        "22f9ca14"
+      ],
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour/result.md",
+          "sha256": "c5bcf3bc2cc645915de2e24f34c50e4775808b251ee4f2b0f62449a80c489b51",
+          "bytes": 22604
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/run.json",
+          "sha256": "cabc80aed31a162c81488a31616f2f17377b4d6de18297fec8aa3f6cca065025",
+          "bytes": 609
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/artifacts/result.json",
+          "sha256": "16a2bc25b26c41fb7e56327f4cb582838371322643b3e826dc7cfc7203fc8788",
+          "bytes": 1613
+        }
+      ],
+      "final_canonical_shader_fixture_checks": 951,
+      "debug_errors": 0,
+      "debug_warnings": 0,
+      "scope": "Normal FP16 payload, allocation-vs-active UV, title reset, actual composition→target/authority preservation, fixture controls. Captured CPU/one-frame parity is separately scoped.",
+      "does_not_prove": [
+        "native CT hookup",
+        "multi-capture final CT quality",
+        "final game luminance conservation"
+      ]
+    },
+    {
+      "id": "CT_SOFT2_RESEARCH",
+      "class": "research_candidate_csos_gpu_and_cpu_port",
+      "captures": [
+        "87ee1fba",
+        "22f9ca14"
+      ],
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour_gpu/result.json",
+          "sha256": "fdda565c856465f7ba54174473ae8b86b4af217be93289f3c844cf1b43907f52",
+          "bytes": 39464
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour_gpu/captured_rerun.json",
+          "sha256": "10aecde022674d0dc636d9d242402963be2f32267a38b5c3a3d2c7a16d04ac7a",
+          "bytes": 12482
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour/result.md",
+          "sha256": "c5bcf3bc2cc645915de2e24f34c50e4775808b251ee4f2b0f62449a80c489b51",
+          "bytes": 22604
+        }
+      ],
+      "scope": "Research-only candidate CSOs on pre-remod lobe sums; not the shipped tracker or native hookup; no quality acceptance claimed."
+    },
+    {
+      "id": "BOTTLE_FOLIAGE",
+      "class": "transformed_inputs_to_actual_amd_rr_research",
+      "captures": [
+        "2405579e",
+        "87ee1fba",
+        "22f9ca14",
+        "f2ef375f",
+        "d6d2a083"
+      ],
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/bottle_foliage/result.md",
+          "sha256": "113102948a730ca0e33bf6e3164e7214c97a3a08bcc78f7e890617c3a465c9ba",
+          "bytes": 18590
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/sub/bottle_foliage/final_checks.json",
+          "sha256": "0f05117ecc878f3069e42009fbfe3cb52345552795a7a0d42a7bbc3da699ab14",
+          "bytes": 328
+        }
+      ],
+      "scope": "Bottle guide/history/hit/motion diagnostics; foliage spatial/temporal normal candidates and holdouts; source RGB fixed for guide-only arms. No new production option.",
+      "verdict": "No clean bottle/foliage win accepted; initial own-mean foliage CV improvement was withdrawn after fixed-baseline-denominator falsifier."
+    },
+    {
+      "id": "PRESET_CPU",
+      "class": "actual_source_extracted_config_menu_cpu",
+      "captures": [],
+      "result": {
+        "exit_code": 0,
+        "checks": 186,
+        "preset_sha256": "1410b2848736567adf0675fb719b15829d65fb7e26938349a5de4a769fd26df7",
+        "generated_source_sha256": "b4ef36c81cbf58d37ab5d51dda9059852870ad3fa57df123d175db3ad815097b",
+        "executable_sha256": "3912f95b2de45a463ae57d0eb19c6b2d27fc36fe12ec52fadacd97e67912b8e9",
+        "source_still_current_after_compile": true,
+        "targeted_keys": 17,
+        "preserved_config_keys": 42,
+        "default_keys_serialized_as_auto": [
+          "RadianceScaleDiffuse",
+          "RadianceScaleSpecular",
+          "RecoveryFlatAlbedo",
+          "RecoveryFlatVerticalStrength",
+          "NrdBridgeTurnColourFilter",
+          "NrdBridgeTurnBrightness",
+          "PostFlickFix",
+          "ColourTrack",
+          "PostMotionAnchor"
+        ],
+        "earlier_attempt": "First run stopped at an incorrect test assumption that class-default values remain explicit in value_for_config(); actual source deliberately serializes class defaults as auto. Initial failure artifacts are preserved under attempt01-explicit-default-assumption.",
+        "scope": "CPU production Config serializers/readers and actual menu native RR/flat settings; exact preset bytes merged into a synthetic existing user INI; no provider, history, dispatch, image quality or GPU claim"
+      },
+      "source_manifest": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/preset/source-manifest.json",
+        "sha256": "5a714e91bfeabb1ed18c64052481e1a5ab3564fb490c2f8364f5aa4c3f6c2f87",
+        "bytes": 3659
+      },
+      "scope": "Exact717presetbytes,17targetvalues/flags,42unspecifiedConfigkeys+2unknownINIkeys preserved; complete actual native/flat settings save/reload;9defaults canonicalize to auto."
+    },
+    {
+      "id": "OFF_GOLDEN",
+      "class": "actual_native_gpu_deterministic_mock_provider_golden",
+      "captures": [],
+      "base": "adccf08fd",
+      "profiles": 4,
+      "frames": 24,
+      "files": 312,
+      "compared_bytes": 28320861,
+      "mismatches": 0,
+      "scope": "actual D3D12 RR-wrapper transforms/dispatch inputs/controls/title commits and allocation+configure counts; deterministic provider RGB; frozen captured input crop; no quality or installed-game claim",
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/run.json",
+          "sha256": "d51e5c1a42b26395a7e5ec9fe23e1d6927ca5c77387df4aa5ae6feec559615b4",
+          "bytes": 627
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/result.json",
+          "sha256": "680f66b4e00ca54a53f652362ed374804628bb51cb01d980b5158e6159cdc9fd",
+          "bytes": 54628
+        }
+      ],
+      "does_not_prove": [
+        "actual AMD image quality",
+        "byte equality of the whole DLL",
+        "all captured game frames"
+      ]
+    },
+    {
+      "id": "TRACE_CONTRACT",
+      "class": "actual_warp_trace_copy_and_offline_contract_validator",
+      "captures": [],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/run.json",
+        "sha256": "d63cda288e9436d954f2aab52add0eebe3df024587261badce0636feabf71da9",
+        "bytes": 632
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/stdout.log",
+        "sha256": "e6f9a685b9a9ba5e723402b86ee0d5f785404606f764dc5cfb8a1a65574b0d44",
+        "bytes": 9083
+      },
+      "result": {
+        "native_checks": 230,
+        "python_checks": 231,
+        "actual_sdk_dispatches": 0,
+        "gpu_backend": "WARP",
+        "debug_errors": 0,
+        "debug_warnings": 0,
+        "scope": "real_WARP_trace_copy_fence_Map_publication; CPU_RR_output_and_commit_adapter; no_AMD_SDK"
+      },
+      "scope": "Actual recorder WARP copies/fences/Map/publication plus adversarial metadata/payload validators; CPU RR-output/commit adapter; zero actual AMD SDK dispatches.",
+      "does_not_prove": [
+        "real AMD inference",
+        "image quality",
+        "full native option scheduling"
+      ]
+    },
+    {
+      "id": "SHARED_FAMILY",
+      "class": "source_predicate_truth_table_and_actual_wrapper_gpu",
+      "captures": [],
+      "manifest": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/artifacts/family_policy_manifest.json",
+        "sha256": "1f98ec2e7af7e53936743b4713c3fa557a5d38629136b54bf66d64161ae4d8e2",
+        "bytes": 1289
+      },
+      "result": {
+        "checks": 282,
+        "debug_errors": 0,
+        "debug_warnings": 0,
+        "first_domain_graph_bytes": 524288,
+        "scope": "Exact two coordinator predicates plus actual native RRWrapper/anchor allocation and shared budget admission; synthetic accounting pressure, mock provider, no game/AMD quality claim",
+        "second_domain_graph_bytes": 1048576,
+        "third_domain_graph_bytes": 1572864,
+        "passed": true,
+        "coordinator": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+        "coordinator_sha256": "67aa64d681c4d3090d07193adddbf363033094e0aa94fbd14cbbb951dfe6b15e",
+        "extracted_predicates": [
+          "succeeded && ((rrSettings.lobeRecovery &&\n            (rrSettings.recoverySpecular > 0.0f || rrSettings.recoveryDiffuse > 0.0f)) ||\n            (rrSettings.postMotionAnchor && rrSettings.postMotionAnchorStrength > 0.0f))",
+          "prepared && ((stage->settings.lobeRecovery &&\n                (stage->settings.recoverySpecular > 0.0f || stage->settings.recoveryDiffuse > 0.0f)) ||\n                (stage->settings.postMotionAnchor && stage->settings.postMotionAnchorStrength > 0.0f))"
+        ],
+        "generated_header_sha256": "19ad28f8b8e4b96531046334630f9682a65f21bf1db010d4ad784ce272660856",
+        "required_legacy_mutant_failure": true
+      },
+      "scope": "Exact coordinator predicate truth-table plus three actual RRWrappers sharing a family and synthetic counter pressure; full Service coordinator TU is not runtime-executed."
+    },
+    {
+      "id": "GPU_TIMING_ALLOCATION",
+      "class": "actual_native_gpu_timestamps_mock_provider",
+      "captures": [],
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/performance.json",
+          "sha256": "5bf069698fd60d058ce0c828153fbc24acf113119b724fd32e516132fd508bc4",
+          "bytes": 130373
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/performance.md",
+          "sha256": "6bb577327b1a7cc751d133a2da7720260548be8cade13f734592cc1f735235ce",
+          "bytes": 5680
+        }
+      ],
+      "claims": {
+        "actual_d3d12_gpu_timestamps": true,
+        "actual_production_shader_bytes": true,
+        "actual_amd_rr_provider": false,
+        "game_frame_time": false,
+        "full_game_plus_1ms_target_proven": false,
+        "glass_added_passes": 0,
+        "glass_added_allocation_bytes": 0,
+        "anchor_is_separate_experiment": true
+      },
+      "setup": {
+        "resolution_pixels": [
+          [
+            1505,
+            847
+          ],
+          [
+            2560,
+            1440
+          ]
+        ],
+        "debug_layer": false,
+        "warm_frames": 16,
+        "paired_measured_frames": 48,
+        "ordering": "AB/BA alternates each frame; separate swapped context allocation and same-mode control",
+        "gpu_timestamp_scope": "RecordOwned+CommitOwned; CPU preparation, uploads/readbacks and queue/fence waits excluded",
+        "glass_common_settings": "D16/S256, G2/G3 ON, NZR Temporal OFF, ReflectionHistory/RRFallback/DiffuseRR ON, Anchor/PF/colour OFF",
+        "glass_difference": "VerticalMode0 versus mode2 strength0.5; synthetic +Y surface/zero roughness/material1",
+        "provider": "existing deterministic mock provider; opaque actual AMD cost is absent"
+      },
+      "glass_policy_1440p_paired_median_ms": 0.0026400000000000035,
+      "resource_scope": {
+        "auxiliary": "actual GetResourceAllocationInfo-backed family/slot committed allocation accounting",
+        "staging": "existing owned wrapper staging resources; distinct from auxiliary family bytes",
+        "selected_images": "individual actual private resource descriptors and GetResourceAllocationInfo charges",
+        "resident_vram": null,
+        "opaque_amd_provider_memory": null,
+        "complete_game_memory": null,
+        "inactive_context": "active/refresh/inert retain the prepared context; effective OFF release is a separate correctness assertion"
+      },
+      "source_pins": {
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h": "54199dc53705363b2f1ce13646da2c8ca9c278655aced4352e222fef6866cd43",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.h": "b29249666155b6bd671e68d0027f3dcca75a1cffa614357d97df02ad62298b45",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.cso": "00c34308549ebcec4147c32a40c01850017cc2372f61221845c059fae1ccb3a7",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.h": "8177181fb90276fa9f220e3ed85611cd6a2dadcc1350b95f81c937c501dd39a0",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.cso": "7f4d2c6847ac489058425bacead4373add1003380d1e4f334d1efc657b8dbf1b",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatSelectApply_Shader.h": "7d400f2c0de02748c3d111d10b443160840c6bc5f6f3466a229f8403b54bb455",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatSelectApply_Shader.cso": "c307acaaea239422a091234755568173c58da1435785becdf2aabdb17c8b54b7",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply_Shader.h": "b2432241572fd45190f3b9fd18952d131cc9421f9bd3c8d26ad9442c997b35e6",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply_Shader.cso": "7836c01443534f7c8c515ce3df4f1f043a7f63faee057a3fac4aa7c1ae9a4400",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h": "94d7f86952d422f752f1cd5a779b4bdb692b5472597ee881e953201c9b986a6b"
+      },
+      "limitations": [
+        "Synthetic geometry and mock RR; no game quality or actual AMD RR timing.",
+        "No stable full-wrapper incremental policy estimate: large paired differences also occur in sham controls.",
+        "Timestamp observer may perturb scheduling; all compared arms use identical observer.",
+        "Allocation charges are not measured residency; provider opaque resources are absent.",
+        "Anchor timing excludes NZR and is not the recommended preset timing."
+      ],
+      "does_not_prove": [
+        "actual AMD RR time",
+        "game-frame <=+1ms",
+        "resident VRAM",
+        "stable full-wrapper incremental cost"
+      ]
+    },
+    {
+      "id": "SHADER_BYTE_IDENTITY",
+      "class": "cpu_shader_header_cso_contract_and_fresh_compile",
+      "captures": [],
+      "checks": 971,
+      "headers": 107,
+      "fresh_compiles": 11,
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/fresh_shader_proof.json",
+          "sha256": "e3b64c281a7163abbe53fe9e849e0657ded1d9bb85776cd6ae27566aab92dc82",
+          "bytes": 6703
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_shader_proof/run.json",
+          "sha256": "9e25abf473b7ecc6095c0b55e43d568d98f73094d11aeb566314dca315712f74",
+          "bytes": 570
+        }
+      ],
+      "scope": "107 header contracts,11 selected shaders freshly reproduced. Not107 fresh compiles; no quality claim."
+    },
+    {
+      "id": "RELEASE_ARTIFACT",
+      "class": "release_build_pe_source_identity",
+      "captures": [],
+      "source_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+      "build_exit_code": 0,
+      "build_elapsed_seconds": 225.1871844,
+      "dll_bytes": 30942208,
+      "dll_sha256": "5cadb75e840847e5499b4ce67a2cd5b064b69e3cb5e8a64d007cdc432f49d6be",
+      "product_version": "10.0.0-dev (87e8b7ab2) (20261020_201955)",
+      "changed_csos_each_embedded_once": 11,
+      "evidence": [
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/artifact-verified.json",
+          "sha256": "c8b87d1133832d83225ba00f210fb8fe25becf6dde0efcf156cbde3587c4591a",
+          "bytes": 3896
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/build-result.json",
+          "sha256": "3c0233d39faaf751a975aca9600f12abb1eb67a58f53a59505601f29d75f49ea",
+          "bytes": 469
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/build-proof.json",
+          "sha256": "64c05fc8fd09cf2d8870960fb5c408a9bddbfeb0be15c30397c859565a40ff95",
+          "bytes": 358
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/source_manifest.json",
+          "sha256": "384dbe2f298885db131f8ee4406b76c30afcdf040faef9b5052aa44121b042bc",
+          "bytes": 11364
+        },
+        {
+          "path": "local-only:/FSRD/sol_batch/26-integration/reviewed_sources.zip",
+          "sha256": "cd9c4e574fbe044c6614e2876240bfd955c5ce2f98ea4cdcaab9fa3f652b971a",
+          "bytes": 776810
+        }
+      ],
+      "scope": "Build success, frozen source identity and11changed CSOs each embedded once. tests.json separately verifies DLL/copy hashes and source archive bytes; no game installation or quality claim."
+    }
+  ],
+  "capture_coverage": [
+    {
+      "capture": "87ee1fba",
+      "published_frames_verified_in_this_ledger": 66,
+      "available_evidence_ids": [
+        "ANCHOR_CSO_RR_ROI",
+        "ANCHOR_LIGHT_STEPS",
+        "COMBINED_HOST_GPU",
+        "GLASS_POLICY",
+        "CT_CORRECTNESS",
+        "CT_SOFT2_RESEARCH",
+        "BOTTLE_FOLIAGE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source"
+      ],
+      "notes": []
+    },
+    {
+      "capture": "22f9ca14",
+      "published_frames_verified_in_this_ledger": 64,
+      "available_evidence_ids": [
+        "ANCHOR_CSO_RR_ROI",
+        "COMBINED_HOST_GPU",
+        "GLASS_POLICY",
+        "CT_CORRECTNESS",
+        "CT_SOFT2_RESEARCH",
+        "BOTTLE_FOLIAGE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source"
+      ],
+      "notes": []
+    },
+    {
+      "capture": "2405579e",
+      "published_frames_verified_in_this_ledger": 222,
+      "available_evidence_ids": [
+        "ANCHOR_CSO_RR_ROI",
+        "COMBINED_HOST_GPU",
+        "BOTTLE_FOLIAGE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source"
+      ],
+      "notes": [
+        "88..101 anchor metric window lacks joint ROI support; processing frames is not a valid mask-based quality comparison."
+      ]
+    },
+    {
+      "capture": "ccbc3897",
+      "published_frames_verified_in_this_ledger": 402,
+      "available_evidence_ids": [
+        "ANCHOR_CSO_RR_ROI",
+        "COMBINED_HOST_GPU"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source"
+      ],
+      "notes": [
+        "40..63 and178..201 quality windows lack joint ROI support; small driving ROI cannot establish whole-driving safety."
+      ]
+    },
+    {
+      "capture": "f2ef375f",
+      "published_frames_verified_in_this_ledger": null,
+      "available_evidence_ids": [
+        "BOTTLE_FOLIAGE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source",
+        "Native-policy actual-CSO→AMD anchor ROI quality row"
+      ],
+      "notes": []
+    },
+    {
+      "capture": "06fadf38",
+      "published_frames_verified_in_this_ledger": null,
+      "available_evidence_ids": [],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source",
+        "Native-policy actual-CSO→AMD anchor ROI quality row"
+      ],
+      "notes": [
+        "No new Task26 captured-data option-quality artifact identified in the inspected reports; historical baselines do not fill the missing row."
+      ]
+    },
+    {
+      "capture": "d6d2a083",
+      "published_frames_verified_in_this_ledger": 128,
+      "available_evidence_ids": [
+        "ANCHOR_CSO_RR_ROI",
+        "COMBINED_HOST_GPU",
+        "PUDDLE_GATE",
+        "BOTTLE_FOLIAGE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source"
+      ],
+      "notes": [
+        "Glass protection evidence here is an original-geometry CPU gate, not an all-option image-quality replay.",
+        "Native policy input remains256/256lobe-frames byte-identical; tiny fresh-RR output differences are repeat variation, not improvement."
+      ]
+    },
+    {
+      "capture": "8ab8afe7",
+      "published_frames_verified_in_this_ledger": 45,
+      "available_evidence_ids": [
+        "PUDDLE_GATE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source",
+        "Native-policy actual-CSO→AMD anchor ROI quality row"
+      ],
+      "notes": [
+        "Glass protection evidence here is an original-geometry CPU gate, not an all-option image-quality replay."
+      ]
+    },
+    {
+      "capture": "cb550300",
+      "published_frames_verified_in_this_ledger": 128,
+      "available_evidence_ids": [
+        "PUDDLE_GATE"
+      ],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source",
+        "Native-policy actual-CSO→AMD anchor ROI quality row"
+      ],
+      "notes": [
+        "Glass protection evidence here is an original-geometry CPU gate, not an all-option image-quality replay."
+      ]
+    },
+    {
+      "capture": "c7294a8e",
+      "published_frames_verified_in_this_ledger": 6,
+      "available_evidence_ids": [],
+      "final_native_full_quality_matrix": "NOT_RUN",
+      "unrun": [
+        "Final current native AMD RR + G2/G3 + NZR/history + glass preset ON/OFF image-quality row",
+        "Full Task26 cross-option matrix with current source",
+        "Native-policy actual-CSO→AMD anchor ROI quality row"
+      ],
+      "notes": [
+        "Six full-frame records have no selected outputs; no new end-to-end byte-identity or selected-quality claim."
+      ]
+    }
+  ],
+  "unrun_or_unimplemented": [
+    {
+      "case": "All10capture full final-native preset/option quality matrix",
+      "status": "NOT_RUN"
+    },
+    {
+      "case": "PF+CT native ON, pairs with anchor, and all-three native preset",
+      "status": "NOT_IMPLEMENTED_NATIVE",
+      "reason": "PF/CT remain combined-path-only; UI discloses this."
+    },
+    {
+      "case": "Anchor+NZR/history+glass native synthetic seam",
+      "status": "EXECUTED_SYNTHETIC",
+      "reason": "See NATIVE_GPU case names; source edits alone are not an executed result."
+    },
+    {
+      "case": "G2/G3 independent factorial with anchor and NZR across10captures",
+      "status": "NOT_RUN",
+      "reason": "G2/G3 are toggled together in the original native seam fixture."
+    },
+    {
+      "case": "Whole/local2x/0.5x and moderate lights with live V20.1 G3 recomputation+NZR",
+      "status": "NOT_RUN",
+      "reason": "Isolated actual-CSO→AMD whole-light test does not cover this integrated interaction."
+    },
+    {
+      "case": "Old turn-colour vs CT current native decisive quality row",
+      "status": "NOT_RUN",
+      "reason": "Native CT is unavailable; both old turn effects remain OFF."
+    },
+    {
+      "case": "Final DLL in-game judgement and final upscaled/composed display",
+      "status": "NOT_MEASURED"
+    },
+    {
+      "case": "1440p final recommended preset GPU budget and resident VRAM",
+      "status": "NOT_ESTABLISHED_BY_THIS_LEDGER",
+      "reason": "See separately produced final timing/allocation artifact if available; fixture CPU/fence walltimes and ROI timestamps are not this budget."
+    }
+  ],
+  "test_inventory": [
+    {
+      "name": "baseline2_host_lifetimes",
+      "exit_code": 0,
+      "seconds": 5.4811668000184,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_host_lifetimes",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_host_lifetimes.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_host_lifetimes/run.json",
+        "sha256": "d7d9031b67a65f0fd615789c78867893ba27c503a55add597fe99a6f8a3b3c5d",
+        "bytes": 596
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_host_lifetimes/stdout.log",
+        "sha256": "044b16c3307590bafcb20ff82638c058eaa760a6bfdbc7fb1c1094b82f662d0d",
+        "bytes": 376
+      },
+      "pass_lines": [
+        "PASS: production probe retirement, debug-target lifetime, live routing; clean D3D12 validation"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "baseline2_nrd_game_trace_bridge",
+      "exit_code": 0,
+      "seconds": 29.219041600008495,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_nrd_game_trace_bridge",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_game_trace_bridge.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_game_trace_bridge/run.json",
+        "sha256": "b931f376d3e1643367b9aefa5d887737846b475efcefc2ff8b0365f34ddad965",
+        "bytes": 627
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_game_trace_bridge/stdout.log",
+        "sha256": "3a2eaa1705418f537ca8d537df8580dc717e915b875475a298e0d76d0569ce0b",
+        "bytes": 8546
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "structured_stdout_summary": {
+        "native_checks": 194,
+        "python_checks": 208,
+        "actual_sdk_dispatches": 0,
+        "gpu_backend": "WARP",
+        "debug_errors": 0,
+        "debug_warnings": 0,
+        "scope": "real_WARP_trace_copy_fence_Map_publication; CPU_RR_output_and_commit_adapter; no_AMD_SDK"
+      }
+    },
+    {
+      "name": "baseline2_nrd_ini",
+      "exit_code": 0,
+      "seconds": 4.943479399982607,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_nrd_ini",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_ini.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/run.json",
+        "sha256": "8894d7142aeb0158f882ce7d49f367ee30c1ba216fcdf262a48d1b370ff06e61",
+        "bytes": 584
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/stdout.log",
+        "sha256": "f344853a5777de345634861e84e65fb7cb19c2c688a740dcfd3a7910b1a3671d",
+        "bytes": 308
+      },
+      "pass_lines": [
+        "PASS: 52 production NRD INI checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/result.json",
+        "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+        "bytes": 206
+      },
+      "fixture_scope": "actual optional/parser/serializer/menu statements; existing 57-key cleanup tested separately"
+    },
+    {
+      "name": "baseline2_nrd_native_transactions",
+      "exit_code": 0,
+      "seconds": 53.77444540002034,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_nrd_native_transactions",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_native_transactions.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_native_transactions/run.json",
+        "sha256": "fe2ddd14d3a5c5186c2d83f560f442c0145e3c02207359350e534e04e9ce798f",
+        "bytes": 634
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_native_transactions/stdout.log",
+        "sha256": "1b0448212028fccd4d1a03e90c00618a3dfae2b0e012709015e5beeee9c8c16c",
+        "bytes": 22215
+      },
+      "pass_lines": [
+        "PASS native_transactions 2621889",
+        "PASS native_transactions 84",
+        "PASS native_transactions 2752735",
+        "PASS native_transactions 66",
+        "PASS native_transactions 2851054",
+        "PASS native_transactions 72",
+        "PASS native_transactions 127"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "baseline2_postflick_order",
+      "exit_code": 0,
+      "seconds": 13.418520300008822,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_postflick_order",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_order.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_postflick_order/run.json",
+        "sha256": "649e5bb0102d46c303f1d306a3b87646b262169a1d38bd569587362d2c8db39a",
+        "bytes": 617
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_postflick_order/stdout.log",
+        "sha256": "18458246482cd42bad627f53b5bc27a079bd4ce121e6cbc928adab8b03b49a4f",
+        "bytes": 48269
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "baseline2_temporal_control",
+      "exit_code": 0,
+      "seconds": 47.7572049999726,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_temporal_control",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_control.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/run.json",
+        "sha256": "cf059aa05bcac8e682eda3344ca460d77708e9865f80b6eadc2d6f82af6a2a5e",
+        "bytes": 605
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/stdout.log",
+        "sha256": "919ad1c4d01cd4a69ba5e32ac67e637cb26f17aa2712e03358332eb6274f3121",
+        "bytes": 682
+      },
+      "pass_lines": [
+        "PASS guard frames=128 checks=1547 peak_image_bytes=1441792",
+        "PASS cases=1 mismatch_pixels=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/result.json",
+        "sha256": "482482ae479953abc3005117e22e6b2f9143b1f497895585343cb2ea8b1e2bb2",
+        "bytes": 352
+      },
+      "fixture_scope": null
+    },
+    {
+      "name": "baseline2_temporal_off_golden",
+      "exit_code": 0,
+      "seconds": 52.092492600000696,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_temporal_off_golden",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_off_golden.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/run.json",
+        "sha256": "2ba46e8b7a4a897e7aba3190c8ddad3e06cc0853c4a65fe1509978a30457bdda",
+        "bytes": 619
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/stdout.log",
+        "sha256": "f701c8332b4f9f71e34f93b0f7e203f6b261ebfe07f67189c8e2271ec8731bd5",
+        "bytes": 55212
+      },
+      "pass_lines": [
+        "PASS temporal OFF golden checks=504 profiles=4 frames=24 provider=deterministic no_quality_claim=1",
+        "PASS temporal OFF golden checks=504 profiles=4 frames=24 provider=deterministic no_quality_claim=1",
+        "PASS OFF golden byte equivalence"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/result.json",
+        "sha256": "e652ef827cc7351d406f0401f6a5eb5c400bc48e2dd36e6db3bd7b9476254ac0",
+        "bytes": 54620
+      },
+      "fixture_scope": "actual D3D12 RR-wrapper transforms/dispatch inputs/controls/title commits and allocation+configure counts; deterministic provider RGB; frozen captured input crop; no quality or installed-game claim"
+    },
+    {
+      "name": "baseline2_temporal_trace_contract",
+      "exit_code": 0,
+      "seconds": 0.6202208000177052,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline2_temporal_trace_contract",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_trace_contract.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_trace_contract/run.json",
+        "sha256": "8b57d602e2bd9b5e63efe423b05992dffe15b883ee3e0821c2d1fb878a302219",
+        "bytes": 649
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_trace_contract/stdout.log",
+        "sha256": "a44ef8e52bd73a6fd55ea6d7799e104b6aafa9759083aaf3291419a0ada57f63",
+        "bytes": 306
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "import_only_no_executed_checks",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "baseline_anchor",
+      "exit_code": 0,
+      "seconds": 12.16030660000979,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline_anchor",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_post_motion_anchor.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/run.json",
+        "sha256": "e2763316b6970506e23db374e23eb31eae0d87390ba9e1a4de5642f2a5f24860",
+        "bytes": 579
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/stdout.log",
+        "sha256": "02e20225f86f7721c7c9288737ea0a690fa1b1862d5d326ce8ee846cba6d5dff",
+        "bytes": 2301
+      },
+      "pass_lines": [
+        "PASS checks=3160 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/result.json",
+        "sha256": "e6702ceaf53f5849a12a70bcdde7ca032e2ee62f580efe75b141ce1159d26db4",
+        "bytes": 1635
+      },
+      "fixture_scope": "production anchor CSOs (stats/recall, gain, apply) on synthetic frames in the production conventions; no capture, no real RR, no in-game claim",
+      "exe_sha256": "6e7e5152aa1cca314414bb43b6a4423a173516cd17ab25f8b946367d9ce59143"
+    },
+    {
+      "name": "baseline_colour_track",
+      "exit_code": 0,
+      "seconds": 11.001807399996324,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline_colour_track",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_colour_track.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/run.json",
+        "sha256": "82fef678706e969b48ec507b2d1cfd9fe554b03f706c7980b56d14924ffe35ae",
+        "bytes": 588
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/stdout.log",
+        "sha256": "429f0ef0168cee1bb88c3464037b3b0152fbaedb7c849861b55c331e03318a08",
+        "bytes": 2399
+      },
+      "pass_lines": [
+        "PASS checks=276 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/result.json",
+        "sha256": "6fd925cab4699f2ce0fce17fe35ef81b6de087926c8db26e507097f1def36c4b",
+        "bytes": 1607
+      },
+      "fixture_scope": "production colour-track CSOs + production composition CSO vs the base composition CSO (f97d5d040) on synthetic frames in the production conventions; no capture, no real RR, no in-game claim",
+      "exe_sha256": "904531cf0baaf143260bf3bb41415c015c1c1ee32f4b5bcea9d41f08a1e2600b"
+    },
+    {
+      "name": "baseline_nrd_flat_albedo",
+      "exit_code": 0,
+      "seconds": 19.96565619998728,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline_nrd_flat_albedo",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_flat_albedo.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/run.json",
+        "sha256": "28c5a7f6e46d723497b271f7d9e28402bb7c88a7bc6afb3394227894d86a8143",
+        "bytes": 599
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/stdout.log",
+        "sha256": "daf2ff7f45dae691c7fb4d7cb5636ff2854844c282f608dd0ee91a94e115ea48",
+        "bytes": 3659
+      },
+      "pass_lines": [
+        "PASS checks=181001 flat_capture_frames=6 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/result.json",
+        "sha256": "6aa59005a017b87d7b9c7e3c8df94cdb1c8afe05cc35c22a5779dfb41ff92fe8",
+        "bytes": 3429
+      },
+      "fixture_scope": "actual production wrapper mock+signed provider branches; actual existing flat shaders on six known full captured frames with floor2 provider observations; no native NRD output/history; no clean quality truth or long temporal claim",
+      "exe_sha256": "46a7a4c4395e305212dd358331d6b93f0ad9bf0b5cb68ce56f0e9ab51f669bf7"
+    },
+    {
+      "name": "baseline_nrd_menu_settings",
+      "exit_code": 0,
+      "seconds": 8.138649100001203,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "baseline_nrd_menu_settings",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/run.json",
+        "sha256": "ed574c7cdccc91b69a47da0c6db7adb060fbe0e4d1cb63dfd2eed667fcd4433c",
+        "bytes": 621
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/stdout.log",
+        "sha256": "bcdb98ed1ab5a994db32d1b27b65a231495c4a125979a5e3f92aa3fffa5820ee",
+        "bytes": 476
+      },
+      "pass_lines": [
+        "PASS: 490 actual NRD menu/INI/reset checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/result.json",
+        "sha256": "42c9676cf5cc4106b2a0c1b8afcba8c831e99ce05e4dc0994f51a6acd85b24b5",
+        "bytes": 305
+      },
+      "fixture_scope": "actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim"
+    },
+    {
+      "name": "compile_fix1_FSRDColourTrackStats",
+      "exit_code": 0,
+      "seconds": 0.645293200010201,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDColourTrackStats"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackStats/run.json",
+        "sha256": "bee4a2c30add96c5eee4b089abf9c2a9648e1c13ad0ad481c966de8cf2a6547a",
+        "bytes": 499
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackStats/stdout.log",
+        "sha256": "8edb8709ace1d62aed36c29278eaceb8ecee90e676d3bcb89b0ce38ba65b679d",
+        "bytes": 304
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDColourTrackTrack",
+      "exit_code": 0,
+      "seconds": 0.5281768999993801,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDColourTrackTrack"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackTrack/run.json",
+        "sha256": "a6b23937f7cc5c3a479971417e06929e2a57bae5ae3291c4c4020ca3834c15fd",
+        "bytes": 500
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackTrack/stdout.log",
+        "sha256": "70c10b7ee127887fc06e2f2b10429f4a99d5d91a14113615ca1a5164c1dcf22e",
+        "bytes": 305
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDNrdFlatSelectApply",
+      "exit_code": 0,
+      "seconds": 0.31705199999851175,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDNrdFlatSelectApply"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDNrdFlatSelectApply/run.json",
+        "sha256": "cbb9bc9e373e4a13329b884d549ce8440a70d664ef532c2832a7c4333a787510",
+        "bytes": 507
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDNrdFlatSelectApply/stdout.log",
+        "sha256": "4d8cd7b7888c65dad86423bfa2f713e9cd1288ac57dacfc648a34c982622cc9d",
+        "bytes": 308
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDPostFlickApply",
+      "exit_code": 0,
+      "seconds": 0.2432039999985136,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDPostFlickApply"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickApply/run.json",
+        "sha256": "821b4a936420f9caa050646980b424401e6290958a79c9e7a934598203559d86",
+        "bytes": 494
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickApply/stdout.log",
+        "sha256": "b360adfc6328b03c180b1e8717e15a1787023cbfedd71d3e5aa2e54e4bdac451",
+        "bytes": 300
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDPostFlickPrepare",
+      "exit_code": 0,
+      "seconds": 0.37606660000164993,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDPostFlickPrepare"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickPrepare/run.json",
+        "sha256": "d53c705d4f235685efc64183b6db9a62b513aa3f3348bd8bc4ef380f419815a8",
+        "bytes": 501
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickPrepare/stdout.log",
+        "sha256": "0c4c00b85ed7ab743647b68988ba4a3b518cdcb7c4e8a5982e25323cf4998260",
+        "bytes": 305
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDPostMotionAnchorGain",
+      "exit_code": 0,
+      "seconds": 0.4522487999929581,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDPostMotionAnchorGain"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorGain/run.json",
+        "sha256": "46946d9143c731c1982189b9003c28459d8716b0989fb29bc8bda0502663926f",
+        "bytes": 512
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorGain/stdout.log",
+        "sha256": "a849f6f1ec78aa4bb7560b1f85f2f55ebca9f21608b6c895f85912c21f20e130",
+        "bytes": 312
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix1_FSRDPostMotionAnchorStatsRecall",
+      "exit_code": 0,
+      "seconds": 0.48041180000291206,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDPostMotionAnchorStatsRecall"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorStatsRecall/run.json",
+        "sha256": "2f52d8608350ef400d60a7c63a9ab0cf93647f2ff4281f91e1284682c926b8d0",
+        "bytes": 534
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorStatsRecall/stdout.log",
+        "sha256": "cadae0c91073fc568b99eaa0170d4eb90c859928dc9ec4d5d8f5b05d61ac35ee",
+        "bytes": 326
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix2_anchorstats",
+      "exit_code": 0,
+      "seconds": 0.3781950999982655,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDPostMotionAnchorStatsRecall"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix2_anchorstats/run.json",
+        "sha256": "8c0c583ef335480fae6dd399a5058445daf3b85a74e8a44490faf43ceb4366ea",
+        "bytes": 493
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix2_anchorstats/stdout.log",
+        "sha256": "1e1694f62dbab6d0e9d4f823f8c7e2677911ecfcbac45c5c906e946d4770914c",
+        "bytes": 326
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix3_FSRDColourTrackApply",
+      "exit_code": 0,
+      "seconds": 0.2666642999975011,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDColourTrackApply"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDColourTrackApply/run.json",
+        "sha256": "85fbaba64b440ac0eaf33754c88b494122e06e1b0669532a2ad4607b085a76fd",
+        "bytes": 553
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDColourTrackApply/stdout.log",
+        "sha256": "4ab7d230ed49a3919c240a1f9a6c2b0c1b07c49531cf3fd5e44ef00822972e47",
+        "bytes": 314
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "compile_fix3_FSRDOutputComp",
+      "exit_code": 0,
+      "seconds": 0.5345786999969278,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+        "--compile-only",
+        "FSRDOutputComp"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDOutputComp/run.json",
+        "sha256": "f84268226ac6c37b6f1f681a61a5f9bba2437f9e8e60922c0ddd8d3ba36f14d1",
+        "bytes": 535
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDOutputComp/stdout.log",
+        "sha256": "5a2032814acb054d4c7ba457d52c3b30d1bb435eed33d7b4cee0d3f14ea5da75",
+        "bytes": 303
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "corrected3_colour_track",
+      "exit_code": 0,
+      "seconds": 16.662262899975758,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected3_colour_track",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_colour_track.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/run.json",
+        "sha256": "5fc9bb9ca5b7d5c0583dc47695747ac389a85148f54f8da42546586ac0d0cdb2",
+        "bytes": 594
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/stdout.log",
+        "sha256": "3fd97c7bf27e370819aec9c709c1505df86a0baccda826a0e11f6f70198ca585",
+        "bytes": 2549
+      },
+      "pass_lines": [
+        "PASS checks=951 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/result.json",
+        "sha256": "7b83b46443cb12d02d639635d15fecd78c6bfe4a2a71893beb5e73e8e54b9408",
+        "bytes": 1614
+      },
+      "fixture_scope": "production colour-track CSOs + production composition CSO vs the base composition CSO (f97d5d040) on synthetic frames in the production conventions; no capture, no real RR, no in-game claim",
+      "exe_sha256": "f5453dc56a65300e472083e368b92a00fb39fafd57bf65bb3c80d5b9c11a584c"
+    },
+    {
+      "name": "corrected3_postflick_adversarial",
+      "exit_code": 0,
+      "seconds": 8.865147000004072,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected3_postflick_adversarial",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_adversarial.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_adversarial/run.json",
+        "sha256": "7daafa2737de71bae0644af3297d66d4ac68af6d79413f890ccbe632b5e1e419",
+        "bytes": 629
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_adversarial/stdout.log",
+        "sha256": "ad36fec408da801f5473761dd0fc1954ca0a3e3c69e25ad9260e9b063085e090",
+        "bytes": 2520
+      },
+      "pass_lines": [
+        "PASS 10 / 10 failed= []"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "corrected3_postflick_order",
+      "exit_code": 0,
+      "seconds": 12.898790100007318,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected3_postflick_order",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_order.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_order/run.json",
+        "sha256": "822355796b5115a7622e31fcf129f479b51635b3bb06a03093de24fda9c234ca",
+        "bytes": 620
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_order/stdout.log",
+        "sha256": "311290237bbce65e90568ce014d84b7b6195599a3e96321cceb9bd333a3b0458",
+        "bytes": 48270
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "corrected3_postflick_title_history",
+      "exit_code": 0,
+      "seconds": 7.378032300010091,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected3_postflick_title_history",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_postflick_title_history.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_title_history/run.json",
+        "sha256": "73efcb20c10634fce892a154c283588b9c15f25f576c46dc6b7434a4cd221ca0",
+        "bytes": 637
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_title_history/stdout.log",
+        "sha256": "7d49f7150da42b3dd3ce4921e14e306a240913e5c033d7ef06cdfe3e46780c28",
+        "bytes": 2257
+      },
+      "pass_lines": [
+        "PASS old FAIL / fixed PASS with production method extraction"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "corrected4_nrd_ini",
+      "exit_code": 0,
+      "seconds": 5.56180029999814,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected4_nrd_ini",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_ini.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/run.json",
+        "sha256": "445c689b911cc9540b23106f7f08c210f4d170364697b46f935378094039bacc",
+        "bytes": 586
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/stdout.log",
+        "sha256": "c12f07653db1a25c061db384f4fda57aafdd7cc278820f7b3e97479366af0575",
+        "bytes": 309
+      },
+      "pass_lines": [
+        "PASS: 52 production NRD INI checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/result.json",
+        "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+        "bytes": 206
+      },
+      "fixture_scope": "actual optional/parser/serializer/menu statements; existing 57-key cleanup tested separately"
+    },
+    {
+      "name": "corrected4_nrd_menu_settings",
+      "exit_code": 0,
+      "seconds": 11.038231099984841,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "corrected4_nrd_menu_settings",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/run.json",
+        "sha256": "39b09ab45f47ad404398eccd7108c18a454ddf09d7787094894f5c036fcec67a",
+        "bytes": 628
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/stdout.log",
+        "sha256": "fccfda63c8753b47a267a9887a9cd9238968e3835afe6c878e2111e714432295",
+        "bytes": 488
+      },
+      "pass_lines": [
+        "PASS: 538 actual NRD menu/INI/reset checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/result.json",
+        "sha256": "a28da79b5ec0ea620ca20df048db80d6bcd845e5c60c6eeccac4c3b1a3fd74b5",
+        "bytes": 305
+      },
+      "fixture_scope": "actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim"
+    },
+    {
+      "name": "final_canonical_colour_track",
+      "exit_code": 0,
+      "seconds": 11.478479599987622,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_canonical_colour_track",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_colour_track.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/run.json",
+        "sha256": "cabc80aed31a162c81488a31616f2f17377b4d6de18297fec8aa3f6cca065025",
+        "bytes": 609
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/stdout.log",
+        "sha256": "b03121f29f5e1c1f7b6ea6b1e7a1cc2efb02e31f0a41eefb5f07ccb6e57f473e",
+        "bytes": 2557
+      },
+      "pass_lines": [
+        "PASS checks=951 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/result.json",
+        "sha256": "16a2bc25b26c41fb7e56327f4cb582838371322643b3e826dc7cfc7203fc8788",
+        "bytes": 1613
+      },
+      "fixture_scope": "production colour-track CSOs + production composition CSO vs the base composition CSO (f97d5d040) on synthetic frames in the production conventions; no capture, no real RR, no in-game claim",
+      "exe_sha256": "87c44cfc06c47d3d404cf83e4da83382feef0d3d72790c65fa68eb1068e00cd3"
+    },
+    {
+      "name": "final_canonical_shader_proof",
+      "exit_code": 0,
+      "seconds": 2.5375460000068415,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_canonical_shader_proof",
+        "--cpu",
+        "--script",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/fresh_final_shaders.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_shader_proof/run.json",
+        "sha256": "9e25abf473b7ecc6095c0b55e43d568d98f73094d11aeb566314dca315712f74",
+        "bytes": 570
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_shader_proof/stdout.log",
+        "sha256": "1c1887a031087c60ca47696d5ef482869719f4c72643aa9ff086c2913768589e",
+        "bytes": 315
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "structured_stdout_summary": {
+        "checks": 971
+      }
+    },
+    {
+      "name": "final_family_nrd_anchor_shared_family",
+      "exit_code": 0,
+      "seconds": 18.965145800000755,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_family_nrd_anchor_shared_family",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_anchor_shared_family.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/run.json",
+        "sha256": "92795fd6f616a065c7724e8a2d5c032f5feea89c49fb103a58bbd373f919ccd8",
+        "bytes": 648
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/stdout.log",
+        "sha256": "3444fe227dfdb7449b3816274148fbdd1312d44d0df96d438c91e957ca5328ef",
+        "bytes": 1898
+      },
+      "pass_lines": [
+        "PASS native_anchor_shared_family checks=282 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "final_family_nrd_native_transactions",
+      "exit_code": 0,
+      "seconds": 36.58184870000696,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_family_nrd_native_transactions",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_native_transactions.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_native_transactions/run.json",
+        "sha256": "d6e1af3334de45120ceaeb61aa5e74d8af286ba862535b3c19bdbfd20c79ee5b",
+        "bytes": 643
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_native_transactions/stdout.log",
+        "sha256": "249a214ade924b49f6930b700dbbbc6aab9abcbfae2eba9f90dd22f5ca564e2a",
+        "bytes": 22239
+      },
+      "pass_lines": [
+        "PASS native_transactions 2621889",
+        "PASS native_transactions 84",
+        "PASS native_transactions 2752735",
+        "PASS native_transactions 66",
+        "PASS native_transactions 2851054",
+        "PASS native_transactions 72",
+        "PASS native_transactions 127"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "final_fresh_shaders",
+      "exit_code": 1,
+      "seconds": 2.0583351999812294,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/fresh_final_shaders.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_fresh_shaders/run.json",
+        "sha256": "8c5face9e2df950cdfa6215c1fe2ddf15d4b4aa49449542aafbbebf7506121ba",
+        "bytes": 379
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_fresh_shaders/stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "failed_process_with_partial_output"
+    },
+    {
+      "name": "final_joint_native_post_motion_anchor",
+      "exit_code": 0,
+      "seconds": 26.344954900006996,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_joint_native_post_motion_anchor",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_native_post_motion_anchor.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/run.json",
+        "sha256": "60330fc9c5949ceea49955321cb1e12cac30888eaae6dc0e662ae0bbdd9264a1",
+        "bytes": 649
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/stdout.log",
+        "sha256": "48050df61bbec8fe3d40e38437a97c1e52361fbb7eda9cf27119e91239e9fa3e",
+        "bytes": 9218
+      },
+      "pass_lines": [
+        "PASS native_post_motion_anchor frames=240 checks=9596644 debug_errors=0 debug_warnings=0",
+        "PASS power check: native-option-OFF mutant fails the real provider-input correction invariant"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/result.json",
+        "sha256": "659ca6453f99fc29bb92762cc68a0dbe8302d17c3feb9d84d1ed614a4dfb5a60",
+        "bytes": 3094
+      },
+      "fixture_scope": "Actual native RRSettings Configure/RecordOwned/anchor GPU passes/provider-input resource/physical trace/CommitOwned with mock provider; legacy256, D16/S256+G2/G3, and user NZR+Glass Blend joint pair; INI/menu mapping and actual AMD quality are separate checks",
+      "source_hashes": {
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h": "54199dc53705363b2f1ce13646da2c8ca9c278655aced4352e222fef6866cd43",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.h": "b29249666155b6bd671e68d0027f3dcca75a1cffa614357d97df02ad62298b45",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.cso": "00c34308549ebcec4147c32a40c01850017cc2372f61221845c059fae1ccb3a7",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.h": "8177181fb90276fa9f220e3ed85611cd6a2dadcc1350b95f81c937c501dd39a0",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.cso": "7f4d2c6847ac489058425bacead4373add1003380d1e4f334d1efc657b8dbf1b"
+      },
+      "exe_sha256": "2b8eaaa0dc5064a6d2c473c3903a09a49ec799f5801b702fafd573dc5118cab1",
+      "fixture_sha256": "a39adde5f018727f0aac884c9d9b45a598c52c44d0754045b03b8cdf49ca40a5"
+    },
+    {
+      "name": "final_joint_nrd_game_trace_bridge",
+      "exit_code": 0,
+      "seconds": 18.96077120001428,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_joint_nrd_game_trace_bridge",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_game_trace_bridge.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/run.json",
+        "sha256": "d63cda288e9436d954f2aab52add0eebe3df024587261badce0636feabf71da9",
+        "bytes": 632
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/stdout.log",
+        "sha256": "e6f9a685b9a9ba5e723402b86ee0d5f785404606f764dc5cfb8a1a65574b0d44",
+        "bytes": 9083
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "structured_stdout_summary": {
+        "native_checks": 230,
+        "python_checks": 231,
+        "actual_sdk_dispatches": 0,
+        "gpu_backend": "WARP",
+        "debug_errors": 0,
+        "debug_warnings": 0,
+        "scope": "real_WARP_trace_copy_fence_Map_publication; CPU_RR_output_and_commit_adapter; no_AMD_SDK"
+      }
+    },
+    {
+      "name": "final_native2_host_lifetimes",
+      "exit_code": 0,
+      "seconds": 5.7650033999816515,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_host_lifetimes",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_host_lifetimes.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_host_lifetimes/run.json",
+        "sha256": "c027f018d1cc29d76eb0218f5d677fe91c454299386119b26b83816219693f74",
+        "bytes": 611
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_host_lifetimes/stdout.log",
+        "sha256": "a3792cadef588a373e23400c58c77a6d301058df1bcb5ad859e2e872a244bba6",
+        "bytes": 380
+      },
+      "pass_lines": [
+        "PASS: production probe retirement, debug-target lifetime, live routing; clean D3D12 validation"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "final_native2_nrd_bridge_rr",
+      "exit_code": 0,
+      "seconds": 10.019664999999804,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_bridge_rr",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_bridge_rr.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_bridge_rr/run.json",
+        "sha256": "449960f6cac8941c1d9ae51bc8d8de6fd3a7f27b7cf3fb60524bdbcb40c8a346",
+        "bytes": 607
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_bridge_rr/stdout.log",
+        "sha256": "636875193d1fae7ff1ccd5e557eb35769460ebcf25b5f27bcf3f722c6c7ac93d",
+        "bytes": 763
+      },
+      "pass_lines": [
+        "PASS checks=209 camera"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "final_native2_nrd_flat_albedo",
+      "exit_code": 0,
+      "seconds": 19.988433099992108,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_flat_albedo",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_flat_albedo.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/run.json",
+        "sha256": "c65e8d114465159f53ed1591110f763072fdc56677af7a014b8a90a44362683a",
+        "bytes": 615
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/stdout.log",
+        "sha256": "4594f7570431f7af50e4226c8b149b9dc9f3439c5909069dfc47ae8ecccf3b09",
+        "bytes": 3671
+      },
+      "pass_lines": [
+        "PASS checks=181001 flat_capture_frames=6 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/result.json",
+        "sha256": "760ce408a8b544cab596862944e8f995080550725f56c92ac3e6bc22a7ef83b7",
+        "bytes": 3430
+      },
+      "fixture_scope": "actual production wrapper mock+signed provider branches; actual existing flat shaders on six known full captured frames with floor2 provider observations; no native NRD output/history; no clean quality truth or long temporal claim",
+      "exe_sha256": "42d04b0cd04621010d2304b382f1984cd072c7f62f8fd75c6731c195330e2764"
+    },
+    {
+      "name": "final_native2_nrd_ini",
+      "exit_code": 0,
+      "seconds": 4.522131999983685,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_ini",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_ini.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/run.json",
+        "sha256": "2768a56aadc7ddfef43ef0f000a134abe9eff66bdcff53009470071cfa0289dc",
+        "bytes": 596
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/stdout.log",
+        "sha256": "3496ec0b16ce140771674c870d03967368bfaa9a940d4abf71c478523114f0c7",
+        "bytes": 312
+      },
+      "pass_lines": [
+        "PASS: 52 production NRD INI checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/result.json",
+        "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+        "bytes": 206
+      },
+      "fixture_scope": "actual optional/parser/serializer/menu statements; existing 57-key cleanup tested separately"
+    },
+    {
+      "name": "final_native2_nrd_menu_settings",
+      "exit_code": 0,
+      "seconds": 18.173303400020814,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_menu_settings",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/run.json",
+        "sha256": "99cb61e6db510d43bfc6c2cd4bcd149f9dde191e6d16dc63184675a4e9b8b557",
+        "bytes": 637
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/stdout.log",
+        "sha256": "523c660078a3f7f2b4e38fcadbdd7b97c973653392c26d428989e000fff1692a",
+        "bytes": 491
+      },
+      "pass_lines": [
+        "PASS: 560 actual NRD menu/INI/reset checks"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/result.json",
+        "sha256": "e656afab04a9969e7ac7cea819b0bb77ad7f469c398fa84a5716bb484288a940",
+        "bytes": 305
+      },
+      "fixture_scope": "actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim"
+    },
+    {
+      "name": "final_native2_nrd_owned_output_native",
+      "exit_code": 0,
+      "seconds": 13.783245200000238,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_owned_output_native",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_owned_output_native.py",
+        "--",
+        "--mode",
+        "both"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_owned_output_native/run.json",
+        "sha256": "7d69f5e1c4a2430d201cecd09b7737dbab47792e671c7c54fb38d34226d37aa8",
+        "bytes": 686
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_owned_output_native/stdout.log",
+        "sha256": "6190e63bd6163750395b2703f9f1f8ac6b2aa8c9df8d62e888872457d2805493",
+        "bytes": 8777
+      },
+      "pass_lines": [
+        "PASS source_checks=78",
+        "PASS owned_checks=949 mode=--mock creates=12 destroys=12 dispatches=29 debug_errors=0 debug_warnings=0",
+        "PASS owned_checks=912 mode=--real creates=11 destroys=11 dispatches=28 debug_errors=0 debug_warnings=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "final_native2_nrd_trace_replay_contract",
+      "exit_code": 0,
+      "seconds": 0.125230300007388,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_nrd_trace_replay_contract",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_trace_replay_contract.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_trace_replay_contract/run.json",
+        "sha256": "9b4e1335ddafcc7b76392e537cfa072e252ea6684d3b303a3b97a8f0233a48d6",
+        "bytes": 668
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_trace_replay_contract/stdout.log",
+        "sha256": "be09e4bb5c273625a78ad23b1644daa7e1fb6a5764cf62e20295b0007dfe49a7",
+        "bytes": 315
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "import_only_no_executed_checks",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "final_native2_temporal_control",
+      "exit_code": 0,
+      "seconds": 19.221776099991985,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_temporal_control",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_control.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/run.json",
+        "sha256": "2ea3cc44d4176c40c3786471bda4a3bb67048fd97173875a72d1db1080bf706f",
+        "bytes": 619
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/stdout.log",
+        "sha256": "534276dd31ae1b9b801656b293bd1c78b0bd9629a305bbe689f67072bcdd3673",
+        "bytes": 686
+      },
+      "pass_lines": [
+        "PASS guard frames=128 checks=1547 peak_image_bytes=1441792",
+        "PASS cases=1 mismatch_pixels=0"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/result.json",
+        "sha256": "95a1d4841a90e833374a4b5a6da3affbf0462799764f14153e286a3ff1ece1e9",
+        "bytes": 352
+      },
+      "fixture_scope": null
+    },
+    {
+      "name": "final_native2_temporal_trace_contract",
+      "exit_code": 0,
+      "seconds": 0.11530109998420812,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native2_temporal_trace_contract",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_trace_contract.py",
+        "--cpu"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_trace_contract/run.json",
+        "sha256": "a4f10d5a7e461a23d4e73d67ee839edf0cd12cd1124c7a08264c58aca689f102",
+        "bytes": 662
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_trace_contract/stdout.log",
+        "sha256": "17e89196244d1427fe045f054014c157cd43ab9dc1ce79250e53a466c383670a",
+        "bytes": 309
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "import_only_no_executed_checks",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "final_native_native_post_motion_anchor",
+      "exit_code": 0,
+      "seconds": 19.5153078000003,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native_native_post_motion_anchor",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_native_post_motion_anchor.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/run.json",
+        "sha256": "e763486524a35e890ec673939b263e8411d89046d2310e919b64b5eec6c404bd",
+        "bytes": 650
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/stdout.log",
+        "sha256": "5037b4dd399fd5c3e18452efa296332e1859cc642832c0c2b0511d626cba4728",
+        "bytes": 6359
+      },
+      "pass_lines": [
+        "PASS native_post_motion_anchor frames=160 checks=6397658 debug_errors=0 debug_warnings=0",
+        "PASS power check: native-option-OFF mutant fails the real provider-input correction invariant"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/result.json",
+        "sha256": "28c07286b7fb7beb25ba9057fad00d3795c7faef8644a9dddeca963f75abe979",
+        "bytes": 3060
+      },
+      "fixture_scope": "Actual native RRSettings Configure/RecordOwned/anchor GPU passes/provider-input resource/physical trace/CommitOwned with mock provider; legacy256 and D16/S256+G2/G3; INI/menu mapping and actual AMD quality are separate checks",
+      "source_hashes": {
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h": "d5be7b11ec74d3291e75fab93f1d96fa95940d70ecac720bb079324919914081",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h": "7e8d7dcf81f108b9af833cf074c16550b84142deaba85d54d9ded711f6ceb2e1",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h": "969c142df718037a07f0534ef3037e3b1ef843702a2bef6898fce94c16c121e1",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.h": "b29249666155b6bd671e68d0027f3dcca75a1cffa614357d97df02ad62298b45",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply_Shader.cso": "00c34308549ebcec4147c32a40c01850017cc2372f61221845c059fae1ccb3a7",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.h": "8177181fb90276fa9f220e3ed85611cd6a2dadcc1350b95f81c937c501dd39a0",
+        "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdBridgePureCommit_Shader.cso": "7f4d2c6847ac489058425bacead4373add1003380d1e4f334d1efc657b8dbf1b"
+      },
+      "exe_sha256": "6e652f6f7847cd88acd0ebdb5aa1890ad1700e72700a3cadccd5ab3dfbb2df03",
+      "fixture_sha256": "a39adde5f018727f0aac884c9d9b45a598c52c44d0754045b03b8cdf49ca40a5"
+    },
+    {
+      "name": "final_native_nrd_native_transactions",
+      "exit_code": 0,
+      "seconds": 35.67224479999277,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native_nrd_native_transactions",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_native_transactions.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_native_transactions/run.json",
+        "sha256": "4d2c91b480fe1fef2f803291abd35e6ffed3d551c77b65c6298d3db5808885ee",
+        "bytes": 643
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_native_transactions/stdout.log",
+        "sha256": "69a7df4176a2b20ae3168f6e8669bab8e6064f0df16c49c2beb6e390c3266dc6",
+        "bytes": 22238
+      },
+      "pass_lines": [
+        "PASS native_transactions 2621889",
+        "PASS native_transactions 84",
+        "PASS native_transactions 2752735",
+        "PASS native_transactions 66",
+        "PASS native_transactions 2851054",
+        "PASS native_transactions 72",
+        "PASS native_transactions 127"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    },
+    {
+      "name": "final_native_nrd_owned_output_native",
+      "exit_code": 2,
+      "seconds": 0.25593760001356713,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native_nrd_owned_output_native",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_owned_output_native.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_owned_output_native/run.json",
+        "sha256": "37c8ad46f230c312b95a2b2116df0d24f52e5ef2658fb63892da0f86a59317b0",
+        "bytes": 645
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_owned_output_native/stdout.log",
+        "sha256": "4b45bd50238fdb8189d77ff3aafe55ea7e3dc4865360456c1174898f552b3ef0",
+        "bytes": 303
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "failed_process_with_partial_output",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "final_native_temporal_off_golden",
+      "exit_code": 0,
+      "seconds": 62.94098860002123,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_native_temporal_off_golden",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_temporal_off_golden.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/run.json",
+        "sha256": "d51e5c1a42b26395a7e5ec9fe23e1d6927ca5c77387df4aa5ae6feec559615b4",
+        "bytes": 627
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/stdout.log",
+        "sha256": "a084bacc335a1d6c52e26778a08a6c25aa02faea08bb7ddc89ec18b88378fca7",
+        "bytes": 55223
+      },
+      "pass_lines": [
+        "PASS temporal OFF golden checks=504 profiles=4 frames=24 provider=deterministic no_quality_claim=1",
+        "PASS temporal OFF golden checks=504 profiles=4 frames=24 provider=deterministic no_quality_claim=1",
+        "PASS OFF golden byte equivalence"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence",
+      "fixture_result": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/result.json",
+        "sha256": "680f66b4e00ca54a53f652362ed374804628bb51cb01d980b5158e6159cdc9fd",
+        "bytes": 54628
+      },
+      "fixture_scope": "actual D3D12 RR-wrapper transforms/dispatch inputs/controls/title commits and allocation+configure counts; deterministic provider RGB; frozen captured input crop; no quality or installed-game claim"
+    },
+    {
+      "name": "final_trace_nrd_game_trace_bridge",
+      "exit_code": 1,
+      "seconds": 16.419555400003446,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/lead_ops/run_task_test.py",
+        "--task",
+        "26-integration",
+        "--name",
+        "final_trace_nrd_game_trace_bridge",
+        "--script",
+        "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_game_trace_bridge.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_trace_nrd_game_trace_bridge/run.json",
+        "sha256": "6286e1acf3b175078e091103ca0c13007cf6b8695a9418f557c1d0d9c20999cc",
+        "bytes": 633
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_trace_nrd_game_trace_bridge/stdout.log",
+        "sha256": "3be7492cbb53ba401550e84ad1cb972e51001fc849ec68e93fe098f3fd6ce0da",
+        "bytes": 297
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "failed_process_with_partial_output",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "lead_anchor_header",
+      "exit_code": 0,
+      "seconds": 6.332626100018388,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/anchor/run_host_regression_current.py"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_anchor_header/run.json",
+        "sha256": "ad5385c5c016bce2025cbacd678121cc38a746498149f6750d502c3886362395",
+        "bytes": 391
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_anchor_header/stdout.log",
+        "sha256": "4edf0e93d25cf3df3f35a1e4fe25e03895b6b37a8ecda238cfd8ff5b440a595a",
+        "bytes": 855
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero"
+    },
+    {
+      "name": "lead_colour_fixed",
+      "exit_code": 0,
+      "seconds": 1.9045987999998033,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "-B",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/colour/gpu_falsify.py",
+        "--assert-fixed"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_fixed/run.json",
+        "sha256": "a8ea79bb1ee2864803a1e734567a82882918fb584522fce6c5e4f74c07164258",
+        "bytes": 422
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_fixed/stdout.log",
+        "sha256": "fb2c8e4438b59b894029133adf3bd55c85073f376a7ccd12edc9dbf0709feb62",
+        "bytes": 3777
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "see_fixture_result_not_counted_from_exit_zero",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "lead_colour_old_expected_fail",
+      "exit_code": 1,
+      "seconds": 2.0198261000041384,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "-B",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/colour/gpu_falsify.py",
+        "--assert-fixed"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_old_expected_fail/run.json",
+        "sha256": "5f526931cdfc858209a100ab1538cb6e97e9245577d0b98d458e170de7ef7bb9",
+        "bytes": 446
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_old_expected_fail/stdout.log",
+        "sha256": "a3fde45f1322b55c5485e58b19f2e1314723114c7024383674aae8c951f0c552",
+        "bytes": 3802
+      },
+      "pass_lines": [],
+      "executed_checks_evidence": false,
+      "status": "failed_process_with_partial_output",
+      "structured_stdout_summary": {}
+    },
+    {
+      "name": "lead_pf_fixed",
+      "exit_code": 0,
+      "seconds": 4.398295599996345,
+      "command": [
+        "local-only:/user-runtime/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+        "-B",
+        "local-only:/FSRD/sol_batch/26-integration/scratch/audit24/gpu_adversarial.py",
+        "--tag",
+        "lead-fixed",
+        "--expect",
+        "fixed"
+      ],
+      "run": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_pf_fixed/run.json",
+        "sha256": "e9d31d46c6c96294eaa39b5d3b24c54c284a1eb12cd81589ed6931b9c6848376",
+        "bytes": 459
+      },
+      "stdout": {
+        "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_pf_fixed/stdout.log",
+        "sha256": "f1df0d8fe85a24a8c0851de185bc3f2131f221d847d0bbf30a01eeffe08afc4a",
+        "bytes": 2226
+      },
+      "pass_lines": [
+        "PASS 10 / 10 failed= []"
+      ],
+      "executed_checks_evidence": true,
+      "status": "execution_evidence"
+    }
+  ],
+  "contract_count_warning": "A zero-exit import of temporal_trace_contract/nrd_trace_replay_contract executes zero checks; only actual caller fixture execution can prove those contracts.",
+  "real_mode_warning": "The post-motion-anchor --real fixture uses real D3D12 with its documented mock provider. Owned-output --mode real separately loads its pinned signed AMD provider. Keep these fixture scopes distinct; none establishes full game quality.",
+  "historical_claim_warning": "Old task24/25 prototype numbers, cached whole-word96%identity, author labels, isolated luma invariance and old field-only VRAM are not final native quality evidence.",
+  "documents": {
+    "audit24": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/result.md",
+      "sha256": "a700a7a067eac4368c672a7a4b8c983a434d14292acc5067671e432f900d72db",
+      "bytes": 21993
+    },
+    "colour": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour/result.md",
+      "sha256": "c5bcf3bc2cc645915de2e24f34c50e4775808b251ee4f2b0f62449a80c489b51",
+      "bytes": 22604
+    },
+    "anchor": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor/result.md",
+      "sha256": "76dd006ec399b9c376293318a0b7abf33ad4768f42364d60a01b42ce7659366e",
+      "bytes": 33674
+    },
+    "native": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/native/result.md",
+      "sha256": "57b6edc632c804036f4879f7a553c166199b326d783b135745527dd1dd90e9b7",
+      "bytes": 15249
+    },
+    "replay": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/replay/result.md",
+      "sha256": "9100d229a15c510901f73700952b5a8612ca87a16de1ec1bc4be99830a7794f7",
+      "bytes": 17676
+    },
+    "anchor_quality": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/report.md",
+      "sha256": "2ab5715bbcd473cecdcb9fb3779058dea247234c5f2641915d4756a851d2b8f4",
+      "bytes": 8938
+    },
+    "bottle_foliage": {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/bottle_foliage/result.md",
+      "sha256": "113102948a730ca0e33bf6e3164e7214c97a3a08bcc78f7e890617c3a465c9ba",
+      "bytes": 18590
+    }
+  },
+  "artifact_references": [
+    {
+      "path": "local-only:/FSRD/sol_batch/26_thu_integration.txt",
+      "sha256": "40fc844077dc7df00d3a2a0321675331943ee8f5af77af597de0fcbbd4ecf9d3",
+      "bytes": 8377
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_host_lifetimes/run.json",
+      "sha256": "d7d9031b67a65f0fd615789c78867893ba27c503a55add597fe99a6f8a3b3c5d",
+      "bytes": 596
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_host_lifetimes/stdout.log",
+      "sha256": "044b16c3307590bafcb20ff82638c058eaa760a6bfdbc7fb1c1094b82f662d0d",
+      "bytes": 376
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_game_trace_bridge/run.json",
+      "sha256": "b931f376d3e1643367b9aefa5d887737846b475efcefc2ff8b0365f34ddad965",
+      "bytes": 627
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_game_trace_bridge/stdout.log",
+      "sha256": "3a2eaa1705418f537ca8d537df8580dc717e915b875475a298e0d76d0569ce0b",
+      "bytes": 8546
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/run.json",
+      "sha256": "8894d7142aeb0158f882ce7d49f367ee30c1ba216fcdf262a48d1b370ff06e61",
+      "bytes": 584
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/stdout.log",
+      "sha256": "f344853a5777de345634861e84e65fb7cb19c2c688a740dcfd3a7910b1a3671d",
+      "bytes": 308
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_ini/result.json",
+      "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+      "bytes": 206
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_native_transactions/run.json",
+      "sha256": "fe2ddd14d3a5c5186c2d83f560f442c0145e3c02207359350e534e04e9ce798f",
+      "bytes": 634
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_nrd_native_transactions/stdout.log",
+      "sha256": "1b0448212028fccd4d1a03e90c00618a3dfae2b0e012709015e5beeee9c8c16c",
+      "bytes": 22215
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_postflick_order/run.json",
+      "sha256": "649e5bb0102d46c303f1d306a3b87646b262169a1d38bd569587362d2c8db39a",
+      "bytes": 617
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_postflick_order/stdout.log",
+      "sha256": "18458246482cd42bad627f53b5bc27a079bd4ce121e6cbc928adab8b03b49a4f",
+      "bytes": 48269
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/run.json",
+      "sha256": "cf059aa05bcac8e682eda3344ca460d77708e9865f80b6eadc2d6f82af6a2a5e",
+      "bytes": 605
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/stdout.log",
+      "sha256": "919ad1c4d01cd4a69ba5e32ac67e637cb26f17aa2712e03358332eb6274f3121",
+      "bytes": 682
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_control/result.json",
+      "sha256": "482482ae479953abc3005117e22e6b2f9143b1f497895585343cb2ea8b1e2bb2",
+      "bytes": 352
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/run.json",
+      "sha256": "2ba46e8b7a4a897e7aba3190c8ddad3e06cc0853c4a65fe1509978a30457bdda",
+      "bytes": 619
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/stdout.log",
+      "sha256": "f701c8332b4f9f71e34f93b0f7e203f6b261ebfe07f67189c8e2271ec8731bd5",
+      "bytes": 55212
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_off_golden/result.json",
+      "sha256": "e652ef827cc7351d406f0401f6a5eb5c400bc48e2dd36e6db3bd7b9476254ac0",
+      "bytes": 54620
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_trace_contract/run.json",
+      "sha256": "8b57d602e2bd9b5e63efe423b05992dffe15b883ee3e0821c2d1fb878a302219",
+      "bytes": 649
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline2_temporal_trace_contract/stdout.log",
+      "sha256": "a44ef8e52bd73a6fd55ea6d7799e104b6aafa9759083aaf3291419a0ada57f63",
+      "bytes": 306
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/run.json",
+      "sha256": "e2763316b6970506e23db374e23eb31eae0d87390ba9e1a4de5642f2a5f24860",
+      "bytes": 579
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/stdout.log",
+      "sha256": "02e20225f86f7721c7c9288737ea0a690fa1b1862d5d326ce8ee846cba6d5dff",
+      "bytes": 2301
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_anchor/result.json",
+      "sha256": "e6702ceaf53f5849a12a70bcdde7ca032e2ee62f580efe75b141ce1159d26db4",
+      "bytes": 1635
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/run.json",
+      "sha256": "82fef678706e969b48ec507b2d1cfd9fe554b03f706c7980b56d14924ffe35ae",
+      "bytes": 588
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/stdout.log",
+      "sha256": "429f0ef0168cee1bb88c3464037b3b0152fbaedb7c849861b55c331e03318a08",
+      "bytes": 2399
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_colour_track/result.json",
+      "sha256": "6fd925cab4699f2ce0fce17fe35ef81b6de087926c8db26e507097f1def36c4b",
+      "bytes": 1607
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/run.json",
+      "sha256": "28c5a7f6e46d723497b271f7d9e28402bb7c88a7bc6afb3394227894d86a8143",
+      "bytes": 599
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/stdout.log",
+      "sha256": "daf2ff7f45dae691c7fb4d7cb5636ff2854844c282f608dd0ee91a94e115ea48",
+      "bytes": 3659
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_flat_albedo/result.json",
+      "sha256": "6aa59005a017b87d7b9c7e3c8df94cdb1c8afe05cc35c22a5779dfb41ff92fe8",
+      "bytes": 3429
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/run.json",
+      "sha256": "ed574c7cdccc91b69a47da0c6db7adb060fbe0e4d1cb63dfd2eed667fcd4433c",
+      "bytes": 621
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/stdout.log",
+      "sha256": "bcdb98ed1ab5a994db32d1b27b65a231495c4a125979a5e3f92aa3fffa5820ee",
+      "bytes": 476
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/baseline_nrd_menu_settings/result.json",
+      "sha256": "42c9676cf5cc4106b2a0c1b8afcba8c831e99ce05e4dc0994f51a6acd85b24b5",
+      "bytes": 305
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackStats/run.json",
+      "sha256": "bee4a2c30add96c5eee4b089abf9c2a9648e1c13ad0ad481c966de8cf2a6547a",
+      "bytes": 499
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackStats/stdout.log",
+      "sha256": "8edb8709ace1d62aed36c29278eaceb8ecee90e676d3bcb89b0ce38ba65b679d",
+      "bytes": 304
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackTrack/run.json",
+      "sha256": "a6b23937f7cc5c3a479971417e06929e2a57bae5ae3291c4c4020ca3834c15fd",
+      "bytes": 500
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDColourTrackTrack/stdout.log",
+      "sha256": "70c10b7ee127887fc06e2f2b10429f4a99d5d91a14113615ca1a5164c1dcf22e",
+      "bytes": 305
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDNrdFlatSelectApply/run.json",
+      "sha256": "cbb9bc9e373e4a13329b884d549ce8440a70d664ef532c2832a7c4333a787510",
+      "bytes": 507
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDNrdFlatSelectApply/stdout.log",
+      "sha256": "4d8cd7b7888c65dad86423bfa2f713e9cd1288ac57dacfc648a34c982622cc9d",
+      "bytes": 308
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickApply/run.json",
+      "sha256": "821b4a936420f9caa050646980b424401e6290958a79c9e7a934598203559d86",
+      "bytes": 494
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickApply/stdout.log",
+      "sha256": "b360adfc6328b03c180b1e8717e15a1787023cbfedd71d3e5aa2e54e4bdac451",
+      "bytes": 300
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickPrepare/run.json",
+      "sha256": "d53c705d4f235685efc64183b6db9a62b513aa3f3348bd8bc4ef380f419815a8",
+      "bytes": 501
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostFlickPrepare/stdout.log",
+      "sha256": "0c4c00b85ed7ab743647b68988ba4a3b518cdcb7c4e8a5982e25323cf4998260",
+      "bytes": 305
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorGain/run.json",
+      "sha256": "46946d9143c731c1982189b9003c28459d8716b0989fb29bc8bda0502663926f",
+      "bytes": 512
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorGain/stdout.log",
+      "sha256": "a849f6f1ec78aa4bb7560b1f85f2f55ebca9f21608b6c895f85912c21f20e130",
+      "bytes": 312
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorStatsRecall/run.json",
+      "sha256": "2f52d8608350ef400d60a7c63a9ab0cf93647f2ff4281f91e1284682c926b8d0",
+      "bytes": 534
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix1_FSRDPostMotionAnchorStatsRecall/stdout.log",
+      "sha256": "cadae0c91073fc568b99eaa0170d4eb90c859928dc9ec4d5d8f5b05d61ac35ee",
+      "bytes": 326
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix2_anchorstats/run.json",
+      "sha256": "8c0c583ef335480fae6dd399a5058445daf3b85a74e8a44490faf43ceb4366ea",
+      "bytes": 493
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix2_anchorstats/stdout.log",
+      "sha256": "1e1694f62dbab6d0e9d4f823f8c7e2677911ecfcbac45c5c906e946d4770914c",
+      "bytes": 326
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDColourTrackApply/run.json",
+      "sha256": "85fbaba64b440ac0eaf33754c88b494122e06e1b0669532a2ad4607b085a76fd",
+      "bytes": 553
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDColourTrackApply/stdout.log",
+      "sha256": "4ab7d230ed49a3919c240a1f9a6c2b0c1b07c49531cf3fd5e44ef00822972e47",
+      "bytes": 314
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDOutputComp/run.json",
+      "sha256": "f84268226ac6c37b6f1f681a61a5f9bba2437f9e8e60922c0ddd8d3ba36f14d1",
+      "bytes": 535
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/compile_fix3_FSRDOutputComp/stdout.log",
+      "sha256": "5a2032814acb054d4c7ba457d52c3b30d1bb435eed33d7b4cee0d3f14ea5da75",
+      "bytes": 303
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/run.json",
+      "sha256": "5fc9bb9ca5b7d5c0583dc47695747ac389a85148f54f8da42546586ac0d0cdb2",
+      "bytes": 594
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/stdout.log",
+      "sha256": "3fd97c7bf27e370819aec9c709c1505df86a0baccda826a0e11f6f70198ca585",
+      "bytes": 2549
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_colour_track/result.json",
+      "sha256": "7b83b46443cb12d02d639635d15fecd78c6bfe4a2a71893beb5e73e8e54b9408",
+      "bytes": 1614
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_adversarial/run.json",
+      "sha256": "7daafa2737de71bae0644af3297d66d4ac68af6d79413f890ccbe632b5e1e419",
+      "bytes": 629
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_adversarial/stdout.log",
+      "sha256": "ad36fec408da801f5473761dd0fc1954ca0a3e3c69e25ad9260e9b063085e090",
+      "bytes": 2520
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_order/run.json",
+      "sha256": "822355796b5115a7622e31fcf129f479b51635b3bb06a03093de24fda9c234ca",
+      "bytes": 620
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_order/stdout.log",
+      "sha256": "311290237bbce65e90568ce014d84b7b6195599a3e96321cceb9bd333a3b0458",
+      "bytes": 48270
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_title_history/run.json",
+      "sha256": "73efcb20c10634fce892a154c283588b9c15f25f576c46dc6b7434a4cd221ca0",
+      "bytes": 637
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected3_postflick_title_history/stdout.log",
+      "sha256": "7d49f7150da42b3dd3ce4921e14e306a240913e5c033d7ef06cdfe3e46780c28",
+      "bytes": 2257
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/run.json",
+      "sha256": "445c689b911cc9540b23106f7f08c210f4d170364697b46f935378094039bacc",
+      "bytes": 586
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/stdout.log",
+      "sha256": "c12f07653db1a25c061db384f4fda57aafdd7cc278820f7b3e97479366af0575",
+      "bytes": 309
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_ini/result.json",
+      "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+      "bytes": 206
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/run.json",
+      "sha256": "39b09ab45f47ad404398eccd7108c18a454ddf09d7787094894f5c036fcec67a",
+      "bytes": 628
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/stdout.log",
+      "sha256": "fccfda63c8753b47a267a9887a9cd9238968e3835afe6c878e2111e714432295",
+      "bytes": 488
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/corrected4_nrd_menu_settings/result.json",
+      "sha256": "a28da79b5ec0ea620ca20df048db80d6bcd845e5c60c6eeccac4c3b1a3fd74b5",
+      "bytes": 305
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/run.json",
+      "sha256": "cabc80aed31a162c81488a31616f2f17377b4d6de18297fec8aa3f6cca065025",
+      "bytes": 609
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/stdout.log",
+      "sha256": "b03121f29f5e1c1f7b6ea6b1e7a1cc2efb02e31f0a41eefb5f07ccb6e57f473e",
+      "bytes": 2557
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/result.json",
+      "sha256": "16a2bc25b26c41fb7e56327f4cb582838371322643b3e826dc7cfc7203fc8788",
+      "bytes": 1613
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_shader_proof/run.json",
+      "sha256": "9e25abf473b7ecc6095c0b55e43d568d98f73094d11aeb566314dca315712f74",
+      "bytes": 570
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_shader_proof/stdout.log",
+      "sha256": "1c1887a031087c60ca47696d5ef482869719f4c72643aa9ff086c2913768589e",
+      "bytes": 315
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/run.json",
+      "sha256": "92795fd6f616a065c7724e8a2d5c032f5feea89c49fb103a58bbd373f919ccd8",
+      "bytes": 648
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/stdout.log",
+      "sha256": "3444fe227dfdb7449b3816274148fbdd1312d44d0df96d438c91e957ca5328ef",
+      "bytes": 1898
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_native_transactions/run.json",
+      "sha256": "d6e1af3334de45120ceaeb61aa5e74d8af286ba862535b3c19bdbfd20c79ee5b",
+      "bytes": 643
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_native_transactions/stdout.log",
+      "sha256": "249a214ade924b49f6930b700dbbbc6aab9abcbfae2eba9f90dd22f5ca564e2a",
+      "bytes": 22239
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_fresh_shaders/run.json",
+      "sha256": "8c5face9e2df950cdfa6215c1fe2ddf15d4b4aa49449542aafbbebf7506121ba",
+      "bytes": 379
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_fresh_shaders/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/run.json",
+      "sha256": "60330fc9c5949ceea49955321cb1e12cac30888eaae6dc0e662ae0bbdd9264a1",
+      "bytes": 649
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/stdout.log",
+      "sha256": "48050df61bbec8fe3d40e38437a97c1e52361fbb7eda9cf27119e91239e9fa3e",
+      "bytes": 9218
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/result.json",
+      "sha256": "659ca6453f99fc29bb92762cc68a0dbe8302d17c3feb9d84d1ed614a4dfb5a60",
+      "bytes": 3094
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/run.json",
+      "sha256": "d63cda288e9436d954f2aab52add0eebe3df024587261badce0636feabf71da9",
+      "bytes": 632
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_nrd_game_trace_bridge/stdout.log",
+      "sha256": "e6f9a685b9a9ba5e723402b86ee0d5f785404606f764dc5cfb8a1a65574b0d44",
+      "bytes": 9083
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_host_lifetimes/run.json",
+      "sha256": "c027f018d1cc29d76eb0218f5d677fe91c454299386119b26b83816219693f74",
+      "bytes": 611
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_host_lifetimes/stdout.log",
+      "sha256": "a3792cadef588a373e23400c58c77a6d301058df1bcb5ad859e2e872a244bba6",
+      "bytes": 380
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_bridge_rr/run.json",
+      "sha256": "449960f6cac8941c1d9ae51bc8d8de6fd3a7f27b7cf3fb60524bdbcb40c8a346",
+      "bytes": 607
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_bridge_rr/stdout.log",
+      "sha256": "636875193d1fae7ff1ccd5e557eb35769460ebcf25b5f27bcf3f722c6c7ac93d",
+      "bytes": 763
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/run.json",
+      "sha256": "c65e8d114465159f53ed1591110f763072fdc56677af7a014b8a90a44362683a",
+      "bytes": 615
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/stdout.log",
+      "sha256": "4594f7570431f7af50e4226c8b149b9dc9f3439c5909069dfc47ae8ecccf3b09",
+      "bytes": 3671
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_flat_albedo/result.json",
+      "sha256": "760ce408a8b544cab596862944e8f995080550725f56c92ac3e6bc22a7ef83b7",
+      "bytes": 3430
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/run.json",
+      "sha256": "2768a56aadc7ddfef43ef0f000a134abe9eff66bdcff53009470071cfa0289dc",
+      "bytes": 596
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/stdout.log",
+      "sha256": "3496ec0b16ce140771674c870d03967368bfaa9a940d4abf71c478523114f0c7",
+      "bytes": 312
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_ini/result.json",
+      "sha256": "c571becbeb3634737aa758ae0505b5f2a1f0eefabc038ac0a9fe77b9a7440108",
+      "bytes": 206
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/run.json",
+      "sha256": "99cb61e6db510d43bfc6c2cd4bcd149f9dde191e6d16dc63184675a4e9b8b557",
+      "bytes": 637
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/stdout.log",
+      "sha256": "523c660078a3f7f2b4e38fcadbdd7b97c973653392c26d428989e000fff1692a",
+      "bytes": 491
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_menu_settings/result.json",
+      "sha256": "e656afab04a9969e7ac7cea819b0bb77ad7f469c398fa84a5716bb484288a940",
+      "bytes": 305
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_owned_output_native/run.json",
+      "sha256": "7d69f5e1c4a2430d201cecd09b7737dbab47792e671c7c54fb38d34226d37aa8",
+      "bytes": 686
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_owned_output_native/stdout.log",
+      "sha256": "6190e63bd6163750395b2703f9f1f8ac6b2aa8c9df8d62e888872457d2805493",
+      "bytes": 8777
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_trace_replay_contract/run.json",
+      "sha256": "9b4e1335ddafcc7b76392e537cfa072e252ea6684d3b303a3b97a8f0233a48d6",
+      "bytes": 668
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_nrd_trace_replay_contract/stdout.log",
+      "sha256": "be09e4bb5c273625a78ad23b1644daa7e1fb6a5764cf62e20295b0007dfe49a7",
+      "bytes": 315
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/run.json",
+      "sha256": "2ea3cc44d4176c40c3786471bda4a3bb67048fd97173875a72d1db1080bf706f",
+      "bytes": 619
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/stdout.log",
+      "sha256": "534276dd31ae1b9b801656b293bd1c78b0bd9629a305bbe689f67072bcdd3673",
+      "bytes": 686
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_control/result.json",
+      "sha256": "95a1d4841a90e833374a4b5a6da3affbf0462799764f14153e286a3ff1ece1e9",
+      "bytes": 352
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_trace_contract/run.json",
+      "sha256": "a4f10d5a7e461a23d4e73d67ee839edf0cd12cd1124c7a08264c58aca689f102",
+      "bytes": 662
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native2_temporal_trace_contract/stdout.log",
+      "sha256": "17e89196244d1427fe045f054014c157cd43ab9dc1ce79250e53a466c383670a",
+      "bytes": 309
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/run.json",
+      "sha256": "e763486524a35e890ec673939b263e8411d89046d2310e919b64b5eec6c404bd",
+      "bytes": 650
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/stdout.log",
+      "sha256": "5037b4dd399fd5c3e18452efa296332e1859cc642832c0c2b0511d626cba4728",
+      "bytes": 6359
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_native_post_motion_anchor/result.json",
+      "sha256": "28c07286b7fb7beb25ba9057fad00d3795c7faef8644a9dddeca963f75abe979",
+      "bytes": 3060
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_native_transactions/run.json",
+      "sha256": "4d2c91b480fe1fef2f803291abd35e6ffed3d551c77b65c6298d3db5808885ee",
+      "bytes": 643
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_native_transactions/stdout.log",
+      "sha256": "69a7df4176a2b20ae3168f6e8669bab8e6064f0df16c49c2beb6e390c3266dc6",
+      "bytes": 22238
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_owned_output_native/run.json",
+      "sha256": "37c8ad46f230c312b95a2b2116df0d24f52e5ef2658fb63892da0f86a59317b0",
+      "bytes": 645
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_nrd_owned_output_native/stdout.log",
+      "sha256": "4b45bd50238fdb8189d77ff3aafe55ea7e3dc4865360456c1174898f552b3ef0",
+      "bytes": 303
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/run.json",
+      "sha256": "d51e5c1a42b26395a7e5ec9fe23e1d6927ca5c77387df4aa5ae6feec559615b4",
+      "bytes": 627
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/stdout.log",
+      "sha256": "a084bacc335a1d6c52e26778a08a6c25aa02faea08bb7ddc89ec18b88378fca7",
+      "bytes": 55223
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_native_temporal_off_golden/result.json",
+      "sha256": "680f66b4e00ca54a53f652362ed374804628bb51cb01d980b5158e6159cdc9fd",
+      "bytes": 54628
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_trace_nrd_game_trace_bridge/run.json",
+      "sha256": "6286e1acf3b175078e091103ca0c13007cf6b8695a9418f557c1d0d9c20999cc",
+      "bytes": 633
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_trace_nrd_game_trace_bridge/stdout.log",
+      "sha256": "3be7492cbb53ba401550e84ad1cb972e51001fc849ec68e93fe098f3fd6ce0da",
+      "bytes": 297
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_anchor_header/run.json",
+      "sha256": "ad5385c5c016bce2025cbacd678121cc38a746498149f6750d502c3886362395",
+      "bytes": 391
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_anchor_header/stdout.log",
+      "sha256": "4edf0e93d25cf3df3f35a1e4fe25e03895b6b37a8ecda238cfd8ff5b440a595a",
+      "bytes": 855
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_fixed/run.json",
+      "sha256": "a8ea79bb1ee2864803a1e734567a82882918fb584522fce6c5e4f74c07164258",
+      "bytes": 422
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_fixed/stdout.log",
+      "sha256": "fb2c8e4438b59b894029133adf3bd55c85073f376a7ccd12edc9dbf0709feb62",
+      "bytes": 3777
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_old_expected_fail/run.json",
+      "sha256": "5f526931cdfc858209a100ab1538cb6e97e9245577d0b98d458e170de7ef7bb9",
+      "bytes": 446
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_colour_old_expected_fail/stdout.log",
+      "sha256": "a3fde45f1322b55c5485e58b19f2e1314723114c7024383674aae8c951f0c552",
+      "bytes": 3802
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_pf_fixed/run.json",
+      "sha256": "e9d31d46c6c96294eaa39b5d3b24c54c284a1eb12cd81589ed6931b9c6848376",
+      "bytes": 459
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/lead_pf_fixed/stdout.log",
+      "sha256": "f1df0d8fe85a24a8c0851de185bc3f2131f221d847d0bbf30a01eeffe08afc4a",
+      "bytes": 2226
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_joint_native_post_motion_anchor/native_anchor_result.json",
+      "sha256": "12dc4dfb1cba14280ebd9c60c3903a0b0b5c4f9cccbbf5445d188a116c00bf50",
+      "bytes": 37014
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/preset/result.json",
+      "sha256": "32a91115fba431adb7c370e015e67766b747bb45884fe0ca3095292ddd8dc891",
+      "bytes": 1229
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/preset/source-manifest.json",
+      "sha256": "5a714e91bfeabb1ed18c64052481e1a5ab3564fb490c2f8364f5aa4c3f6c2f87",
+      "bytes": 3659
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/glass_capture_results.json",
+      "sha256": "60bccf860c0367904cd78f33b3ad65fa30474f2476a97e70649eb2735e6f53c9",
+      "bytes": 4630
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/puddle_conservative_eligible.json",
+      "sha256": "46b69110dbc229cc3140f2a047673af1af372ae07f733da0fcc6d7a1959590aa",
+      "bytes": 652
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_metrics.json",
+      "sha256": "e396eb7e0aa31b449d3811545135e662ff2835e687fad824b019ac4b7b64a073",
+      "bytes": 236177
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/native_policy_steps.json",
+      "sha256": "547777cbfd26f53735d4dd162b794d77a99a5b573aa7829a5fcae26a2da1341f",
+      "bytes": 6931
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/verified_checks.json",
+      "sha256": "2c4672b7e5e21d76c329018c6cf2e8b3de5e404fe4beb94712ebef79442ffedf",
+      "bytes": 3613
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/result.md",
+      "sha256": "a700a7a067eac4368c672a7a4b8c983a434d14292acc5067671e432f900d72db",
+      "bytes": 21993
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour/result.md",
+      "sha256": "c5bcf3bc2cc645915de2e24f34c50e4775808b251ee4f2b0f62449a80c489b51",
+      "bytes": 22604
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor/result.md",
+      "sha256": "76dd006ec399b9c376293318a0b7abf33ad4768f42364d60a01b42ce7659366e",
+      "bytes": 33674
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/native/result.md",
+      "sha256": "57b6edc632c804036f4879f7a553c166199b326d783b135745527dd1dd90e9b7",
+      "bytes": 15249
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/replay/result.md",
+      "sha256": "9100d229a15c510901f73700952b5a8612ca87a16de1ec1bc4be99830a7794f7",
+      "bytes": 17676
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/anchor_quality/report.md",
+      "sha256": "2ab5715bbcd473cecdcb9fb3779058dea247234c5f2641915d4756a851d2b8f4",
+      "bytes": 8938
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/bottle_foliage/result.md",
+      "sha256": "113102948a730ca0e33bf6e3164e7214c97a3a08bcc78f7e890617c3a465c9ba",
+      "bytes": 18590
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/performance.json",
+      "sha256": "5bf069698fd60d058ce0c828153fbc24acf113119b724fd32e516132fd508bc4",
+      "bytes": 130373
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/performance.md",
+      "sha256": "6bb577327b1a7cc751d133a2da7720260548be8cade13f734592cc1f735235ce",
+      "bytes": 5680
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/artifact-verified.json",
+      "sha256": "c8b87d1133832d83225ba00f210fb8fe25becf6dde0efcf156cbde3587c4591a",
+      "bytes": 3896
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/build-result.json",
+      "sha256": "3c0233d39faaf751a975aca9600f12abb1eb67a58f53a59505601f29d75f49ea",
+      "bytes": 469
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/build-proof.json",
+      "sha256": "64c05fc8fd09cf2d8870960fb5c408a9bddbfeb0be15c30397c859565a40ff95",
+      "bytes": 358
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/fresh_shader_proof.json",
+      "sha256": "e3b64c281a7163abbe53fe9e849e0657ded1d9bb85776cd6ae27566aab92dc82",
+      "bytes": 6703
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/comment_cleanup.json",
+      "sha256": "ced1d7261148457c463d118018290e529678b1e3d3d8b78ca312e43a98b38290",
+      "bytes": 526
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/scratch/native/native-anchor-final-manifest.json",
+      "sha256": "4455f8ff0407f09ffcf004fa844383ee5cadb7018a038a5eff67cd53e811e1f5",
+      "bytes": 4643
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+      "sha256": "ef0c883b3f4dc65362262bb510e512c6973d7964dd22c1c1a3f8dab90e234bb3",
+      "bytes": 114515
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h",
+      "sha256": "7cdf29e453b6cf5e1ac04ef455a1ddd70d397a0c3586811da12dfd47bc86e5e8",
+      "bytes": 18622
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp",
+      "sha256": "67aa64d681c4d3090d07193adddbf363033094e0aa94fbd14cbbb951dfe6b15e",
+      "bytes": 259889
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp",
+      "sha256": "94bcfa59e9707ee78ca7b9325f0ef4078241c81aa0b9a1aeb187e6e7314fc582",
+      "bytes": 171188
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceBridgeMetadata.h",
+      "sha256": "02b7c90f42d9e76676b4acbb1327dc0cdea5c6168c04e274c01470a3d41daee5",
+      "bytes": 9630
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h",
+      "sha256": "301f4e9202903afa9371c65fde2cf6f0418c6f2b46027d6bb15e8c85a6b7e419",
+      "bytes": 21896
+    },
+    {
+      "path": "repository:/OptiScaler/menu/menu_common.cpp",
+      "sha256": "9a25ee2c167bcbd2f6797926b0cd98d5915e048709d6fe5ba2bfcb11f3f5b6be",
+      "bytes": 468937
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+      "sha256": "e1014611999e46836be21b293a5c107f9d50531bde95176236d1ba21d1c99a10",
+      "bytes": 7374
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.h",
+      "sha256": "53d688a3db23a00ba41e902065839661df15526035dc996e03baee9f997d60ce",
+      "bytes": 114118
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain.hlsl",
+      "sha256": "ecf6de6ace3a6c4f9e78c23b549d56d2cd4588e13454be14ba7196f434f0bd46",
+      "bytes": 4391
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.h",
+      "sha256": "b74f25838a329151997118fe443ebc3262684aac8cd99fed2ca9f24cde08e39c",
+      "bytes": 76251
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall_Shader.cso",
+      "sha256": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+      "bytes": 10440
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain_Shader.cso",
+      "sha256": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+      "bytes": 7424
+    },
+    {
+      "path": "repository:/OptiScaler/Config.h",
+      "sha256": "ee5579bd7d766777585a0e01b08db92a862853f37b5d29914fe2d6d47311ecb9",
+      "bytes": 45091
+    },
+    {
+      "path": "repository:/OptiScaler/Config.cpp",
+      "sha256": "901d57f53e6249899d05e9d5d7b85ab868f27a4981b6dda534467f28939c52ba",
+      "bytes": 146087
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/shader_tools/build_fsrd_shader.py",
+      "sha256": "d9e417f530f8d585dc8557314c9d8a5b96e6cb455ff6549f1be1da14c9dc624a",
+      "bytes": 17748
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_nrd_menu_settings.py",
+      "sha256": "1f5f4545baded9eed61b1c82f461b55383a8a44e5ca49c92ad79836d443cb668",
+      "bytes": 84247
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/shader_tools/tests/test_fsrd_native_post_motion_anchor.py",
+      "sha256": "ccbeb75cddfa7ac4397fd9e3ce40f55b7d5d52594688091c3219660088fa1352",
+      "bytes": 7772
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/shader_tools/tests/fsrd_native_post_motion_anchor.cpp",
+      "sha256": "61b1bded7307052ef9efcdaeebbb99d2de91c2b61283bf5dfcdaf5933c896f5e",
+      "bytes": 17891
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp",
+      "sha256": "8c1a6e4deb0bda69826f48b81ac03aeadeb1e95584f8d54ce7b49321df3f35d0",
+      "bytes": 244839
+    },
+    {
+      "path": "repository:/OptiScaler/shaders/fsrd_preprocess/FSRDPostMotionAnchorConstants.h",
+      "sha256": "54199dc53705363b2f1ce13646da2c8ca9c278655aced4352e222fef6866cd43",
+      "bytes": 16037
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/gpu_results_fixed.json",
+      "sha256": "fc36d514cb2734ed295129321737076aa0742d76e5fcbcd90005dd3deaa12a18",
+      "bytes": 3295
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/audit24/cpu_all16_results.json",
+      "sha256": "61fb4324c8a253349b9e9b0ecc509b02bf817c848542a6aa2e0ef67587e52f1c",
+      "bytes": 2292
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_canonical_colour_track/artifacts/result.json",
+      "sha256": "16a2bc25b26c41fb7e56327f4cb582838371322643b3e826dc7cfc7203fc8788",
+      "bytes": 1613
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour_gpu/result.json",
+      "sha256": "fdda565c856465f7ba54174473ae8b86b4af217be93289f3c844cf1b43907f52",
+      "bytes": 39464
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/colour_gpu/captured_rerun.json",
+      "sha256": "10aecde022674d0dc636d9d242402963be2f32267a38b5c3a3d2c7a16d04ac7a",
+      "bytes": 12482
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/sub/bottle_foliage/final_checks.json",
+      "sha256": "0f05117ecc878f3069e42009fbfe3cb52345552795a7a0d42a7bbc3da699ab14",
+      "bytes": 328
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/tests/final_family_nrd_anchor_shared_family/artifacts/family_policy_manifest.json",
+      "sha256": "1f98ec2e7af7e53936743b4713c3fa557a5d38629136b54bf66d64161ae4d8e2",
+      "bytes": 1289
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/source_manifest.json",
+      "sha256": "384dbe2f298885db131f8ee4406b76c30afcdf040faef9b5052aa44121b042bc",
+      "bytes": 11364
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/reviewed_sources.zip",
+      "sha256": "cd9c4e574fbe044c6614e2876240bfd955c5ce2f98ea4cdcaab9fa3f652b971a",
+      "bytes": 776810
+    },
+    {
+      "path": "local-only:/FSRD/sol_batch/26-integration/onerilen_preset.ini",
+      "sha256": "1410b2848736567adf0675fb719b15829d65fb7e26938349a5de4a769fd26df7",
+      "bytes": 717
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+{
+  "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+  "frame": 63,
+  "published": 66,
+  "size": [
+    512,
+    512
+  ],
+  "cell": 8,
+  "quarter": [
+    64,
+    64
+  ],
+  "roi_origin": [
+    496,
+    167
+  ],
+  "original_render": [
+    1505,
+    847
+  ],
+  "motion": "CPU uses original captured UV times original render size before box. Integer-load GPU Stats may use Size.xy=original render, Size.zw=ROI quarter; Apply Size.xy=ROI. ROI-rescaled motion is provided only as an alternative, with extra quantization.",
+  "reference": "candidate_sweep Model C8_edge; jbu(.4,True,bilinear,2)",
+  "scope": "Controlled cropped pre-remod lobe-sum fixture, CPU previous EMA provided; not a full production game replay.",
+  "fixture_bytes": 9101728,
+  "fixture_sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+  "original_fixture_filename": "soft2_gpu_87ee63.npz",
+  "history_scope": "CPU chronological warmup frames 0..62; actual GPU comparison executed frame63 only. Not a 64-frame GPU replay.",
+  "target_domain": "input_diffuse RGB + input_specular RGB; native physical units; no exact game remod factor or Skip.",
+  "output_domain": "raw_rr_diffuse RGB + raw_rr_specular RGB; controlled pre-remod lobe sum, not final game display.",
+  "sampler_caveat": "Original numpy bilinear is continuous. On the audited GPU, history interpolation fraction quantization changes the hard 2% depth validity decision in 9/4096 cells. A 1/256 fraction model matched those decisions; it is not enabled in this preserved CPU export.",
+  "recorded_GPU_comparison": {
+    "frame": 63,
+    "output_max_abs": 0.0087890625,
+    "output_p99_abs": 1.52587890625e-05,
+    "gain_max_abs": 0.1943359375,
+    "history_max_abs": 0.01153564453125,
+    "source_record": "26-integration/sub/colour_gpu/fullwarmup.json"
+  },
+  "precision_caveat": "Fixture input_rgb/rr_rgb are RTZ R16-expanded float32. Original expected_soft2 was made using pre-UAV float32 RR chroma for JBU weights, then RTZ for multiplication; those pre-UAV low bits are absent here. Stats/history/gain/bilinear are separately compared. Do not claim exact expected_soft2 reproduction solely from rounded rr_rgb.",
+  "source_functions": {
+    "octdec": {
+      "source": "gpu_falsify.py",
+      "source_node_ast_sha256": "f265cd45ce59b595283fe2d110b585618199399e4a3176e6512bd95987e3f179"
+    },
+    "pack_old": {
+      "source": "gpu_falsify.py",
+      "source_node_ast_sha256": "7e23850179e939598a9b9e3d11718c90286dc3a132455759fabbf998a2f60af0"
+    },
+    "unpack_old": {
+      "source": "gpu_falsify.py",
+      "source_node_ast_sha256": "af3e6c6be83d841bcca05b80863f5b48a5479117d3eb345884e3368f860f59ed"
+    },
+    "pack_new": {
+      "source": "gpu_falsify.py",
+      "source_node_ast_sha256": "13b03ccdfed9ccc4bade0966b5993c32ea4a9bfd8004d5835477489707a20fa4"
+    },
+    "unpack_new": {
+      "source": "gpu_falsify.py",
+      "source_node_ast_sha256": "0c346f00d3ceb41edfb64deb0c795dad908aeb4c26a419213b9e6d51b95170eb"
+    },
+    "lum": {
+      "source": "cpu_reference.py",
+      "source_node_ast_sha256": "b15e6111c4f453a61b1808fb1db48d9d4d9a48e4698210ee040ab761e5ffc575"
+    },
+    "half_rtz": {
+      "source": "cpu_reference.py",
+      "source_node_ast_sha256": "742710ea7d19e58a5484bee8927bad88ac7bd16949ee7dd5ae8f1bf5ea641295"
+    },
+    "bilinear": {
+      "source": "cpu_reference.py",
+      "source_node_ast_sha256": "26f90f080500fc1718ace3e1cf76af3520f60fe56d3c2f76b44294382c26a9e5"
+    },
+    "apply": {
+      "source": "cpu_reference.py",
+      "source_node_ast_sha256": "9af51ca0cc51010bba1e4b241377ca905696bcf0f22a0d1cbe5dd6afc4fed69a"
+    },
+    "rshare": {
+      "source": "cpu_reference.py",
+      "source_node_ast_sha256": "d14e89bfbd92906d533eec89357fd95b4a0b55f25c0a914efc7347381c87721e"
+    },
+    "gaussian": {
+      "source": "imgutil.py",
+      "change": "Removed only optional GPU import/dispatch; the original numpy convolution is unchanged."
+    },
+    "box": {
+      "source": "candidate_sweep.py",
+      "source_node_ast_sha256": "1b97d42d4445e2036ce5ceba55db81f60afa31108eb00140348f12f2075bda63"
+    },
+    "spatial": {
+      "source": "candidate_sweep.py",
+      "source_node_ast_sha256": "5a838a7b2042c8cf6f787b72c83c5b8b1d1ac276a5345fa85f7502d0de1d3e8f"
+    },
+    "rawgain": {
+      "source": "candidate_sweep.py",
+      "source_node_ast_sha256": "85bcb31a3c194d187cf850d2f9e4fdafb29fc7d831e30b5ec99858375f6eb885"
+    },
+    "Model": {
+      "source": "candidate_sweep.py",
+      "source_node_ast_sha256": "f94a05241e00a32c4405f46f33ec426dca6f137274c58d604bdcbe69f2160a24"
+    },
+    "jbu": {
+      "source": "candidate_sweep.py",
+      "source_node_ast_sha256": "e83086e9a6035eb15a426bd315f06897f281cdbd7eac311036797109e45c4df5"
+    },
+    "metric": {
+      "source": "guard_temporal.py",
+      "source_node_ast_sha256": "a6a70570db0f604ca21e6457b0b163093a03671dbed6d489e7405de0204abd6e"
+    }
+  },
+  "source_files": {
+    "packing": {
+      "filename": "gpu_falsify.py",
+      "bytes": 9064,
+      "sha256": "276755cb1cf31b5d8320d5e6d16235efcfe07adfb509a25e292726fd1e32d8bf"
+    },
+    "math": {
+      "filename": "cpu_reference.py",
+      "bytes": 7773,
+      "sha256": "106233425592121ac6e52a484ab263b6fafda34e0801d39f588471ecad54461f"
+    },
+    "models": {
+      "filename": "candidate_sweep.py",
+      "bytes": 10166,
+      "sha256": "2ae629fb676e293cbcf1a700ea0653ce1682cd444ca8a03458c2b5e6aad67a16"
+    },
+    "metric": {
+      "filename": "guard_temporal.py",
+      "bytes": 4417,
+      "sha256": "33eee99f7ec4cac241e98acb4bc8818513ed19c9af9650ac9bce30e8a959ce1d"
+    },
+    "gaussian": {
+      "filename": "imgutil.py",
+      "bytes": 2222,
+      "sha256": "34b67f32e38dd525280decaa9b50e0fad39d49ce0e9aa2a598724ff542660f4a"
+    }
+  },
+  "arrays": {
+    "input_rgb": {
+      "shape": [
+        512,
+        512,
+        3
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 3145728
+    },
+    "rr_rgb": {
+      "shape": [
+        512,
+        512,
+        3
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 3145728
+    },
+    "depth": {
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 1048576
+    },
+    "normals_u32": {
+      "shape": [
+        512,
+        512
+      ],
+      "dtype": "uint32",
+      "uncompressed_bytes": 1048576
+    },
+    "normals_oct": {
+      "shape": [
+        512,
+        512,
+        2
+      ],
+      "dtype": "float64",
+      "uncompressed_bytes": 4194304
+    },
+    "motion_uv_original": {
+      "shape": [
+        512,
+        512,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 4194304
+    },
+    "motion_uv_roi": {
+      "shape": [
+        512,
+        512,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 4194304
+    },
+    "motion_px": {
+      "shape": [
+        512,
+        512,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 4194304
+    },
+    "prev_history": {
+      "shape": [
+        64,
+        64,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 65536
+    },
+    "expected_bilinear": {
+      "shape": [
+        512,
+        512,
+        3
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 3145728
+    },
+    "expected_soft2": {
+      "shape": [
+        512,
+        512,
+        3
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 3145728
+    },
+    "expected_history": {
+      "shape": [
+        64,
+        64,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 65536
+    },
+    "expected_gain": {
+      "shape": [
+        64,
+        64,
+        3
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 49152
+    },
+    "expected_stats": {
+      "shape": [
+        64,
+        64,
+        4
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 65536
+    },
+    "expected_packed_normal": {
+      "shape": [
+        64,
+        64
+      ],
+      "dtype": "float32",
+      "uncompressed_bytes": 16384
+    }
+  },
+  "recorded_evidence": {
+    "actual_B4_edge_gpu.json": {
+      "bytes": 2497,
+      "sha256": "90f17bf3cb328a3aa3dbff3dfc2bc231f7c9db629629323b41358fcd52c526d0"
+    },
+    "depth_edge_phase4.png": {
+      "bytes": 15881,
+      "sha256": "d5ddbdb69580ef2e7cae2068ef4188970a310a753194bc1d1c468693a11bb7fd"
+    },
+    "fullwarmup_gpu.json": {
+      "bytes": 3766,
+      "sha256": "eefb0e3f60213b21c79df0599579f581bdd8a1b41a8c4eec056b7ea3d5d228e6"
+    },
+    "normal_edge_phase4.png": {
+      "bytes": 15891,
+      "sha256": "eb75fb0db2c041151619b5c55559624eb4cbd6f183b0a00379d8ded8c96331e6"
+    }
+  }
+}

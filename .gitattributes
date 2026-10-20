@@ -13,3 +13,6 @@ docs/fsrd_clean_material_response_stage_partition.md -text
 docs/fsrd_public_default_scalar_query_followup.md -text
 docs/evidence/fsrd_default_vector_and_configure_flow/** -text
 docs/fsrd_default_vector_and_configure_flow.md -text
+
+# Frozen cloud research fixtures and receipts retain exact manifest bytes.
+research/astra20261020/** -text whitespace=cr-at-eol

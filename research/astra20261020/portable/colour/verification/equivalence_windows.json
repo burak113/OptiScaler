@@ -1,0 +1,135 @@
+{
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "numpy": "2.3.5",
+  "source_AST_fingerprints_match": {
+    "octdec": true,
+    "pack_old": true,
+    "unpack_old": true,
+    "pack_new": true,
+    "unpack_new": true,
+    "lum": true,
+    "half_rtz": true,
+    "bilinear": true,
+    "apply": true,
+    "rshare": true,
+    "box": true,
+    "spatial": true,
+    "rawgain": true,
+    "Model": true,
+    "jbu": true,
+    "metric": true
+  },
+  "original_function_execution": [
+    {
+      "model": "B4",
+      "chronological_frame": 0,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true
+      }
+    },
+    {
+      "model": "B4",
+      "chronological_frame": 1,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true
+      }
+    },
+    {
+      "model": "B4",
+      "chronological_frame": 2,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true
+      }
+    },
+    {
+      "model": "B4",
+      "chronological_frame": 3,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true
+      }
+    },
+    {
+      "model": "C8_edge",
+      "chronological_frame": 0,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true,
+        "soft2": true
+      }
+    },
+    {
+      "model": "C8_edge",
+      "chronological_frame": 1,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true,
+        "soft2": true
+      }
+    },
+    {
+      "model": "C8_edge",
+      "chronological_frame": 2,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true,
+        "soft2": true
+      }
+    },
+    {
+      "model": "C8_edge",
+      "chronological_frame": 3,
+      "exact": {
+        "g": true,
+        "z": true,
+        "n": true,
+        "colour": true,
+        "output": true,
+        "history": true,
+        "soft2": true
+      }
+    }
+  ],
+  "method": "Original math/model function ASTs executed without their Windows/GPU/Capture module top levels; 2 models x4 fresh chronological random frames, identical histories and arrays.",
+  "gaussian_change": "Only original optional GPU branch removed; CPU implementation copied unchanged.",
+  "unit_test_command": "python -B -m unittest -v",
+  "unit_test_count": 12,
+  "unit_test_exit": 0,
+  "unit_test_seconds": 3.171,
+  "Linux_execution": "NOT EXECUTED. Module uses only numpy+sys; Windows CPU and isolated import verified separately.",
+  "latest_unit_test_seconds": 3.006,
+  "latest_unit_test_count": 12,
+  "latest_unit_test_reason": "Re-ran because fixture comparison was tightened from a global abs bound to a two-half-ULP bound; no model/math algorithm changed."
+}

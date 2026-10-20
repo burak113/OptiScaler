@@ -1,0 +1,149 @@
+HISTORICAL LOCAL REPORT — links and commands may refer to artifacts not exported here.
+Treat all claims as scoped evidence to inspect, not fresh cloud execution. Paths sanitized.
+
+# Task 24–25 bağımsız denetimi ve Task 26 entegrasyonu
+
+2026-10-20 · Sol 6.1 Max ana ajan ve bağımsız alt ajanlar · Son teslim hedefi 21.00, Europe/Istanbul.
+
+**Karar:** Cam için **Glass → Blend, 0.5** öneriyorum. Kullanıcının çalışan D16/S256, G2/G3 ve NZR Temporal OFF düzeni korunuyor. **Post-motion anchor, Colour tracking ve Post-flick fix önerilen preset’te kapalı.** Ankrajın native bağlantısı ve önemli uygulama hataları düzeltildi; kalite kabul ölçütlerinin tamamı geçmedi. Şişe ve bitkide temiz bir yeni çözüm bulunmadı. Bu rapor “kusursuz oyun görüntüsü” iddiası taşımaz.
+
+[Görsel karşılaştırmalar](gorseller/index.html) · [INI parçası](onerilen_preset.ini) · [Kullanım adımları](kullanici_adimlari.txt) · [Kapsama ve birlikte çalışma denetimi](interplay.md)
+
+## Önerilen ayarlar
+
+Mevcut `OptiScaler.ini` dosyasının `[FSR-RR]` bölümündeki karşılıkları güncelleyin; bu parça tüm dosyanın yerine geçmez. Diğer NZR ayarlarınızı koruyun.
+
+```ini
+[FSR-RR]
+RadianceScaleExperiment=true
+RadianceScaleDiffuse=16
+RadianceScaleSpecular=256
+NrdBridgeMotionAdaptiveStability=true
+NrdBridgeLightingValidation=true
+RecoveryFlatAlbedo=true
+RecoveryFlatTemporal=false
+RecoveryFlatRRFallback=true
+RecoveryFlatDiffuseRR=true
+RecoveryFlatReflectionHistory=true
+RecoveryFlatVerticalMode=2
+RecoveryFlatVerticalStrength=0.5
+NrdBridgeTurnColourFilter=false
+NrdBridgeTurnBrightness=false
+PostFlickFix=false
+ColourTrack=false
+PostMotionAnchor=false
+```
+
+Menüde Near Zero-Rough Recovery açık, Temporal kapalı, RR fallback / Diffuse RR / Reflection history açık; Glass seçimi Blend ve strength 0.5. Strength burada **NZR payı**: 0 tamamen RR, 1 mevcut NZR. Yazıları fazla yumuşak bulursanız yalnız strength’i 0.75’e çıkarın; daha fazla grain kabul etmiş olursunuz. Eski Turn colour/brightness düzeltmeleri ve üç yeni deneysel seçenek kapalı kalmalı.
+
+Bu ayar, kayıtlı cam politikasındaki ölçülü takasa dayanır. Son DLL’nin oyunda sizin gözünüzle onaylanması hâlâ gerekir. Ayar dosyasının gerçek Config yükle/kaydet/yeniden yükle testi 186 kontrolü geçti; 17 hedef ayar, 42 diğer Config anahtarı ve iki bilinmeyen INI anahtarı korundu. Sınıf varsayılanına eşit dokuz değer kayıtta `auto` biçimine kanonikleşiyor; etkin değer değişmiyor. [Kanıt](tests/preset/result.json).
+
+## Eski raporların hangi iddiaları tutmadı?
+
+Denetimde memory, rapor, yazar adı veya “independent audit” yazısı doğrulama sayılmadı. Dosya kimlikleri, gerçek çağrı zinciri, GPU kaynakları ve karşı örnekler ayrı incelendi. Belgelerdeki `author: codex` alanı, belgeyi hangi modelin yazdığını kanıtlamaz; bu çalışma geçmiş yazarlığı doğrulayamaz.
+
+1. **En büyük açık, kullanıcının gerçek render yoluydu.** Dört ana kayıt native NRD bridge’den geliyor. Task 24/25’te PostFlickFix, ColourTrack ve PostMotionAnchor yalnız FSRDFeature/preprocessor tarafındaydı. DLL’de CSO bulunması, native oyunda seçeneğin çalıştığını göstermiyordu. Cam politikası native yola bağlıydı. Task 26’da yalnız ankraj native yola bağlandı; renk ve post-flick seçeneklerinin native kapsam eksikliği menüde açıkça yazıyor.
+2. **Ankraj testi yanlış güven veriyordu.** Eski izole GPU fixture 3160 kontrolü geçerken gerçek host, duruk karelerde GPU anahtarını yazmadan CPU halka metadatasını geçerli sayabiliyordu. Eski slotun görüntüsünü yeni kamerayla okuma, geçersiz hücrelerde eski veri, UAV sıralaması ve reset-upload ömrü de denetlendi ve düzeltildi. Gerçek host akışı ve negatif kontrol eklendi.
+3. **“%96 bit-identical replay” görünür NZR doğruluğunu kanıtlamıyordu.** Hiç NZR uygulamayan raw-RR null kontrolü zaten %95,3167 eşleşiyordu. NZR’nin gerçekten değiştirdiği specular RGB sözcüklerinde birebir oran %21,3258; medyan göreli hata yaklaşık %5,41, kareler arası ortalama p90 yaklaşık %23,54. Eski ROI replay projeksiyonu da tam render matrisiyle kırpılmış boyutu karıştırıyordu. Yeni replay’nin projeksiyonu ve hareket ölçeklemesi bağımsız oracle ile kontrol edildi.
+4. **Strength 1.2 önerisinin shader karşılığı yoktu.** Shader `saturate` uyguladığı için 1.2 ve 1.0 aynıydı. Aralık artık 0–1.
+5. **ReSTIR neden anlatısı kanıtlanmış değildi.** Ağır kuyruk, tekrar ve toparlanma istatistikleri bu hipotezle uyumlu; motor üzerinde ayrıştırıcı müdahale yapılmadı. Işın bütçesi/görünürlük/örnek ilişkisi gibi rakip açıklamalar kapanmış sayılamaz.
+6. **Eski sürelerin çoğu GPU timestamp değildi.** CPU kayıt + submit/fence süreleri, tek pass GPU maliyeti veya oyun FPS’i olarak sunulmamalı. Yeni ölçümün kapsamı ve null kontrolü ayrı veriliyor.
+7. **Eski görsellerin bir kısmı oranı bozuyordu.** Task 24’ün bazı sayfaları 512×512 ROI’yi tam render oranına esnetiyordu; kaldırılmış mode 3 de gösteriliyordu. Yeni görseller gerçek ROI oranını ve A/B içinde aynı pozlamayı koruyor.
+
+Tam iddia defteri ve eski artefakt kimlikleri: [kanıt denetimi](sub/evidence/result.md), [Task 24 denetimi](sub/audit24/result.md).
+
+## Kaynakta yapılan düzeltmeler
+
+Task 25’in gerçek son commit’i `a79473353d7bc93920f881dbe88f5dfbcf761d1f` temel alındı. Çalışma ağacı `local-only:/checkouts/OSA-26-integration`, dal `sol/26-integration`. İlk düzeltme grubu `c08a868f70cdbe48a03714982300d1e5443a6b11`.
+
+- ColourTrack normal kodlaması 16 bitlik değeri FP16 içinde saklıyor ve yön bilgisini kaybediyordu; tam temsil edilebilen 11 bit kodlama kullanılıyor. Aktif render boyutu ile kaynak allocation boyutu ayrıldı. Geçersiz motion, reset ve hata yolları geçmişi temizliyor.
+- Renk hedefinin Skip katkısı ve bypass yetkisi düzeltildi. Authority işaretli piksele düzeltme uygulanmıyor; apply bağlaması gerçek iki SRV ile eşleşiyor. Menü artık üç çeyrek çözünürlük pass’i veya bit-exact luma vaat etmiyor.
+- Post-flick’te ekran dışı reprojeksiyon clamp edilip sahte geçmiş üretmiyor; tek sayılı boyutların son satır/sütunu taşmıyor. Başlık/reset/hata geçişleri kaynak sırasına göre test edildi.
+- Camın fallback-only Blend yolu, seçilmiş sonucu doğru `lerp` ile karıştırıyor. Önceki `max` tabanlı davranış karışım semantiğiyle aynı değildi.
+- Ankrajın CPU halkası ile GPU kayıt sırası eşlendi. Duruk referans yenilemesi gerçekten Stats/Gain çalıştırıyor; Apply yalnız etkin düzeltmede çalışıyor. Geçersiz hücre, sum reseti, bağımlı UAV erişimi ve tutulan upload kaynağı düzeltildi.
+- Native ankraj, RR ve NZR’nin aynı düzeltilmiş **fiziksel** diffuse/specular çiftini okumasını sağlıyor. Asıl title girdisini değiştirmiyor. G3 kendi değerlendirmesinde özgün girdiyi görüyor; ankrajın kendi karartmasını yeni ışık değişimi saymıyor.
+- Native sayaç, fiziksel hücre cap’ini 16’da koruyarak 16.16 düşük/yüksek uint çiftine taşındı. İstatistik hassasiyeti için girdiyi ×256 ölçeklemek, ölçülen parlak hücreleri kırptığı için reddedildi. Çoklu threadgroup carry, doğal taşma ve sıfır/NaN derinlik testleri eklendi.
+- Native context, slot ve kaynaklar gerçek kayıt/fence ömrüne bağlı. İptal edilen kaydın CPU geçmişi sonraki GPU kaydı için geçerli sayılmıyor. Aynı kare içinde strength 1→0→1 bile geçmişi temizliyor.
+- GameTrace düzeltilmiş fiziksel girdi çiftini ve yalnız etkin ankrajda tam 1/8 gain alanını kaydediyor. Gain’in kendi boyutu, payload bütçesi ve retained copy ömrü var. Cam mode/strength bilgisi etkin modda ayar kimliğine ekleniyor; farklı cam ayarları aynı kayıt kimliğini paylaşmıyor.
+- Native ankraj tek başına açıkken de Service'in ortak recovery bütçesine katılıyor. İki coordinator koşulu düzeltildi; üç gerçek wrapper aynı bütçeyi paylaşıyor, kapasite reddinde özel bütçeye kaçmıyor. OFF koşulu korunuyor. Test, gerçek wrapper ve kaynaktan çıkarılmış iki koşulu çalıştırıyor; bütün coordinator translation unit'ini çalıştırmış sayılmıyor.
+- Yeni iki native shader, normal build aracının seçimlerine ve `all` listesine eklendi. 107 header incelendi; değişen 11 shader kaynaktan yeniden üretildi ve CSO/header eşleşmesi 971 kontrolle geçti. ColourTrackApply ile OutputComp farklı DXC sürümünden geliyordu: yalnız derleyici kimliği alanlarının farklı olduğu gösterildi, ikisi de standart DXC 1.8 ile yeniden üretildi. İkisini gerçekten dispatch eden 951 kontrollü GPU testi yeniden geçti.
+
+Yeni algoritma seçenekleri varsayılan kapalı. Kullanıcının çalışan NZR Temporal OFF davranışını “düzeltmek” amacıyla değiştiren bir filtre eklenmedi.
+
+## Görüntü başına sonuç ve sınır
+
+### Cam: daha az grain, ölçülmüş yumuşama
+
+87ee f46–63’te aynı 8048 hizalanmış piksel üzerinde kayıtlı native çıktı politikası: NZR CV 0.08864, RR 0.05800, Blend 0.5 0.06497, Blend 0.75 0.07472. Blend 0.5 yaklaşık %26,7 daha düşük CV karşılığında detay enerjisi göstergesini yaklaşık %25 düşürüyor; Blend 0.75 daha az yumuşuyor. Bu gösterge saf detay oracle’ı değildir.
+
+Diffuse lobunda 18.874.368 FP16 sözcük değişmedi. Üç puddle kontrolünde 301 yayınlanmış karede dikey cam gate’iyle örtüşme yok. c729’ın eski seçilmiş çıktısı eksik olduğundan burada yeni bir recorded-output byte-identity sonucu uydurulmadı; üretim flat fixture ayrı sınanıyor.
+
+[Cam ve yazı karşılaştırması](sub/audit24/glass87ee_f55_sign_crop.png) · [Ardışık kare animasyonu](sub/audit24/glass87ee_aligned_f46_63.gif).
+
+### Parlak kuyruk: native ankraj iyileştiriyor, kabul hedefini geçmiyor
+
+Gerçek native Stats/Gain CSO’larının ürettiği fiziksel girdiler, taze AMD RR replay’ye verildi. Ana ajan iki karar satırını ham `.npy`, sabit ortak maske ve dosya hash’lerinden yeniden hesapladı:
+
+- 87ee f60: normalize seviye **1.072622 → 1.043282**, referansın üzerindeki miktarda **%40,4 azalma**.
+- 22f9 f52: **1.146582 → 1.092408**, aynı tanımda **%37,0 azalma**.
+
+Bu iki sayı, istenen en az %50 azaltma koşulunu geçmiyor. Referans, değiştirilmemiş girdinin pencere sonundaki ortalaması; özellikle 22f9’un kısa duraklaması yakınsamış gerçek ışık değildir. [Bağımsız yeniden hesap](tests/lead_quality_recompute.json).
+
+Hareketli piksellere global fallback dağıtmayı kaldıran native politika önemli bir hatayı azaltıyor: NPC f210 hareket maskesinde RR oranı eski 0.86635 yerine **0.99982**. Buna rağmen NPC’nin en kötü hareket maskesi f190’da yaklaşık −%3,27; en kötü tüm-kare oranı f90’da −%5,41. Sürüşte f106 eski −%10,84 yerine −%2,86; bütün sürüş dizisinin yeni en kötü karesi f265’te −%4,37. En iyi pencereyi seçip kontrol zararını gizlemiyoruz.
+
+Küçük gerçek ışık adımları hâlâ ayrıştırılamıyor. RGB’ye ankrajdan önce uygulanan x1.1 ve x1.25 değişimlerinin ilk 22 karelik **tepki alanı** bazın 0.9336 ve 0.8997 katı. Bu, yaklaşık %6,6/%10,0 tepki kaybıdır; tüm görüntü %10 karardı demek değildir. x2 ve x0.5 tek başına bu sorunu yakalamıyor.
+
+Sonuç: deneysel A/B seçeneği olarak tutuluyor, önerilen preset’te kapalı. Kayıtlı V14 motion.B ve G2 ile yürütülen ROI kalite replay’si, güncel G3 V20.1 + native host + bütün NZR zincirinin oyun kalite onayı yerine geçmez. [Tam ölçüm ve görseller](sub/anchor_quality/report.md), [kaynak/sayaç/bias denetimi](sub/anchor/result.md).
+
+### Pembe renk ve post-flick lekeleri: çözülmüş sayılmıyor
+
+ColourTrack/PF’nin mevcut native yol için etkili olduğu iddiası kaldırıldı. Combined yoldaki doğrulanmış uygulama hataları düzeltildi; yeterince güvenilir bir native renk portu teslim edilmedi.
+
+Tek karede siyah çıkan 1-spp girdiyi “gerçek siyah yüzey” sayan dark guard, kontrol edilen kroma titreşimini artırdı. Daha geniş istatistik + kenar ağırlığı + yumuşak fallback kullanan `soft2` araştırma adayı bazı pencerelerde kroma-HF p90’ı %11–13, statik d6d2’de eski tracker’a göre %57 azalttı. Ancak d6d2 hâlâ raw RR’den %16,3 daha gürültülüydü.
+
+Daha önemlisi, ilk kenar testi hücreyle hizalıydı. Kenar hücrenin ortasına kaydırılınca gerçek GPU karşı örneğinde renk taşması **%70–71 arttı**. Bu aday üretime alınmadı. Daha sık hücreli, aynı fiziksel yarıçaplı son C4 deneyi de bağımsız kenar fazlarının 14/32'sinde kötüleşti; statik d6d2 kroma-HF'si raw RR'nin hâlâ %48 üzerindeydi. Bu yüzden onun da native portu yapılmadı. CPU’nun sürekli bilinear örneklemesi ile GPU sampler kesir hassasiyeti de sert derinlik kapısında farklı karar verebiliyor; tek kare GPU yakınlığı tam çok-kare parite değildir. [Renk araştırması](sub/colour/result.md), [GPU karşı testleri](sub/colour_gpu/report.md).
+
+### Şişe ve bitki: yeni bir düzeltme önerilmiyor
+
+Şişe şeridi native raw RR specular’da zaten var; f178–186 nesne maskesinde raw/selected iki lobda sözcük düzeyinde aynı. Ham specular örnekleri de aynı bölgede parlak destek taşıyor; tek 1-spp kare, yakınsamış şeklin kanıtı değildir. Geçmişi kaldırmak şeridi keskinleştirmedi: f183 S seviyesi −%18,3, HP6 −%38,8; tekrar seviye eşitlenince HP6 yine −%25,1. HF artışı da tek başına başarı değil: roughness=0 belirgin grain üretti.
+
+Bitkide ilk “CV −%11” sonucu geri çekildi: adayın kendi değişen ortalamasına bölmek kazancı şişiriyordu. Sabit baseline paydasıyla mekânsal normal ortalaması medyanda yalnız −%1,6, p90’da **+%8,4** verdi. Zamansal normal EMA medyanda daha iyi olsa da bağımsız f2ef kontrolünde detay göstergesi **%22–27 azaldı**, 22f9’da ince titreşim arttı. İkisi de elendi. [Tam hipotezler, deneyler ve görseller](sub/bottle_foliage/result.md).
+
+## Testlerin neyi kanıtladığı
+
+Test sayıları eşit sayıda bağımsız sahne veya kalite değerlendirmesi değildir; milyonluk sayılar çoğunlukla kaynak/FP16 sözcük kontrolleridir. CPU kaynak incelemesi, gerçek GPU pass testi, mock-provider native host testi, gerçek AMD RR replay ve oyun gözlemi ayrı tutulmuştur.
+
+Ana ajanın son canlı ağaçtaki temel regresyonları: native ankraj 240 kare / 9.596.644 kontrol ve zorla-OFF negatif kontrol; native transaction 8.226.027 native + 44 Python kontrol / 75 provider dispatch; flat/NZR 181001 kontrol; G2/G3 1547 kontrol; gerçek menü/INI/reset 560 kontrol; INI 52 kontrol; owned output mock+signed provider ve kaynak ömrü testleri.
+
+OFF golden: `adccf08fd` temelindeki deterministik provider çıktıları, gerçek GPU dönüşümleri, RR girdi sözcükleri, kontroller ve title commit’leriyle karşılaştırıldı. 4 profil / 24 kare / **312 dosya / 28.320.861 bayt** birebir. Ara mesajımdaki “12 dosya” eski özetten taşınmış bir hataydı; son `result.json` 312 dosya gösteriyor. Bu, ML inference’in deterministikliği veya bütün oyun karelerinin eşitliği iddiası değildir.
+
+Task 24 adversarial regresyonu eski sürümde 5/10, düzeltilmiş sürümde 10/10; geçmiş/reset testi eski sürümde 5/16, düzeltilmiş sürümde 16/16. Combined renk testi 951 kontrol; normal payload, DRS, authority ve Skip alanını kapsıyor.
+
+İlk final test başlatıcısı owned-output testine zorunlu `--mode` argümanını vermediği için durdu; başlatıcı düzeltildi, `both` ile yeniden geçti. Bu başarısız girişim loglarda duruyor. Doğrudan çalıştırıldığında yalnız import eden trace-contract modülleri “test geçti” sayılmıyor; gerçek trace fixture içinden çağrılan kontrol sonuçları esas alınmalı.
+
+Son trace testi gerçek WARP/GPU kopya/fence/Map/yayınlama yolunda 230 native + 231 Python kontrolü geçti: 137×131 render, 128×128 ROI ve bağımsız 17×16 gain alanı. Ortak family testi 282 kontrol ve eski koşulun başarısız olması gereken mutantı geçti; debug 0/0. İlk taze shader kanıtı farklı DXC kimliği nedeniyle başarısızdı; bu sonuç saklandı ve yukarıdaki yeniden üretimle giderildi.
+
+Son ek regresyonlar, zamanlar, kapsam ve kaynak kimlikleri [test dökümünde](tests.json); birlikte çalışma boşlukları [interplay defterinde](interplay.md). Tam on kayıt × bütün seçenekler kalite matrisi tamamlanmış sayılmıyor.
+
+## Performans ve teslim kimliği
+
+GPU timestamp, tahsis ölçümü ve null kontrolünün son sonuçları [performans dosyasında](performance.md). Eski CPU/fence süreleri bu bütçe hesabına katılmıyor. Önerilen preset ile deneysel ankrajın maliyetleri ayrıdır; mock-provider toplam native wrapper süresi gerçek AMD RR’nin oyun FPS’i değildir.
+
+Son DLL, kaynak commit’i, build sonucu, shader header/CSO/PE eşleşmeleri ve dosya SHA256 değerleri [teslim kimliğinde](teslim_manifest.json). DLL oyun klasörüne kurulmadı. Kaynak ağacı ve teslim dosyası ayrı hash’lerle izlenebilir; bir yeniden build’in aynı DLL hash’ini vermesi beklenmez.
+
+### Doğrulanan son derleme
+
+Kaynak commit: `87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd`. Release x64 derleme **225,187 saniyede başarılı**; DLL **30.942.208 bayt**. PE ürün sürümü `10.0.0-dev (87e8b7ab2) (20261020_201955)`. Değişen 11 CSO, üretilmiş header ile aynı ve DLL içinde birer kez bulunuyor. [DLL](dxgi.dll) · [SHA256](SHA256.txt) · [PE/shader kanıtı](artifact-verified.json) · [Kaynak farkı](source_changes.patch) · [Tekrar üretim](REPRODUCE.md).
+
+SHA256: `5CADB75E840847E5499B4CE67A2CD5B064B69E3CB5E8A64D007CDC432F49D6BE`.
+
+Derleme hatasız tamamlandı, fakat uyarısız değil: mevcut sınıf kalıtımı/CRT uyarıları ve `InputCommon::currently_active_tech` için translation-unit alignment uyuşmazlığı uyarısı logda duruyor. Bu çalışma onları giderdiğini iddia etmiyor; oyun dışı daha geniş build/ABI temizliği ayrı iş. Kaynak ağacı teslim anında temiz; DLL oyun klasörüne kurulmadı.
+
+## Sonraki en değerli kanıt
+
+1. **Önerilen cam ayarı:** aynı noktada Glass OFF / Blend 0.5 / Blend 0.75; cam yazıları, uzak yansımalar ve puddle. Menü kapalıyken her kol için 128 taze kare ve aynı pozlama son ekran videosu. Yumuşama sizin için ağırsa 0.75 veya OFF.
+2. **Parlak/pembe kuyruk:** en az 32 kare sakin başlangıç, tek hızlı dönüş, en az 96 kare duruş. Aynı hareketin ankraj OFF/ON kaydı; ayrıca kamerayı oynatmadan gerçek küçük ışık değişimi. Bütün cam/renk ayarlarını kollar arasında sabit tutun. Yeni kayıt gain alanını ve gerçek etkin ayarları taşır.
+3. **Şişe:** sabit kamera, içme hareketi başlamadan önce ve bittikten en az 30 kare sonrasını içeren 128–256 kare; şişenin bütün yolunu kapsayan 512×512 ROI. Mümkünse aynı pozda fotoğraf modu ile ayrı duruk referans ve son ekran videosu.
+4. **Bitki:** aynı saksı, 128 taze sabit kare ve sabit 2560×1440 son ekran videosu. Ardından yalnız Balanced→Quality değişsin. RR ayarları sabit kalsın; render örnekleme sınırı ile denoiser artığı böyle ayrışır.
+
+Yeni kayıt olmadan “fikirler bitti” veya “sorunsuz görüntü elde edildi” demek doğru olmaz. Bu turda belirlenen mekanik hatalar düzeltildi, yanlış başarı ölçütleri elendi ve çalıştığı kanıtlanmayan seçenekler önerilen ayardan çıkarıldı. Kalan görünür problemlerde en yüksek değer, aynı poz/gerçek ışık müdahalesi/son ekran referansıdır.
