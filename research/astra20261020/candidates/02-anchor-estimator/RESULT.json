@@ -9,7 +9,7 @@
   "branch": "astra/02-anchor-estimator",
   "pr_base": "sol/26-integration",
   "source_revision": {
-    "git_commit": null,
+    "git_commit": "a5229062b18f7458db379ce33ec97cf2649c3770",
     "source_fingerprint_sha256": "46918cc80f1c107ad209beeda8fbc5b0d11fef32a04c41826df2f2968a91f20f",
     "fingerprint_framing": "sorted candidate .py/.hlsl relative UTF-8 path + NUL + hex SHA256 + newline",
     "sources": {
