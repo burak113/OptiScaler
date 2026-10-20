@@ -591,9 +591,9 @@ class Config
     CustomOptional<float> FfxDenoiserPostFlickStrength {1.0f};
     // Post-RR colour tracking (task 25 T2, experimental): RR's chroma lags a smooth global change by ~60 frames
     // under the user's D16 settings, so after a flick the composite keeps the pre-flick colour for a second or
-    // more. Three quarter-res passes push the composite's chroma towards a motion-reprojected EMA of RR's input
-    // colour, with the pixel's luminance restored exactly. Strength, EMA weight and the smoothing radius are the
-    // knobs. Default off; nothing is allocated, bound or dispatched while off.
+    // more. Two quarter-res passes and one full-res apply move composite chroma towards a reprojected input EMA.
+    // Apply targets the current pixel's luminance, subject to floating-point/FP16 rounding. Grain and colour
+    // bleeding remain possible. Combined route only; default off and not connected to the native NRD bridge.
     CustomOptional<bool> FfxDenoiserColourTrack {false};
     CustomOptional<float> FfxDenoiserColourTrackStrength {1.0f};
     CustomOptional<float> FfxDenoiserColourTrackEmaWeight {0.25f};

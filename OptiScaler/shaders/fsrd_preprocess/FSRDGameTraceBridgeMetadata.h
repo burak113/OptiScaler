@@ -84,6 +84,14 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
             {"brightness",p.turnBrightness},{"brightness_amount",Bits(p.turnBrightnessAmount)},
             {"brightness_frames",Bits(p.turnBrightnessFrames)}}},
         {"native_nrd_output_used",false}};
+    if(p.flatAlbedo.verticalMode != 0)
+    {
+        result["flat_albedo"]["vertical_mode"] = p.flatAlbedo.verticalMode;
+        result["flat_albedo"]["vertical_strength"] = Bits(p.flatAlbedo.verticalStrength);
+    }
+    if(p.postMotionAnchor) result["post_motion_anchor"]={{"enabled",true},
+        {"strength",Bits(p.postMotionAnchorStrength)},{"local_static_and_neighborhood_recall_required",true},
+        {"physical_input_units_unchanged",true},{"frame_sums","emulated_uint64_16_16"}};
     if(p.motionStability.enabled)
         result["motion_stability"]={{"enabled",true},{"still",Bits(p.motionStability.still)},
             {"moving",Bits(p.motionStability.moving)},{"rotation_degrees",Bits(p.motionStability.rotationDegrees)},

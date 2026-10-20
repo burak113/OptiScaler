@@ -138,6 +138,9 @@ struct RRSettings
     // RR's restarted history keeps that excess for seconds. RR's copy is divided by
     // 1 + amount * min(1, peak turn / 20 deg) * max(0, 1 - age / frames). Same turn detector; RR resets alone never
     // trigger it. Never resets RR history.
+    // Native input-side anchor, using the existing default-off menu/INI option.
+    bool postMotionAnchor = false;
+    float postMotionAnchorStrength = 1.0f;
     bool turnBrightness = false;
     float turnBrightnessAmount = 0.15f, turnBrightnessFrames = 12.0f;
 };
@@ -155,10 +158,21 @@ template<class Configuration> inline void ReadTurnColourSettings(const Configura
     out.turnBrightnessAmount = std::isfinite(amount) ? std::clamp(amount, 0.0f, 0.5f) : 0.15f;
     out.turnBrightnessFrames = std::isfinite(brightnessFrames) ? std::clamp(brightnessFrames, 1.0f, 120.0f) : 12.0f;
 }
+template<class Configuration> inline void ReadPostMotionAnchorSettings(const Configuration& config, RRSettings& out)
+{
+    if constexpr (requires { config.FfxDenoiserPostMotionAnchor; config.FfxDenoiserPostMotionAnchorStrength; })
+    {
+        out.postMotionAnchor = config.FfxDenoiserPostMotionAnchor.value_or_default();
+        const float s = config.FfxDenoiserPostMotionAnchorStrength.value_or_default();
+        out.postMotionAnchorStrength = std::isfinite(s) ? std::clamp(s,0.0f,1.0f) : 1.0f;
+    }
+}
 struct RRSettingsState
 {
     bool ready = false;
     bool lightingValidationActive = false;
+    bool postMotionAnchorActive = false, postMotionAnchorFallback = false;
+    std::string postMotionAnchorLastError;
     std::string lightingValidationLastError;
     bool lobeRecoveryActive = false, lobeRecoveryFallback = false;
     bool flatAlbedoActive = false, flatAlbedoFallback = false;
@@ -199,6 +213,12 @@ struct RRRecordedOutputSnapshot
     // Exact provider geometry and separate original-roughness recovery policy.
     ID3D12Resource* providerNormals = nullptr;
     ID3D12Resource* providerMotion = nullptr;
+    // Physical inputs after the anchor, before existing turn filters/scaling.
+    // Exact provider lighting for the user's turn-filter-OFF configuration.
+    ID3D12Resource *providerPhysicalSpec = nullptr, *providerPhysicalDiff = nullptr;
+    ID3D12Resource* postMotionAnchorGain = nullptr; // Optional 1/8-res trace witness, shader-readable.
+    bool postMotionAnchorActive = false, postMotionAnchorFallback = false;
+    std::string postMotionAnchorError;
     bool runtimeTuningValid = false;
     std::array<float,8> runtimeEffective {};
     bool flatAlbedoActive = false, flatAlbedoFallback = false;

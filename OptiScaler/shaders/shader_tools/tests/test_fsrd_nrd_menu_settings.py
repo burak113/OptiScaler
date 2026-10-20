@@ -751,6 +751,11 @@ int main(){try{
  need(!cfg.FfxDenoiserColourTrack.value_or_default()&&cfg.FfxDenoiserColourTrackStrength.value_or_default()==1.0f&&
       cfg.FfxDenoiserColourTrackEmaWeight.value_or_default()==0.25f&&cfg.FfxDenoiserColourTrackRadius.value_or_default()==16.0f,
  "Full reset restores the colour tracking defaults");
+ ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Post-flick / colour tracking affect the combined FSRD path only; unavailable on this native bridge."),"Native panel visibly identifies the combined-path-only PF/colour controls");
+ ImGui::frame();ImGui::hovered=true;drawBridge(&cfg);
+ need(ImGui::hasText("Combined FSRD path only; unavailable on this native bridge. After a fast flick"),"Post-flick tooltip explicitly excludes the native bridge");
+ need(ImGui::hasText("Combined FSRD path only; unavailable on this native bridge. Tracks RR input colour"),"Colour-track tooltip explicitly excludes the native bridge");
  // Task 24 post-flick controls: Config/menu/INI scope; native dispatch effectiveness is a separate test.
  cfg.load("[FSR-RR]\nPostFlickFix=auto\nPostFlickStrength=auto\n");
  need(!cfg.FfxDenoiserPostFlickFix.value_or_default()&&cfg.FfxDenoiserPostFlickStrength.value_or_default()==1.f,
@@ -776,20 +781,50 @@ int main(){try{
  cfg.load("[FSR-RR]\n");
  need(!cfg.FfxDenoiserPostMotionAnchor.value_or_default()&&cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,
  "Post-motion anchor defaults OFF with the measured strength");
+ need(!ReadNrdBridgeRRSettings(cfg).postMotionAnchor&&ReadNrdBridgeRRSettings(cfg).postMotionAnchorStrength==1.f,
+ "Native runtime snapshot shares the anchor OFF defaults");
+ struct LegacyWithoutAnchorKeys {};
+ NrdBridge::RRSettings legacyAnchor;legacyAnchor.turnColourFilter=true;
+ NrdBridge::ReadPostMotionAnchorSettings(LegacyWithoutAnchorKeys{},legacyAnchor);
+ need(!legacyAnchor.postMotionAnchor&&legacyAnchor.postMotionAnchorStrength==1.f&&legacyAnchor.turnColourFilter,
+ "Anchor reader keeps defaults and unrelated fields for legacy configurations without the two keys");
  ImGui::frame();ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.4f;drawBridge(&cfg);
  need(cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,"Post-motion anchor slider is inert while OFF");
- ImGui::frame();ImGui::bools["Post-motion level anchor (experimental)##NrdBridge"]=true;drawBridge(&cfg);
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Post-motion level anchor (experimental)##NrdBridge"]=true;drawBridge(&cfg);
  need(cfg.FfxDenoiserPostMotionAnchor.value_or_default(),"Post-motion anchor checkbox drives the stored option");
- ImGui::frame();ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.6f;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.postMotionAnchor&&NrdBridge::last.postMotionAnchorStrength==1.f,
+ "Anchor checkbox publishes the enabled native settings snapshot");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::floats["Post-motion anchor strength##NrdBridge"]=0.6f;drawBridge(&cfg);
  need(cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,"Post-motion anchor slider writes the stored value");
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.postMotionAnchor&&NrdBridge::last.postMotionAnchorStrength==.6f,
+ "Anchor strength publishes the bounded native settings snapshot");
  need(ImGui::floatRanges.at("Post-motion anchor strength##NrdBridge")==std::array<float,2>{0.f,1.f},
  "Post-motion strength UI range matches the shader saturating fraction");
  saved=cfg.save();reload.load(saved);
  need(reload.FfxDenoiserPostMotionAnchor.value_or_default()&&reload.FfxDenoiserPostMotionAnchorStrength.value_or_default()==0.6f,
  "Post-motion anchor settings survive production INI save and reload");
+ need(ReadNrdBridgeRRSettings(reload).postMotionAnchor&&ReadNrdBridgeRRSettings(reload).postMotionAnchorStrength==.6f,
+ "Anchor ON and strength survive through the actual native reader after INI reload");
+ for(const auto [value,expected]:std::array<std::array<float,2>,6>{{{-1.f,0.f},{2.f,1.f},
+ {std::numeric_limits<float>::quiet_NaN(),1.f},{std::numeric_limits<float>::infinity(),1.f},
+ {-std::numeric_limits<float>::infinity(),1.f},{.6f,.6f}}}) {
+  cfg.FfxDenoiserPostMotionAnchorStrength=value;
+  const auto snapshot=ReadNrdBridgeRRSettings(cfg);
+  need(snapshot.postMotionAnchor&&snapshot.postMotionAnchorStrength==expected,
+  "Native anchor reader clamps finite strength and replaces nonfinite strength with its default");
+ }
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::bools["Post-motion level anchor (experimental)##NrdBridge"]=false;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&!NrdBridge::last.postMotionAnchor&&NrdBridge::last.postMotionAnchorStrength==.6f,
+ "Anchor OFF publishes the native flag and preserves the user's stored strength");
+ saved=cfg.save();reload.load(saved);
+ need(!ReadNrdBridgeRRSettings(reload).postMotionAnchor&&ReadNrdBridgeRRSettings(reload).postMotionAnchorStrength==.6f,
+ "Anchor OFF and the retained strength survive actual INI save/reload");
  cfg.ResetFfxDenoiserSettings();
  need(!cfg.FfxDenoiserPostMotionAnchor.value_or_default()&&cfg.FfxDenoiserPostMotionAnchorStrength.value_or_default()==1.0f,
  "Full reset restores the post-motion anchor defaults");
+ need(!ReadNrdBridgeRRSettings(cfg).postMotionAnchor&&ReadNrdBridgeRRSettings(cfg).postMotionAnchorStrength==1.f&&
+      !NrdBridge::last.postMotionAnchor&&NrdBridge::last.postMotionAnchorStrength==1.f,
+ "Full reset restores the native anchor OFF/default-strength snapshot");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -815,6 +850,7 @@ def run():
     contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('FlatAlbedoSettings','RRSettings','RRSettingsState'))
     contract+='\n'+function(rr,'template<class Configuration> inline FlatAlbedoSettings ReadFlatAlbedoSettings(')
     contract+='\n'+function(rr,'template<class Configuration> inline void ReadTurnColourSettings(')
+    contract+='\n'+function(rr,'template<class Configuration> inline void ReadPostMotionAnchorSettings(')
     contract_origin='actual public RR header; actual public Status header'
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
     # D06/D07 recovery tiers/reasons plus the exact production name definitions:

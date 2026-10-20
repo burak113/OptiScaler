@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import subprocess
+import struct
 import sys
 
 HERE = Path(__file__).resolve().parent
@@ -125,6 +126,30 @@ def run():
     for frame in replay["frames"]:
         check(frame["observations"]["raw_rr_specular"] == frame["observations"]["selected_rr_specular"])
         check(len(frame["skipped_original_dispatches"]) == 1)
+    # This validates the real recorder/Map/publisher, not the CPU snapshot adapter.
+    for active,key in ((False,"anchor_inactive_capture"),(True,"anchor_active_capture")):
+        folder=Path(result[key]);manifest=json.loads((folder/"capture.json").read_text(encoding="utf-8"))
+        check(manifest["manifest_published_frames"]==1)
+        check(manifest["render_extent"]==[137,131] and manifest["roi"]["origin"]==[7,1] and manifest["roi"]["extent"]==[128,128])
+        frame=manifest["frames"][0];images={image["name"]:image for image in frame["images"]}
+        check(("post_motion_anchor_gain" in images)==active)
+        check(frame["post_motion_anchor"]["active"]==active)
+        for role,base in (("input_specular",0x3400 if active else 0x3000),("input_diffuse",0x3800 if active else None)):
+            image=images[role];check(image["extent"]==[128,128] and image["crop_origin"]==[7,1])
+            payload=(folder/image["file"]).read_bytes();actual=struct.unpack('<'+'H'*(128*128*4),payload)
+            expected=tuple(0 if base is None else base+x+7+y+1+c for y in range(128) for x in range(128) for c in range(4))
+            check(actual==expected)
+        if active:
+            image=images["post_motion_anchor_gain"]
+            check(image["source_extent"]==[17,16] and image["extent"]==[17,16] and image["crop_origin"]==[0,0])
+            check(image["channels"]==4 and image["bytes_per_pixel"]==8 and image["dxgi_format"]==10)
+            payload=(folder/image["file"]).read_bytes();check(len(payload)==17*16*8)
+            expected=tuple(0x3a00+x+y if c==0 else 0 for y in range(16) for x in range(17) for c in range(4))
+            check(struct.unpack('<'+'H'*(17*16*4),payload)==expected)
+            check(frame["settings"]["post_motion_anchor"]["local_static_and_neighborhood_recall_required"] is True)
+        else:
+            check("post_motion_anchor" not in frame["settings"])
+    check(result["anchor_preflight"]["active"]["reserved_payload_bytes"]-result["anchor_preflight"]["inactive"]["reserved_payload_bytes"]==17*16*8)
     check(result["actual_sdk_dispatches"] == 0 and result["debug_errors"] == result["debug_warnings"] == 0)
     (out / "replay-inputs.json").write_text(json.dumps(replay, indent=2) + "\n", encoding="utf-8")
     contract = exercise(result["capture"], out / "offline-negative-contract")

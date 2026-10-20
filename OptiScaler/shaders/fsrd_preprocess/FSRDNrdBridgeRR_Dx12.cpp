@@ -15,6 +15,7 @@
 #include "FSRDRadianceScale_Dx12.h"
 #include "FSRDNrdLobeRecovery_Dx12.h"
 #include "FSRDNrdFlatAlbedoRecovery_Dx12.h"
+#include "FSRDNrdPostMotionAnchor_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
 #include "precompile/FSRDNrdBridgePureCommit_Shader.h"
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
@@ -649,6 +650,7 @@ struct DispatchLease
     std::shared_ptr<Context::Slot> slot;
     LobeRecovery::Prepared recovery; // Retained before the provider; owns every graph binding.
     FlatAlbedoRecovery::Prepared flatAlbedo;
+    NativePostMotionAnchor::Prepared inputAnchor;
     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
     std::array<ComPtr<ID3D12Resource>, 7> inputs;
 };
@@ -807,6 +809,8 @@ struct RRRecordedOutput
     uint64_t contextGeneration = 0, recordingId = 0;
     bool recoveryFallback = false, nativeCommitPrepared = false;
     bool flatAlbedoFallback = false;
+    bool inputAnchorFallback = false;
+    std::string inputAnchorError;
     uint32_t flatAlbedoRoughness = 0;
     std::string flatAlbedoError;
     // F04: these are frozen at the recording frame, exactly like the recovery
@@ -826,6 +830,9 @@ struct RRWrapper::Impl
 {
     std::shared_ptr<Context> context;
     FSRDRadianceScaleDx12 radianceScale;
+    NativePostMotionAnchor inputAnchor;
+    bool inputAnchorActive = false, inputAnchorFallback = false;
+    std::string inputAnchorError, loggedInputAnchorError;
     FSRDNrdLightingGuardDx12 lightingGuard;
     bool lightingValidationActive = false;
     std::string lightingValidationError, loggedLightingValidationError;
@@ -884,6 +891,8 @@ bool ValidateRRSettings(const RRSettings& settings, std::string& error)
     if (!std::isfinite(settings.turnBrightnessAmount) || settings.turnBrightnessAmount < 0.0f || settings.turnBrightnessAmount > 0.5f ||
         !std::isfinite(settings.turnBrightnessFrames) || settings.turnBrightnessFrames < 1.0f || settings.turnBrightnessFrames > 120.0f)
     { error = "RR turn brightness correction needs amount in [0,0.5] and frames in [1,120]"; return false; }
+    if (!std::isfinite(settings.postMotionAnchorStrength) || settings.postMotionAnchorStrength < 0.0f || settings.postMotionAnchorStrength > 1.0f)
+    { error = "RR post-motion anchor strength must be finite in [0,1]"; return false; }
     const auto& f = settings.flatAlbedo;
     if (f.roughness > 1023 || f.historyLength < 1 || f.historyLength > 6 ||
         !std::isfinite(f.strength) || f.strength < 0 || f.strength > 1 ||
@@ -924,7 +933,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.lightingValidation && !requested.turnColourFilter && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.lightingValidation && !requested.turnColourFilter && !requested.postMotionAnchor && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -950,6 +959,13 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         impl_->lightingGuard.Reset();impl_->lightingValidationActive=false;
         impl_->lightingValidationError.clear();impl_->loggedLightingValidationError.clear();
     }
+    const bool wasAnchorEnabled = impl_->settings.postMotionAnchor && impl_->settings.postMotionAnchorStrength > 0.0f;
+    const bool anchorEnabled = requested.postMotionAnchor && requested.postMotionAnchorStrength > 0.0f;
+    if (wasAnchorEnabled != anchorEnabled)
+    {
+        impl_->inputAnchor.DiscardRecordingHistory();
+        impl_->inputAnchorActive = impl_->inputAnchorFallback = false; impl_->inputAnchorError.clear();
+    }
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
@@ -971,6 +987,8 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.turnColourFilter = requested.turnColourFilter;
     impl_->settings.turnColourFrames = requested.turnColourFrames;
     impl_->settings.turnColourDegrees = requested.turnColourDegrees;
+    impl_->settings.postMotionAnchor = requested.postMotionAnchor;
+    impl_->settings.postMotionAnchorStrength = requested.postMotionAnchorStrength;
     impl_->settings.turnBrightness = requested.turnBrightness;
     impl_->settings.turnBrightnessAmount = requested.turnBrightnessAmount;
     impl_->settings.turnBrightnessFrames = requested.turnBrightnessFrames;
@@ -1006,6 +1024,9 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
     if (impl_) { state.lightingValidationActive=impl_->lightingValidationActive;state.lightingValidationLastError=impl_->lightingValidationError; }
     if (!impl_) return state;
     state.requested = impl_->settings;
+    state.postMotionAnchorActive = impl_->inputAnchorActive;
+    state.postMotionAnchorFallback = impl_->inputAnchorFallback;
+    state.postMotionAnchorLastError = impl_->inputAnchorError;
     state.flatAlbedoActive = impl_->flatAlbedoActive;
     state.flatAlbedoFallback = impl_->flatAlbedoFallback;
     state.flatAlbedoLastError = impl_->flatAlbedoError;
@@ -1197,11 +1218,12 @@ bool RRWrapper::RecordOwned(ID3D12GraphicsCommandList* list, const ConvertedReso
     return RecordOwnedImpl(list,input,frame,output,error,profiling,true);
 }
 
-bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
+bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const ConvertedResources& sourceInput,
                                 const FrameParameters& frame, RRRecordedOutputLease& output, std::string& error,
                                 NrdBridgeStagePerf::Sample* profiling, bool prepareNativeCommit)
 {
     error.clear(); output.reset();
+    auto input = sourceInput;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false;
     const auto reject = [&](const char* reason) {
@@ -1232,6 +1254,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         impl_->context->height != input.height || !SameDevice(device.Get(),impl_->context->device.Get());
     if (recreate)
     {
+        impl_->inputAnchor.DiscardRecordingHistory();
         std::shared_ptr<Context> fresh;
         if (!CreateContext(device.Get(),input.width,input.height,fresh,error,impl_->settings.nativeDebugView != -1,
             impl_->EnsureStagingLedger()))
@@ -1271,6 +1294,35 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         !lease->context->PrepareTableFlags(error,36))) { impl_->resetPending = true; return false; }
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
     bool reset = frame.reset || impl_->resetPending || recreate;
+    // Prepare the complete input graph before recovery/provider/suppression.
+    // Recovery reads the same corrected physical pair as RR, so NZR cannot
+    // silently restore the uncorrected post-motion level after denoising.
+    impl_->inputAnchorActive = impl_->inputAnchorFallback = false;
+    impl_->inputAnchorError.clear();
+    if (impl_->settings.postMotionAnchor && impl_->settings.postMotionAnchorStrength > 0.0f && !lease->context->debugEnabled)
+    {
+        if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily) impl_->recoveryFamily = CreateRRRecoveryFamily();
+        bool prepared = false;
+        if (impl_->recoveryFamily)
+        {
+            const std::shared_ptr<LobeRecovery::Family> family(impl_->recoveryFamily,&impl_->recoveryFamily->budget);
+            auto anchorFrame = frame; anchorFrame.reset = reset;
+            prepared = impl_->inputAnchor.Prepare(device.Get(),list,input,anchorFrame,true,
+                impl_->settings.postMotionAnchorStrength,family,lease->inputAnchor,impl_->inputAnchorError);
+        }
+        else impl_->inputAnchorError = "Native anchor shared family unavailable";
+        if (prepared)
+        {
+            input.spec = lease->inputAnchor.specular; input.diff = lease->inputAnchor.diffuse;
+            impl_->inputAnchorActive = lease->inputAnchor.active;
+        }
+        else
+        {
+            impl_->inputAnchorFallback = true;
+            if (impl_->loggedInputAnchorError != impl_->inputAnchorError)
+            { LOG_WARN("[NRD_BRIDGE] native post-motion anchor inactive: {}",impl_->inputAnchorError); impl_->loggedInputAnchorError = impl_->inputAnchorError; }
+        }
+    }
     auto* committedSpec = lease->slot->spec.Get(); auto* committedDiff = lease->slot->diff.Get();
     bool recoveryFallback = false;
     const bool requestRecovery = recoverySkipReason == uint32_t(LobeRecoveryFallbackReason::None);
@@ -1405,6 +1457,8 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     recorded->contextGeneration = lease->context->generation; recorded->recoveryFallback = recoveryFallback;
     recorded->nativeCommitPrepared = prepareNativeCommit;
     recorded->flatAlbedoFallback = requestFlat && !flatPrepared;
+    recorded->inputAnchorFallback = impl_->inputAnchorFallback;
+    recorded->inputAnchorError = impl_->inputAnchorError;
     recorded->flatAlbedoRoughness = flatPrepared ? flat.roughness : 0;
     recorded->flatAlbedoError = impl_->flatAlbedoError;
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(),list,lease))
@@ -1412,6 +1466,8 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     const auto nativeRecording = RecordedComputeLease::Capture(list);
     if (!nativeRecording || !nativeRecording->id) return reject("RR native recording identity is unavailable");
     recorded->nativeRecording = nativeRecording; recorded->recordingId = nativeRecording->id;
+    // Leased before recording: the guard and every recovery reader see initialized physical copies.
+    if (lease->inputAnchor.owner) impl_->inputAnchor.RecordInputs(list,lease->inputAnchor);
     // Post-turn colour filter: full weight on a fast turn or RR reset, fading over turnColourFrames recorded frames.
     // Post-turn brightness correction: gain 1/(1+bias), the bias scaled by the turn's peak speed (full at 20 deg/frame)
     // and fading over turnBrightnessFrames. A reset without a fast turn restarts the colour fade only.
@@ -1511,7 +1567,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
             std::string optionalError;
             const float projectionToViewY=DirectX::XMVectorGetY(DirectX::XMMatrixInverse(nullptr,frame.camera.projection).r[1]);
             if(impl_->lightingGuard.Before(device.Get(),list,input.width,input.height,frame.frameIndex,
-                input.diff,input.spec,input.motion,input.linearDepth,lease->lightingGuard,optionalError,
+                sourceInput.diff,sourceInput.spec,input.motion,input.linearDepth,lease->lightingGuard,optionalError,
                 lease->context->configuredValues[5],projectionToViewY,frame.farPlane))
             {
                 dispatch.motionVectors=ffxApiGetResourceDX12(lease->lightingGuard->Motion(),FFX_API_RESOURCE_STATE_COMPUTE_READ);
@@ -1629,6 +1685,12 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
     result.providerNormals = lease->flatAlbedo.owner ? lease->flatAlbedo.normals : lease->inputs[4].Get();
     result.providerMotion=lease->lightingGuard?lease->lightingGuard->Motion():lease->inputs[3].Get();
+    result.providerPhysicalSpec = lease->inputAnchor.owner ? lease->inputAnchor.specular : lease->inputs[0].Get();
+    result.providerPhysicalDiff = lease->inputAnchor.owner ? lease->inputAnchor.diffuse : lease->inputs[1].Get();
+    result.postMotionAnchorGain = lease->inputAnchor.active ? lease->inputAnchor.gain : nullptr;
+    result.postMotionAnchorActive = lease->inputAnchor.active;
+    result.postMotionAnchorFallback = output->inputAnchorFallback;
+    result.postMotionAnchorError = output->inputAnchorError;
     result.runtimeTuningValid=output->runtimeTuningValid;
     if(result.runtimeTuningValid)result.runtimeEffective=output->runtimeEffective;
     result.flatAlbedoActive = bool(lease->flatAlbedo.owner); result.flatAlbedoFallback = output->flatAlbedoFallback;
@@ -1690,7 +1752,8 @@ bool RRWrapper::CommitOwned(ID3D12GraphicsCommandList* list, const RRRecordedOut
     if (!ValidateCommitTarget(list,lease->context->width,lease->context->height,inputs,outputSpec,outputDiff,
         frame,lease->context->device.Get(),error)) return false;
     for (auto* owned : {lease->slot->spec.Get(),lease->slot->diff.Get(),output->selectedSpec,output->selectedDiff,
-        lease->slot->nativeDebug.Get(),lease->lightingGuard?lease->lightingGuard->Motion():nullptr})
+        lease->slot->nativeDebug.Get(),lease->lightingGuard?lease->lightingGuard->Motion():nullptr,
+        lease->inputAnchor.specular,lease->inputAnchor.diffuse})
         if (owned && (owned == outputSpec || owned == outputDiff)) return reject("RR title output aliases owned stages");
     if (HasNativeTitleSignalConstants(frame.outputConstants))
     {
@@ -1763,6 +1826,8 @@ void RRWrapper::DiscardRecordingHistory() noexcept
     impl_->recoveryTier = uint32_t(LobeRecoveryTier::None);
     impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
     impl_->context.reset();
+    impl_->inputAnchor.DiscardRecordingHistory();
+    impl_->inputAnchorActive = impl_->inputAnchorFallback = false; impl_->inputAnchorError.clear();
     // A discarded recording may still be leased on another queue. Its detector
     // images must not become the next physical provider generation's scratch.
     if(impl_->settings.lightingValidation)

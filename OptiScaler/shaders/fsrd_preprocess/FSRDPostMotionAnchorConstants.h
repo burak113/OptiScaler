@@ -1,16 +1,11 @@
-// Post-motion level anchor (task 25 T3 ii), default off.
-// After fast camera motion the game's input is +15-25 % brighter for ~15 frames (SA1/SA3, T1) and RR, with the
-// user's D16 settings, holds that level for a second or more: the bright trail. This option puts a smooth
-// LUMINANCE-ONLY gain on RR's input during the post-motion window, measured as the ratio between the current
-// input level and the level of a settled keyframe the pixel also saw (a ring of 8), so the cause is removed
-// before RR integrates it. Colour is never taken from the memory (that was the pre-test's pink regression) and
-// the gain never brightens.
+// Experimental post-motion input-level anchor, default off.
+// A six-slot settled-key ring estimates a luminance-only reduction before RR.
+// This cannot identify the cause of a captured level change: moderate real light
+// changes can also be attenuated. The gain never brightens or transfers key chroma.
 //
-// The camera and constant math of the three passes lives here so the GPU fixture drives the exact code the
-// preprocessor runs (task 24's lesson 5: a fixture with its own idea of the matrix convention only validates the
-// shader against itself), and so the whole per-frame state machine is host code that a CPU test could reason
-// about. The measured prototype lives in E:/FSRD/rrlab/hooks/25_sa7_anchor_final.py; every constant below is one
-// of its measured values (see the task-25 SA7 report).
+// Shared camera/state math is exercised by the combined and native host fixtures.
+// Native and combined Gain shaders have different fallback/coverage policies;
+// prototype quality numbers are not production guarantees.
 //
 // Desc matrices are the TRANSPOSE of the matrix HLSL sees (FSRDPostFlickConstants.h documents the same rule):
 // every load goes through LoadDesc, and the conversion desc carries the transpose of the INVERSE view/projection,
@@ -25,11 +20,8 @@
 namespace PostMotionAnchorMath
 {
     // --- keyframe ring --------------------------------------------------------------------------------------
-    // 6, not 8 (SA18 2026-10-20, task 25 N1): with 8 slots the ring keeps a much older key whose view can
-    // differ by >14 deg. The depth test cannot reject it on fronto-parallel surfaces - the reprojection
-    // offset does not change the depth there - so the recall measures a view difference, not a temporal
-    // excess. Measured: 2405 f92's frame ratio 0.810 -> 0.714 and the applied correction 6.2 % -> 1.5 % of
-    // the level (lab out/in 0.941 -> 0.926 against the prototype's inert 0.940); 87ee/22f9 unchanged.
+    // Bound reference age/footprint. Matching depth on a fronto-parallel surface
+    // does not prove that a view-dependent lighting sample is temporally comparable.
     inline constexpr uint32_t kRingSize = 6u;
     // A keyframe is sampled while the camera is still, at most every kSampleFrames frames, and only after
     // kSettledFrames consecutive still frames: a frame right after its own flick still carries part of that
@@ -39,26 +31,25 @@ namespace PostMotionAnchorMath
     inline constexpr uint32_t kSampleFrames = 4u;
 
     // --- post-motion window ---------------------------------------------------------------------------------
-    // k = frames since the last frame at or above kMotionDegrees; the anchor acts for 0 <= k <= kWindowFrames and
-    // only when the burst that just ended peaked at kArmDegrees. Including the motion frames is measured: with
-    // k >= 1 only, 22f9's f52 trail is cut just -8 % because its trail is created during the motion episode.
+    // k = frames since the last frame at or above kMotionDegrees. Apply only in
+    // this window after a burst reaches kArmDegrees; active motion is included.
     inline constexpr float kMotionDegrees = 1.0f;
     inline constexpr float kArmDegrees = 3.0f;
     inline constexpr uint32_t kWindowFrames = 25u;
 
-    // --- the measured constants of the gain ------------------------------------------------------------------
-    // The T1 model excess(k) = 1 + A exp(-k/tau); the shape is reliable, the amplitude is not (A = 0.00-0.53,
-    // median 0.18), so it is used as an absolute band: the correction can never exceed it, and where nothing is
-    // recalled the fallback is no correction (gain 1) since the N2 guard; kFallbackA is kept only for the
-    // constant layout (Params2.y) and is no longer read by the gain pass.
+    // --- bounded experimental gain --------------------------------------------------------------------------
+    // A decaying band limits the correction; it does not classify real light.
+    // Native Gain uses identity fallback and a local static/coverage gate.
+    // Combined Gain can use the measured frame ratio as fallback.
+    // kFallbackA remains in the constant layout but is not read by either pass.
     inline constexpr float kBandA = 0.18f;
     inline constexpr float kBandTau = 10.0f;
     inline constexpr float kCapExtra = 0.05f;
     inline constexpr float kCapHard = 0.30f;
     inline constexpr float kFallbackA = 0.15f;
     inline constexpr float kGainLow = 0.80f;
-    // A real light change is not corrected away: an excess this far above the model band (or above this absolute
-    // value) is not the post-motion excess, so the cell keeps gain 1 (2405's drift frames measure 0.35).
+    // Reject large changes outside this band. Moderate genuine light changes
+    // may still pass; this threshold is not a no-light-lag guarantee.
     inline constexpr float kRejectMult = 1.8f;
     inline constexpr float kRejectAbs = 0.30f;
     inline constexpr float kDepthTolerance = 0.02f;

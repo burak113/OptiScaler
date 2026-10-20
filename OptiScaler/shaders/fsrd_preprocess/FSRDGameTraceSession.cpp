@@ -1011,6 +1011,25 @@ Image PlanBridgeImage(ID3D12Device* device, const Session& s, size_t role, ID3D1
     image.allocationBytes = ChargedReadbackBytes(device,image.footprintBytes);
     return image;
 }
+// The anchor's diagnostic is a different grid from the full-resolution roles.
+// Keep the complete small field so its bilinear full-render-UV sampling remains
+// reproducible even for an odd render extent or a narrowly cropped image ROI.
+// This optional image never consumes or renumbers a BridgeNames slot.
+Image PlanBridgeAnchorGain(ID3D12Device* device,const Session& s,ID3D12Resource* source)
+{
+    const auto desc = source->GetDesc();
+    const UINT width = std::max(1u,s.rw/8u), height = std::max(1u,s.rh/8u);
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format != DXGI_FORMAT_R16G16B16A16_FLOAT ||
+        desc.Width != width || desc.Height != height || desc.DepthOrArraySize != 1 || desc.MipLevels != 1 ||
+        desc.SampleDesc.Count != 1) throw std::runtime_error("NRD_BRIDGE anchor gain witness has incompatible extent/format");
+    Image image; image.sourceDesc = desc; image.sourceWidth = width; image.sourceHeight = height;
+    image.cropX = image.cropY = 0; image.width = width; image.height = height;
+    image.format = uint32_t(desc.Format); image.channels = 4; image.bpp = 8;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source));
+    auto copy = desc; copy.Width = image.width; copy.Height = image.height;
+    device->GetCopyableFootprints(&copy,0,1,0,&image.footprint,nullptr,nullptr,&image.footprintBytes);
+    image.allocationBytes = ChargedReadbackBytes(device,image.footprintBytes); return image;
+}
 Image PlanBridgeFlag(ID3D12Device* device)
 {
     Image image;
@@ -2052,7 +2071,8 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             output.frameIndex != s.lastFrameIndex+1u || identity.streamlineFrame != s.lastBridgeSL+1u ||
             identity.recordingId <= s.lastBridgeRecording))
             throw std::runtime_error("NRD_BRIDGE trace context/settings/consecutive SL or SDK frame lineage changed");
-        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,output.providerMotion ? output.providerMotion : input.motion,output.providerNormals ? output.providerNormals : input.normals,
+        const std::array<ID3D12Resource*,11> sources {output.providerPhysicalSpec ? output.providerPhysicalSpec : input.spec,
+            output.providerPhysicalDiff ? output.providerPhysicalDiff : input.diff,input.linearDepth,output.providerMotion ? output.providerMotion : input.motion,output.providerNormals ? output.providerNormals : input.normals,
             input.specAlbedo,input.diffAlbedo,output.rawSpec,output.rawDiff,output.selectedSpec,output.selectedDiff};
         for (auto* source : sources) if (!source) throw std::runtime_error("NRD_BRIDGE trace missing owned stage");
         auto f = std::make_shared<Frame>(); f->bridge = true; f->bridgeIdentity = identity;
@@ -2098,11 +2118,23 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back("recovery_original_normal_roughness");
             f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
         }
+        size_t anchorGainSlot = SIZE_MAX;
+        if (output.postMotionAnchorGain)
+        {
+            anchorGainSlot = f->surveyImages.size();
+            auto image = PlanBridgeAnchorGain(device,s,output.postMotionAnchorGain);
+            readback += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back("post_motion_anchor_gain");
+            f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
+        }
         // Includes both future encoded outputs and the optional exact GPU flag.
         // No readback allocation or command has occurred at this point.
         PreflightReadback(s,readback,readback); PreflightPayload(s,payload);
         f->bridgeMetadata = {{"identity",BridgeIdentityMetadata(identity)},{"frame_parameters",FSRDGameTraceBridgeMetadata::Frame(parameters,slConstants,slFrame,slViewport)},
             {"settings",settingsJson},{"settings_sha256",settingsHash},{"context_id",context},
+            {"post_motion_anchor",{{"active",output.postMotionAnchorActive},{"fallback",output.postMotionAnchorFallback},
+                {"error",output.postMotionAnchorError},{"input_units","physical_native_linear_rgb"},{"gain_role",output.postMotionAnchorGain ? "post_motion_anchor_gain" : "none"},
+                {"input_stage","after_anchor_before_optional_turn_filters_and_radiance_scaling"}}},
             {"context_generation",output.contextGeneration},{"sdk_frame_index",output.frameIndex},
             {"actual_dispatch_flags",f->info.dispatchFlags},{"actual_reset",f->info.reset},
             {"roles",roles},{"skipped_original_dispatches",Json::array()},{"native_nrd_output_captured",false},
@@ -2146,6 +2178,13 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             f->ticket->Retain(input.normals);
             RecordBridgeCopy(cmd,*f,f->surveyImages[originalNormalSlot],{input.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
             f->bridgeCopied[originalNormalSlot] = true;
+        }
+        if (anchorGainSlot != SIZE_MAX)
+        {
+            f->ticket->Retain(output.postMotionAnchorGain);
+            RecordBridgeCopy(cmd,*f,f->surveyImages[anchorGainSlot],
+                {output.postMotionAnchorGain,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE});
+            f->bridgeCopied[anchorGainSlot] = true;
         }
         s.bridgeDomain = identity.domain; s.manifest["captured_domain"] = identity.domain;
         s.status.phase = "capturing"; impl.UpdateProgress(); control.wake.notify_all(); return f;

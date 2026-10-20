@@ -35,6 +35,8 @@ struct OwnedBridgeFixture
     std::array<ComPtr<ID3D12Resource>,7> inputs;
     ComPtr<ID3D12Resource> flag;
     std::array<ComPtr<ID3D12Resource>,2> title;
+    std::array<ComPtr<ID3D12Resource>,2> anchorInputs;
+    ComPtr<ID3D12Resource> anchorGain;
     explicit OwnedBridgeFixture(Host& h)
     {
         inputs = {h.textures[0],h.textures[1],h.textures[6],h.textures[7],h.textures[5],h.textures[2],h.textures[3]};
@@ -48,6 +50,41 @@ struct OwnedBridgeFixture
             D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&resource)));
         d = ReadbackDesc(1536); d.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&flag)));
+    }
+    void FillAnchor(Host& h)
+    {
+        // Controlled physical input/gain words, not a denoiser or quality oracle.
+        if (!anchorGain)
+        {
+            D3D12_HEAP_PROPERTIES heap {}; heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+            auto d=inputs[0]->GetDesc();d.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            for(auto& r:anchorInputs)hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&d,srv,nullptr,IID_PPV_ARGS(&r)));
+            d.Width=std::max(1u,h.renderWidth/8u);d.Height=std::max(1u,h.renderHeight/8u);
+            hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&d,srv,nullptr,IID_PPV_ARGS(&anchorGain)));
+        }
+        const std::array<ID3D12Resource*,3> targets {anchorInputs[0].Get(),anchorInputs[1].Get(),anchorGain.Get()};
+        for(size_t i=0;i<targets.size();++i)
+        {
+            const auto d=targets[i]->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp {};UINT64 bytes=0;
+            h.device->GetCopyableFootprints(&d,0,1,0,&fp,nullptr,nullptr,&bytes);
+            D3D12_HEAP_PROPERTIES heap {};heap.Type=D3D12_HEAP_TYPE_UPLOAD;auto bd=ReadbackDesc(bytes);
+            ComPtr<ID3D12Resource> upload;hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&bd,
+                D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&upload)));
+            void* mapped=nullptr;D3D12_RANGE empty {0,0};hr(upload->Map(0,&empty,&mapped));memset(mapped,0,size_t(bytes));
+            const uint16_t base=i==0?0x3400u:i==1?0x3800u:0x3a00u;
+            for(UINT y=0;y<d.Height;++y)for(UINT x=0;x<d.Width;++x)for(UINT c=0;c<4;++c)
+            {
+                const uint16_t word=i==2&&c!=0?0:uint16_t(base+x+y+c);
+                memcpy(static_cast<uint8_t*>(mapped)+fp.Offset+y*fp.Footprint.RowPitch+(x*4+c)*2,&word,2);
+            }
+            upload->Unmap(0,nullptr);
+            D3D12_RESOURCE_BARRIER b {};b.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            b.Transition={targets[i],0,srv,D3D12_RESOURCE_STATE_COPY_DEST};h.list->ResourceBarrier(1,&b);
+            D3D12_TEXTURE_COPY_LOCATION src {},dst {};src.pResource=upload.Get();src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            src.PlacedFootprint=fp;dst.pResource=targets[i];dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            h.list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);std::swap(b.Transition.StateBefore,b.Transition.StateAfter);
+            h.list->ResourceBarrier(1,&b);h.uploads.push_back(std::move(upload));
+        }
     }
     NrdBridge::ConvertedResources Converted(Host& h)
     {
@@ -154,6 +191,69 @@ Trace::Request Request(const std::filesystem::path& root)
     Trace::Request request;request.capturePath=Trace::Request::CapturePath::NrdBridge;
     request.regionMode=Trace::Request::RegionMode::FullRender;request.outputRoot=root.string();return request;
 }
+void AnchorTraceChecks(const std::filesystem::path& root,Json& result)
+{
+    // A cropped odd render extent proves that the gain image keeps its own
+    // complete 1/8 grid rather than inheriting the main image ROI/row pitch.
+    Host h(137,0,0,131);auto owner=std::make_shared<OwnedBridgeFixture>(h);
+    uint64_t inactiveReadback=0,inactivePayload=0;
+    for(bool active:{false,true})
+    {
+        auto request=Request(root);request.regionMode=Trace::Request::RegionMode::Square;
+        request.x=7;request.y=1;request.size=128;
+        Trace trace;check(Trace::RequestStart(request),"anchor trace request");
+        result[active?"anchor_active_capture":"anchor_inactive_capture"]=Trace::GetStatus().folder;
+        h.Fill(0);owner->FillStages(h);if(active)owner->FillAnchor(h);
+        auto output=owner->Snapshot(h,0);output.owner=owner;output.postMotionAnchorActive=active;
+        if(active)
+        {
+            output.providerPhysicalSpec=owner->anchorInputs[0].Get();output.providerPhysicalDiff=owner->anchorInputs[1].Get();
+            output.postMotionAnchorGain=owner->anchorGain.Get();
+        }
+        NrdBridge::RRSettingsState settings;settings.requested.postMotionAnchor=active;settings.requested.postMotionAnchorStrength=.75f;
+        Trace::BridgeFrameToken token;
+        Await([&]{if(!token)token=trace.RecordBridgeOwned(h.device.Get(),h.list.Get(),Identity(),owner->Converted(h),owner,
+            Parameters(),sl::Constants{},100,2,settings,output,Witness());return bool(token)||!Trace::IsActive();},"anchor trace admission");
+        check(bool(token),"anchor trace owned input rejected");auto frame=std::static_pointer_cast<Frame>(token);
+        check(frame->bridgeOwnedResources[0]==(active?owner->anchorInputs[0].Get():owner->inputs[0].Get()),
+            "trace spec input did not follow frozen corrected physical source");
+        check(frame->bridgeOwnedResources[1]==(active?owner->anchorInputs[1].Get():owner->inputs[1].Get()),
+            "trace diffuse input did not follow frozen corrected physical source");
+        size_t gain=SIZE_MAX;for(size_t i=0;i<frame->surveyKeys.size();++i)if(frame->surveyKeys[i]=="post_motion_anchor_gain")gain=i;
+        check((gain!=SIZE_MAX)==active,"inactive anchor allocated/published a gain image or active gain was omitted");
+        check(frame->surveyImages.size()==(active?13u:12u),"optional gain changed mandatory bridge role allocations");
+        uint64_t charged=0,payload=frame->constants.size()+36;
+        for(const auto& image:frame->surveyImages){charged+=image.allocationBytes;payload+=uint64_t(image.width)*image.height*image.bpp;}
+        check(frame->gpuBytes==charged,"anchor gain committed readback was not charged exactly once");
+        check(Trace::GetStatus().estimatedFrameReadbackBytes==charged,"anchor gain was omitted from readback preflight");
+        {std::scoped_lock lock(Global().mutex);check(Global().current->manifest["estimated_frame_payload_bytes"]==payload,
+            "anchor gain was omitted from payload preflight");}
+        const auto& meta=frame->bridgeMetadata["post_motion_anchor"];
+        check(meta["active"]==active&&meta["gain_role"]==(active?"post_motion_anchor_gain":"none"),"anchor activity/gain-role metadata mismatch");
+        check(meta["input_stage"]=="after_anchor_before_optional_turn_filters_and_radiance_scaling", "anchor input stage provenance lost");
+        if(active)
+        {
+            const auto& image=frame->surveyImages[gain];check(image.width==17&&image.height==16&&image.cropX==0&&image.cropY==0,
+                "gain diagnostic inherited image ROI instead of its own full odd-size grid");
+            check(image.bpp==8&&image.channels==4&&image.format==DXGI_FORMAT_R16G16B16A16_FLOAT,"gain diagnostic format contract changed");
+            check(charged==inactiveReadback+image.allocationBytes&&payload==inactivePayload+17u*16u*8u,
+                "active-only gain preflight delta is not exactly its own image");
+            bool retained=false;for(const auto& resource:frame->ticket->resources)retained|=resource.Get()==static_cast<IUnknown*>(owner->anchorGain.Get());
+            check(retained,"gain readback did not retain its exact GPU resource");
+        }
+        else{inactiveReadback=charged;inactivePayload=payload;}
+        result["anchor_preflight"][active?"active":"inactive"]={{"readback_bytes",charged},{"reserved_payload_bytes",payload}};
+        check(trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(),ControlHeader(owner,0)),"anchor trace control header");
+        for(size_t i=0;i<2;++i)owner->Copy(h,owner->stages[i].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,owner->title[i].Get());
+        output.outputCommitted=true;output.encodingFlag=owner->flag.Get();output.nativeEncodingCaptured=true;
+        std::array<Trace::Source,2> targets {{{owner->title[0].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS},
+            {owner->title[1].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS}}};
+        NrdBridge::TitleSignalConstants native;native.address=owner->flag->GetGPUVirtualAddress();native.wordIndex=36;
+        check(trace.CompleteBridgeFrame(token,h.list.Get(),Identity(),targets,output,native),"anchor trace commit rejected");
+        h.Execute();Saved(1);h.Reset();token.reset();frame.reset();trace.Poll();Trace::RequestStop();Closed();Published(1);
+    }
+    h.NoGpuErrors();
+}
 int main(int argc,char** argv) try
 {
     need(argc==2,"output directory required");const auto root=std::filesystem::path(argv[1]);
@@ -168,6 +268,23 @@ int main(int argc,char** argv) try
     }
     {
         NrdBridge::RRSettingsState a;a.ready=true;a.effective={.5f,.5f,40000,40,.5f,.1f,0,1024};
+        const auto baseline=FSRDGameTraceBridgeMetadata::Settings(a);
+        auto digest=[](const Json& value){const auto text=value.dump();return RRTraceAdditiveIO::Sha256(
+            {reinterpret_cast<const uint8_t*>(text.data()),text.size()});};
+        check(!baseline["flat_albedo"].contains("vertical_mode")&&!baseline["flat_albedo"].contains("vertical_strength"),
+            "default-OFF glass metadata changed");
+        auto glass=a;glass.requested.flatAlbedo.verticalStrength=.25f;
+        check(FSRDGameTraceBridgeMetadata::Settings(glass)==baseline,"inactive glass strength changed golden settings metadata");
+        glass.requested.flatAlbedo.verticalMode=1;const auto mode1=FSRDGameTraceBridgeMetadata::Settings(glass);
+        check(mode1["flat_albedo"]["vertical_mode"]==1&&mode1["flat_albedo"]["vertical_strength"]==std::bit_cast<uint32_t>(.25f),
+            "active glass mode/strength were not captured exactly");
+        glass.requested.flatAlbedo.verticalMode=2;const auto mode2=FSRDGameTraceBridgeMetadata::Settings(glass);
+        check(digest(mode1)!=digest(mode2),"glass mode change did not change settings lineage hash");
+        glass.requested.flatAlbedo.verticalStrength=.75f;
+        check(digest(mode2)!=digest(FSRDGameTraceBridgeMetadata::Settings(glass)),"glass strength change did not change settings lineage hash");
+        auto anchored=a;anchored.requested.postMotionAnchor=true;const auto anchorMeta=FSRDGameTraceBridgeMetadata::Settings(anchored);
+        check(anchorMeta["post_motion_anchor"]["local_static_and_neighborhood_recall_required"]==true&&
+            !anchorMeta["post_motion_anchor"].contains("local_static_and_recall_required"),"anchor metadata overclaimed centre recall");
         check(!FSRDGameTraceBridgeMetadata::Settings(a).contains("lighting_validation"),"OFF metadata must not add a G3 policy");
         a.requested.lightingValidation=true;auto g3=FSRDGameTraceBridgeMetadata::Settings(a);
         auto changed=a;changed.requested.motionStability.rotationDegrees=.2f;
@@ -380,6 +497,7 @@ int main(int argc,char** argv) try
         check(Trace::GetStatus().message.find("frame readback preflight")!=std::string::npos,"budget diagnostic missing");
         large.Discard();Closed();trace.Poll();large.NoGpuErrors();
     }
+    AnchorTraceChecks(root,result);
     h.NoGpuErrors();result["native_checks"]=bridgeChecks;result["gpu_backend"]="WARP";
     result["actual_sdk_dispatches"]=0;result["debug_errors"]=0;result["debug_warnings"]=0;
     RRTraceAdditiveIO::WriteText(root/"bridge-trace-result.json",result.dump(2));

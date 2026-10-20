@@ -485,6 +485,7 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         config.FfxDenoiserNrdBridgeTurnColourDegrees; config.FfxDenoiserNrdBridgeTurnBrightness;
         config.FfxDenoiserNrdBridgeTurnBrightnessAmount; config.FfxDenoiserNrdBridgeTurnBrightnessFrames; })
         ReadTurnColourSettings(config, settings);
+    ReadPostMotionAnchorSettings(config,settings);
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -1241,8 +1242,9 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         }
         if (reset) { history->conversion.ResetHistory(); history->rr.ResetHistory(); }
         if (succeeded) succeeded = history->rr.Configure(rrSettings,error);
-        if (succeeded && rrSettings.lobeRecovery &&
-            (rrSettings.recoverySpecular > 0.0f || rrSettings.recoveryDiffuse > 0.0f))
+        if (succeeded && ((rrSettings.lobeRecovery &&
+            (rrSettings.recoverySpecular > 0.0f || rrSettings.recoveryDiffuse > 0.0f)) ||
+            (rrSettings.postMotionAnchor && rrSettings.postMotionAnchorStrength > 0.0f)))
         {
             if (!owner->recoveryFamily) owner->recoveryFamily = CreateRRRecoveryFamily();
             history->rr.SetRecoveryFamily(owner->recoveryFamily);
@@ -1791,8 +1793,9 @@ void BeginNativeTransaction(const std::shared_ptr<Service>& owner,
             stage->parameters.nativeMaterialGuides = stage->settings.nativeMaterialGuides;
             stage->parameters.preserveNativeMaterialIDs = stage->settings.preserveNativeMaterialIDs;
             stage->parameters.cameraProjectedDepthDelta = stage->cameraProjectedDepthDelta;
-            if (prepared && stage->settings.lobeRecovery &&
-                (stage->settings.recoverySpecular > 0.0f || stage->settings.recoveryDiffuse > 0.0f))
+            if (prepared && ((stage->settings.lobeRecovery &&
+                (stage->settings.recoverySpecular > 0.0f || stage->settings.recoveryDiffuse > 0.0f)) ||
+                (stage->settings.postMotionAnchor && stage->settings.postMotionAnchorStrength > 0.0f)))
             {
                 if (!owner->recoveryFamily) owner->recoveryFamily = CreateRRRecoveryFamily();
                 history->rr.SetRecoveryFamily(owner->recoveryFamily);

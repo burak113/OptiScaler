@@ -99,6 +99,11 @@ def compile_fused_sss(name, compiler, temporary):
 
 def compile_command(compiler, name, src, compiled, asm):
     """Exact dxc argv for a standalone rebuild, shared by build() and the contract test."""
+    # Preserve the native anchor's validated shader model/language/reflection profile.
+    # These flags reproduce the actual CSOs used in the native GPU/quality audits.
+    if name in ("FSRDNrdPostMotionAnchorStatsRecall", "FSRDNrdPostMotionAnchorGain"):
+        return [str(compiler), "-T", "cs_6_6", "-HV", "2021", "-E", "CSMain",
+                "-O3", "-enable-16bit-types", src, "-Fo", compiled, "-Fc", asm]
     args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
             "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", compiled, "-Fc", asm]
     if name in NRD_LOBE_RECOVERY_SHADERS:
@@ -217,6 +222,7 @@ if __name__ == "__main__":
                                        'FSRDColourTrackStats', 'FSRDColourTrackTrack', 'FSRDColourTrackApply',
                                        'FSRDPostMotionAnchorStatsRecall', 'FSRDPostMotionAnchorGain',
                                        'FSRDPostMotionAnchorApply',
+                                       'FSRDNrdPostMotionAnchorStatsRecall', 'FSRDNrdPostMotionAnchorGain',
                                                                                                                      'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
                                        'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion', 'FSRDNrdLobeRecovery', *NRD_LOBE_RECOVERY_SHADERS, 'all'])
     parser.add_argument('--compile-only', action='store_true', help='Compile code without running mirror verification')
@@ -236,6 +242,7 @@ if __name__ == "__main__":
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'FSRDCompareView', 'FSRDPostFlickPrepare', 'FSRDPostFlickApply',
                  'FSRDColourTrackStats', 'FSRDColourTrackTrack', 'FSRDColourTrackApply',
                  'FSRDPostMotionAnchorStatsRecall', 'FSRDPostMotionAnchorGain', 'FSRDPostMotionAnchorApply',
+                 'FSRDNrdPostMotionAnchorStatsRecall', 'FSRDNrdPostMotionAnchorGain',
                                                    'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
                  'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion']
         names.extend(NRD_LOBE_RECOVERY_SHADERS)

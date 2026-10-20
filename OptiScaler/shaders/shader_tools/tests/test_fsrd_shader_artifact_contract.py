@@ -95,7 +95,10 @@ def parse_header(name):
 def format_census():
     """Every generated header is exactly one of the two formats; the array writer round-trips."""
     names = sorted(path.name[:-len('_Shader.h')] for path in PRE.glob('*_Shader.h'))
-    need(len(names) == 81, 'the census covers every checked-in generated header')
+    missing = sorted(set(AFFECTED) - set(names))
+    need(not missing, 'every audited affected shader is present; missing: ' + ', '.join(missing))
+    need(SEALED == set(builder.NRD_LOBE_RECOVERY_SHADERS),
+         'the pinned sealed set is exactly the audited Recovery trio')
     seen = {}
     for name in names:
         kind, payload, raw = parse_header(name)
@@ -173,12 +176,14 @@ def main():
         if extra not in names:
             names.append(extra)
     evidence = dict(schema='fsrd-shader-artifact-contract-v1',
-                    headers=len(seen), sealed=sorted(SEALED),
-                    compiled=sorted(names), compile_skipped=bool(args.skip_compile))
+                    headers=len(seen), inventory=seen, sealed=sorted(SEALED),
+                    requested_shaders=sorted(names),
+                    compiled=[] if args.skip_compile else sorted(names),
+                    compile_skipped=bool(args.skip_compile))
     if not args.skip_compile:
         evidence['fresh_compiles'] = fresh_compile(names)
     print(json.dumps(evidence, indent=1))
-    print('fsrd shader artifact contract verified: %d checks, %d formats censused, %d fresh compiles'
+    print('fsrd shader artifact contract verified: %d checks, %d headers censused, %d fresh compiles'
           % (CHECKS, len(seen), 0 if args.skip_compile else len(names)))
 
 

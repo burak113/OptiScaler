@@ -3383,6 +3383,7 @@ static bool DrawNrdBridgeTurnColour(Config* config)
         ImGui::SetTooltip("Blend from no correction (0) to the full bounded correction (1). Values above 1 "
                           "have no additional effect and are clamped to 1. Default 1.0.");
     ImGui::EndDisabled();
+    ImGui::TextDisabled("Post-flick / colour tracking affect the combined FSRD path only; unavailable on this native bridge.");
     bool postFlick = config->FfxDenoiserPostFlickFix.value_or_default();
     if (ImGui::Checkbox("Post-flick blotch fix (experimental)##NrdBridge", &postFlick))
     {
@@ -3390,8 +3391,8 @@ static bool DrawNrdBridgeTurnColour(Config* config)
         changed = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("After a fast flick (15 deg/frame and up) RR has no history and paints low-frequency blotches on "
-                          "flat walls for 10-20 frames. Pixels whose history is still young take their low-frequency band "
+        ImGui::SetTooltip("Combined FSRD path only; unavailable on this native bridge. After a fast flick "
+                          "(15 deg/frame and up), pixels whose history is still young take their low-frequency band "
                           "from the last settled frame before the flick (level matched) while the current frame's detail is "
                           "kept; settled pixels are untouched. The keyframe is held for 32 frames after a flick and at most "
                           "64 frames old, and the correction switches off when the keyframe is more than 20 deg away from "
@@ -3414,13 +3415,12 @@ static bool DrawNrdBridgeTurnColour(Config* config)
         changed = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("RR's colour lags a smooth global change by about a second under D16 settings, so right after a fast "
-                          "flick its output keeps the pre-flick tint (pink/red walls) while the game's own lighting has already "
-                          "moved. This tracks RR's input colour at quarter resolution and pushes the composite's chroma towards "
-                          "it through a motion-reprojected EMA, leaving every pixel's brightness exactly RR's (colour only, no "
-                          "level change). The correction runs before the detail recovery and NZR, so those keep the last word on "
-                          "the pixels they replace. Three quarter-resolution passes plus one full-resolution apply, only while it "
-                          "is on. Experimental; in-game quality is unmeasured. Default off.");
+        ImGui::SetTooltip("Combined FSRD path only; unavailable on this native bridge. Tracks RR input colour "
+                          "at quarter resolution and shifts the composite's chroma toward a motion-reprojected EMA target. "
+                          "The apply aims to preserve each pixel's luminance; FP16 rounding and sanitization can change it. "
+                          "Runs before detail recovery and NZR. Two quarter-resolution passes (Stats, Track) and one "
+                          "full-resolution apply while enabled. Can alter noise colour and bleed across edges. "
+                          "Experimental; in-game quality is unmeasured. Default off.");
     ImGui::BeginDisabled(!colourTrack);
     float colourTrackStrength = config->FfxDenoiserColourTrackStrength.value_or_default();
     if (ImGui::SliderFloat("Color track strength##NrdBridge", &colourTrackStrength, 0.0f, 1.0f, "%.2f"))
@@ -3446,9 +3446,8 @@ static bool DrawNrdBridgeTurnColour(Config* config)
         changed = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Distance of the outermost smoothing tap in pixels; the kernel keeps colours from bleeding across "
-                          "depth and normal edges. The value is quantised to whole quarter-resolution cells, and 16 is the "
-                          "measured shape. Default 16.");
+        ImGui::SetTooltip("Distance of the outermost smoothing tap in pixels. Depth and normal weights limit edge "
+                          "bleed but do not eliminate it. Quantised to whole quarter-resolution cells. Default 16.");
     ImGui::EndDisabled();
     ImGui::BeginDisabled(!enabled && !brightness);
     float degrees = config->FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
@@ -3559,6 +3558,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
     // rebuilding the snapshot without it.
     settings.surfaceValidFill = config.FfxDenoiserNrdBridgeSurfaceValidFill.value_or_default();
     NrdBridge::ReadTurnColourSettings(config, settings);
+    NrdBridge::ReadPostMotionAnchorSettings(config, settings);
     settings.motionStability = NrdBridge::ReadMotionStabilitySettings(config);
     settings.lightingValidation = NrdBridge::ReadLightingValidation(config);
     settings.lobeRecovery = config.FfxDenoiserNrdBridgeLobeRecovery.value_or_default();
