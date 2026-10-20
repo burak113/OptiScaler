@@ -23,6 +23,7 @@
 #include "FSRDCameraMatrices.h"
 #include "FSRDTaggedResourceExtent.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDPostFlickConstants.h"
 #include "shaders/fsrd_preprocess/FSRDShaderUtils.h"
 #include "MathUtils.h"
 #include "upscalers/dlssd/DLSSDFeature_Dx12.h"
@@ -2545,15 +2546,10 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .CompareView = uint32_t(std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4)),
         };
         // Post-flick blotch fix (task 24 T2 c): the pass pair needs the camera pair; the conversion desc carries the
-        // inverses, so invert once here. Off by default and unused while the option is off.
+        // HLSL column-vector form of the inverses, so invert once here. Off by default and unused while off.
         if (compDesc.PostFlickFix)
-        {
-            DirectX::XMMATRIX view = DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&_convDesc.InvViewMatrix));
-            DirectX::XMMATRIX projection = DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&_convDesc.InvProjMatrix));
-            DirectX::XMStoreFloat4x4(&compDesc.ViewMatrix, view);
-            DirectX::XMStoreFloat4x4(&compDesc.ProjectionMatrix, projection);
-            DirectX::XMStoreFloat4x4(&compDesc.PrevViewMatrix, DirectX::XMLoadFloat4x4(&_convDesc.PrevViewMatrix));
-        }
+            PostFlickMath::FillFromConversion(compDesc.ViewMatrix, compDesc.ProjectionMatrix, compDesc.PrevViewMatrix,
+                {_convDesc.InvViewMatrix, _convDesc.InvProjMatrix, _convDesc.PrevViewMatrix});
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
         // It is deliberately absent from composition; the title's Color input already

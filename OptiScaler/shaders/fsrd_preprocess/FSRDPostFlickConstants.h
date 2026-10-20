@@ -35,6 +35,37 @@ namespace PostFlickMath
         bool Refresh = false;
     };
 
+    // The composition desc stores the TRANSPOSE of the matrix HLSL sees: FSRDCameraMatrices.h builds the camera
+    // basis with the position in column 3 (the column-vector form, camera.view = B^-1, camera.inverseView = B), and
+    // StoreHlslColumnVectorMatrix writes XMMatrixTranspose of it, which is exactly what a column-major cbuffer
+    // read turns back into the column-vector matrix for the HLSL consumers. Everything in this file therefore
+    // transposes once when loading a desc matrix, and the apply pass receives the relative matrix row by row.
+    inline DirectX::XMMATRIX LoadDesc(const DirectX::XMFLOAT4X4& value)
+    {
+        return DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&value));
+    }
+
+    // The conversion desc carries the HLSL column-vector form of the inverse matrices (FSRDFeature_Dx12.cpp
+    // transposes with StoreHlslColumnVectorMatrix before uploading, and the shipped skin/additive HLSL consumes
+    // desc.InvViewMatrix as mul(Matrix, vector)), so inverting them yields the HLSL form of the forward matrices
+    // the passes need. The previous view is already a forward view. Kept here so the GPU fixture drives the same
+    // code the product runs instead of a hand-written copy of it.
+    struct ConversionMatrices
+    {
+        const DirectX::XMFLOAT4X4& InverseView;
+        const DirectX::XMFLOAT4X4& InverseProjection;
+        const DirectX::XMFLOAT4X4& PreviousView;
+    };
+
+    inline void FillFromConversion(DirectX::XMFLOAT4X4& view, DirectX::XMFLOAT4X4& projection,
+        DirectX::XMFLOAT4X4& previousView, const ConversionMatrices& source)
+    {
+        DirectX::XMStoreFloat4x4(&view, DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&source.InverseView)));
+        DirectX::XMStoreFloat4x4(&projection,
+            DirectX::XMMatrixInverse(nullptr, DirectX::XMLoadFloat4x4(&source.InverseProjection)));
+        previousView = source.PreviousView;
+    }
+
     // The composition desc carries the HLSL column-vector form of the matrices (the conversion desc stores the
     // transposed inverses and the feature inverts them once), so the relative matrix is built in that form and the
     // apply pass consumes it as clip = M * view. The keyframe projection contributes only its P32 element.
@@ -42,8 +73,8 @@ namespace PostFlickMath
         const DirectX::XMFLOAT4X4& view, const DirectX::XMFLOAT4X4& projection, const DirectX::XMFLOAT4X4& previousView,
         Outputs& outputs)
     {
-        const DirectX::XMMATRIX currentView = DirectX::XMLoadFloat4x4(&view);
-        const DirectX::XMMATRIX previous = DirectX::XMLoadFloat4x4(&previousView);
+        const DirectX::XMMATRIX currentView = LoadDesc(view);
+        const DirectX::XMMATRIX previous = LoadDesc(previousView);
         const auto forward = [](const DirectX::XMMATRIX& v) {
             return DirectX::XMVector3Normalize(DirectX::XMVectorSet(
                 v.r[2].m128_f32[0], v.r[2].m128_f32[1], v.r[2].m128_f32[2], 0.0f));
@@ -70,8 +101,11 @@ namespace PostFlickMath
         // No history yet: the age recursion must start from zero instead of reading an unwritten texture.
         outputs.Prepare[7] = historyValid ? 1.0f : 0.0f;
         DirectX::XMFLOAT4X4 relative {};
-        DirectX::XMStoreFloat4x4(&relative, DirectX::XMLoadFloat4x4(&key.Projection) *
-            DirectX::XMLoadFloat4x4(&key.View) * DirectX::XMMatrixInverse(nullptr, currentView));
+        const DirectX::XMMATRIX keyView = LoadDesc(key.View);
+        const DirectX::XMMATRIX keyProjection = LoadDesc(key.Projection);
+        DirectX::XMStoreFloat4x4(&relative, keyProjection * keyView *
+            DirectX::XMMatrixInverse(nullptr, currentView));
+        const DirectX::XMMATRIX currentProjection = LoadDesc(projection);
         float* constants = outputs.Apply;
         constants[0] = float(width);
         constants[1] = float(height);
@@ -79,13 +113,13 @@ namespace PostFlickMath
         constants[3] = 1.0f / std::max(1.0f, float(height));
         for (int i = 0; i < 16; ++i)
             constants[4 + i] = (&relative.m[0][0])[i];
-        const float* projectionValues = &projection.m[0][0];
-        constants[20] = projectionValues[0];
-        constants[21] = projectionValues[5];
-        constants[22] = projectionValues[2];
-        constants[23] = projectionValues[6];
-        constants[24] = projectionValues[14];
-        constants[25] = key.Projection.m[3][2];
+        // The apply pass reads the projection as the column-vector matrix: P00, P11, P02, P12 and P32.
+        constants[20] = DirectX::XMVectorGetX(currentProjection.r[0]);
+        constants[21] = DirectX::XMVectorGetY(currentProjection.r[1]);
+        constants[22] = DirectX::XMVectorGetZ(currentProjection.r[0]);
+        constants[23] = DirectX::XMVectorGetZ(currentProjection.r[1]);
+        constants[24] = DirectX::XMVectorGetZ(currentProjection.r[3]);
+        constants[25] = DirectX::XMVectorGetZ(keyProjection.r[3]);
         constants[26] = kDepthTolerance;
         constants[27] = kAgeMax;
         constants[28] = kRatioLow;

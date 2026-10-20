@@ -241,31 +241,39 @@ void postFlickChecks(Host& host)
     const DirectX::XMFLOAT4X4 turned = matrix({0.8660254f,0,-0.5f,0, 0,1,0,0, 0.5f,0,0.8660254f,0, 0,0,0,1});
     const DirectX::XMFLOAT4X4 moved = matrix({1,0,0,-0.5f, 0,1,0,0, 0,0,1,0, 0,0,0,1});
     const DirectX::XMFLOAT4X4 projection = matrix({1,0,0,0, 0,1,0,0, 0,0,1,1, 0,0,-1,0});
+    // The composition desc stores the transpose of the matrix HLSL sees (StoreHlslColumnVectorMatrix writes
+    // XMMatrixTranspose and a column-major cbuffer read turns it back), so the fixture feeds the desc form exactly
+    // like FSRDFeature_Dx12.cpp does. The semantic matrices above stay in the column-vector form.
+    const auto descForm = [](const DirectX::XMFLOAT4X4& m) {
+        DirectX::XMFLOAT4X4 out {};
+        DirectX::XMStoreFloat4x4(&out, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&m)));
+        return out;
+    };
     {
         // A) the state machine the preprocessor runs every frame.
         PostFlickMath::KeyState state;
         PostFlickMath::Outputs outputs;
-        PostFlickMath::BuildFrame(state, W, H, false, 1.0f, identity, projection, identity, outputs);
+        PostFlickMath::BuildFrame(state, W, H, false, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
         need(outputs.Refresh && outputs.Prepare[6] == 1.0f && outputs.Prepare[7] == 0.0f,
             "post-flick: the first frame refreshes the keyframe and reports no history");
-        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, turned, projection, identity, outputs);
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(turned), descForm(projection), descForm(identity), outputs);
         need(!outputs.Refresh, "post-flick: a turning camera never refreshes the keyframe");
         for (uint32_t i = 0; i + 1 < PostFlickMath::kSettledFramesNeeded; ++i)
         {
-            PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, outputs);
+            PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
             need(!outputs.Refresh, "post-flick: the first still frames must not overwrite the recalled keyframe");
         }
-        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, outputs);
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
         need(outputs.Refresh, "post-flick: the keyframe refreshes once the camera has been still long enough");
         need(outputs.Prepare[7] == 1.0f, "post-flick: valid history is reported to the age recursion");
-        PostFlickMath::BuildFrame(state, W, H, true, 4.0f, identity, projection, identity, outputs);
+        PostFlickMath::BuildFrame(state, W, H, true, 4.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
         need(outputs.Apply[33] == 1.0f, "post-flick: the strength is clamped into the constants");
         // The uploaded relative matrix must move the recall by the analytic shift: with P00 = 1 and P32 = -1 at a
         // depth of 10, a camera moved by +0.5 in world x shifts the recall by 0.5/10 NDC = 37.6 px at this width.
         PostFlickMath::KeyState translated;
         PostFlickMath::Outputs shift;
-        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, identity, projection, identity, shift);
-        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, moved, projection, identity, shift);
+        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), shift);
+        PostFlickMath::BuildFrame(translated, W, H, true, 1.0f, descForm(moved), descForm(projection), descForm(identity), shift);
         const float* row0 = &shift.Apply[4];
         const float* row3 = &shift.Apply[16];
         const float viewZ = shift.Apply[24] < 0.0f ? -10.0f : 10.0f;
@@ -280,6 +288,50 @@ void postFlickChecks(Host& host)
             "post-flick: the relative matrix shifts the recall by the analytic 0.05 NDC");
         std::cout << "post-flick relative shift: " << shiftNdc * float(W) * 0.5f << " px at " << W << " wide ("
                   << shiftNdc << " NDC, analytic 0.05)" << std::endl;
+        // The production fill, not a hand-written matrix: the conversion desc carries the HLSL column-vector form of
+        // the inverses (FSRDFeature_Dx12.cpp transposes on upload and the shipped skin HLSL consumes desc.InvViewMatrix
+        // as mul(Matrix, vector)), so FillFromConversion has to return the HLSL forward matrices. The feature calls
+        // exactly this function, so a transposed matrix or a wrong projection element fails here, not only in game.
+        const DirectX::XMFLOAT4X4 inverseViewHlsl = matrix({1,0,0,0.5f, 0,1,0,0, 0,0,1,0, 0,0,0,1});
+        const DirectX::XMFLOAT4X4 inverseProjectionHlsl = matrix({1,0,0,0, 0,1,0,0, 0,0,0,-1, 0,0,1,1});
+        DirectX::XMFLOAT4X4 filledView {}, filledProjection {}, filledPrevious {};
+        PostFlickMath::FillFromConversion(filledView, filledProjection, filledPrevious,
+            {descForm(inverseViewHlsl), descForm(inverseProjectionHlsl), descForm(identity)});
+        const auto closeTo = [](const DirectX::XMFLOAT4X4& a, const DirectX::XMFLOAT4X4& b) {
+            float worst = 0.0f;
+            for (int i = 0; i < 16; ++i)
+                worst = std::max(worst, std::abs((&a.m[0][0])[i] - (&b.m[0][0])[i]));
+            return worst;
+        };
+        const auto backToSemantic = [](const DirectX::XMFLOAT4X4& m) {
+            DirectX::XMFLOAT4X4 out {};
+            DirectX::XMStoreFloat4x4(&out, DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&m)));
+            return out;
+        };
+        need(closeTo(backToSemantic(filledView), moved) < 1e-6f,
+            "post-flick: the conversion fill yields the forward view for a camera at +0.5 world x");
+        need(closeTo(backToSemantic(filledProjection), projection) < 1e-6f,
+            "post-flick: the conversion fill inverts the projection back to the forward form");
+        need(closeTo(filledView, descForm(moved)) < 1e-6f,
+            "post-flick: the fill output stays in the desc form the passes load");
+        need(closeTo(filledPrevious, descForm(identity)) < 1e-6f,
+            "post-flick: the previous view is copied through unchanged");
+        PostFlickMath::KeyState filled;
+        PostFlickMath::Outputs filledShift;
+        PostFlickMath::BuildFrame(filled, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), filledShift);
+        PostFlickMath::BuildFrame(filled, W, H, true, 1.0f, filledView, filledProjection, filledPrevious, filledShift);
+        const float* filledRow0 = &filledShift.Apply[4];
+        const float* filledRow3 = &filledShift.Apply[16];
+        const float filledZ = filledShift.Apply[24] < 0.0f ? -10.0f : 10.0f;
+        const auto filledKeyNdc = [&](float viewX) {
+            return (filledRow0[0] * viewX + filledRow0[3]) / (filledRow3[0] * viewX + filledRow3[2] * filledZ + filledRow3[3]);
+        };
+        const auto filledCurrentNdc = [&](float viewX) {
+            return (viewX * filledShift.Apply[20] + filledShift.Apply[22] * filledZ) / (filledShift.Apply[24] * filledZ);
+        };
+        need(std::abs((filledKeyNdc(10.0f) - filledCurrentNdc(10.0f)) - 0.05f) < 1e-5f,
+            "post-flick: the conversion fill plus BuildFrame keeps the analytic 0.05 NDC shift");
+        std::cout << "post-flick conversion fill: analytic shift ok, forward view matches the HLSL form" << std::endl;
     }
     ComPtr<ID3D12Resource> color, motion, depth, aux[2], key[2], keyAux[2], band, out;
     const auto texture = [&](ComPtr<ID3D12Resource>& target, DXGI_FORMAT format, uint32_t w, uint32_t h, const wchar_t* name) {
@@ -419,7 +471,7 @@ void postFlickChecks(Host& host)
     // B) a frame without history returns the input byte-identically.
     PostFlickMath::KeyState state;
     PostFlickMath::Outputs outputs;
-    PostFlickMath::BuildFrame(state, W, H, false, 1.0f, identity, projection, identity, outputs);
+    PostFlickMath::BuildFrame(state, W, H, false, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
     frame(outputs);
     auto first = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     host.submit();
@@ -453,7 +505,7 @@ void postFlickChecks(Host& host)
         upload(host, dummy, keyAux[parity].Get(), binary(keyAuxData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         host.submit(); host.reset();
         PostFlickMath::Outputs recall;
-        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, moved, projection, identity, recall);
+        PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(moved), descForm(projection), descForm(identity), recall);
         need(!recall.Refresh, "post-flick: the recall frame keeps the keyframe it was given");
         frame(recall);
         auto readback = snapshot(host, out.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -492,7 +544,7 @@ void postFlickChecks(Host& host)
     // D) the cost of the real pass pair at the user's resolution.
     std::vector<double> samples;
     PostFlickMath::Outputs cost;
-    PostFlickMath::BuildFrame(state, W, H, true, 1.0f, identity, projection, identity, cost);
+    PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), cost);
     for (uint32_t batch = 0; batch < 12; ++batch)
     {
         for (uint32_t repetition = 0; repetition < 8; ++repetition) frame(cost);

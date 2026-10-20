@@ -395,7 +395,7 @@ struct FSRDPreprocessor_Dx12::Impl
     std::array<ComPtr<ID3D12Resource>, 2> m_postFlickKey, m_postFlickKeyAux, m_postFlickAux;
     ComPtr<ID3D12Resource> m_postFlickCur, m_postFlickOutput;
     uint32_t m_postFlickParity = 0, m_postFlickWidth = 0, m_postFlickHeight = 0;
-    bool m_postFlickValid = false, m_postFlickActive = false;
+    bool m_postFlickValid = false, m_postFlickActive = false, m_postFlickWasEnabled = false;
     PostFlickMath::KeyState m_postFlickKeyState {};
     ComputeState m_flatDetailBaseShader, m_flatDetailApplyShader;
     ComPtr<ID3D12CommandSignature> m_flatDetailSignature;
@@ -1367,7 +1367,7 @@ struct FSRDPreprocessor_Dx12::Impl
             for (auto& resource : *set) resource.Reset();
         m_postFlickCur.Reset(); m_postFlickOutput.Reset();
         m_postFlickParity = 0; m_postFlickWidth = 0; m_postFlickHeight = 0;
-        m_postFlickValid = false; m_postFlickActive = false;
+        m_postFlickValid = false; m_postFlickActive = false; m_postFlickWasEnabled = false;
         m_postFlickKeyState = PostFlickMath::KeyState {};
         for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
             for (auto& resource : *set) resource.Reset();
@@ -1685,11 +1685,12 @@ struct FSRDPreprocessor_Dx12::Impl
     // m_postFlickOutput, which CompositionColor() then prefers over the recovery output until the next frame.
     void DispatchPostFlick(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
-        // Cleared before every early-out, like the flat detail and skin flags: a frame that does not dispatch must
-        // fall back to the composition output. Leaving the flag set would freeze the image when the option is
-        // switched off and would make the pass read its own previous output while it stays on.
-        m_postFlickActive = false;
-        if (!desc.PostFlickFix) return;
+        // The active flag is owned by DispatchComposition, which clears it at the start of the frame.
+        if (!desc.PostFlickFix)
+        {
+            m_postFlickWasEnabled = false;
+            return;
+        }
         const uint32_t requestedWidth = uint32_t(desc.DstTexSize.x), requestedHeight = uint32_t(desc.DstTexSize.y);
         if (!requestedWidth || !requestedHeight) return;
         // The render size is constant for a swapchain; a change would need a full context rebuild, so bail out
@@ -1700,6 +1701,14 @@ struct FSRDPreprocessor_Dx12::Impl
         const uint32_t width = m_postFlickWidth, height = m_postFlickHeight;
         const uint32_t halfW = std::max(1u, width / 2), halfH = std::max(1u, height / 2);
         if (!EnsurePostFlick()) return;
+        if (!m_postFlickWasEnabled)
+        {
+            // Rising edge: the first frame after the option is switched on must not reuse the previous run's
+            // keyframe, age or history flag (up to six frames of stale recall).
+            m_postFlickValid = false;
+            m_postFlickKeyState = PostFlickMath::KeyState {};
+            m_postFlickWasEnabled = true;
+        }
         // Camera and constants: shared with the GPU fixture, see FSRDPostFlickConstants.h.
         PostFlickMath::Outputs outputs {};
         PostFlickMath::BuildFrame(m_postFlickKeyState, width, height, m_postFlickValid, desc.PostFlickStrength,
@@ -3127,6 +3136,11 @@ struct FSRDPreprocessor_Dx12::Impl
             throw std::runtime_error("Composition requires a command list and allocated resources");
 
         m_recoveryOutputIndex = -1;
+        // Post-flick (T2 c): the flag belongs to the frame that produced the texture, so it is cleared here, at the
+        // start of the composition phase, before any CompositionColor() consumer runs. Clearing it later (inside
+        // DispatchPostFlick, after the flat detail) made the in-place flat-detail pass read and write the previous
+        // frame's post-flick texture, which silently dropped the NZR correction while the option was on.
+        m_postFlickActive = false;
         auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
