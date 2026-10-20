@@ -108,10 +108,14 @@ namespace PostMotionAnchorMath
         DirectX::XMFLOAT4X4 PrevRelative; // current view space -> the previous frame's view space
         DirectX::XMFLOAT4X4 ProjectionRows; // the current projection, row by row (for the static test)
         DirectX::XMUINT4 KeySlice[2];   // 8 ring slice indices, priority order
-        DirectX::XMFLOAT4X4 Relative[kRingSize]; // current view space -> keyframe clip space, row by row
-        DirectX::XMFLOAT4 SlotExtra[kRingSize];  // x key P32, y valid, zw unused
+        // The arrays stay at the shader cbuffer's declared size (8): the ring itself is kRingSize (6), and the
+        // recall shader stops at the host-written sentinel (Params.w = kRingSize), so the two unused entries are
+        // never read. Resizing them to kRingSize would shrink the upload and shift every slot field the shader
+        // reads (caught by SA22: the recall then read 128 bytes past the host's data and went dead).
+        DirectX::XMFLOAT4X4 Relative[8]; // current view space -> keyframe clip space, row by row
+        DirectX::XMFLOAT4 SlotExtra[8];  // x key P32, y valid, zw unused
     };
-    static_assert(sizeof(StatsRecallConstants) == 16 * 4 + 128 + 32 + 64 * kRingSize + 16 * kRingSize,
+    static_assert(sizeof(StatsRecallConstants) == 16 * 4 + 128 + 32 + 64 * 8 + 16 * 8,
         "FSRDPostMotionAnchorStatsRecall constants");
 
     struct alignas(16) GainConstants
