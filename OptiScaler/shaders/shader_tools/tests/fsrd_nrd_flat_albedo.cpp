@@ -276,9 +276,26 @@ void postFlickChecks(Host& host)
             PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
             need(!outputs.Refresh, "post-flick: the first still frames must not overwrite the recalled keyframe");
         }
+        // The hold (SA12/SA13): a refresh after six still frames made the keyframe track the current frame and the
+        // correction an identity, which measured +1..+15 % blotch p90 on the windows the prototype won on. The
+        // keyframe must survive the whole post-flick window instead.
+        while (state.FramesSinceFlick + 1 < PostFlickMath::kHoldFrames)
+        {
+            PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
+            need(!outputs.Refresh, "post-flick: the keyframe stays held until the post-flick window is over");
+        }
         PostFlickMath::BuildFrame(state, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
-        need(outputs.Refresh, "post-flick: the keyframe refreshes once the camera has been still long enough");
+        need(outputs.Refresh, "post-flick: the keyframe refreshes once the hold has expired");
+        need(state.FramesSinceFlick >= PostFlickMath::kHoldFrames && state.SettledFrames >= PostFlickMath::kSettledFramesNeeded,
+            "post-flick: the hold expired only after the still-frame counter filled");
         need(outputs.Prepare[7] == 1.0f, "post-flick: valid history is reported to the age recursion");
+        // The angle gate: with the keyframe 30 degrees away the correction is switched off, not applied.
+        PostFlickMath::KeyState gateState;
+        PostFlickMath::Outputs gateOutputs;
+        PostFlickMath::BuildFrame(gateState, W, H, true, 1.0f, descForm(identity), descForm(projection), descForm(identity), gateOutputs);
+        PostFlickMath::BuildFrame(gateState, W, H, true, 1.0f, descForm(turned), descForm(projection), descForm(identity), gateOutputs);
+        need(gateOutputs.Apply[33] == 0.0f,
+            "post-flick: a key-to-current angle past the gate switches the correction off");
         PostFlickMath::BuildFrame(state, W, H, true, 4.0f, descForm(identity), descForm(projection), descForm(identity), outputs);
         need(outputs.Apply[33] == 1.0f, "post-flick: the strength is clamped into the constants");
         // The uploaded relative matrix must move the recall by the analytic shift: with P00 = 1 and P32 = -1 at a

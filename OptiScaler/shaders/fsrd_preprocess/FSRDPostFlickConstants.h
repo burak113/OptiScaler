@@ -11,7 +11,7 @@
 
 namespace PostFlickMath
 {
-    inline constexpr float kDepthTolerance = 0.03f;
+    inline constexpr float kDepthTolerance = 0.01f;
     inline constexpr float kAgeMax = 32.0f;
     inline constexpr float kRatioLow = 0.7f;
     inline constexpr float kRatioHigh = 1.4f;
@@ -20,12 +20,26 @@ namespace PostFlickMath
     // prototype used a median age of at least six frames for the reference.
     inline constexpr uint32_t kSettledFramesNeeded = 6u;
     inline constexpr float kSettledDegrees = 1.0f;
+    // ...and it must survive the whole post-flick window. Refreshing on every still frame (the first shipped rule)
+    // made the keyframe track the current frame, so the relative matrix degenerated and the correction became an
+    // identity exactly while the blotches were visible: measured +1..+15 % blotch p90 on the 22f9/87ee windows,
+    // against -8..-9 % with the key held (SA12, reproduced through the production code by SA13).
+    inline constexpr uint32_t kHoldFrames = 32u;
+    // A frame at this much rotation restarts the hold: the age recursion's own depth test corresponds to
+    // acos(1 - kDepthTolerance) = 14.1 degrees, and every frame at or above 15 degrees in the four captures has a
+    // median pixel age of zero, i.e. it is a genuine flick frame rather than a slow pan.
+    inline constexpr float kFlickDegrees = 15.0f;
+    // Beyond this key-to-current angle the recall copies a different view of the scene (measured as an LF ring on
+    // moving silhouettes and as an object's band replaced by the background's), so the correction is switched off
+    // instead of applied: 0512's worst family sits at 68-71 degrees, the working regime at 1-16 degrees.
+    inline constexpr float kMaxKeyAngleDegrees = 20.0f;
 
     struct KeyState
     {
         DirectX::XMFLOAT4X4 View {}, Projection {};
         bool Valid = false;
         uint32_t SettledFrames = 0;
+        uint32_t FramesSinceFlick = 0;
     };
 
     struct Outputs
@@ -81,7 +95,11 @@ namespace PostFlickMath
         const float degrees = std::acos(std::clamp(cosine, -1.0f, 1.0f)) * 57.2957795f;
         const bool settled = std::isfinite(degrees) && degrees < kSettledDegrees;
         key.SettledFrames = settled ? std::min(key.SettledFrames + 1u, 100000u) : 0u;
-        outputs.Refresh = !key.Valid || key.SettledFrames >= kSettledFramesNeeded;
+        // The hold: a real flick frame restarts it, and the keyframe is only refreshed once the window is over.
+        key.FramesSinceFlick = (std::isfinite(degrees) && degrees >= kFlickDegrees)
+            ? 0u : std::min(key.FramesSinceFlick + 1u, 100000u);
+        outputs.Refresh = !key.Valid ||
+            (key.SettledFrames >= kSettledFramesNeeded && key.FramesSinceFlick >= kHoldFrames);
         if (outputs.Refresh)
         {
             key.View = view;
@@ -124,7 +142,13 @@ namespace PostFlickMath
         constants[29] = kRatioHigh;
         const uint32_t valid = historyValid ? 1u : 0u;
         std::memcpy(&constants[32], &valid, sizeof(uint32_t));
-        constants[33] = std::clamp(strength, 0.0f, 1.0f);
+        // The key-to-current angle gate: past kMaxKeyAngleDegrees the recall would copy a different view of the
+        // scene, so the correction is switched off (strength 0) instead. On a refresh frame the key is the current
+        // frame and the angle is zero, so the gate only ever applies to a held keyframe.
+        const float keyCosine = DirectX::XMVectorGetX(DirectX::XMVector3Dot(forward(keyView), forward(currentView)));
+        const float keyDegrees = std::acos(std::clamp(keyCosine, -1.0f, 1.0f)) * 57.2957795f;
+        const float strengthLimit = (std::isfinite(keyDegrees) && keyDegrees <= kMaxKeyAngleDegrees) ? 1.0f : 0.0f;
+        constants[33] = std::clamp(strength, 0.0f, 1.0f) * strengthLimit;
         return settled;
     }
 }
