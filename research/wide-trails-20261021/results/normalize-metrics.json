@@ -1,0 +1,149 @@
+[
+  {
+    "capture": "c37d3609",
+    "window": [
+      54,
+      61
+    ],
+    "scope": "late captured input mean is a diagnostic target, NOT ground truth; fixed interior mask",
+    "result": {
+      "input": {
+        "mean_rgb": [
+          0.00796363952879767,
+          0.007357663215360884,
+          0.005848444152133382
+        ],
+        "red_share": 0.3761801956258896,
+        "level_to_input": 1.0000000000000024,
+        "low_band_error": 0.0,
+        "detrended_fine_std": 0.6841418181597524,
+        "detrended_low_std": 0.036048416048288345,
+        "detail": 0.003227401882652057
+      },
+      "old": {
+        "mean_rgb": [
+          0.007179350451613574,
+          0.006490739407896095,
+          0.0051235147073859025
+        ],
+        "red_share": 0.3820102964313619,
+        "level_to_input": 0.8862622204402074,
+        "low_band_error": 0.13470548125212883,
+        "detrended_fine_std": 0.042522687717836224,
+        "detrended_low_std": 0.0065766447223722935,
+        "detail": 0.0003777353633126095
+      },
+      "normalized": {
+        "mean_rgb": [
+          0.007142023542146941,
+          0.006507272989019095,
+          0.005238759333896541
+        ],
+        "red_share": 0.3781238044386353,
+        "level_to_input": 0.8879172163219111,
+        "low_band_error": 0.11659440335910262,
+        "detrended_fine_std": 0.04238905594100903,
+        "detrended_low_std": 0.021481987088918686,
+        "detail": 0.00037351537114129195
+      }
+    }
+  },
+  {
+    "capture": "87ee1fba",
+    "window": [
+      50,
+      64
+    ],
+    "scope": "late captured input mean is a diagnostic target, NOT ground truth; fixed interior mask",
+    "result": {
+      "input": {
+        "mean_rgb": [
+          0.009843781325404866,
+          0.009226038108589558,
+          0.010598237377103387
+        ],
+        "red_share": 0.33179730604137986,
+        "level_to_input": 1.000000000000001,
+        "low_band_error": 0.0,
+        "detrended_fine_std": 0.8177116230404043,
+        "detrended_low_std": 0.04353201761841774,
+        "detail": 0.004332087685947682
+      },
+      "old": {
+        "mean_rgb": [
+          0.012263168374688974,
+          0.009567769608646833,
+          0.010993419343301709
+        ],
+        "red_share": 0.37359964896364345,
+        "level_to_input": 1.0832554238569185,
+        "low_band_error": 0.1897680018481641,
+        "detrended_fine_std": 0.03661772362550458,
+        "detrended_low_std": 0.00994288083165884,
+        "detail": 0.0005492375329598762
+      },
+      "normalized": {
+        "mean_rgb": [
+          0.009114032729807164,
+          0.008358983321039157,
+          0.00976881892159835
+        ],
+        "red_share": 0.3345601623027993,
+        "level_to_input": 0.9116849601740263,
+        "low_band_error": 0.11838494452709007,
+        "detrended_fine_std": 0.03675855384308173,
+        "detrended_low_std": 0.029026156291365623,
+        "detail": 0.00044727293626329196
+      }
+    }
+  },
+  {
+    "capture": "d6d2a083",
+    "window": [
+      104,
+      128
+    ],
+    "scope": "late captured input mean is a diagnostic target, NOT ground truth; fixed interior mask",
+    "result": {
+      "input": {
+        "mean_rgb": [
+          0.033785008695130285,
+          0.029863765196041794,
+          0.025114498636515062
+        ],
+        "red_share": 0.38061923285435456,
+        "level_to_input": 0.9999999999999994,
+        "low_band_error": 0.0,
+        "detrended_fine_std": 0.5148763086231151,
+        "detrended_low_std": 0.027236923575401306,
+        "detail": 0.00474468648610321
+      },
+      "old": {
+        "mean_rgb": [
+          0.032078422815519425,
+          0.02810152096803177,
+          0.024180848978797322
+        ],
+        "red_share": 0.38025274259675407,
+        "level_to_input": 0.9443052802237729,
+        "low_band_error": 0.050763478649585525,
+        "detrended_fine_std": 0.0020810170054033927,
+        "detrended_low_std": 0.0036213647108525038,
+        "detail": 8.287350439054503e-05
+      },
+      "normalized": {
+        "mean_rgb": [
+          0.03198312619910133,
+          0.028231830476276757,
+          0.023932409397427537
+        ],
+        "red_share": 0.38008469773645714,
+        "level_to_input": 0.9461172000059075,
+        "low_band_error": 0.05048501328636125,
+        "detrended_fine_std": 0.0019938287281243503,
+        "detrended_low_std": 0.020998653024435043,
+        "detail": 8.261718653218543e-05
+      }
+    }
+  }
+]

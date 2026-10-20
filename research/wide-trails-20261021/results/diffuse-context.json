@@ -1,0 +1,243 @@
+[
+  {
+    "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+    "variant": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+    "relative_L1_to_joint": 0.0649382472038269,
+    "bit_equal": false,
+    "joint_meta": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 2.1,
+      "created": "2026-10-21 00:56:39"
+    },
+    "diffuse_meta": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 5.6,
+      "created": "2026-10-21 02:06:17"
+    },
+    "runner_sha256": "6570655c8fed4c7c699fd5c642500d524f02179211b81beae606e2c908b80685"
+  },
+  {
+    "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "variant": "d16+adaptive",
+    "relative_L1_to_joint": 0.0756201446056366,
+    "bit_equal": false,
+    "joint_meta": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [],
+        "rep": 0
+      },
+      "label": "d16+adaptive",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.56,
+      "created": "2026-10-20 19:12:18"
+    },
+    "diffuse_meta": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [],
+        "rep": 0
+      },
+      "label": "d16+adaptive",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.57,
+      "created": "2026-10-21 02:06:29"
+    },
+    "runner_sha256": "6570655c8fed4c7c699fd5c642500d524f02179211b81beae606e2c908b80685"
+  },
+  {
+    "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+    "variant": "d16+adaptive",
+    "relative_L1_to_joint": 0.0313984677195549,
+    "bit_equal": false,
+    "joint_meta": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [],
+        "rep": 0
+      },
+      "label": "d16+adaptive",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.47,
+      "created": "2026-10-20 19:27:25"
+    },
+    "diffuse_meta": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [],
+        "rep": 0
+      },
+      "label": "d16+adaptive",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.39,
+      "created": "2026-10-21 02:06:40"
+    },
+    "runner_sha256": "6570655c8fed4c7c699fd5c642500d524f02179211b81beae606e2c908b80685"
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "threshold": 0.02,
+    "tail_fraction": 0.5267429947853088
+  },
+  {
+    "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "threshold": 0.08,
+    "tail_fraction": 0.15077544748783112
+  },
+  {
+    "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "threshold": 0.32,
+    "tail_fraction": 0.016254743561148643
+  },
+  {
+    "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+    "threshold": 0.02,
+    "tail_fraction": 0.5007956624031067
+  },
+  {
+    "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+    "threshold": 0.08,
+    "tail_fraction": 0.1485203057527542
+  },
+  {
+    "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+    "threshold": 0.32,
+    "tail_fraction": 0.01569284126162529
+  },
+  {
+    "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+    "threshold": 0.02,
+    "tail_fraction": 0.40711432695388794
+  },
+  {
+    "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+    "threshold": 0.08,
+    "tail_fraction": 0.03617365285754204
+  },
+  {
+    "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+    "threshold": 0.32,
+    "tail_fraction": 0.001840254757553339
+  }
+]

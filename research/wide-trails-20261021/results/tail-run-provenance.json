@@ -1,0 +1,782 @@
+[
+  {
+    "key": "f0efa45ab560d1acd3cbe899",
+    "threshold": 0.02,
+    "part": "core",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.02-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.02-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.45,
+      "created": "2026-10-21 02:09:13"
+    }
+  },
+  {
+    "key": "d1c87ff13b94b2330a3e692e",
+    "threshold": 0.02,
+    "part": "tail",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.02-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.02-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.32,
+      "created": "2026-10-21 02:09:19"
+    }
+  },
+  {
+    "key": "a68ddafc8f02c672e6410fb1",
+    "threshold": 0.08,
+    "part": "core",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.08-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.08-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.39,
+      "created": "2026-10-21 02:09:27"
+    }
+  },
+  {
+    "key": "a518c241807f815b09f4d141",
+    "threshold": 0.08,
+    "part": "tail",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.08-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.08-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.32,
+      "created": "2026-10-21 02:09:34"
+    }
+  },
+  {
+    "key": "a943f60149ce010385ed7b74",
+    "threshold": 0.32,
+    "part": "core",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.32-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.32-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.35,
+      "created": "2026-10-21 02:09:41"
+    }
+  },
+  {
+    "key": "2419fa1a75c5405d06ed84b9",
+    "threshold": 0.32,
+    "part": "tail",
+    "metadata": {
+      "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frames": [
+        0,
+        65,
+        66
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.32-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-87ee1fba-0.32-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.36,
+      "created": "2026-10-21 02:09:48"
+    }
+  },
+  {
+    "key": "7c9d9b6d7350e882ad768cf3",
+    "threshold": 0.02,
+    "part": "core",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.02-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.02-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.34,
+      "created": "2026-10-21 02:09:59"
+    }
+  },
+  {
+    "key": "d71acf1ddec1742f9b001823",
+    "threshold": 0.02,
+    "part": "tail",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.02-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.02-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.26,
+      "created": "2026-10-21 02:10:06"
+    }
+  },
+  {
+    "key": "1252074af88cb62f59585313",
+    "threshold": 0.08,
+    "part": "core",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.08-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.08-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.25,
+      "created": "2026-10-21 02:10:14"
+    }
+  },
+  {
+    "key": "16d2a6063787b3cf07710533",
+    "threshold": 0.08,
+    "part": "tail",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.08-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.08-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.29,
+      "created": "2026-10-21 02:10:21"
+    }
+  },
+  {
+    "key": "2a77ff15d33e72a7faf4d6fb",
+    "threshold": 0.32,
+    "part": "core",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.32-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.32-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.28,
+      "created": "2026-10-21 02:10:28"
+    }
+  },
+  {
+    "key": "d0cf1348b3d2cb31b3f93169",
+    "threshold": 0.32,
+    "part": "tail",
+    "metadata": {
+      "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+      "frames": [
+        0,
+        60,
+        61
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": null,
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py",
+          "E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.32-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+hook:E:/FSRD/sol_batch/31-material-trails/gpu_old_hook.py+hook:E:/FSRD/sol_batch/32-wide-trails/tail-c37d3609-0.32-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.26,
+      "created": "2026-10-21 02:10:34"
+    }
+  },
+  {
+    "key": "08eceb1c89db1042bacf8c22",
+    "threshold": 0.02,
+    "part": "core",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.02-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.02-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.31,
+      "created": "2026-10-21 02:10:42"
+    }
+  },
+  {
+    "key": "f6ac62cc504e24129084e4e7",
+    "threshold": 0.02,
+    "part": "tail",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.02-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.02-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.41,
+      "created": "2026-10-21 02:10:48"
+    }
+  },
+  {
+    "key": "b77358bf7e373645227e3373",
+    "threshold": 0.08,
+    "part": "core",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.08-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.08-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.27,
+      "created": "2026-10-21 02:10:54"
+    }
+  },
+  {
+    "key": "7a25421aac415418ba91d70f",
+    "threshold": 0.08,
+    "part": "tail",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.08-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.08-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.28,
+      "created": "2026-10-21 02:11:00"
+    }
+  },
+  {
+    "key": "0188e5087cb8b408f1b8f4e1",
+    "threshold": 0.32,
+    "part": "core",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.32-core.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.32-core.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.27,
+      "created": "2026-10-21 02:11:06"
+    }
+  },
+  {
+    "key": "39fd795ab3c23c96c3ba3ae0",
+    "threshold": 0.32,
+    "part": "tail",
+    "metadata": {
+      "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+      "frames": [
+        0,
+        127,
+        128
+      ],
+      "variant": {
+        "scale": {
+          "diffuse": 16.0,
+          "specular": 256.0
+        },
+        "tuning": {},
+        "schedule": {
+          "type": "adaptive",
+          "lo": 0.5,
+          "hi": 0.85,
+          "step": 0.035,
+          "deg": 0.1
+        },
+        "patches": [],
+        "hooks": [
+          "E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.32-tail.py"
+        ],
+        "rep": 0
+      },
+      "label": "d16+adaptive+hook:E:/FSRD/sol_batch/32-wide-trails/tail-d6d2a083-0.32-tail.py",
+      "tuning0": [
+        0.5,
+        0.5,
+        40000.0,
+        40.0,
+        0.5,
+        0.10000000149011612
+      ],
+      "per_frame": true,
+      "swapped": 0,
+      "seconds": 1.25,
+      "created": "2026-10-21 02:11:12"
+    }
+  }
+]

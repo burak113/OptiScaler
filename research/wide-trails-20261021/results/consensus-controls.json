@@ -1,0 +1,52 @@
+[
+  {
+    "mode": "static",
+    "averages": {
+      "error": 0.0,
+      "baseline_error": 0.0,
+      "outside": 0.0,
+      "protected": 0.0
+    },
+    "max_outside": 0.0
+  },
+  {
+    "mode": "global_chroma",
+    "averages": {
+      "error": 0.0905450371383124,
+      "baseline_error": 0.10097062093034899,
+      "outside": 0.014796373654043264,
+      "protected": 0.0905450371383124
+    },
+    "max_outside": 0.03549936687446372
+  },
+  {
+    "mode": "global_level",
+    "averages": {
+      "error": 0.049138476747850046,
+      "baseline_error": 0.14657025618921635,
+      "outside": 0.09743177944136627,
+      "protected": 0.049138476747850046
+    },
+    "max_outside": 0.13310481062062612
+  },
+  {
+    "mode": "local_light",
+    "averages": {
+      "error": 0.041054408662030126,
+      "baseline_error": 0.041054408662030126,
+      "outside": 0.0,
+      "protected": 0.08210881732406025
+    },
+    "max_outside": 0.0
+  },
+  {
+    "mode": "protected_neon",
+    "averages": {
+      "error": 0.09145325196061503,
+      "baseline_error": 0.09436077054635854,
+      "outside": 0.0045464405011200314,
+      "protected": 0.0028201362171533222
+    },
+    "max_outside": 0.01843151705112513
+  }
+]

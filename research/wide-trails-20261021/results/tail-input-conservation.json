@@ -1,0 +1,56 @@
+[
+  {
+    "capture": "c37d3609-a666-4bb6-8b48-39cc07b72b3f",
+    "negative_components": 0,
+    "thresholds": {
+      "0.02": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 7.485054440896192e-05
+      },
+      "0.08": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 3.0018364115302684e-05
+      },
+      "0.32": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 8.143162344431836e-06
+      }
+    }
+  },
+  {
+    "capture": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+    "negative_components": 0,
+    "thresholds": {
+      "0.02": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 9.038159509329879e-05
+      },
+      "0.08": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 3.2349811287695035e-05
+      },
+      "0.32": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 9.022041449667664e-06
+      }
+    }
+  },
+  {
+    "capture": "d6d2a083-88a3-4dd4-b5bf-14c95dee35f5",
+    "negative_components": 0,
+    "thresholds": {
+      "0.02": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 0.00010486296211378349
+      },
+      "0.08": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 1.8936177395669273e-05
+      },
+      "0.32": {
+        "max_float32_sum_error": 0.0,
+        "relative_L1_half_split": 5.178127412623005e-06
+      }
+    }
+  }
+]

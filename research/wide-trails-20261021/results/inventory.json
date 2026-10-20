@@ -1,0 +1,501 @@
+[
+  {
+    "id": "c37d3609",
+    "frames": 61,
+    "roi": [
+      512,
+      512
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "post_motion_anchor_gain",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": {
+      "brightness": true,
+      "brightness_amount": 1041865114,
+      "brightness_frames": 1094713344,
+      "degrees": 1077936128,
+      "enabled": true,
+      "frames": 1106247680
+    },
+    "anchor": {
+      "enabled": true,
+      "frame_sums": "emulated_uint64_16_16",
+      "local_static_and_neighborhood_recall_required": true,
+      "physical_input_units_unchanged": true,
+      "strength": 1065353216
+    },
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        13,
+        54
+      ]
+    ],
+    "fast": [
+      1,
+      3,
+      15,
+      16,
+      17,
+      18,
+      25,
+      26,
+      27,
+      28,
+      38,
+      39,
+      40,
+      41,
+      47,
+      48,
+      49,
+      50
+    ]
+  },
+  {
+    "id": "87ee1fba",
+    "frames": 66,
+    "roi": [
+      512,
+      512
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": {
+      "brightness": false,
+      "brightness_amount": 1041865114,
+      "brightness_frames": 1094713344,
+      "degrees": 1077936128,
+      "enabled": false,
+      "frames": 1114636288
+    },
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        10,
+        50
+      ],
+      [
+        "still",
+        50,
+        63
+      ]
+    ],
+    "fast": [
+      6,
+      7,
+      8,
+      9,
+      14,
+      15,
+      16,
+      17,
+      18,
+      22,
+      23,
+      24,
+      25,
+      32,
+      33,
+      34,
+      35,
+      36,
+      41,
+      42,
+      43
+    ]
+  },
+  {
+    "id": "22f9ca14",
+    "frames": 64,
+    "roi": [
+      512,
+      512
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": {
+      "brightness": false,
+      "brightness_amount": 1041865114,
+      "brightness_frames": 1094713344,
+      "degrees": 1077936128,
+      "enabled": false,
+      "frames": 1114636288
+    },
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        10,
+        64
+      ]
+    ],
+    "fast": [
+      1,
+      12,
+      13,
+      14,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      33,
+      34,
+      35,
+      36,
+      39,
+      40,
+      41,
+      42,
+      54,
+      55,
+      56,
+      59,
+      60,
+      61
+    ]
+  },
+  {
+    "id": "2405579e",
+    "frames": 222,
+    "roi": [
+      128,
+      847
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": {
+      "brightness": false,
+      "brightness_amount": 1041865114,
+      "brightness_frames": 1094713344,
+      "degrees": 1077936128,
+      "enabled": false,
+      "frames": 1114636288
+    },
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        10,
+        99
+      ],
+      [
+        "still",
+        99,
+        155
+      ],
+      [
+        "moving",
+        155,
+        170
+      ],
+      [
+        "still",
+        170,
+        197
+      ],
+      [
+        "moving",
+        197,
+        213
+      ]
+    ],
+    "fast": [
+      1,
+      2,
+      6,
+      7,
+      8,
+      9,
+      10,
+      13,
+      14,
+      21,
+      22,
+      23,
+      24,
+      25,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      82,
+      83,
+      84,
+      85,
+      87,
+      88,
+      89,
+      90,
+      91,
+      158,
+      159,
+      160,
+      163,
+      164,
+      165,
+      166,
+      201,
+      202,
+      203,
+      205,
+      206,
+      207,
+      208
+    ]
+  },
+  {
+    "id": "d6d2a083",
+    "frames": 128,
+    "roi": [
+      128,
+      847
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": null,
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "still",
+        10,
+        128
+      ]
+    ],
+    "fast": []
+  },
+  {
+    "id": "f2ef375f",
+    "frames": 50,
+    "roi": [
+      512,
+      512
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": {
+      "degrees": 1077936128,
+      "enabled": true,
+      "frames": 1106247680
+    },
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        17,
+        36
+      ],
+      [
+        "still",
+        36,
+        50
+      ]
+    ],
+    "fast": []
+  },
+  {
+    "id": "06fadf38",
+    "frames": 66,
+    "roi": [
+      512,
+      512
+    ],
+    "names": [
+      "consumer_word303",
+      "encoded_commit_diffuse",
+      "encoded_commit_specular",
+      "input_depth",
+      "input_diffuse",
+      "input_diffuse_albedo",
+      "input_motion",
+      "input_normal_roughness",
+      "input_specular",
+      "input_specular_albedo",
+      "raw_rr_diffuse",
+      "raw_rr_specular",
+      "recovery_original_normal_roughness",
+      "selected_rr_diffuse",
+      "selected_rr_specular"
+    ],
+    "turn": null,
+    "anchor": null,
+    "tuning": [
+      0.5,
+      0.5,
+      40000.0,
+      40.0,
+      0.5,
+      0.10000000149011612
+    ],
+    "segments": [
+      [
+        "moving",
+        17,
+        35
+      ],
+      [
+        "still",
+        35,
+        66
+      ]
+    ],
+    "fast": [
+      21,
+      22,
+      23,
+      24,
+      30,
+      31,
+      32
+    ]
+  }
+]
