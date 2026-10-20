@@ -1691,12 +1691,30 @@ struct FSRDPreprocessor_Dx12::Impl
             m_postFlickWasEnabled = false;
             return;
         }
+        // Diagnostic frames are not the image: the other composition-phase consumers skip them too (recovery, flat
+        // detail, skin). Without this the keyframe would be refreshed from a debug view's band and the real image
+        // would keep debug colours for up to kMaxKeyAge frames after the debug view is closed; neither the angle
+        // gate nor the depth test can see that, because both use the real camera and depth.
+        if ((desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) != 0u)
+        {
+            m_postFlickWasEnabled = false;
+            return;
+        }
         const uint32_t requestedWidth = uint32_t(desc.DstTexSize.x), requestedHeight = uint32_t(desc.DstTexSize.y);
         if (!requestedWidth || !requestedHeight) return;
-        // The render size is constant for a swapchain; a change would need a full context rebuild, so bail out
-        // instead of reusing textures of the wrong extent.
+        // A render-size change (dynamic resolution) releases the size-bound textures and starts over next frame
+        // instead of going silently dead: SetMaxRenderSize is not the only path that can change the extent.
         if ((m_postFlickWidth && m_postFlickWidth != requestedWidth) ||
-            (m_postFlickHeight && m_postFlickHeight != requestedHeight)) return;
+            (m_postFlickHeight && m_postFlickHeight != requestedHeight))
+        {
+            for (auto* set : {&m_postFlickKey, &m_postFlickKeyAux, &m_postFlickAux})
+                for (auto& resource : *set) resource.Reset();
+            m_postFlickCur.Reset(); m_postFlickOutput.Reset();
+            m_postFlickParity = 0; m_postFlickWidth = 0; m_postFlickHeight = 0;
+            m_postFlickValid = false; m_postFlickWasEnabled = false;
+            m_postFlickKeyState = PostFlickMath::KeyState {};
+            return;
+        }
         m_postFlickWidth = requestedWidth; m_postFlickHeight = requestedHeight;
         const uint32_t width = m_postFlickWidth, height = m_postFlickHeight;
         const uint32_t halfW = std::max(1u, width / 2), halfH = std::max(1u, height / 2);

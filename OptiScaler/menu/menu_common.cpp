@@ -3368,10 +3368,12 @@ static bool DrawNrdBridgeTurnColour(Config* config)
         changed = true;
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("After a 25-50 deg/frame flick RR has no history and paints low-frequency blotches on flat walls "
-                          "for 10-20 frames. Pixels whose history is still young take their low-frequency band from the last "
-                          "settled frame before the flick (level matched) while the current frame's detail is kept; settled "
-                          "pixels are untouched. Two half-resolution plus two full-resolution passes, only while it is on. "
+        ImGui::SetTooltip("After a fast flick (15 deg/frame and up) RR has no history and paints low-frequency blotches on "
+                          "flat walls for 10-20 frames. Pixels whose history is still young take their low-frequency band "
+                          "from the last settled frame before the flick (level matched) while the current frame's detail is "
+                          "kept; settled pixels are untouched. The keyframe is held for 32 frames after a flick and at most "
+                          "64 frames old, and the correction switches off when the keyframe is more than 20 deg away from "
+                          "the current view. One half-resolution prepare plus one full-resolution apply, only while it is on. "
                           "Default off.");
     ImGui::BeginDisabled(!postFlick);
     float postFlickStrength = config->FfxDenoiserPostFlickStrength.value_or_default();

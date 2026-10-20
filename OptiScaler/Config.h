@@ -635,9 +635,10 @@ class Config
     CustomOptional<float> FfxDenoiserRecoveryFlatReflectionDetail { 1.0f };
     CustomOptional<float> FfxDenoiserRecoveryFlatReflectionPolish { 0.0f };
     // NZR on vertical surfaces (glass storefronts). Vertical pixels (|world n.z| <= .5) take another policy;
-    // horizontal ones (puddles, |n.z| >= .8) keep today's result byte-for-byte. 0 off, 1 RR, 2 blend, 3 stabilised NZR.
+    // horizontal ones (puddles, |n.z| >= .8) keep today's result byte-for-byte. 0 off, 1 RR, 2 blend (mode 3, the
+    // stabilised NZR pass, was removed in task 24; values above 2 clamp to 2).
     CustomOptional<int> FfxDenoiserRecoveryFlatVerticalMode { 0 };
-    // Mode 2: share of the NZR result kept (0 = RR). Mode 3: stabiliser strength. Ignored by modes 0 and 1.
+    // Mode 2: share of the NZR result kept (0 = RR). Ignored by modes 0 and 1.
     CustomOptional<float> FfxDenoiserRecoveryFlatVerticalStrength { 0.5f };
     // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.
     CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };

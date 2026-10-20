@@ -55,7 +55,7 @@ struct FlatAlbedoSettings
     float reflectionPolish = 0;
     // NZR on vertical surfaces ("glass"): non-horizontal NZR pixels take another policy, horizontal ones
     // (puddles, |n.z| >= .8) keep today's result byte-exactly. 0 off; 1 RR; 2 blend by verticalStrength;
-    // 3 stabilised NZR (needs reflection history - the polish pass reprojects along the virtual motion).
+    // Values above 2 clamp to 2: the stabilised mode 3 was removed in task 24 (see report section 3.1).
     uint32_t verticalMode = 0;
     float verticalStrength = 0.5f;
     bool operator==(const FlatAlbedoSettings&) const = default;
