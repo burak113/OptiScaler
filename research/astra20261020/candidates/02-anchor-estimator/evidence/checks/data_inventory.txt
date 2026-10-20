@@ -1,0 +1,51 @@
+{
+  "output": "data_inventory.json",
+  "status": "all inventory/hash/coordinate checks passed",
+  "clips": {
+    "bottle_track7": {
+      "extent_xy": [
+        128,
+        256
+      ],
+      "frames": [
+        180,
+        186
+      ],
+      "crop_moves": true,
+      "after_first_min_history_support": 0.6236572265625,
+      "after_first_max_history_support": 0.937591552734375,
+      "values_opened": true,
+      "quality_mask_present": false
+    },
+    "foliage23": {
+      "extent_xy": [
+        192,
+        64
+      ],
+      "frames": [
+        43,
+        65
+      ],
+      "crop_moves": false,
+      "after_first_min_history_support": 0.9347330729166666,
+      "after_first_max_history_support": 0.9796549479166666,
+      "values_opened": true,
+      "quality_mask_present": false
+    },
+    "facade16": {
+      "extent_xy": [
+        96,
+        96
+      ],
+      "frames": [
+        34,
+        49
+      ],
+      "crop_moves": false,
+      "after_first_min_history_support": 0.9689670138888888,
+      "after_first_max_history_support": 0.9792751736111112,
+      "values_opened": true,
+      "quality_mask_present": false
+    }
+  }
+}

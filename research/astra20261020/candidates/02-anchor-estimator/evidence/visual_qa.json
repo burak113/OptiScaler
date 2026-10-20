@@ -1,0 +1,15 @@
+{
+  "command": "python -B research/astra20261020/candidates/02-anchor-estimator/plot_results.py",
+  "exit_code": 0,
+  "elapsed_seconds": 3.4989503279994096,
+  "executor": "root coordinator, Linux CPU",
+  "reason": "Visual inspection found overlapping label on the narrow held-out field and an omitted identity legend; labels repaired, no data, metric, threshold or crop changed.",
+  "stdout": "{\n  \"matplotlib\": \"3.10.8\",\n  \"figures\": [\n    \"gain_trajectories.png\",\n    \"light_response_trajectories.png\",\n    \"matched_dose_tradeoffs.png\",\n    \"native_fixed_fields.png\"\n  ]\n}\n",
+  "plot_source_sha256": "95c02ddc94134270c4b007225beb695cc4c6c440ef4b7867e3ebbd1b60ae8165",
+  "figures": {
+    "gain_trajectories.png": "13cd61ebfa145bd94e043e0c98bb3a0c91eab7bf323dd2c7277ba23316d7492f",
+    "light_response_trajectories.png": "4e7716fe887cb46cad7c63b9f343ec2bb76e2529e2e3ef039aa5112f13f7a2b1",
+    "matched_dose_tradeoffs.png": "3ae5764cbac48760152086731ad0d4f6a9a3a4d8ce285ceac234a560afa4a21e",
+    "native_fixed_fields.png": "d0cbc0d9f9c6492d1a52086e574d46b92eb1bb777a38de6f69f725c64360d763"
+  }
+}

@@ -1,0 +1,305 @@
+{
+  "schema": "anchor02.native_gpu_request.v1",
+  "task_id": "02-anchor-estimator",
+  "request_status": "proposed_local_experiment_not_executed",
+  "gpu_executed": false,
+  "recommendation": "keep_as_research",
+  "base_tag": "astra-handoff-20261020",
+  "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
+  "candidate_contract": "anchor-diagnostic-v1; adapter/ESTIMATOR_SPEC.md; estimator.py",
+  "purpose": "Distinguish true moderate illumination response from transient post-motion input excess using an independent physical-light observation, and validate an identity-output diagnostic on the actual native bridge. Numerical confidence alone does not identify cause.",
+  "deployment_boundary": {
+    "new_experiments_default_off": true,
+    "accepted_application_gain": 1.0,
+    "provisional_gain_may_feed_rr_or_nzr": false,
+    "provisional_note": "Export provisional_gain as a diagnostic only. CPU falsifiers reject it as a causal correction. Any future nonidentity adapter needs a new local acceptance decision and a versioned independent-observation contract; this request does not authorize connecting provisional gain to RR.",
+    "production_changes_owner": "job08 after dependency and local acceptance gates",
+    "protected_settings": "Keep the user's D16/S256 radiance scales, G2/G3, RR Fallback, Diffuse RR and Reflection History enabled; NZR Temporal disabled. Anchor/ColourTrack/PostFlick remain OFF in the recommended preset. Any legacy Anchor ON run below is an isolated known-bad control, not a preset change.",
+    "additional_observable_cost": "An independent high-sample same-pose reference may be available only for research and may be unaffordable in production. Its first purpose is to distinguish hypotheses, not to imply a shippable runtime witness."
+  },
+  "initial_minimal_experiment": {
+    "id": "paired_real_1p25_vs_constant_light_motion_stop",
+    "source_sequences": 2,
+    "conditions": [
+      {
+        "id": "T_constant_light",
+        "intervention": "Record an actual unlooped camera-motion bout ending at relative frame0 at the chosen target pose, while engine illumination is held constant by an independently documented scene control.",
+        "truth_requirement": "Measure expected physical target-pose D/S level independently; do not assume a late noisy input or selected RR image is truth."
+      },
+      {
+        "id": "L_real_1p25_step",
+        "intervention": "Repeat the matched camera trajectory and target pose, changing a real engine light parameter to its documented 1.25 setting at relative frame0. Hold that setting through frame31. Match world/geometry/time state where controllable and record mismatches.",
+        "truth_requirement": "Record the independent realized physical-light ratio and uncertainty. A nominal engine parameter multiplier is not proof that every D/S pixel changes by exactly1.25; global illumination, exposure and nonlinear engine behavior must be measured."
+      }
+    ],
+    "why_this_pair": "The camera prelude is matched; only the genuine light intervention differs. The independent same-pose reference reveals how much observed current/ref change is real lighting. It can falsify a claimed classifier without pretending that the packaged tensors already contain this information.",
+    "actual_engine_control_api": null,
+    "actual_engine_control_api_reason": "No game/engine light-control or high-sample rendering API is promised by the handoff. Document the local mechanism if available; otherwise return this as the precise missing observable.",
+    "relative_export_frames": {
+      "first": -8,
+      "last": 31,
+      "inclusive_count_per_source": 40,
+      "onset": 0,
+      "post_apply_physical_snapshot_frames": [-1, 0, 8, 24, 31],
+      "early_metric_frames": [0, 1, 2, 3, 4, 5],
+      "late_metric_first": 6,
+      "late_metric_last": 25,
+      "post_window_check_frames": [26, 27, 28, 29, 30, 31],
+      "bucket_alignment": "Early k0..5 and late k6..25 are native motion-window indices, not assumed capture-relative indices. The frame lists above assume observed onset k0 at relative0; derive actual buckets and the first inactive frame from logged k/active flags. Native k25 remains active; when aligned, post-window begins at relative26. If the schedule is not aligned or rearms, report that mapping and do not silently relabel frames."
+    },
+    "absolute_capture_uuid": null,
+    "absolute_original_frame_ids": null,
+    "absolute_frame_ids_reason": "This is a new controlled scene experiment. Map every relative frame to its actual capture ordinal and provider frameIndex in the returned manifest; do not renumber or invent capture IDs.",
+    "complete_pre_onset_history_available": null,
+    "complete_pre_onset_history_frames": null,
+    "prehistory_policy": "Retain locally every real chronological input and actual native/RR state from the true context reset through the window. Record the actual available history length. Prewarm by those original frames once, not by looping the exported window or fabricating a converged ring. If history is incomplete, explicitly label startup-invalid regions and restrict conclusions.",
+    "schedule_policy": "Use the actual native BuildFrame schedule: six physical slots, settled2, sample4, motion1deg, arm3deg, window25. Log the measured motion and ring validity/ages; do not force an armed window while claiming ordinary same-pose native behavior. Keep the matched prelude long enough to satisfy observed state requirements, recording its actual length rather than assuming a magic warmup count."
+  },
+  "extension_controls_after_initial_observation": {
+    "run_locally_first_upload_summaries_and_first_counterexample_only": true,
+    "moderate_multipliers": [1.1, 1.25, 1.4],
+    "both_directions": "Run actual engine transitions1->a and a->1 for every listed multiplier; record realized physical D/S response and uncertainty, including local spatial variation. Include1/a estimates only when the measured reference supports that interpretation.",
+    "scenes": [
+      "same pose with a genuine step during an already armed post-motion window",
+      "same pose with no preceding arm: verify ordinary host inactivity rather than forcing gain evaluation",
+      "genuine illumination step while camera motion is still active",
+      "constant-light stationary independent-noise control where independent samples actually exist",
+      "spatially coherent and temporally persistent residual controls; do not assume neighboring samples independent",
+      "local moving object against a static background whose true illumination changes",
+      "new-view/disocclusion and sparse/unbalanced recall support, retaining the original baseline masks",
+      "camera cut, reset, enable/disable, cancelled recording, and odd-size or resolution-change cases",
+      "native physical dark/FP16/16.16 threshold and finite-cap16 numerical controls"
+    ],
+    "synthetic_interventions_separate": "Multiplying saved tensors is permitted only as a labeled arithmetic/plumbing control, never as evidence of a genuine light change. Do not upload a catalogue of repeated frames as independent captured samples."
+  },
+  "execution_pairs": [
+    {
+      "id": "OFF",
+      "configuration": "original native Anchor OFF; other protected settings unchanged",
+      "purpose": "golden physical-input and fresh-RR comparator"
+    },
+    {
+      "id": "LEGACY_NATIVE",
+      "configuration": "unchanged tagged native Stats/Gain/Apply, strength1, isolated local A/B",
+      "purpose": "known-bad one-sided and moderate-light control; never a new recommended default"
+    },
+    {
+      "id": "DIAGNOSTIC_V1",
+      "configuration": "actual native scheduling/refresh/ownership with the separately compiled diagnostic Gain variant; bound Apply gain exactly1",
+      "purpose": "diagnostic parity, causal abstention and native routing; export provisional gain but never bind it"
+    }
+  ],
+  "fresh_rr_requirement": "For every execution pair, run the actual AMD RR provider afresh through the native RRWrapper path with the same complete unlooped local inputs and appropriate independent context reset/warmup. Do not feed a modified final image through old recorded RR output. If original per-frame source bytes differ between paired runs, record that and use it as an uncertainty/confound rather than claiming exact equality.",
+  "native_path": {
+    "host_file": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp",
+    "owner_file": "OptiScaler/shaders/fsrd_preprocess/FSRDNrdPostMotionAnchor_Dx12.h",
+    "actual_calls_required": [
+      "RRWrapper::Configure",
+      "RRWrapper::RecordOwned / RecordOwnedImpl",
+      "NativePostMotionAnchor::Prepare",
+      "NativePostMotionAnchor::RecordInputs",
+      "actual FfxApiProxy D3D12 provider dispatch",
+      "RRWrapper::CommitOwned"
+    ],
+    "passes": [
+      {
+        "name": "FSRDNrdPostMotionAnchorStatsRecall",
+        "source": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+        "inputs": "native physical diffuse/specular, depth, original motion, locally retained six-slice keys and camera constants",
+        "outputs": "FP16 Stats/Recalled and unchanged32-byte native sums buffer"
+      },
+      {
+        "name": "FSRDNrdPostMotionAnchorGain or separately compiled diagnostic Gain",
+        "source": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdPostMotionAnchorGain.hlsl",
+        "candidate_spec": "adapter/AnchorDiagnostic.pseudo.hlsl is source-shaped pseudocode, not a built shader",
+        "inputs": "actual native Stats/Recalled and original32-byte sums after the UAV ordering barrier",
+        "outputs": "actual Apply gain and normal key-refresh writes; separate diagnostic fields never substitute for key maintenance"
+      },
+      {
+        "name": "FSRDPostMotionAnchorApply",
+        "source": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPostMotionAnchorApply.hlsl",
+        "inputs": "actual native private D/S copies and the bound gain field",
+        "outputs": "private physical D/S for RR and NZR; G3 continues reading original physical inputs; alpha/hit distance retained"
+      }
+    ],
+    "no_combined_host_substitution": "A combined-host shader replay, standalone Gain dispatch or stale generated CSO does not prove native Config-to-provider routing."
+  },
+  "config_to_provider_canary": {
+    "required": true,
+    "protocol": [
+      "Run OFF and the unchanged LEGACY_NATIVE control on a locally available known active unlooped native case; an actual nonidentity legacy gain must be observed before claiming the canary is discriminating.",
+      "Attest actual Configure settings, active/refresh flags, resource identities, GPU frame/fence ownership, executed CSO hashes and real provider binding IDs. The provider's anchor-disabling debug option must be false; this is separate from enabling the D3D12 debug layer.",
+      "Record original physical source D/S, private post-Apply D/S, the resources bound before provider radiance scaling, and the restored physical resources. Verify original G3 inputs are unchanged and RR/NZR consume the intended owned copies.",
+      "Apply a forced-OFF mutation in this isolated harness and require the expected legacy correction/routing assertion to fail. Record the failure; it is a canary rejection, not a candidate quality win.",
+      "Run DIAGNOSTIC_V1 separately: actual bound gain is identity and physical D/S must match the original within the existing finite-radiance sanitizer contract, while diagnostics and key refresh are demonstrably executed. A hidden provisional-gain binding is a hard failure."
+    ],
+    "physical_witness_domain": "before D16/S256/provider scaling, and separately after restoration; never multiply physical copies by256 to improve frame counters",
+    "existing_case_metadata": {
+      "22f9ca14": {"original_render_xy": [1505, 847], "source_roi_origin_xy": [496, 167], "source_roi_extent_xy": [512, 512], "packaged_native_frames": [41, 44, 52]},
+      "87ee1fba": {"original_render_xy": [1505, 847], "source_roi_origin_xy": [496, 167], "source_roi_extent_xy": [512, 512], "note": "Use original full local histories if available; packaged fields are not a native routing replay."},
+      "2405579e": {"original_render_xy": [1505, 847], "source_roi_origin_xy": [688, 0], "source_roi_extent_xy": [128, 847], "packaged_native_frames": [92], "note": "This128-wide strip cannot supply the requested192-wide new-scene halo. Do not invent missing outside-strip pixels."}
+    }
+  },
+  "native_units_and_abi": {
+    "physical_level": "dot(diffuse.rgb,[0.2126,0.7152,0.0722]) + dot(specular.rgb,same weights), before provider scaling",
+    "stats_sampling": "four bilinear taps per8x8 cell, not a64-texel mean",
+    "physical_cap": 16.0,
+    "atomic_scale": 65536,
+    "atomic_quantization": "floor(clamp(physical_level,0,16)*65536); emulated uint64 low/high accumulation",
+    "sums_bytes": 32,
+    "sums_offsets": {"current_low": 0, "current_high": 4, "recalled_low": 8, "recalled_high": 12, "valid_static_count": 16, "padding_first": 20, "padding_last": 31},
+    "global_sums_scope": "actual full native dispatch grid, not the exported crop; export dispatch extent and valid count. Never compare a crop-only sum with full-frame counters as if they shared a denominator.",
+    "ratio_provenance": "Original integer sums permit exact integer ratio computation and reproduction of native split-word FP32 conversion; stored-FP16 reconstruction remains a bounded estimate. Export both labels separately.",
+    "alpha_contract": "Both input lobe alpha planes remain bitwise unchanged through private copies and Apply. Do not reinterpret/filter them as colour."
+  },
+  "candidate_constants": {
+    "minimum_unique_pairs": 5,
+    "tap_step_cells": 3,
+    "dispersion_multiplier": 1.0,
+    "gain_low": 0.8,
+    "band_a": 0.18,
+    "tau_frames": 10.0,
+    "cap_extra": 0.05,
+    "cap_hard": 0.3,
+    "reject_multiplier": 1.8,
+    "reject_absolute": 0.3,
+    "frame_minimum_coverage": 0.15,
+    "diagnostic_rounding_envelope": "FP16 RTNE/RTZ union plus declared FP32 slack; deterministic dispersion envelope, not a calibrated statistical confidence interval",
+    "deployment_gain": 1.0
+  },
+  "capture_and_export": {
+    "new_scene_render_extent_xy": null,
+    "new_scene_render_extent_reason": "Unknown until local capture; preserve actual render/allocation extents in metadata rather than assuming1505x847.",
+    "new_scene_crop_origin_render_xy": null,
+    "new_scene_crop_origin_reason": "Choose from unmodified BASE before any candidate inspection, aligned to8 pixels and fully inside actual input extents. Record every frame's origin; if the crop tracks motion, subtract the previous origin in correspondence.",
+    "analysis_core_extent_xy": [128, 128],
+    "halo_each_side_pixels": 32,
+    "exported_halo_extent_xy": [192, 192],
+    "exported_grid_extent_xy_if_crop_aligned": [24, 24],
+    "halo_reason": "Contains the step3 cell neighborhood and Apply interpolation around the128 core. Native recall/RR still execute on complete local inputs; the crop halo does not replace full-frame history or certify reprojection outside it.",
+    "source_gpu_row_pitch_bytes": null,
+    "source_gpu_row_pitch_reason": "Record actual D3D12 resource/readback footprints locally. Export tight arrays after stripping recorded row padding; never guess a GPU row pitch from width.",
+    "export_byte_order": "little-endian, C-order; NPZ allow_pickle=False; lossless compression permitted",
+    "roles": [
+      {"name": "pre_anchor_diffuse_and_specular", "stage": "sourceInput before native private copy/Apply", "format": "R16G16B16A16_FLOAT", "shape_each": [40, 192, 192, 4], "tight_row_bytes": 1536, "unit": "physical native lobe RGB; original alpha hit distance"},
+      {"name": "original_depth", "stage": "native Stats input", "format": "R32_FLOAT", "shape": [40, 192, 192], "tight_row_bytes": 768, "unit": "original signed linear depth; actual world-length scale must be documented, not guessed"},
+      {"name": "original_motion", "stage": "native Stats input", "format": "R16G16B16A16_FLOAT", "shape": [40, 192, 192, 4], "tight_row_bytes": 1536, "unit": "RG previous-current full-render UV; B previous-current linear depth; retain remaining payload"},
+      {"name": "original_and_prepared_normal_roughness", "stage": "source guide and provider-bound guide", "format": "R10G10B10A2_UNORM stored as uint32 words", "shape_each": [40, 192, 192], "tight_row_bytes": 768, "unit": "preserve original oct normal/roughness/material bits; no semantic material inference"},
+      {"name": "stats_and_recalled_each_enabled_variant", "stage": "actual native Stats output", "format": "R16G16B16A16_FLOAT", "shape_each": [40, 24, 24, 4], "tight_row_bytes": 192, "unit": "Stats=(physical D+S level,depth,static,0); Recalled=(physical key level,valid,slice,static)"},
+      {"name": "native_frame_sums_each_enabled_variant", "stage": "after Stats atomics and required UAV barrier, before Gain reads", "format": "32 raw bytes / eight little-endian uint32", "shape": [40, 8], "unit": "original full-dispatch uint64 16.16 sums/count/padding; do not derive from stored crop fields"},
+      {"name": "actual_apply_gain_each_enabled_variant", "stage": "resource actually bound to shared Apply", "format": "R16G16B16A16_FLOAT", "shape": [40, 24, 24, 4], "tight_row_bytes": 192, "unit": "dimensionless gain; identity candidate x=1 exactly"},
+      {"name": "provisional_gain_diagnostic_only", "stage": "separate unbound diagnostic output", "format": "R16_FLOAT", "shape": [40, 24, 24], "tight_row_bytes": 48, "unit": "dimensionless rejected comparison field, never a provider input"},
+      {"name": "diagnostic_location_envelope", "stage": "diagnostic Gain output", "format": "R32G32B32A32_FLOAT", "shape": [40, 24, 24, 4], "tight_row_bytes": 384, "unit": "median(log current/ref), MAD, lower, upper; not a probability"},
+      {"name": "reason_and_unique_count_and_eligible", "stage": "diagnostic Gain output", "format": "two uint32 arrays and one uint8 boolean array", "shape_each": [40, 24, 24], "unit": "reason bitfield, unique spatial pair count, eligibility; count is not independent sample size"},
+      {"name": "fresh_raw_rr_diffuse_and_specular_each_variant", "stage": "actual fresh native AMD RR output in restored physical domain", "format": "R16G16B16A16_FLOAT", "shape_each": [40, 128, 128, 4], "tight_row_bytes": 1024, "unit": "physical output lobes; no final-game or converged-truth claim"},
+      {"name": "post_apply_physical_snapshots_each_enabled_variant", "stage": "after Apply and before provider radiance scaling", "format": "R16G16B16A16_FLOAT", "shape_each_lobe": [5, 192, 192, 4], "tight_row_bytes": 1536, "unit": "physical corrected D/S copies with alpha; other frames require per-stage bit hashes and summary witnesses"},
+      {"name": "three_fixed_base_core_masks", "stage": "frozen before variants from original observations and documented region selection", "format": "uint8 booleans", "shape": [40, 128, 128, 3], "unit": "analysis region, original supported/static region, moving/new-view control region; record exact construction, counts and SHA256. If a semantic/dynamic mask cannot be observed, mark that role unavailable rather than inventing it."}
+    ],
+    "constants_and_metadata": "Export exact Stats864-byte, Gain80-byte and Apply16-byte constant buffers for enabled variants; original46-word provider controls, camera/projection/position words, render/allocation extents, per-frame crop origin, source ordinal, frameIndex, timestamps/delta time, reset/active/refresh flags, ring validity/age/physical-slice metadata, settings, resource IDs, source/CSO hashes, device/driver/provider version and readback stride. Raw six-slice textures are not needed for this conditional estimator task.",
+    "fixed_masks": "Build all analysis masks and denominators from unmodified BASE/source observations before candidate inspection, hash them and reuse exactly across variants. Report missing/new-view support explicitly. A grid static mask must not be relabeled a full-resolution moving-object guarantee. Do not crop or rescale image comparison panels differently by variant.",
+    "full_histories": "Complete full-frame inputs, albedo and provider state remain local for genuine native/RR replay; upload only the specified crop/summary subset. Cropped arrays alone are not an executable full RR dispatch."
+  },
+  "independent_physical_reference": {
+    "initial_snapshots": ["target_pose_before_light_change", "target_pose_after_real_1p25_change", "constant_light_target_pose_at_motion_stop"],
+    "snapshot_count_budget": 3,
+    "share_only_if_proven_identical": "The first and third reference may share data only if camera, geometry, actual light state, engine time and relevant renderer state are independently shown equivalent. Do not assume equivalence merely because the camera looks similar.",
+    "requested_arrays_per_snapshot": {
+      "physical_diffuse_rgb_mean_and_lower_and_upper": {"dtype": "float32", "shape_each": [192, 192, 3]},
+      "physical_specular_rgb_mean_and_lower_and_upper": {"dtype": "float32", "shape_each": [192, 192, 3]},
+      "independent_sample_count_per_lobe": {"dtype": "uint32", "shape": [192, 192, 2]},
+      "valid_reference_support": {"dtype": "uint8", "shape": [192, 192]}
+    },
+    "uncertainty_contract": "Supply the estimator, confidence/coverage target, independence assumptions, effective sample-count treatment for correlation and stopping criterion. Report unresolved/unsupported pixels. Do not label raw repeated temporal frames independent or divide variance by sample count without justification. If a defensible uncertainty interval is unavailable, leave it unavailable and the causal gate remains blocked.",
+    "reference_production_method": null,
+    "reference_production_method_reason": "Actual engine access, sample accumulation, independent seeds and converged same-pose rendering capability are unknown. Accept only a documented physically equivalent independent reference; do not fabricate an engine control or treat late input/RR as truth.",
+    "raw_reference_replicates": "Keep locally with hashes and exact generation metadata; upload the above summaries first, not every high-sample render."
+  },
+  "startup_reset_order_and_lifetime_checks": [
+    "Replay original frame order once with actual per-variant reset/warmup; record incomplete prehistory. Never loop a short crop or reuse a future frame as past history.",
+    "Reset on actual camera cut/context replacement/discontinuity; verify the first invalid-history frame abstains and stale keys are not read.",
+    "Preserve old-key recall before new-key refresh, all six physical slots, native32-byte sums clearing, Stats-to-Gain UAV ordering and key/gain state transitions.",
+    "Run D3D12 debug layer/GPU validation where locally available and report actual error/warning counts. Enabling it must not activate the provider debug mode that bypasses native Anchor.",
+    "Check owned private D/S descriptors/resources/constant uploads remain alive through fences, cancellation abandons the physical graph, and shared family budget is charged correctly.",
+    "Verify nonidentity legacy interpolation leakage separately from diagnostic identity. Do not fix transport inside this estimator experiment."
+  ],
+  "compiler_request": {
+    "status": "proposed_only_no_compile_or_bytecode_in_this_return",
+    "toolchain": "project-pinned DXC1.8",
+    "profile": "cs_6_2",
+    "entry_point": "CSMain",
+    "flags": ["-O3", "-HV", "2021"],
+    "enable_16bit_types": false,
+    "requirements": "Convert source-shaped diagnostic pseudocode into the separately reviewed adapter; compile fresh CSO and matching header together, record compiler/source/bytecode hashes and warnings. Existing generated bytes are not a build of this candidate."
+  },
+  "tolerances_and_falsifiers": {
+    "integer_sums_and_count": {"absolute_tolerance": 0, "rationale": "original integer buffers are exact observations; reproduce the actual full-dispatch scope"},
+    "identity_apply_gain": {"fp16_bits": 15360, "absolute_tolerance": 0, "rationale": "candidate deployment field is exactly1, including reset/invalid/ambiguous cases"},
+    "alpha_bits": {"different_words_allowed": 0, "rationale": "both input lobe payloads must pass through unchanged"},
+    "identity_physical_rgb": "Require bitwise equality on finite nonnegative inputs within the unchanged sanitizer domain before provider scaling. Classify out-of-domain sanitizer behavior separately; do not hide it in a loose image tolerance.",
+    "provisional_fp16_gain_away_from_branches": {"maximum_half_ulp": 1, "rationale": "initial arithmetic parity allowance only; no acceptance of a different strict-guard decision"},
+    "strict_branches": "Quantization/rounding intervals must propagate through both endpoints. Uncertain branch support abstains. Exact native counters must lie within the claimed locally computed full-grid bounds, with documented FP32 conversion slack.",
+    "fresh_rr_repeatability_absolute_tolerance": null,
+    "fresh_rr_repeatability_reason": "Measure actual OFF-vs-OFF native provider repeatability on this device/context first. Use that baseline and identical physical inputs to assess DIAGNOSTIC_V1; do not invent deterministic equality or a universal pixel tolerance.",
+    "true_light_response_tolerance": null,
+    "true_light_response_reason": "Use independent physical-reference uncertainty plus measured native OFF repeatability. An identity diagnostic must add no measurable attenuation or latency relative to OFF; unresolved uncertainty cannot certify a future nonidentity gain.",
+    "hard_rejections": [
+      "forced-OFF native canary unexpectedly passes",
+      "provisional field reaches Apply/RR/NZR",
+      "physical radiance scale/cap or32-byte ABI changes",
+      "input alpha or original G3 physical source changes",
+      "strict-guard branch guessed from an uncertain midpoint",
+      "unsupported history hidden by clamping, looping, changing masks or deleting denominators",
+      "new grain, sparkles, flicker, dark boundaries, disocclusion trails or true-light response loss beyond paired OFF uncertainty"
+    ]
+  },
+  "metrics_to_return": [
+    "per-frame actual bound gain, provisional gain and abstention/reason fractions on immutable BASE masks",
+    "native-window k0..5 early, k6..25 late and whole-window physical correction energy, aligned to observed k/active flags; exact global/local energy drift with original denominators",
+    "false-positive dose under independently established no-excess/real-light controls; match dose on labeled true excess, never compare lower null bias at the same realized null dose",
+    "true-light response area and latency for each lobe and physical D+S, with independent reference uncertainty",
+    "changed originally unsupported/moving/new-view cell and full-resolution pixel counts",
+    "grain, sparkle-tail energy/outlier count, fine temporal variation/flicker and retained detail separately; do not hide failures in a mean-blur score",
+    "gain-field trajectories separately from fresh-RR rendered metrics and any actual final-game observation",
+    "same-crop/aspect/exposure/frame-time fixed-mask panels; mark unsupported history visibly rather than filling it"
+  ],
+  "performance_and_memory": {
+    "new_gpu_timings_ms": null,
+    "new_memory_bytes": null,
+    "scope": "Measure actual full-resolution native Stats, Gain, Apply, provider and total path separately for inactive, refresh and active frames. Interleave OFF/sham/legacy/diagnostic runs, retain paired GPU timestamps and report median/p90 plus observed repeatability. Keep capture readback/instrumentation cost separate.",
+    "allocation_scope": "Record owned textures, private full-resolution D/S copies, key ring, auxiliary upload/descriptor/readback buffers and shared-family budget. Resident VRAM and opaque provider cost remain null if unmeasured; do not extrapolate192x192 export cost to full game cost.",
+    "sample_count": null,
+    "sample_count_reason": "Choose sufficient actual local repeated timing observations to resolve observed jitter; report count and stopping rationale, not fabricated cloud performance."
+  },
+  "uncompressed_initial_upload_budget": {
+    "assumptions": "Two source sequences x40 frames, halo192x192, core128x128, three fresh-RR variants, two enabled native variants, five physical-copy snapshots per sequence/variant, three independent physical-reference snapshots. This is an upper bound: omit bit-identical duplicates only with referenced hashes. Raw full-frame histories and reference replicates remain local.",
+    "tensor_components_bytes": {
+      "shared_pre_provider_D_S_depth_motion_two_packed_guides": 106168320,
+      "fresh_RR_D_S_core_three_variants": 62914560,
+      "Stats_Recalled_two_enabled_variants": 1474560,
+      "actual_gain_two_enabled_variants": 737280,
+      "unbound_provisional_gain": 92160,
+      "diagnostic_float4_two_uint32_one_uint8_fields": 1152000,
+      "original32byte_sums_two_enabled_variants": 5120,
+      "native864_80_16byte_constants_two_enabled_variants": 153600,
+      "post_apply_D_S_halo_snapshots": 11796480,
+      "three_independent_reference_summary_snapshots": 8957952,
+      "three_fixed_BASE_core_masks": 3932160
+    },
+    "tensor_total_bytes": 197384192,
+    "tensor_total_mib": 188.240234375,
+    "manifest_hashes_canary_timing_visual_summary_allowance_bytes": 8388608,
+    "initial_total_with_allowance_bytes": 205772800,
+    "maximum_useful_payload_bytes": 268435456,
+    "maximum_useful_payload_mib": 256,
+    "stop_rule": "Send the initial pair and summary first. Keep extension controls/full captures local; upload only the first new discriminating counterexample within the remaining allowance or request a separate surgical addition. Compression may reduce transfer size but does not change this uncompressed accounting."
+  },
+  "provenance_required": [
+    "source commit, local integration head, configuration, source/HLSL/CSO/header hashes and compiler command",
+    "capture UUID, original ordinal/provider frameIndex mapping, timestamps, actual FPS/frame delta and light/camera control event log",
+    "every original field's role, domain, format, extent, crop origin, row pitch and alpha semantics",
+    "SHA256 for source capture manifest, every exported array's original bytes, freeze masks, exact native sum buffers and output artifacts",
+    "independent-reference generation method, source state hashes, real engine intervention, sample/uncertainty provenance and unavailable observations",
+    "actual executor/device/driver/provider versions and clear separation of CPU model, stored historical GPU calibration, fresh GPU, fresh RR and game observations"
+  ]
+}
