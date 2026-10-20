@@ -45,11 +45,9 @@ namespace PostFlickMath
         return DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&value));
     }
 
-    // The conversion desc carries the HLSL column-vector form of the inverse matrices (FSRDFeature_Dx12.cpp
-    // transposes with StoreHlslColumnVectorMatrix before uploading, and the shipped skin/additive HLSL consumes
-    // desc.InvViewMatrix as mul(Matrix, vector)), so inverting them yields the HLSL form of the forward matrices
-    // the passes need. The previous view is already a forward view. Kept here so the GPU fixture drives the same
-    // code the product runs instead of a hand-written copy of it.
+    // The conversion desc carries the TRANSPOSE of the inverse matrices (see LoadDesc above), so inverting one of
+    // them yields the transpose of the forward matrix: the fill stays in the desc form, and every consumer
+    // transposes once with LoadDesc. The previous view is a forward view and is copied through unchanged.
     struct ConversionMatrices
     {
         const DirectX::XMFLOAT4X4& InverseView;
@@ -66,9 +64,9 @@ namespace PostFlickMath
         previousView = source.PreviousView;
     }
 
-    // The composition desc carries the HLSL column-vector form of the matrices (the conversion desc stores the
-    // transposed inverses and the feature inverts them once), so the relative matrix is built in that form and the
-    // apply pass consumes it as clip = M * view. The keyframe projection contributes only its P32 element.
+    // Inputs and stored key matrices are in the desc form (the transpose of the matrix HLSL sees), so every one of
+    // them is loaded through LoadDesc. The relative matrix is then the column-vector matrix the apply pass needs
+    // (clip = M * view) and is uploaded row by row; the keyframe projection contributes only its P32 element.
     inline bool BuildFrame(KeyState& key, uint32_t width, uint32_t height, bool historyValid, float strength,
         const DirectX::XMFLOAT4X4& view, const DirectX::XMFLOAT4X4& projection, const DirectX::XMFLOAT4X4& previousView,
         Outputs& outputs)
