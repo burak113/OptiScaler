@@ -1,0 +1,182 @@
+[
+  {
+    "case": "boundary",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.05988956242799759,
+        "material_truth_relative_l1": 0.0002890700998250395
+      }
+    }
+  },
+  {
+    "case": "flat",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.00012286017590668052,
+        "material_truth_relative_l1": 0.00012286017590668052
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.0001341681636404246,
+        "material_truth_relative_l1": 0.0001341681636404246
+      }
+    }
+  },
+  {
+    "case": "light_edge",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 0.06171989068388939
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.05988956242799759,
+        "material_truth_relative_l1": 0.06008494272828102
+      }
+    }
+  },
+  {
+    "case": "depth_edge",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      }
+    }
+  },
+  {
+    "case": "normal_edge",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      }
+    }
+  },
+  {
+    "case": "roughness_edge",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.061715830117464066,
+        "material_truth_relative_l1": 5.68781397305429e-05
+      }
+    }
+  },
+  {
+    "case": "curved_edge",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.10486213117837906,
+        "material_truth_relative_l1": 5.733364378102124e-05
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.12347935140132904,
+        "material_truth_relative_l1": 0.000351053720805794
+      }
+    }
+  },
+  {
+    "case": "thin",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.05073459818959236,
+        "material_truth_relative_l1": 0.00012131778203183785
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.05073459818959236,
+        "material_truth_relative_l1": 0.00012131778203183785
+      }
+    }
+  },
+  {
+    "case": "noisy",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.08552847057580948,
+        "material_truth_relative_l1": 0.0003508975787553936
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.06049192324280739,
+        "material_truth_relative_l1": 0.0003524259082041681
+      }
+    }
+  },
+  {
+    "case": "hdr",
+    "weight": 1.0,
+    "gain": 1.0,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.005011373665183783,
+        "material_truth_relative_l1": 0.004493086598813534
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.0021953005343675613,
+        "material_truth_relative_l1": 0.0016289750346913934
+      }
+    }
+  },
+  {
+    "case": "fade-zero",
+    "weight": 0,
+    "gain": 0.87,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.0003532492264639586,
+        "material_truth_relative_l1": 0.0003532492264639586
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.00015541909669991583,
+        "material_truth_relative_l1": 0.00015541909669991583
+      }
+    }
+  },
+  {
+    "case": "fade-half",
+    "weight": 0.5,
+    "gain": 0.9,
+    "measurements": {
+      "diff": {
+        "old_truth_relative_l1": 0.031242214143276215,
+        "material_truth_relative_l1": 0.0004535322077572346
+      },
+      "spec": {
+        "old_truth_relative_l1": 0.030211156234145164,
+        "material_truth_relative_l1": 0.00033345859264954925
+      }
+    }
+  }
+]

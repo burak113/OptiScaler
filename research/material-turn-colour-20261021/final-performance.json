@@ -1,0 +1,26 @@
+{
+  "scope": "isolated production methods; 48 measured GPU timestamp samples after 24 warmup; tiled captured input at native pixel scale; NOT a game FPS or larger-FOV quality claim",
+  "measurements": [
+    {
+      "width": 512,
+      "height": 512,
+      "old_ms": 0.04424,
+      "new_ms": 0.0876,
+      "extra_ms": 0.043359999999999996
+    },
+    {
+      "width": 1505,
+      "height": 847,
+      "old_ms": 0.18824,
+      "new_ms": 0.36848,
+      "extra_ms": 0.18023999999999998
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "old_ms": 0.54948,
+      "new_ms": 1.1308,
+      "extra_ms": 0.5813200000000001
+    }
+  ]
+}

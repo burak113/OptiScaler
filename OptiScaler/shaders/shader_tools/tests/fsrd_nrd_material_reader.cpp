@@ -38,7 +38,10 @@ int main(int argc,char** argv)try{
   NativeFixture::NativeTitle title(h,false);NativeMaterialTitle writer(title,true);MaterialReaderTitle reader(writer);
   auto alternate=writer.texture(DXGI_FORMAT_R10G10B10A2_UNORM,false);writer.upload(alternate.Get(),writer.baseWords.data());
   auto shared=writer.texture(DXGI_FORMAT_R10G10B10A2_UNORM,false,D3D12_HEAP_FLAG_SHARED);
-  NrdBridge::RRSettings settings;settings.nativeMaterialGuides=true;std::string error;need(NrdBridge::ApplyRRSettings(settings,false,error),"enable material guides");
+  NrdBridge::RRSettings settings;settings.nativeMaterialGuides=true;
+  const bool fence=std::getenv("FSRD_READER_MATERIAL_FENCE")!=nullptr;
+  if(fence){settings.turnMaterialFence=true;settings.turnColourFilter=true;settings.turnColourFrames=0;}
+  std::string error;need(NrdBridge::ApplyRRSettings(settings,false,error),"enable material guides");
   const std::array<const char*,19> modes={"no_reader","reader_no_local_barriers","unrelated_placed_alias","direct_alias","global_alias","opaque_work","source_transition","reader_bad_profile","writer_bad_profile","option_off","option_on","recording_reset","cancellation","different_source","second_writer","second_reader","combined_read_state","unknown_shader","shared_alias"};
   for(UINT frame=0;frame<modes.size();++frame){
    const std::string mode=modes[frame];const bool expected=frame==1||frame==2||frame==10||frame==15||frame==16;
@@ -89,7 +92,9 @@ int main(int argc,char** argv)try{
    need(captured==expected,"early reader admission follows exact recording/source/invalidation contract");
    if(expected)need(status.nativeMaterialCaptureReason=="captured_from_reader","successful no-local-barrier case uses early snapshot");
    title.Begin(frame+1);title.A();title.ConsumerA();auto stage=NrdBridge::gService->lists.at(h.list.Get()).native[0];
-   need(stage&&stage->committed,"actual native A transaction commits");need(NrdBridge::GetStatus().nativeMaterialGuidesActive==expected,"RR material active reflects actual current admission");
+   need(stage&&stage->committed,"actual native A transaction commits");
+   need(stage->inputs.materialGuidesApplied==expected,"converted material witness follows actual current reader admission");
+   if(fence)need(stage->history->rr.GetOwnedOutputSnapshot(stage->owned).turnMaterialFenceActive==expected,"native material colour uses accepted guides only, including rejection and re-enable frames");need(NrdBridge::GetStatus().nativeMaterialGuidesActive==expected,"RR material active reflects actual current admission");
    need(FfxApiProxy::lastDispatch.diffuseAlbedo.resource==stage->inputs.diffAlbedo&&FfxApiProxy::lastDispatch.specularAlbedo.resource==stage->inputs.specAlbedo,"signed AMD provider consumes exact readback guide resources");
    const auto d=title.readback(stage->inputs.diffAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),s=title.readback(stage->inputs.specAlbedo,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
    const auto state=mode=="combined_read_state"?combined:D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;

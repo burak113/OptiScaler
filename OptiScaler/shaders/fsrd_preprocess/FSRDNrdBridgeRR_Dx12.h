@@ -133,6 +133,7 @@ struct RRSettings
     // RR lighting inputs take their 11x11 neighbourhood colour (own luminance kept), fading out over
     // turnColourFrames frames (0 = always on). Only RR's copy is filtered; off allocates and dispatches nothing.
     bool turnColourFilter = false;
+    bool turnMaterialFence = false; // Optional same-surface colour support; requires admitted native guides.
     float turnColourFrames = 30.0f, turnColourDegrees = 3.0f;
     // Post-turn brightness correction: the title's lighting is ~15 % too bright for ~12 frames after a fast turn and
     // RR's restarted history keeps that excess for seconds. RR's copy is divided by
@@ -148,6 +149,8 @@ struct RRSettings
 template<class Configuration> inline void ReadTurnColourSettings(const Configuration& config, RRSettings& out)
 {
     out.turnColourFilter = config.FfxDenoiserNrdBridgeTurnColour.value_or_default();
+    if constexpr (requires { config.FfxDenoiserNrdBridgeTurnMaterialFence; })
+        out.turnMaterialFence = config.FfxDenoiserNrdBridgeTurnMaterialFence.value_or_default();
     const float frames = config.FfxDenoiserNrdBridgeTurnColourFrames.value_or_default();
     const float degrees = config.FfxDenoiserNrdBridgeTurnColourDegrees.value_or_default();
     out.turnColourFrames = std::isfinite(frames) ? std::clamp(frames, 0.0f, 600.0f) : 30.0f;
@@ -216,6 +219,7 @@ struct RRRecordedOutputSnapshot
     // Physical inputs after the anchor, before existing turn filters/scaling.
     // Exact provider lighting for the user's turn-filter-OFF configuration.
     ID3D12Resource *providerPhysicalSpec = nullptr, *providerPhysicalDiff = nullptr;
+    bool turnMaterialFenceActive = false; // Frozen recording witness, not requested settings.
     ID3D12Resource* postMotionAnchorGain = nullptr; // Optional 1/8-res trace witness, shader-readable.
     bool postMotionAnchorActive = false, postMotionAnchorFallback = false;
     std::string postMotionAnchorError;

@@ -213,6 +213,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeStabilityTranslation.reset();
     FfxDenoiserNrdBridgeStabilityRamp.reset();
     FfxDenoiserNrdBridgeTurnColour.reset();
+    FfxDenoiserNrdBridgeTurnMaterialFence.reset();
     FfxDenoiserPostFlickFix.reset();
     FfxDenoiserPostMotionAnchor.reset();
     FfxDenoiserPostMotionAnchorStrength.reset();
@@ -592,6 +593,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeStabilityTranslation.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityTranslationMetres"));
             FfxDenoiserNrdBridgeStabilityRamp.set_from_config(readFloat("FSR-RR", "NrdBridgeStabilityRampUp"));
             FfxDenoiserNrdBridgeTurnColour.set_from_config(readBool("FSR-RR", "NrdBridgeTurnColourFilter"));
+            FfxDenoiserNrdBridgeTurnMaterialFence.set_from_config(readBool("FSR-RR", "NrdBridgeTurnMaterialFence"));
         FfxDenoiserPostFlickFix.set_from_config(readBool("FSR-RR", "PostFlickFix"));
         FfxDenoiserPostMotionAnchor.set_from_config(readBool("FSR-RR", "PostMotionAnchor"));
         FfxDenoiserPostMotionAnchorStrength.set_from_config(readFloat("FSR-RR", "PostMotionAnchorStrength"));
@@ -1627,6 +1629,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeStabilityTranslationMetres", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityTranslation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeStabilityRampUp", GetFloatValue(Instance()->FfxDenoiserNrdBridgeStabilityRamp.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeTurnColourFilter", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnColour.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeTurnMaterialFence", GetBoolValue(Instance()->FfxDenoiserNrdBridgeTurnMaterialFence.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostFlickFix", GetBoolValue(Instance()->FfxDenoiserPostFlickFix.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostMotionAnchor", GetBoolValue(Instance()->FfxDenoiserPostMotionAnchor.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "PostMotionAnchorStrength", GetFloatValue(Instance()->FfxDenoiserPostMotionAnchorStrength.value_for_config()).c_str());

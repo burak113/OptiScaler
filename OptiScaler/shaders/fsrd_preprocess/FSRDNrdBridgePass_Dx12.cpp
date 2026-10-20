@@ -170,6 +170,7 @@ struct ConversionPass::Impl
     Pipeline geometry, geometryMaterial, geometryMaterialParams;
     bool geometryInitialized = false, geometryMaterialInitialized = false, geometryMaterialParamsInitialized = false;
     bool geometryPositiveValid = false;
+    bool materialGuidesApplied = false;
     uint32_t geometrySLFrame = UINT32_MAX, geometryBridgeFrame = 0;
     uint64_t geometryRecordingId = 0;
     std::weak_ptr<RecordedComputeLease::Recording> geometryRecording;
@@ -220,7 +221,7 @@ struct ConversionPass::Impl
     {
         return {spec.resource.Get(), diff.resource.Get(), depth[previousIndex].resource.Get(), motion.resource.Get(),
                 normals.resource.Get(), specAlbedo.resource.Get(), diffAlbedo.resource.Get(), validity.resource.Get(),
-                width, height};
+                width, height, materialGuidesApplied};
     }
 };
 
@@ -386,6 +387,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         owner->motionBridgeFrame = frame.frameIndex;
         owner->previousIndex = writeIndex; owner->historyValid = true;
         if (inputs.motion) owner->CountMotionProvenance(frame, constants.previousValid != 0, false);
+        owner->materialGuidesApplied = materialGuides;
         out = owner->Resources(); error.clear(); return true;
     }
     catch (const std::exception& e) { owner->historyValid = false; error = e.what(); return false; }
@@ -542,6 +544,7 @@ bool ConversionPass::DispatchGeometry(ID3D12GraphicsCommandList* list, const Con
         owner->motionSLFrame = frame.streamlineFrame;
         owner->motionBridgeFrame = frame.frameIndex;
         owner->previousIndex = writeIndex; owner->historyValid = true;
+        owner->materialGuidesApplied = materialGuides;
         out = owner->Resources(); error.clear(); return true;
     }
     catch (const std::exception& e) { owner->historyValid = false; owner->geometryPositiveValid = false; error = e.what(); return false; }

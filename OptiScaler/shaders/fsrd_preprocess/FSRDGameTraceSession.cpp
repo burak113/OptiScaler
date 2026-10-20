@@ -2156,6 +2156,9 @@ FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
             {"encoding",{{"native_flag_captured",false},{"fallback_encoding",uint32_t(parameters.outputEncoding)},
                 {"native_flag_scope","not_available_until_successful_late_commit"}}},
             {"output_scope","owned_RR_and_bridge_encoded_commit; no_native_NRD_reference"}};
+        if(settings.requested.turnMaterialFence)f->bridgeMetadata["material_turn_filter"]={
+            {"requested",true},{"active",output.turnMaterialFenceActive},
+            {"scope","same_surface_input_chroma_only; no_temporal_history_or_albedo_remodulation"}};
         if(settings.requested.motionStability.enabled)f->bridgeMetadata["settings_lineage_sha256"]=lineageHash;
         if(settings.requested.lightingValidation)f->bridgeMetadata["lighting_validation"]={
             {"active",output.providerMotion&&output.providerMotion!=input.motion}};

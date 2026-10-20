@@ -89,6 +89,7 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         result["flat_albedo"]["vertical_mode"] = p.flatAlbedo.verticalMode;
         result["flat_albedo"]["vertical_strength"] = Bits(p.flatAlbedo.verticalStrength);
     }
+    if(p.turnMaterialFence) result["turn_colour"]["material_fence"] = true;
     if(p.postMotionAnchor) result["post_motion_anchor"]={{"enabled",true},
         {"strength",Bits(p.postMotionAnchorStrength)},{"local_static_and_neighborhood_recall_required",true},
         {"physical_input_units_unchanged",true},{"frame_sums","emulated_uint64_16_16"}};

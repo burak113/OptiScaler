@@ -21,6 +21,7 @@
 #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
 #include "precompile/FSRDNrdBridgeSignalScale_Shader.h"
 #include "precompile/FSRDNrdBridgeTurnColour_Shader.h"
+#include "precompile/FSRDNrdBridgeTurnMaterial_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
@@ -170,6 +171,7 @@ struct Context
         ComPtr<ID3D12Resource> spec, diff;
         ComPtr<ID3D12DescriptorHeap> descriptors;
         ComPtr<ID3D12DescriptorHeap> scaleDescriptors; // UAVs: input spec, input diff, staged spec, staged diff.
+        ComPtr<ID3D12DescriptorHeap> turnMaterialDescriptors;
         ComPtr<ID3D12DescriptorHeap> turnDescriptors; // SRVs: input spec, diff; UAVs: RR-only filtered spec, diff.
         ComPtr<ID3D12Resource> nativeDebug;
         ComPtr<ID3D12DescriptorHeap> nativeDebugGpuUav, nativeDebugCpuUav;
@@ -187,6 +189,8 @@ struct Context
     // Post-turn colour filter / brightness correction (RRSettings::turnColourFilter, turnBrightness), created on first use only.
     ComPtr<ID3D12RootSignature> turnRoot;
     ComPtr<ID3D12PipelineState> turnPso;
+    ComPtr<ID3D12RootSignature> turnMaterialRoot;
+    ComPtr<ID3D12PipelineState> turnMaterialPso;
     std::array<ComPtr<ID3D12Resource>, 2> turnSignals; // RR inputs: filtered spec, diff (UAV between frames).
     uint64_t turnBytes = 0;
     ComPtr<ID3D12Resource> zeroConstants;
@@ -439,6 +443,46 @@ struct Context
         list->SetComputeRootDescriptorTable(1, slot.turnDescriptors->GetGPUDescriptorHandleForHeapStart());
         list->Dispatch((width+15)/16, (height+15)/16, 1); // 16x16 groups
         TurnColourBarriers(list, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    }
+    bool EnsureTurnMaterial(Slot& slot, std::string& error)
+    {
+        if (!slot.turnMaterialDescriptors)
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC d {}; d.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+            d.NumDescriptors = 8; d.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            if (!Check(device->CreateDescriptorHeap(&d,IID_PPV_ARGS(&slot.turnMaterialDescriptors)),
+                "RR material colour descriptors failed",error)) return false;
+        }
+        if (turnMaterialPso) return true;
+        if (!Check(device->CreateRootSignature(0,FSRDNrdBridgeTurnMaterial_cso,sizeof(FSRDNrdBridgeTurnMaterial_cso),
+            IID_PPV_ARGS(&turnMaterialRoot)),"RR material colour root failed",error)) return false;
+        D3D12_COMPUTE_PIPELINE_STATE_DESC d {}; d.pRootSignature = turnMaterialRoot.Get();
+        d.CS = {FSRDNrdBridgeTurnMaterial_cso,sizeof(FSRDNrdBridgeTurnMaterial_cso)};
+        return Check(device->CreateComputePipelineState(&d,IID_PPV_ARGS(&turnMaterialPso)),"RR material colour pipeline failed",error);
+    }
+    void TurnMaterial(ID3D12GraphicsCommandList* list,const Slot& slot,const ConvertedResources& input,
+                      float weight,float gain) const noexcept
+    {
+        auto cpu = slot.turnMaterialDescriptors->GetCPUDescriptorHandleForHeapStart();
+        for (auto* resource : {input.spec,input.diff,input.specAlbedo,input.diffAlbedo,input.normals,input.linearDepth})
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC v {}; v.Format = resource->GetDesc().Format;
+            v.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; v.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            v.Texture2D.MipLevels = 1; device->CreateShaderResourceView(resource,&v,cpu); cpu.ptr += descriptorStride;
+        }
+        for (const auto& resource : turnSignals)
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC v {}; v.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            v.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            device->CreateUnorderedAccessView(resource.Get(),nullptr,&v,cpu); cpu.ptr += descriptorStride;
+        }
+        list->SetPipelineState(turnMaterialPso.Get()); list->SetComputeRootSignature(turnMaterialRoot.Get());
+        ID3D12DescriptorHeap* heaps[] = {slot.turnMaterialDescriptors.Get()}; list->SetDescriptorHeaps(1,heaps);
+        const uint32_t c[] = {width,height,std::bit_cast<uint32_t>(weight),std::bit_cast<uint32_t>(gain)};
+        list->SetComputeRoot32BitConstants(0,4,c,0);
+        list->SetComputeRootDescriptorTable(1,slot.turnMaterialDescriptors->GetGPUDescriptorHandleForHeapStart());
+        list->Dispatch((width+15)/16,(height+15)/16,1);
+        TurnColourBarriers(list,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     }
     void TurnColourBarriers(ID3D12GraphicsCommandList* list, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) const noexcept
     {
@@ -810,6 +854,7 @@ struct RRRecordedOutput
     bool recoveryFallback = false, nativeCommitPrepared = false;
     bool flatAlbedoFallback = false;
     bool inputAnchorFallback = false;
+    bool turnMaterialFenceActive = false;
     std::string inputAnchorError;
     uint32_t flatAlbedoRoughness = 0;
     std::string flatAlbedoError;
@@ -933,7 +978,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
         !requested.nativeMaterialGuides && !requested.lobeRecovery && !requested.flatAlbedo.enabled && !requested.surfaceValidFill &&
-        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.lightingValidation && !requested.turnColourFilter && !requested.postMotionAnchor && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
+        !requested.radianceScale.enabled && !requested.motionStability.enabled && !requested.lightingValidation && !requested.turnColourFilter && !requested.turnMaterialFence && !requested.postMotionAnchor && !requested.turnBrightness && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     // The D02/WP08 fill selector changes which raw-decode pipeline produces the
     // RR inputs, and the D01 legacy selector changes the motion Z provenance;
@@ -985,6 +1030,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
     // Input-side only and fading: switching it never resets RR history.
     impl_->settings.turnColourFilter = requested.turnColourFilter;
+    impl_->settings.turnMaterialFence = requested.turnMaterialFence;
     impl_->settings.turnColourFrames = requested.turnColourFrames;
     impl_->settings.turnColourDegrees = requested.turnColourDegrees;
     impl_->settings.postMotionAnchor = requested.postMotionAnchor;
@@ -1508,6 +1554,18 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         }
     }
     const bool turnPass = turnWeight > 0.0f || turnGain < 1.0f;
+    bool materialTurn = turnWeight > 0.0f && impl_->settings.turnMaterialFence && frame.nativeMaterialGuides && input.materialGuidesApplied;
+    if (materialTurn)
+    {
+        std::string optionalError;
+        if (!lease->context->EnsureTurnMaterial(*lease->slot,optionalError))
+        {
+            materialTurn = false;
+            if (impl_->loggedTurnFailure != optionalError)
+            { impl_->loggedTurnFailure = optionalError; LOG_WARN("[NRD_BRIDGE] material colour inactive; existing turn filter retained: {}",optionalError); }
+        }
+    }
+    recorded->turnMaterialFenceActive = materialTurn;
     ID3D12Resource* rrSpec = turnPass ? lease->context->turnSignals[0].Get() : input.spec;
     ID3D12Resource* rrDiff = turnPass ? lease->context->turnSignals[1].Get() : input.diff;
     ffxDispatchDescDenoiserDirectDiffuse diffuse {};
@@ -1617,7 +1675,8 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
             const Context& context; ID3D12GraphicsCommandList* list; bool active;
             ~RestoreTurn() { if (active) context.TurnColourBarriers(list,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS); }
         };
-        if (turnPass) lease->context->TurnColour(list,*lease->slot,input.spec,input.diff,turnWeight,turnGain);
+        if (materialTurn) lease->context->TurnMaterial(list,*lease->slot,input,turnWeight,turnGain);
+        else if (turnPass) lease->context->TurnColour(list,*lease->slot,input.spec,input.diff,turnWeight,turnGain);
         const RestoreTurn restoreTurn {*lease->context,list,turnPass};
         FSRDRadianceScaleDx12::Scope sharedScale;
         if (shared)
@@ -1689,6 +1748,7 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.providerPhysicalDiff = lease->inputAnchor.owner ? lease->inputAnchor.diffuse : lease->inputs[1].Get();
     result.postMotionAnchorGain = lease->inputAnchor.active ? lease->inputAnchor.gain : nullptr;
     result.postMotionAnchorActive = lease->inputAnchor.active;
+    result.turnMaterialFenceActive = output->turnMaterialFenceActive;
     result.postMotionAnchorFallback = output->inputAnchorFallback;
     result.postMotionAnchorError = output->inputAnchorError;
     result.runtimeTuningValid=output->runtimeTuningValid;

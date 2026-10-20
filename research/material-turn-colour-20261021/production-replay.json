@@ -1,0 +1,311 @@
+{
+  "frames": 61,
+  "scope": "cropped actual shader -> signed AMD RR; no hidden prior history, no NZR/final compositor, first turn envelope unknown",
+  "frames_metrics": [
+    {
+      "i": 0,
+      "candidate_relative_mae": 0.027027998119592667,
+      "null_relative_mae": 0.01010193396359682
+    },
+    {
+      "i": 1,
+      "candidate_relative_mae": 0.019321320578455925,
+      "null_relative_mae": 0.01110601145774126
+    },
+    {
+      "i": 2,
+      "candidate_relative_mae": 0.019845642149448395,
+      "null_relative_mae": 0.01227300614118576
+    },
+    {
+      "i": 3,
+      "candidate_relative_mae": 0.01840975508093834,
+      "null_relative_mae": 0.010337320156395435
+    },
+    {
+      "i": 4,
+      "candidate_relative_mae": 0.018339592963457108,
+      "null_relative_mae": 0.010461777448654175
+    },
+    {
+      "i": 5,
+      "candidate_relative_mae": 0.016741901636123657,
+      "null_relative_mae": 0.009565658867359161
+    },
+    {
+      "i": 6,
+      "candidate_relative_mae": 0.01611868105828762,
+      "null_relative_mae": 0.009157813154160976
+    },
+    {
+      "i": 7,
+      "candidate_relative_mae": 0.01569197326898575,
+      "null_relative_mae": 0.008980623446404934
+    },
+    {
+      "i": 8,
+      "candidate_relative_mae": 0.015005073510110378,
+      "null_relative_mae": 0.008640899322926998
+    },
+    {
+      "i": 9,
+      "candidate_relative_mae": 0.014390721917152405,
+      "null_relative_mae": 0.008255071006715298
+    },
+    {
+      "i": 10,
+      "candidate_relative_mae": 0.013883248902857304,
+      "null_relative_mae": 0.008007055148482323
+    },
+    {
+      "i": 11,
+      "candidate_relative_mae": 0.013493851758539677,
+      "null_relative_mae": 0.007790787145495415
+    },
+    {
+      "i": 12,
+      "candidate_relative_mae": 0.012975125573575497,
+      "null_relative_mae": 0.007535784505307674
+    },
+    {
+      "i": 13,
+      "candidate_relative_mae": 0.012595503591001034,
+      "null_relative_mae": 0.007320256903767586
+    },
+    {
+      "i": 14,
+      "candidate_relative_mae": 0.012256829999387264,
+      "null_relative_mae": 0.007144307717680931
+    },
+    {
+      "i": 15,
+      "candidate_relative_mae": 0.017144514247775078,
+      "null_relative_mae": 0.0075111472979187965
+    },
+    {
+      "i": 16,
+      "candidate_relative_mae": 0.02783445455133915,
+      "null_relative_mae": 0.007387434132397175
+    },
+    {
+      "i": 17,
+      "candidate_relative_mae": 0.021315377205610275,
+      "null_relative_mae": 0.006962302140891552
+    },
+    {
+      "i": 18,
+      "candidate_relative_mae": 0.02032528817653656,
+      "null_relative_mae": 0.007551879622042179
+    },
+    {
+      "i": 19,
+      "candidate_relative_mae": 0.019665224477648735,
+      "null_relative_mae": 0.007789013907313347
+    },
+    {
+      "i": 20,
+      "candidate_relative_mae": 0.018521862104535103,
+      "null_relative_mae": 0.0073058404959738255
+    },
+    {
+      "i": 21,
+      "candidate_relative_mae": 0.017396487295627594,
+      "null_relative_mae": 0.0066428231075406075
+    },
+    {
+      "i": 22,
+      "candidate_relative_mae": 0.016791338101029396,
+      "null_relative_mae": 0.006314003840088844
+    },
+    {
+      "i": 23,
+      "candidate_relative_mae": 0.016201214864850044,
+      "null_relative_mae": 0.006130981724709272
+    },
+    {
+      "i": 24,
+      "candidate_relative_mae": 0.015836868435144424,
+      "null_relative_mae": 0.00615551695227623
+    },
+    {
+      "i": 25,
+      "candidate_relative_mae": 0.017726009711623192,
+      "null_relative_mae": 0.005972109269350767
+    },
+    {
+      "i": 26,
+      "candidate_relative_mae": 0.02717793546617031,
+      "null_relative_mae": 0.007384405937045813
+    },
+    {
+      "i": 27,
+      "candidate_relative_mae": 0.026731258258223534,
+      "null_relative_mae": 0.013427214697003365
+    },
+    {
+      "i": 28,
+      "candidate_relative_mae": 0.026544036343693733,
+      "null_relative_mae": 0.014353149570524693
+    },
+    {
+      "i": 29,
+      "candidate_relative_mae": 0.025249868631362915,
+      "null_relative_mae": 0.014066018164157867
+    },
+    {
+      "i": 30,
+      "candidate_relative_mae": 0.023443158715963364,
+      "null_relative_mae": 0.012813083827495575
+    },
+    {
+      "i": 31,
+      "candidate_relative_mae": 0.022126736119389534,
+      "null_relative_mae": 0.011844389140605927
+    },
+    {
+      "i": 32,
+      "candidate_relative_mae": 0.021096395328640938,
+      "null_relative_mae": 0.011140181683003902
+    },
+    {
+      "i": 33,
+      "candidate_relative_mae": 0.020309295505285263,
+      "null_relative_mae": 0.01064261607825756
+    },
+    {
+      "i": 34,
+      "candidate_relative_mae": 0.01958036795258522,
+      "null_relative_mae": 0.010191445238888264
+    },
+    {
+      "i": 35,
+      "candidate_relative_mae": 0.019095608964562416,
+      "null_relative_mae": 0.009947986342012882
+    },
+    {
+      "i": 36,
+      "candidate_relative_mae": 0.01843150332570076,
+      "null_relative_mae": 0.00952979363501072
+    },
+    {
+      "i": 37,
+      "candidate_relative_mae": 0.017803756520152092,
+      "null_relative_mae": 0.00921560637652874
+    },
+    {
+      "i": 38,
+      "candidate_relative_mae": 0.023412803187966347,
+      "null_relative_mae": 0.007528112735599279
+    },
+    {
+      "i": 39,
+      "candidate_relative_mae": 0.02566767856478691,
+      "null_relative_mae": 0.008927456103265285
+    },
+    {
+      "i": 40,
+      "candidate_relative_mae": 0.02490026317536831,
+      "null_relative_mae": 0.009691494517028332
+    },
+    {
+      "i": 41,
+      "candidate_relative_mae": 0.022621825337409973,
+      "null_relative_mae": 0.00924794189631939
+    },
+    {
+      "i": 42,
+      "candidate_relative_mae": 0.021698638796806335,
+      "null_relative_mae": 0.00886845588684082
+    },
+    {
+      "i": 43,
+      "candidate_relative_mae": 0.02018037624657154,
+      "null_relative_mae": 0.008132613264024258
+    },
+    {
+      "i": 44,
+      "candidate_relative_mae": 0.019313093274831772,
+      "null_relative_mae": 0.007564038038253784
+    },
+    {
+      "i": 45,
+      "candidate_relative_mae": 0.01850072108209133,
+      "null_relative_mae": 0.00733962981030345
+    },
+    {
+      "i": 46,
+      "candidate_relative_mae": 0.01787031628191471,
+      "null_relative_mae": 0.007198998238891363
+    },
+    {
+      "i": 47,
+      "candidate_relative_mae": 0.01797572150826454,
+      "null_relative_mae": 0.006807536818087101
+    },
+    {
+      "i": 48,
+      "candidate_relative_mae": 0.023434070870280266,
+      "null_relative_mae": 0.00840083695948124
+    },
+    {
+      "i": 49,
+      "candidate_relative_mae": 0.03468318656086922,
+      "null_relative_mae": 0.012375621125102043
+    },
+    {
+      "i": 50,
+      "candidate_relative_mae": 0.03213927149772644,
+      "null_relative_mae": 0.017137303948402405
+    },
+    {
+      "i": 51,
+      "candidate_relative_mae": 0.029447481036186218,
+      "null_relative_mae": 0.016118226572871208
+    },
+    {
+      "i": 52,
+      "candidate_relative_mae": 0.027084756642580032,
+      "null_relative_mae": 0.01465203519910574
+    },
+    {
+      "i": 53,
+      "candidate_relative_mae": 0.02526877075433731,
+      "null_relative_mae": 0.013366732746362686
+    },
+    {
+      "i": 54,
+      "candidate_relative_mae": 0.02369881235063076,
+      "null_relative_mae": 0.012361569330096245
+    },
+    {
+      "i": 55,
+      "candidate_relative_mae": 0.02251988835632801,
+      "null_relative_mae": 0.011561690829694271
+    },
+    {
+      "i": 56,
+      "candidate_relative_mae": 0.02173098362982273,
+      "null_relative_mae": 0.01106565073132515
+    },
+    {
+      "i": 57,
+      "candidate_relative_mae": 0.02104085125029087,
+      "null_relative_mae": 0.010617631487548351
+    },
+    {
+      "i": 58,
+      "candidate_relative_mae": 0.020256975665688515,
+      "null_relative_mae": 0.01021190732717514
+    },
+    {
+      "i": 59,
+      "candidate_relative_mae": 0.01968958228826523,
+      "null_relative_mae": 0.00985105149447918
+    },
+    {
+      "i": 60,
+      "candidate_relative_mae": 0.01916845701634884,
+      "null_relative_mae": 0.009535386227071285
+    }
+  ]
+}

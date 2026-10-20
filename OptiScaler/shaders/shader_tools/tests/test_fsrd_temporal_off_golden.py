@@ -43,7 +43,7 @@ def main():
             for p in (ROOT/rel).glob('*.h'):shutil.copyfile(p,dst/p.name)
         replaced={}
         if label=='base':
-            commit='adccf08fd'
+            commit=os.environ.get('FSRD_OFF_GOLDEN_BASE','adccf08fd')
             tree=subprocess.check_output(['git','-C',str(ROOT),'ls-tree','-r','--name-only',commit,
                 'OptiScaler/shaders/fsrd_preprocess']).decode().split()
             for rel in tree+['OptiScaler/shaders/shader_tools/tests/nrd_bridge_rr_fixture.cpp']:
@@ -77,7 +77,7 @@ def main():
     first=out/'base/result';second=out/'current/result';files=sorted(p.name for p in first.iterdir())
     assert files==sorted(p.name for p in second.iterdir())
     mismatches=[n for n in files if (first/n).read_bytes()!=(second/n).read_bytes()]
-    result=dict(passed=not mismatches,base='adccf08fd',profiles=4,frames=24,files=len(files),
+    result=dict(passed=not mismatches,base=os.environ.get('FSRD_OFF_GOLDEN_BASE','adccf08fd'),profiles=4,frames=24,files=len(files),
         compared_bytes=sum((first/n).stat().st_size for n in files),mismatches=mismatches,
         scope='actual D3D12 RR-wrapper transforms/dispatch inputs/controls/title commits and allocation+configure counts; deterministic provider RGB; frozen captured input crop; no quality or installed-game claim',
         cases=variants,source_manifest=source_manifest)

@@ -51,6 +51,7 @@ KEYS = {
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeSurfaceValidFill': ('NrdBridgeSurfaceValidFill', 'Bool'),
     'FfxDenoiserNrdBridgeTurnColour': ('NrdBridgeTurnColourFilter', 'Bool'),
+    'FfxDenoiserNrdBridgeTurnMaterialFence': ('NrdBridgeTurnMaterialFence', 'Bool'),
     'FfxDenoiserNrdBridgeTurnColourFrames': ('NrdBridgeTurnColourFrames', 'Float'),
     'FfxDenoiserNrdBridgeTurnColourDegrees': ('NrdBridgeTurnColourDegrees', 'Float'),
     'FfxDenoiserNrdBridgeTurnBrightness': ('NrdBridgeTurnBrightness', 'Bool'),
@@ -635,6 +636,16 @@ int main(){try{
  need(!ReadNrdBridgeRRSettings(cfg).radianceScale.enabled&&!NrdBridge::last.radianceScale.enabled,
  "Full reset clears shared experiment in Config and the bridge runtime");
 
+ // Material-aware aperture remains separate, default OFF and round-trips through the real menu/INI.
+ cfg.ResetFfxDenoiserSettings();NrdBridge::RRSettings fence;NrdBridge::ReadTurnColourSettings(cfg,fence);
+ need(!fence.turnMaterialFence,"Material fence defaults OFF");
+ cfg.FfxDenoiserNrdBridgeTurnColour=true;ImGui::frame();
+ ImGui::bools["Material edges in turn colour (experimental)##NrdBridge"]=true;drawBridge(&cfg);
+ need(NrdBridge::last.turnMaterialFence,"Actual material checkbox reaches runtime settings");
+ saved=cfg.save();reload.load(saved);NrdBridge::ReadTurnColourSettings(reload,fence);
+ need(fence.turnMaterialFence,"Material fence survives actual save/reload");
+ cfg.ResetFfxDenoiserSettings();NrdBridge::ReadTurnColourSettings(cfg,fence);
+ need(!fence.turnMaterialFence&&!NrdBridge::last.turnMaterialFence,"Reset clears the material fence");
  // Turn colour filter: default OFF, menu publishes one coherent snapshot, INI round trip, clamps, reset.
  cfg.load("[FSR-RR]\nNrdBridgeTurnColourFilter=auto\nNrdBridgeTurnColourFrames=auto\nNrdBridgeTurnColourDegrees=auto\n");
  NrdBridge::RRSettings turn;NrdBridge::ReadTurnColourSettings(cfg,turn);

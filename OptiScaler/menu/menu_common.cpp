@@ -3321,6 +3321,17 @@ static bool DrawNrdBridgeTurnColour(Config* config)
                           "11x11 neighbourhood (each sample keeps its own brightness) right after a turn and fades out over the "
                           "frames below. White marks are not changed. Only RR's copy is filtered. Default off.");
     ImGui::BeginDisabled(!enabled);
+    bool materialFence = config->FfxDenoiserNrdBridgeTurnMaterialFence.value_or_default();
+    if (ImGui::Checkbox("Material edges in turn colour (experimental)##NrdBridge", &materialFence))
+    {
+        config->FfxDenoiserNrdBridgeTurnMaterialFence = materialFence;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Uses each lobe's real albedo, original normals, roughness and depth to keep the turn colour "
+                          "filter inside the same surface. Preserves sample brightness and does not tint lighting "
+                          "towards albedo. Requires active native material guides; otherwise uses the existing filter. "
+                          "Thin surfaces can retain more colour noise. Adds GPU work. Default off.");
     float frames = config->FfxDenoiserNrdBridgeTurnColourFrames.value_or_default();
     if (ImGui::SliderFloat("Turn colour fade frames##NrdBridge", &frames, 0.0f, 120.0f, "%.0f"))
     {

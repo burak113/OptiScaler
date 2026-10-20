@@ -579,6 +579,7 @@ class Config
     CustomOptional<float> FfxDenoiserNrdBridgeStabilityTranslation {0.0015f};
     CustomOptional<float> FfxDenoiserNrdBridgeStabilityRamp {0.035f};
     CustomOptional<bool> FfxDenoiserNrdBridgeTurnColour {false};
+    CustomOptional<bool> FfxDenoiserNrdBridgeTurnMaterialFence {false};
     CustomOptional<float> FfxDenoiserNrdBridgeTurnColourFrames {30.0f};
     // Post-flick blotch fix (task 24 T2 c, experimental): after a flick the composite takes its low-frequency band
     // from the last settled frame before it, level matched. Default off; nothing is allocated or dispatched while off.
