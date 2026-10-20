@@ -5,7 +5,7 @@
   "resolved_tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
   "annotated_tag_object": "1f18416f5b99a0f78e147f362ac436ce2116ed22",
   "audited_production_commit": "87e8b7ab2a428bd91d3c044decf7d4dbccd8cefd",
-  "source_revision": null,
+  "source_revision": "359e6595c7b16427dd42d8055cd89ccad46fb1ac",
   "source_revision_semantics": "Commit containing the measured candidate source and evidence. A later metadata-only commit records this ID and the final checksums; source bytes are pinned below.",
   "source_content_sha256": "dee6e45cfff60df02b26c2945f05f58d1b7732a84a2296628211444372969523",
   "source_sha256": {
