@@ -645,10 +645,12 @@ namespace
             need(std::abs(rejectedGain - 1.0f) < 2e-3f, "an excess far above the band keeps gain 1");
 
             // The frame-level decision, in the order that also proves the sums are cleared. A memory at HALF the
-            // current input is an excess of 0.5, far above the 0.30 threshold: the frame-level guard must reject it
-            // outright (gain 1), where the per-cell path alone would have corrected to the band cap (0.803) - so
-            // this check can only pass through the frame-level path. The next frame's memory is 0.85x (an excess of
-            // 0.15, under the threshold): its own measurement must give exactly 0.85, which a stale frame-level sum
+            // current input is an excess of 0.5, far above the 0.30 threshold: the guard must reject it outright
+            // (gain 1). NOTE (SA15 N3): on this uniform scene the per-cell guard also rejects a 0.5 excess (0.5 >
+            // 0.30), so this check alone does not isolate the frame-level path - it is the NEXT check that does,
+            // because a stale frame-level sum would reject it while the per-cell measurement accepts it. The next
+            // frame's memory is 0.85x (an excess of 0.15, under the threshold): its own measurement must give
+            // exactly 0.85, which a stale frame-level sum
             // (0.5) would turn back into a rejection.
             s.fillFrame(10.0f, 0.0f, 10.0f);
             s.fillMemory(5.0f, 10.0f);
