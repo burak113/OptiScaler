@@ -1,0 +1,10 @@
+{
+  "source_path": "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl",
+  "base_source_sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944",
+  "proposed_source_sha256": "63667381b5080354a1b65c5ddb210d1b214eada8e36e400b8eb29c9f69ec629c",
+  "patch_sha256": "c5b5251dd36582cd686cd52038a23bc5c77a6eabd1de9b3be5792f91f3afb15b",
+  "source_line_endings": "LF",
+  "production_changed": false,
+  "dxc_compiled": false,
+  "gpu_executed": false
+}

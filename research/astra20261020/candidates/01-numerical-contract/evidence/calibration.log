@@ -1,0 +1,370 @@
+{
+  "colour_decisions": {
+    "ideal64_vs_frozen": 0,
+    "observed8_vs_frozen": 9,
+    "rne_vs_frozen": 6
+  },
+  "nonidentifiability_witness": {
+    "identical_exported_rr_rgb": true,
+    "exact_reconstruction_rejected": true,
+    "prestore1_recipe": "fp16_preimage_f32(rr_rgb,rounding='rtz').lower",
+    "prestore2_recipe": "fp16_preimage_f32(rr_rgb,rounding='rtz').upper",
+    "output_difference": {
+      "elements": 786432,
+      "max_abs": 3.0517578125e-05,
+      "p50_abs": 0.0,
+      "p95_abs": 0.0,
+      "p99_abs": 0.0,
+      "nonzero_error_count": 743,
+      "array_equal": false
+    },
+    "first_different_yxc": [
+      1,
+      382,
+      0
+    ],
+    "outputs_at_first": [
+      0.01366424560546875,
+      0.013671875
+    ],
+    "prestore1_sha256": "4f3598cbbe55610329b6f6fcc0adea46b79781386d8a57d415c20552cf89e85e",
+    "prestore2_sha256": "7d6b50672a8a63852aab6f2d75731091c57a5cde0ac62d4b2a12e47cb5c3bb5a",
+    "note": "The interval endpoints are witnesses, not a bound on all nonlinear JBU outputs. No attempt to recover the original missing low bits.",
+    "half_lobe_admissible_witness": {
+      "decomposition1": "D=exported rr_rgb (FP16-exact), S=0",
+      "decomposition2": "D=exported rr_rgb, S=half-bin step/2 if finite and>=2^-24 else0 (FP16-exact)",
+      "all_lobes_nonnegative_fp16": true,
+      "identical_exported_rr_rgb": true,
+      "exact_reconstruction_rejected": true,
+      "output_difference": {
+        "elements": 786432,
+        "max_abs": 3.0517578125e-05,
+        "p50_abs": 0.0,
+        "p95_abs": 0.0,
+        "p99_abs": 0.0,
+        "nonzero_error_count": 364,
+        "array_equal": false
+      },
+      "first_different_yxc": [
+        1,
+        382,
+        0
+      ],
+      "outputs_at_first": [
+        0.01366424560546875,
+        0.013671875
+      ],
+      "second_lobe_sha256": "d384a8c9dae91d6175115f707bb65899737b79356e663a5b9c4b2dc03dce7bfa",
+      "second_sum_sha256": "545718995a9681554783f67ddf579840f44d156d6ff0a9a1937a8455716a03fc",
+      "scope": "Two compatible nonnegative captured-half lobe decompositions, not a recovery of the original missing lobes."
+    },
+    "overlap_constrained_witness": {
+      "exact_reconstruction_rejected": true,
+      "fixed_known_mask_sha256": "d020ec12d99671174549f8db183b3543c53747adf3ec87ad67234caed6266549",
+      "known_pixels": 12288,
+      "remaining_pixels": 249856,
+      "known_region_changed_output_lanes": 0,
+      "outside_known_region_difference": {
+        "elements": 749568,
+        "max_abs": 3.0517578125e-05,
+        "p50_abs": 0.0,
+        "p95_abs": 0.0,
+        "p99_abs": 0.0,
+        "nonzero_error_count": 357,
+        "array_equal": false
+      },
+      "distinguishing_yxc": [
+        [
+          1,
+          382,
+          0
+        ],
+        [
+          7,
+          367,
+          0
+        ],
+        [
+          22,
+          45,
+          0
+        ],
+        [
+          27,
+          175,
+          2
+        ],
+        [
+          31,
+          39,
+          0
+        ],
+        [
+          31,
+          229,
+          2
+        ],
+        [
+          32,
+          362,
+          2
+        ],
+        [
+          34,
+          488,
+          0
+        ],
+        [
+          35,
+          233,
+          2
+        ],
+        [
+          36,
+          221,
+          0
+        ],
+        [
+          38,
+          138,
+          1
+        ],
+        [
+          38,
+          359,
+          0
+        ],
+        [
+          41,
+          179,
+          1
+        ],
+        [
+          47,
+          219,
+          2
+        ],
+        [
+          47,
+          366,
+          0
+        ],
+        [
+          50,
+          254,
+          0
+        ]
+      ],
+      "scope": "Compatible with rounded full colour tensor plus verified unwarped foliage overlap. Aligned glass RGB is not assumed invertible or silently used as raw values."
+    }
+  },
+  "anchor": {
+    "combined": {
+      "frames": 133,
+      "elements": 416720,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p95_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "nonzero_error_count": 77036,
+      "array_equal": false
+    },
+    "native_policy": {
+      "frames": 7,
+      "elements": 26256,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p95_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "nonzero_error_count": 3675,
+      "array_equal": false
+    }
+  },
+  "gain_store_intervention": [
+    {
+      "policy": "combined",
+      "exp_mode": "source_exp_f32",
+      "rounding": "rne",
+      "population": 416720,
+      "nonzero_count": 77036,
+      "predicted_above_gpu_count": 77036,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 173
+    },
+    {
+      "policy": "combined",
+      "exp_mode": "source_exp_f32",
+      "rounding": "rtz",
+      "population": 416720,
+      "nonzero_count": 17,
+      "predicted_above_gpu_count": 16,
+      "predicted_below_gpu_count": 1,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.0,
+      "p99_abs": 0.0,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 13
+    },
+    {
+      "policy": "combined",
+      "exp_mode": "dxil_exp2_f32",
+      "rounding": "rne",
+      "population": 416720,
+      "nonzero_count": 77036,
+      "predicted_above_gpu_count": 77036,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 173
+    },
+    {
+      "policy": "combined",
+      "exp_mode": "dxil_exp2_f32",
+      "rounding": "rtz",
+      "population": 416720,
+      "nonzero_count": 17,
+      "predicted_above_gpu_count": 16,
+      "predicted_below_gpu_count": 1,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.0,
+      "p99_abs": 0.0,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 13
+    },
+    {
+      "policy": "native",
+      "exp_mode": "source_exp_f32",
+      "rounding": "rne",
+      "population": 26256,
+      "nonzero_count": 3675,
+      "predicted_above_gpu_count": 3675,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 8
+    },
+    {
+      "policy": "native",
+      "exp_mode": "source_exp_f32",
+      "rounding": "rtz",
+      "population": 26256,
+      "nonzero_count": 0,
+      "predicted_above_gpu_count": 0,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.0,
+      "p50_abs": 0.0,
+      "p90_abs": 0.0,
+      "p99_abs": 0.0,
+      "max_half_steps": 0,
+      "identity_classification_mismatches": 0
+    },
+    {
+      "policy": "native",
+      "exp_mode": "dxil_exp2_f32",
+      "rounding": "rne",
+      "population": 26256,
+      "nonzero_count": 3675,
+      "predicted_above_gpu_count": 3675,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.00048828125,
+      "p50_abs": 0.0,
+      "p90_abs": 0.00048828125,
+      "p99_abs": 0.00048828125,
+      "max_half_steps": 1,
+      "identity_classification_mismatches": 8
+    },
+    {
+      "policy": "native",
+      "exp_mode": "dxil_exp2_f32",
+      "rounding": "rtz",
+      "population": 26256,
+      "nonzero_count": 0,
+      "predicted_above_gpu_count": 0,
+      "predicted_below_gpu_count": 0,
+      "max_abs": 0.0,
+      "p50_abs": 0.0,
+      "p90_abs": 0.0,
+      "p99_abs": 0.0,
+      "max_half_steps": 0,
+      "identity_classification_mismatches": 0
+    }
+  ],
+  "encoding": {
+    "scope": "analytic CPU guide distortion, not image-quality or captured GPU output",
+    "decision_scope": "one-sided synthetic guide perturbation: original decoded normal versus stored/redecoded normal, not production SurfaceWeight with both center and tap guides encoded",
+    "population_recipe": "all (qx/255,qy/255), qx,qy=0..255, original decoded using source-shaped octahedral_decode",
+    "uv_sha256": "de19104e56da3ec1cd74f1b23584c51247bde28f0e45c8392e9c946de395353e",
+    "normal_sha256": "f81f3b1efa470f82541cad0c9b678aa0ed45efe58421e109637a5ed7367b71be",
+    "comparisons": [
+      {
+        "encoding": "audited_11bit",
+        "rounding": "rne",
+        "population": 65536,
+        "lost_payload_count": 0,
+        "angular_error_degrees": {
+          "p50": 1.89369503748838,
+          "p90": 3.473903129622517,
+          "p99": 4.637659547539035,
+          "max": 5.660632164503402
+        },
+        "guide_threshold": 0.9,
+        "changed_self_surface_decisions": 0
+      },
+      {
+        "encoding": "audited_11bit",
+        "rounding": "rtz",
+        "population": 65536,
+        "lost_payload_count": 0,
+        "angular_error_degrees": {
+          "p50": 1.89369503748838,
+          "p90": 3.473903129622517,
+          "p99": 4.637659547539035,
+          "max": 5.660632164503402
+        },
+        "guide_threshold": 0.9,
+        "changed_self_surface_decisions": 0
+      },
+      {
+        "encoding": "old_normalized_16bit",
+        "rounding": "rne",
+        "population": 65536,
+        "lost_payload_count": 58367,
+        "angular_error_degrees": {
+          "p50": 3.5895942416099533,
+          "p90": 12.048675692626892,
+          "p99": 152.3084231563897,
+          "max": 179.77353567788973
+        },
+        "guide_threshold": 0.9,
+        "changed_self_surface_decisions": 2325
+      },
+      {
+        "encoding": "old_normalized_16bit",
+        "rounding": "rtz",
+        "population": 65536,
+        "lost_payload_count": 59383,
+        "angular_error_degrees": {
+          "p50": 7.1162227045902515,
+          "p90": 25.3998019488187,
+          "p99": 163.09456355213297,
+          "max": 179.3581910394709
+        },
+        "guide_threshold": 0.9,
+        "changed_self_surface_decisions": 6199
+      }
+    ]
+  }
+}

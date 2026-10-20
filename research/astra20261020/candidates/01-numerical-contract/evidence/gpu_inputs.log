@@ -1,0 +1,16 @@
+{
+  "samples": 4097,
+  "depth_texels": [
+    [
+      1.0,
+      1.0625
+    ]
+  ],
+  "current_depth": 1,
+  "motion_depth": 0,
+  "threshold": 0.02,
+  "changed_source_vs_ideal": 0,
+  "changed_observed_vs_ideal": 7,
+  "nearest_mutant_changed_vs_ideal": 737,
+  "interpretation": "analytic affine depth plane sampled at fixed phases; no image-quality score"
+}

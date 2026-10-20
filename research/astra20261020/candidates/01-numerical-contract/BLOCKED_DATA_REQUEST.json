@@ -1,0 +1,516 @@
+{
+  "schema": "fsrd.blocked-data-request.v1",
+  "task_id": "01-numerical-contract",
+  "gpu_executed": false,
+  "status": "CPU work complete; specific exact-hardware claims remain blocked",
+  "provenance_required_for_each_return": [
+    "source capture UUID and original provider frame index",
+    "tag/source/CSO/embedded-header/compiler executable and DLL hashes",
+    "GPU PCI/vendor/device identifiers, driver, API, resource formats and mip",
+    "original allocation and active render extents, crop origin, row pitch and exposure units",
+    "exact cbuffer bytes, dispatch order, initialization, UAV barriers and readback fence",
+    "little-endian raw payload SHA256; no normalization, exposure change, interpolation or lossy text conversion"
+  ],
+  "requests": [
+    {
+      "id": "D1-colour-unknown-prestore-lobes",
+      "missing_observable": "Original pre-UAV raw RR diffuse and specular half payloads, or exact original D+S float32 sum, at 16 distinguishing pixels outside the verified overlap.",
+      "why_current_data_cannot_identify": "Rounded colour RGB admits distinct nonnegative half-lobe sums and 357 changed output lanes even after preserving the actual foliage rectangle. The 12288 known pixels are excluded.",
+      "hypotheses_distinguished": [
+        "The older expected_soft2 gap at these sites comes from absent pre-store lobe low bits.",
+        "A remaining source arithmetic/other omitted intermediate still changes the result after the actual bits are restored."
+      ],
+      "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frame_sequence": [
+        63
+      ],
+      "stage": "Original frame-63 raw RR D/S capture before summing and before any RTZ colour-fixture export; unwarped source coordinates.",
+      "roles_and_formats": [
+        {
+          "role": "raw_rr_diffuse",
+          "format": "RGBA little-endian binary16",
+          "logical_stride_bytes": 8
+        },
+        {
+          "role": "raw_rr_specular",
+          "format": "RGBA little-endian binary16",
+          "logical_stride_bytes": 8
+        },
+        {
+          "role": "optional original sum used by expected_soft2",
+          "format": "RGB little-endian binary32",
+          "logical_stride_bytes": 12
+        }
+      ],
+      "units": "Original capture radiance scale; alpha kept as captured metadata, never interpreted as an RGB lane.",
+      "render_extent_xy": [
+        1505,
+        847
+      ],
+      "colour_crop_origin_render_xy": [
+        496,
+        167
+      ],
+      "colour_crop_extent_xy": [
+        512,
+        512
+      ],
+      "requested_colour_local_xy": [
+        [
+          382,
+          1
+        ],
+        [
+          367,
+          7
+        ],
+        [
+          45,
+          22
+        ],
+        [
+          175,
+          27
+        ],
+        [
+          39,
+          31
+        ],
+        [
+          229,
+          31
+        ],
+        [
+          362,
+          32
+        ],
+        [
+          488,
+          34
+        ],
+        [
+          233,
+          35
+        ],
+        [
+          221,
+          36
+        ],
+        [
+          138,
+          38
+        ],
+        [
+          359,
+          38
+        ],
+        [
+          179,
+          41
+        ],
+        [
+          219,
+          47
+        ],
+        [
+          366,
+          47
+        ],
+        [
+          254,
+          50
+        ]
+      ],
+      "requested_render_xy": [
+        [
+          878,
+          168
+        ],
+        [
+          863,
+          174
+        ],
+        [
+          541,
+          189
+        ],
+        [
+          671,
+          194
+        ],
+        [
+          535,
+          198
+        ],
+        [
+          725,
+          198
+        ],
+        [
+          858,
+          199
+        ],
+        [
+          984,
+          201
+        ],
+        [
+          729,
+          202
+        ],
+        [
+          717,
+          203
+        ],
+        [
+          634,
+          205
+        ],
+        [
+          855,
+          205
+        ],
+        [
+          675,
+          208
+        ],
+        [
+          715,
+          214
+        ],
+        [
+          862,
+          214
+        ],
+        [
+          750,
+          217
+        ]
+      ],
+      "known_overlap_colour_local_xyxy": [
+        256,
+        256,
+        448,
+        320
+      ],
+      "local_extraction": "Read these coordinate-indexed values from the archived unwarped frame; include index table and original source tensor hash. If unavailable, report unavailable rather than copying aligned glass RGB.",
+      "core_payload_bytes": 448,
+      "maximum_useful_payload_bytes": 4096,
+      "payload_scope": "Payload maximum excludes a small JSON provenance record. Start with these 16 sites; no full-capture upload requested.",
+      "competing_outcomes": [
+        "Actual bits remove the selected residuals: attribute those differences to export information loss.",
+        "Residuals remain: request only the affected source intermediate next; retain numerical uncertainty."
+      ],
+      "completed_without_it": "Exhaustive storage contract, admissible non-identifiability witnesses, verified foliage recovery and all CPU calibration."
+    },
+    {
+      "id": "D2-historical-colour-sampler-gates",
+      "missing_observable": "Actual GPU sampled RGBA history, expected-depth float32 and uint validity at the nine CPU-profile distinguishing probe locations, plus the full GPU gate map if needed and exact historical C8 harness identity.",
+      "why_current_data_cannot_identify": "The frozen NPZ expected fields are CPU outputs; the historical GPU JSON reports count9 without the raw gate map. Equal count under a fraction8 model does not prove the same GPU decisions.",
+      "hypotheses_distinguished": [
+        "The recorded device snaps fractions as the selected8bit profile near these depth thresholds.",
+        "Different coordinate/staging/rounding behavior produces a different set of gates."
+      ],
+      "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+      "frame_sequence": [
+        63
+      ],
+      "initial_history": "Use the exact published prev_history from the CPU warmup0..62, not invented GPU prehistory.",
+      "stage": "Historical C8 Track sampler output before depth gate and before OutHist typed store.",
+      "historical_harness_source_revision": null,
+      "historical_harness_cso_sha256": null,
+      "historical_harness_note": "These identities are requested. Do not label the current production B4 shader as the old C8 experiment.",
+      "render_extent_xy": [
+        1505,
+        847
+      ],
+      "crop_origin_render_xy": [
+        496,
+        167
+      ],
+      "crop_extent_xy": [
+        512,
+        512
+      ],
+      "history_grid_extent_xy": [
+        64,
+        64
+      ],
+      "requested_grid_yx": [
+        [
+          8,
+          59
+        ],
+        [
+          9,
+          59
+        ],
+        [
+          15,
+          44
+        ],
+        [
+          23,
+          60
+        ],
+        [
+          26,
+          58
+        ],
+        [
+          28,
+          59
+        ],
+        [
+          31,
+          45
+        ],
+        [
+          33,
+          59
+        ],
+        [
+          45,
+          16
+        ]
+      ],
+      "probe_coordinate_authority": "CPU observed-fraction8 versus frozen-model differences; these are NOT known historical GPU disagreement locations.",
+      "input": "Exact published prev_history/Stats/Motion bytes; export the actual GPU UV and all four tapped coordinates/texels to resolve footprint differences.",
+      "output_formats": {
+        "sampled_history": "RGBA binary32,16bytes per grid cell",
+        "expected_depth": "binary32,4bytes",
+        "validity": "uint32,4bytes",
+        "uv": "float2,8bytes"
+      },
+      "units": "Original signed linear depth and full-render pixel motion; do not use crop-sized UV motion.",
+      "local_extraction": "Prefer existing archived GPU readback. Otherwise extend the exact historical harness and execute only its controlled frame with the published history; retain an uninstrumented reference pair.",
+      "targeted_payload_bytes": 288,
+      "maximum_useful_payload_bytes": 131072,
+      "payload_scope": "Target9sites plus tap diagnostics first. At most one complete64x64 grid of sampledRGBA+expectedDepth+validity+UV =131072 logical bytes; no full render readback.",
+      "competing_outcomes": [
+        "Exact sampled/gate map matches named profile: label that observed compiler/device combination only.",
+        "Sample values or decisions differ: falsify that emulator at these sites, retain API envelope and record exact new profile."
+      ],
+      "completed_without_it": "All6CPU store/sampler combinations, immutable4096cell decisions, stored intermediates, phase sweep and synthetic local request."
+    },
+    {
+      "id": "D3-native-original-atomic-words",
+      "missing_observable": "Seven original 32-byte native OutSums buffers after StatsRecall atomics and before Gain reads/reset.",
+      "why_current_data_cannot_identify": "Stats/Recall half stores erase pre-store16.16 increments. All7frames have nonsingleton totals under both RNE andRTZ hypotheses. Exact Gain equality over ratio bounds does not identify counters.",
+      "hypotheses_distinguished": [
+        "Original atomics lie in the RNE/RTZ stored-field bounds and confirm source cap/count/reset/carry behavior.",
+        "Different source boundary, mask, units, overflow or capture provenance invalidates one of those conditional envelopes."
+      ],
+      "frames": [
+        {
+          "capture": "22f9ca14",
+          "frame": 41,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "dd5dc73bb3b11fd7e99f82b2c0a436273e968c046712fdc50eb367eaaa59fa7b",
+          "capture_uuid": "22f9ca14-5425-4904-a129-a710f2b88387",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "22f9ca14",
+          "frame": 44,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "351f14432d88f356d1a9807e57acc7ccb7d3ecbdc960d457e24b58bb5e77eb63",
+          "capture_uuid": "22f9ca14-5425-4904-a129-a710f2b88387",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "22f9ca14",
+          "frame": 52,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "5d393cbd8e9c398e78be4562836b1500856d4168197df41dd8f430529d525e35",
+          "capture_uuid": "22f9ca14-5425-4904-a129-a710f2b88387",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "2405579e",
+          "frame": 92,
+          "grid_extent_xy": [
+            16,
+            105
+          ],
+          "fixed_mask_sha256": "2521981d6004c05fba1e0870caf50aa7d801b8eff48e069103c0325e312c78ec",
+          "capture_uuid": "2405579e-274e-4a2a-a14f-40a48ce1099e",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            688,
+            0
+          ],
+          "replay_roi_extent_xy": [
+            128,
+            847
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "87ee1fba",
+          "frame": 41,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "1170ef73cc60fec74e3de41ec3137569a5babb896bddbad339d7d4444d29a990",
+          "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "87ee1fba",
+          "frame": 44,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "0ae635a5c6b0959b69b4f72a337e949639906be5eddc71ecac5c739d98126462",
+          "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        },
+        {
+          "capture": "87ee1fba",
+          "frame": 60,
+          "grid_extent_xy": [
+            64,
+            64
+          ],
+          "fixed_mask_sha256": "bf7a5176c009648d2651a95b3f4ca0afb07f8f67e3fbd8e037f60598640a736a",
+          "capture_uuid": "87ee1fba-b8bc-4660-aa3f-d06db7bf863f",
+          "original_render_extent_xy": [
+            1505,
+            847
+          ],
+          "crop_origin_render_xy": [
+            496,
+            167
+          ],
+          "replay_roi_extent_xy": [
+            512,
+            512
+          ],
+          "extent_authority": "frozen anchor manifest, not inferred from floor-divided grid"
+        }
+      ],
+      "frame_sequence": "Existing isolated calibration frames; preserve their original order within each capture. Do not invent missing ring history.",
+      "stage": "FSRDNrdPostMotionAnchorStatsRecall completed; UAV barrier; snapshot before FSRDNrdPostMotionAnchorGain and before host reset.",
+      "format": "8 little-endian uint32 words,32bytes per frame",
+      "word_layout": [
+        "current_low",
+        "current_high",
+        "recalled_low",
+        "recalled_high",
+        "count",
+        "padding0",
+        "padding1",
+        "padding2"
+      ],
+      "units": "Current/recalled integer totals scaled by65536; each included physical level clamped[0,16]. Count is a raw integer.",
+      "original_render_extent_xy": [
+        1505,
+        847
+      ],
+      "actual_submitted_resource_allocation_extent_xy": null,
+      "extent_note": "Each frame entry supplies manifest-reported original render/crop/replay ROI. Actual submitted resource descriptors and cbuffer bytes remain requested. The128x847 ROI has a16x105 grid; do not replace its height by105*8.",
+      "known_provenance": {
+        "manifest_sha256": "b2fb52b660f3775947755d7e5b3a1b5fe1d700d25698eb09c6093c69135def80",
+        "historical_harness_identity": {
+          "base_step_identity": "afb37ab33791b0c07e449c83a2e6730c6a34cefba9c30780642a67dfc778aa7a",
+          "native_shader_pins": {
+            "FSRDNrdPostMotionAnchorStatsRecall_Shader.h": "7e8d7dcf81f108b9af833cf074c16550b84142deaba85d54d9ded711f6ceb2e1",
+            "FSRDNrdPostMotionAnchorStatsRecall_Shader.cso": "e2cb32e6f1ffa315a5dabdd5473f6f3e64eed6a0771a081f2a3475efe3edd142",
+            "FSRDNrdPostMotionAnchorStatsRecall.hlsl": "0faa3f9460ceee5402133cafe775041069e9f29c4b1dcb9b3007caa9d04254c0",
+            "FSRDNrdPostMotionAnchorGain_Shader.h": "969c142df718037a07f0534ef3037e3b1ef843702a2bef6898fce94c16c121e1",
+            "FSRDNrdPostMotionAnchorGain_Shader.cso": "c3cb7a13a675bc20785477c5098a94b90779709e0c3d63a25981d67a1bb04e3c",
+            "FSRDNrdPostMotionAnchorGain.hlsl": "16d15e239d6d65bde2df215e00f37a3139dce972f7ca9a5844766dc92314a08d"
+          },
+          "cpp_sha256": "adc9fa8bca82d9f562b44a56191f13df9c7ed165eb3a0f4202ae9a3620206890",
+          "exe_sha256": "2303bc23c699b2095402dbb9b2f31e8c2b2b29e1e3fb2ba5b26520d15507c433",
+          "diff_sha256": "262d3fa2df17ab1c05caace973486e04e1f9b3f465d253a2a0c70de261bf175d",
+          "limits": "Actual native Stats/Gain shaders on physical capture inputs with 32B ABI and exact native flag; production native route scheduling NOT proven."
+        }
+      },
+      "local_extraction": "Prefer archived original atomics. If rerunning, use the original local ring/key inputs and constants; a sum recomputed from the supplied FP16 grids is not this observation.",
+      "core_payload_bytes": 224,
+      "maximum_useful_payload_bytes": 4096,
+      "payload_scope": "224 core bytes plus exact relevant cbuffer/control data; provenance JSON separate. Return unavailable if original inputs are absent.",
+      "competing_outcomes": [
+        "All original totals/counts inside declared bounds: narrow the observed-device profile and retain exact original words.",
+        "Any original value outside: reject that bound or provenance assumption and inspect only the offending frame/stage."
+      ],
+      "completed_without_it": "Exact integer carry/reset/cap model, exhaustive-bin and randomized bounds, all7conditional ratio envelopes, invariant native Gain endpoints and all140frame Gain calibration."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "tag_commit": "5d7839a930106cf8fe1ba8dbbc6750509e7f26a8",
+  "bundled": [
+    {
+      "path": "OptiScaler/shaders/shader_tools/dxc.exe",
+      "bytes": 1126984,
+      "sha256": "b9cff94181248e080804b385da8964b6319fd07760721baa9053a891cf7a727f",
+      "execution": "not executed; Windows binary in Linux environment"
+    },
+    {
+      "path": "OptiScaler/shaders/shader_tools/dxcompiler.dll",
+      "bytes": 17951808,
+      "sha256": "b86a738ece4c05dbe2d9bbb29668a2ccb28a0740773c9b027cdc61e8d07b4d75",
+      "execution": "not executed; Windows binary in Linux environment"
+    },
+    {
+      "path": "OptiScaler/shaders/shader_tools/dxil.dll",
+      "bytes": 1503304,
+      "sha256": "058f2f52a680c38b223a5615b7df969def21f77e577562e5099d971dede992de",
+      "execution": "not executed; Windows binary in Linux environment"
+    }
+  ],
+  "linux_dxc_on_path": null,
+  "fresh_compilation_executed": false
+}
