@@ -6,7 +6,7 @@
 // The keyframe band is recalled with the camera reprojection the chain already uses for its history
 // (current view-space point -> keyframe clip space) and validated against the keyframe's depth.
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), RootConstants(b0, num32BitConstants = 36), DescriptorTable(SRV(t0, numDescriptors = 5)), DescriptorTable(UAV(u0, numDescriptors = 1))"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 5)), DescriptorTable(UAV(u0, numDescriptors = 1))"
 Texture2D<float4> InColor : register(t0);   // the composite of this frame, full resolution
 Texture2D<float2> InAux : register(t1);     // x age, y depth (half resolution)
 Texture2D<float4> InCur : register(t2);     // rgb this frame's band, a its wide level (half resolution)

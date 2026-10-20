@@ -9,7 +9,7 @@
 // loads that neighbourhood once into groupshared memory (256 boxes for a 16x16 half-resolution tile, 4 full-resolution
 // reads each) instead of 100 scattered full-resolution reads per pixel.
 #include "FSRDFlatDetailCommon.hlsli"
-#define MainRS "RootFlags(0), RootConstants(b0, num32BitConstants = 8), DescriptorTable(SRV(t0, numDescriptors = 6)), DescriptorTable(UAV(u0, numDescriptors = 4))"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 6)), DescriptorTable(UAV(u0, numDescriptors = 4))"
 Texture2D<float4> InColor : register(t0);      // the composite of this frame, full resolution
 Texture2D<float4> InMotion : register(t1);     // xy previous-current UV (ROI UV), z previous-current linear depth
 Texture2D<float> InDepth : register(t2);       // linear depth, full resolution

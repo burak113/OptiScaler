@@ -475,6 +475,18 @@ void postFlickChecks(Host& host)
     };
     uploadMotion(false);
     uint32_t parity = 0;
+    // Production binds b0 as a root CBV (ComputeState::SetComputeRootConstantBufferView), so the fixture does the
+    // same: a 256-byte upload buffer per recorded frame, kept alive until the submission completes.
+    std::vector<ComPtr<ID3D12Resource>> constantBuffers;
+    const auto bindConstants = [&](const void* data, size_t bytes) {
+        auto constants = buffer(host.device.Get(), (bytes + 255) & ~size_t(255), D3D12_HEAP_TYPE_UPLOAD);
+        uint8_t* mapped;
+        hr(constants->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
+        std::memcpy(mapped, data, bytes);
+        constants->Unmap(0, nullptr);
+        constantBuffers.push_back(constants);
+        host.list->SetComputeRootConstantBufferView(0, constants->GetGPUVirtualAddress());
+    };
     const auto frame = [&](const PostFlickMath::Outputs& outputs) {
         ComPtr<ID3D12DescriptorHeap> heap;
         hr(host.device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)));
@@ -500,7 +512,7 @@ void postFlickChecks(Host& host)
         host.list->SetComputeRootDescriptorTable(1, gpu);
         D3D12_GPU_DESCRIPTOR_HANDLE uavTable = gpu; uavTable.ptr += uint64_t(6) * stride;
         host.list->SetComputeRootDescriptorTable(2, uavTable);
-        host.list->SetComputeRoot32BitConstants(0, 8, outputs.Prepare, 0);
+        bindConstants(outputs.Prepare, sizeof(outputs.Prepare));
         host.list->Dispatch((HW + 7) / 8, (HH + 7) / 8, 1);
         transition(band.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         transition(key[parity ^ 1u].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -519,7 +531,7 @@ void postFlickChecks(Host& host)
         host.list->SetComputeRootDescriptorTable(1, gpu);
         uavTable = gpu; uavTable.ptr += uint64_t(5) * stride;
         host.list->SetComputeRootDescriptorTable(2, uavTable);
-        host.list->SetComputeRoot32BitConstants(0, 36, outputs.Apply, 0);
+        bindConstants(outputs.Apply, sizeof(outputs.Apply));
         host.list->Dispatch((W + 7) / 8, (H + 7) / 8, 1);
         transition(out.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         parity ^= 1u;
