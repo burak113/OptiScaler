@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[4]
 CASES = [
-    "unknown", "whole", "subresource-zero", "other-subresource", "pixel-only",
+    "diagnostics", "unknown", "whole", "subresource-zero", "other-subresource", "pixel-only",
     "common", "read-combinations", "writable", "one-target", "serial",
     "reset-early", "split-match", "split-unpaired", "split-mismatch",
     "split-serial", "alias-endpoints", "alias-wildcard", "uav", "other-resource",
@@ -116,10 +116,22 @@ namespace BarrierGateFixture
 using NrdBridge::NativeMaterialStateWitness;
 struct RecordingToken {};
 struct RetiredDebugSources {};
-struct ListState { Token birth; Witness materialStates; uint64_t materialIdentityRevision=0; };
+struct NativeStage { bool committed=false,invalidated=false; uint64_t serial=1; Witness targetStates; };
+struct ListState { Token birth; Witness materialStates; uint64_t materialIdentityRevision=0;
+    std::array<std::shared_ptr<NativeStage>,2> native{}; };
 struct Service { std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists; IdentityCache materialIdentities; uint64_t cancellationSerial=1; };
 std::shared_ptr<Service> gService;
 std::atomic<bool> gNativeMaterials{true},gInstalled{true},gRuntime{true};
+std::atomic<bool> gNativeTransactions{false};
+// Current coordinator fast-filter facades. These cases exercise material state;
+// native target-state and probabilistic-filter coverage belongs to native tests.
+struct TrackedLists {
+    bool MayContain(ID3D12GraphicsCommandList* cmd) const { return gService && gService->lists.contains(cmd); }
+    void Insert(ID3D12GraphicsCommandList*) {}
+} gTrackedLists;
+bool MaterialTransitionMayMatch(UINT count,const D3D12_RESOURCE_BARRIER* barriers) {
+    return gService && gService->materialIdentities.MatchesAnyTransition(count,barriers);
+}
 std::mutex gMutex;
 unsigned captures=0,replacements=0;
 bool BirthMode() noexcept { return false; } // Legacy metadata-only receiver adapter, never a fake NativeReady.
@@ -200,7 +212,22 @@ void run(const std::string& mode)
 void run(const std::string& mode)
 {
     Witness w;const auto p=pair();
-    if(mode=="unknown")
+    if(mode=="diagnostics")
+    {
+        need(std::string(w.StateReason(0,1))=="not_selected","unselected reason");
+        select(w,p);need(std::string(w.StateReason(0,1))=="no_local_transition","cold source reason");
+        observe(w,p);need(std::string(w.StateReason(0,1))=="observed","known source reason");
+        need(std::string(w.StateReason(0,2))=="serial_changed","serial reason");
+        alias(w,nullptr,pair(1).base.resource);
+        need(!w.Readable(1)&&std::string(w.StateReason(0,1))=="alias_barrier","wildcard alias remains fail closed and identifiable");
+        observe(w,p);w.Invalidate();
+        need(std::string(w.StateReason(1,1))=="recording_invalidated","recording reset reason");
+        observe(w,p,1,readState,D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+        need(std::string(w.StateReason(0,1))=="split_pending","pending split reason");
+        observe(w,p,1,readState,D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
+        need(w.Readable(1)&&std::string(w.StateReason(1,1))=="observed","matched split restores evidence");
+    }
+    else if(mode=="unknown")
     {
         need(!w.Readable(0),"unselected state unknown at serial zero");select(w,p);
         need(!w.Readable(1),"SRV binding alone does not prove state");w.Observe(0,nullptr,1);

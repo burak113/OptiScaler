@@ -3512,6 +3512,11 @@ static void DrawNrdBridgeNativeMaterialStatus()
     ImGui::TextWrapped("Attempts with pixel-only read state: %llu; availability history resets: %llu",
                 static_cast<unsigned long long>(status.nativeMaterialKnownPSR),
                 static_cast<unsigned long long>(status.nativeMaterialModeResets));
+    ImGui::TextWrapped("Latest capture: %s; latest native Recon admission: %s",
+                      status.nativeMaterialCaptureReason.c_str(), status.nativeMaterialAdmissionReason.c_str());
+    ImGui::TextWrapped("Source state evidence - base: %s (0x%x); parameters: %s (0x%x)",
+                      status.nativeMaterialBaseStateReason.c_str(), status.nativeMaterialBaseState,
+                      status.nativeMaterialParamsStateReason.c_str(), status.nativeMaterialParamsState);
     ImGui::TextWrapped("Service totals describe capture and Recon admission, not colored-pixel coverage. "
                       "Fallback causes do not include every rejected attempt; pixel-only read state is informational.");
 }

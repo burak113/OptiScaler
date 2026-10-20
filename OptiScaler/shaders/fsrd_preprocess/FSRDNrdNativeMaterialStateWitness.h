@@ -30,7 +30,7 @@ struct NativeMaterialStateWitness
     void Invalidate() noexcept
     {
         for (auto& pair : pairs_)
-            for (auto& target : pair.targets) target.Forget();
+            for (auto& target : pair.targets) target.Forget("recording_invalidated");
     }
 
     void Observe(UINT count, const D3D12_RESOURCE_BARRIER* barriers,
@@ -54,7 +54,7 @@ struct NativeMaterialStateWitness
                         if (!alias.pResourceBefore || !alias.pResourceAfter ||
                             alias.pResourceBefore == target.resource ||
                             alias.pResourceAfter == target.resource)
-                            target.Forget();
+                            target.Forget("alias_barrier");
                     }
                     else if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION &&
                              barrier.Transition.pResource == target.resource)
@@ -66,6 +66,16 @@ struct NativeMaterialStateWitness
     }
 
     using SourceStates = std::array<D3D12_RESOURCE_STATES,2>;
+    // Diagnostics only: never turns unknown state into an admission witness.
+    const char* StateReason(size_t target, uint64_t serial) const noexcept
+    {
+        if (selected_ == pairs_.size() || target >= 2) return "not_selected";
+        const auto& value = pairs_[selected_].targets[target];
+        if (!value.Live()) return "identity_not_live";
+        if (value.Known(serial)) return "observed";
+        if (value.known && value.serial != serial) return "serial_changed";
+        return value.reason;
+    }
     bool TryKnownStates(uint64_t serial, SourceStates& states) const noexcept
     {
         if (selected_ == pairs_.size()) return false;
@@ -95,6 +105,7 @@ struct NativeMaterialStateWitness
         D3D12_RESOURCE_STATES splitAfter = D3D12_RESOURCE_STATE_COMMON;
         UINT splitSubresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         bool known = false, pending = false;
+        const char* reason = "no_local_transition";
 
         bool Matches(const FrameSurvey::BoundResource& bound) const noexcept
         { return resource == bound.resource && birth == bound.resourceBirth &&
@@ -109,8 +120,8 @@ struct NativeMaterialStateWitness
             Forget();
         }
 
-        void Forget() noexcept
-        { known = pending = false; serial = 0; }
+        void Forget(const char* why = "no_local_transition") noexcept
+        { known = pending = false; serial = 0; reason = why; }
 
         bool Live() const noexcept
         {
@@ -132,6 +143,7 @@ struct NativeMaterialStateWitness
             if (barrier.Flags == D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY)
             {
                 known = false; pending = true;
+                reason = "split_pending";
                 splitBefore = transition.StateBefore; splitAfter = transition.StateAfter;
                 splitSubresource = transition.Subresource;
             }
@@ -139,12 +151,14 @@ struct NativeMaterialStateWitness
             {
                 known = pending && splitBefore == transition.StateBefore &&
                         splitAfter == transition.StateAfter && splitSubresource == transition.Subresource;
+                reason = known ? "observed" : "unmatched_split_end";
                 pending = false;
                 state = transition.StateAfter;
             }
             else if (barrier.Flags == D3D12_RESOURCE_BARRIER_FLAG_NONE)
             {
                 known = !pending;
+                reason = known ? "observed" : "incomplete_split";
                 pending = false;
                 state = transition.StateAfter;
             }
