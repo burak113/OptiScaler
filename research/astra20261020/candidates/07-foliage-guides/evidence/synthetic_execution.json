@@ -1,0 +1,38 @@
+{
+  "executor": "implementation subagent; independent review has a separate receipt",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "records": [
+    {
+      "command": "python research/astra20261020/candidates/07-foliage-guides/run_benchmark.py --executor implementation_subagent_final_cpu_verification",
+      "exit_code": 0,
+      "elapsed_seconds": 55.01291361999938,
+      "elapsed_scope": "runner perf_counter",
+      "protocol_rows": 51,
+      "unique_input_realizations": 40,
+      "output": "evidence/synthetic_benchmark.json"
+    },
+    {
+      "command": "python research/astra20261020/candidates/07-foliage-guides/src/transport_discriminator.py",
+      "exit_code": 0,
+      "elapsed_seconds": 0.11071427999922889,
+      "stdout": "{\"dominant_layer_motion\": 0.1354925036430359, \"minority_layer_motion\": 0.36654672026634216, \"coverage_mean_motion\": 0.17561982572078705, \"oracle_per_layer_motion\": 0.0}\n",
+      "stderr": "",
+      "output": "evidence/synthetic_transport_discriminator.json"
+    },
+    {
+      "command": "python -m unittest discover -s research/astra20261020/candidates/07-foliage-guides/tests -p 'test_candidate*.py' -v",
+      "exit_code": 0,
+      "test_count": 19,
+      "elapsed_seconds": 0.421,
+      "elapsed_scope": "unittest-reported duration from final recorded implementation run",
+      "result": "19 tests passed; test_crop_clamp_mutant_is_killed requires the deliberate child mutant to exit nonzero"
+    }
+  ],
+  "result_sha256": {
+    "evidence/synthetic_benchmark.json": "bb0eef2b8b8c364e68bc07d89b70cd4ad5bb3c60f6ded464dbb0a88b2f39f9d4",
+    "evidence/synthetic_reference_arrays.npz": "e7bd9abfb0d9ff3c724a4b024c9457cc35e4eafd9a14013746d94cf13911fd35",
+    "evidence/synthetic_transport_discriminator.json": "b38ad76f69e51ba5d201aa22d87494637b226c96bfb810d6c04c8629d9642fca"
+  },
+  "gpu_executed": false
+}

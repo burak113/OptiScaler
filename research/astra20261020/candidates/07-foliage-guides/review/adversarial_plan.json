@@ -1,0 +1,47 @@
+{
+  "stage": "frozen after blind negative-control calibration and before candidate inspection",
+  "reviewer": "/root/skeptic",
+  "probe_seed": 924619,
+  "probes": [
+    {
+      "id": "off_and_raw_identity",
+      "construction": "Packed material codes 0..3, roughness endpoints and arbitrary RGBA alpha payloads; OFF and enabled sidecar executions.",
+      "gate": "Input arrays and native meaning remain identical; diagnostic implementation does not remap IDs, roughness, normal or alpha."
+    },
+    {
+      "id": "crop_origin_transport",
+      "construction": "A rigid plane with known full-render UV motion and different current/previous crop origins, plus a variant with motion bringing every history position outside the prior crop.",
+      "gate": "Validity must follow render-coordinate transport. No clipping an out-of-crop sample into valid history."
+    },
+    {
+      "id": "unsupported_first_frame",
+      "construction": "A first frame without a predecessor and a frame whose guide, depth or MV includes nonfinite values.",
+      "gate": "Unsupported evidence is explicitly invalid; a consumer cannot interpret an unobserved agreement as high-confidence history."
+    },
+    {
+      "id": "hidden_mixture_ambiguity",
+      "construction": "Two different hidden coverage/lighting mixtures producing the same available normal, depth, material and MV arrays.",
+      "gate": "Candidate diagnostics are identical, demonstrating they cannot identify hidden coverage or physical correctness. Truth may not leak into candidate observables."
+    },
+    {
+      "id": "lighting_independence",
+      "construction": "Identical guides/chronology with independent Gaussian noise, correlated sparse noise, and a noiseless moderate true-light step.",
+      "gate": "A guide-only sidecar is identical across these lighting interventions and cannot claim to diagnose or solve their distinct output flicker."
+    },
+    {
+      "id": "rigid_guide_variation",
+      "construction": "Static and moving rigid relief, curved surfaces and window frames with valid angular/depth variation.",
+      "gate": "Guide variation must not become a semantic foliage label. Downgrades on valid rigid detail must be reported as potential false positives."
+    },
+    {
+      "id": "rotation_and_decode",
+      "construction": "Homogeneous known normals, octahedral hemisphere/seam cases and equal angular patterns under global rotations.",
+      "gate": "Proper decode error is separate from representation uncertainty. A deliberately misdecoded variant must be caught by an appropriate control."
+    },
+    {
+      "id": "frozen_mask_denominator",
+      "construction": "A destructive smoother and a sidecar identity result on the same analytic and BASE masks.",
+      "gate": "Metrics retain the same sample masks and numerical denominators, and the known destructive control fails the detail gate."
+    }
+  ]
+}

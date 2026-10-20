@@ -1,0 +1,68 @@
+{
+  "executor": "/root/skeptic",
+  "gpu_executed": false,
+  "source_sha256_before": {
+    "src/__init__.py": "7da5ed1fc73af29aa85bbf8b66196d0ec3c2e080cca96531999bd671ef1f31d8",
+    "src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "src/proxy_metrics.py": "7e15929dd457393bce21a20bd1811d3c089a2ee681f3ddd47e123b3dd03eaff4",
+    "src/synthetic_scene.py": "20fde4d8bbf0ad562e4d6190dd382e6d93c780de64e9a5620b6745d9126317b6",
+    "src/transport_discriminator.py": "446612dd18f1f48646f33b27da2b16e9d502a8262645282caa0719eca986af59",
+    "review/independent_probes.py": "67ede7d50aa42e4ee70b2cb70130a7d05672cc3b16ebd6471dc576d018abf61e",
+    "review/glass_prepared_control.py": "bac0f90ccb23d20f342656355342dd1a105b189e77acfa53cef1540b3889f018",
+    "tests/test_review_adversarial.py": "e20360a682e126268db6029ae601da21c59ac9d1664d6b5b8f601539656ad96f",
+    "tests/test_review_calibration.py": "173d360c39c2216a00ee74fb8fe501e9baff5685dab3bd75f9fb407785f6a5b7",
+    "tests/test_review_metrics.py": "86f9c0c5c1acece05f23e5ded5e2fa4669af6c4f8eec2c30ec5fb1d90bd03a44"
+  },
+  "source_sha256_after": {
+    "src/__init__.py": "7da5ed1fc73af29aa85bbf8b66196d0ec3c2e080cca96531999bd671ef1f31d8",
+    "src/foliage_guides.py": "b9daa51894bd12aa5cb0f73d88f3f1c188673e4ee29f58d3b4784070799123a0",
+    "src/proxy_metrics.py": "7e15929dd457393bce21a20bd1811d3c089a2ee681f3ddd47e123b3dd03eaff4",
+    "src/synthetic_scene.py": "20fde4d8bbf0ad562e4d6190dd382e6d93c780de64e9a5620b6745d9126317b6",
+    "src/transport_discriminator.py": "446612dd18f1f48646f33b27da2b16e9d502a8262645282caa0719eca986af59",
+    "review/independent_probes.py": "67ede7d50aa42e4ee70b2cb70130a7d05672cc3b16ebd6471dc576d018abf61e",
+    "review/glass_prepared_control.py": "bac0f90ccb23d20f342656355342dd1a105b189e77acfa53cef1540b3889f018",
+    "tests/test_review_adversarial.py": "e20360a682e126268db6029ae601da21c59ac9d1664d6b5b8f601539656ad96f",
+    "tests/test_review_calibration.py": "173d360c39c2216a00ee74fb8fe501e9baff5685dab3bd75f9fb407785f6a5b7",
+    "tests/test_review_metrics.py": "86f9c0c5c1acece05f23e5ded5e2fa4669af6c4f8eec2c30ec5fb1d90bd03a44"
+  },
+  "source_unchanged": true,
+  "runs": [
+    {
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "research/astra20261020/candidates/07-foliage-guides/tests",
+        "-p",
+        "test_review*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.22412509700006922,
+      "stdout": "",
+      "stderr": "test_crop_origin_and_motion_b_sign (test_review_adversarial.TestIndependentGuideContract.test_crop_origin_and_motion_b_sign) ... ok\ntest_enabled_api_and_all_input_words_unchanged (test_review_adversarial.TestIndependentGuideContract.test_enabled_api_and_all_input_words_unchanged) ... ok\ntest_known_normals_and_category_bits (test_review_adversarial.TestIndependentGuideContract.test_known_normals_and_category_bits) ... ok\ntest_negative_and_overflowed_predicted_depth_rejected (test_review_adversarial.TestIndependentGuideContract.test_negative_and_overflowed_predicted_depth_rejected) ... ok\ntest_nonfinite_motion_and_missing_material_agreement (test_review_adversarial.TestIndependentGuideContract.test_nonfinite_motion_and_missing_material_agreement) ... ok\ntest_unsupported_is_explicit_identity_not_positive_evidence (test_review_adversarial.TestIndependentGuideContract.test_unsupported_is_explicit_identity_not_positive_evidence) ... ok\ntest_fixed_denominators (test_review_calibration.TestBlindControl.test_fixed_denominators) ... ok\ntest_negative_control_and_noise_only_mutation (test_review_calibration.TestBlindControl.test_negative_control_and_noise_only_mutation) ... ok\ntest_flat_truth_detail_is_unavailable (test_review_metrics.TestSymmetricDetailMetric.test_flat_truth_detail_is_unavailable) ... ok\ntest_rotated_truth_identity_and_destroyed_detail (test_review_metrics.TestSymmetricDetailMetric.test_rotated_truth_identity_and_destroyed_detail) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.120s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/independent_probes.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.32249305000004824,
+      "stdout": "{\n  \"hidden_mixture_observations_equal\": true,\n  \"lighting_observations_equal\": true,\n  \"elapsed_seconds\": 0.22721397500026796\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python",
+        "research/astra20261020/candidates/07-foliage-guides/review/glass_prepared_control.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.5329947299997002,
+      "stdout": "{\n  \"all_source_arrays_bitwise_unchanged\": true,\n  \"temporal_comparable_fraction_on_fixed_core\": 0.9444444444444444,\n  \"mean_angular_dispersion_on_fixed_core\": 0.012217569164931774,\n  \"mean_experimental_multiplier_on_fixed_core\": 0.9827474355697632,\n  \"elapsed_seconds\": 0.44244657199851645\n}\n",
+      "stderr": ""
+    }
+  ]
+}

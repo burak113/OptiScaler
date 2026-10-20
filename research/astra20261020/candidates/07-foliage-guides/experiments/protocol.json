@@ -1,0 +1,32 @@
+{
+  "schema": "job07-synthetic-protocol-v1",
+  "frozen_before_first_sweep": true,
+  "primary_candidate": "default-OFF original-guide observer, RGB identity",
+  "hypothetical_consumer": "clamped normal cosine multiplies an explicitly labeled CPU surrogate history weight",
+  "parameter_selection": "Mechanism-defined values; no numerical fitting or holdout-driven tuning",
+  "depth_relative_tolerance": 0.02,
+  "proxy": {"spatial_radius": 1, "normal_cosine_power": 32, "temporal_normal_dot_gate": 0.75, "temporal_weight": 0.8},
+  "scorer": {"grain_highpass_rms_weight": 1, "sparkle_abs_error_p99_weight": 2, "flicker_residual_difference_rms_weight": 1, "detail_gradient_loss_weight": 4, "detail_transfer_minimum": 0.95, "history_support_threshold": 0.5, "coverage_mismatch_threshold": 0.2},
+  "development_seed": 101,
+  "holdout_seeds": [9001, 17713, 29009],
+  "holdout_orientations_degrees": [13, 77, 141],
+  "holdout_phases": [0.37, 0.61, 0.89],
+  "holdout_trajectories_pixels_per_frame": [[-0.31, 0.22], [0.63, -0.17], [-0.71, -0.28]],
+  "ofat": {
+    "thickness": [0.3, 0.8, 1.8],
+    "orientation": [0, 31, 60, 89, 135],
+    "overlap": [0, 1, 2],
+    "coverage_fraction": [0.25, 0.5, 0.75, 1.0],
+    "guide_bits": [4, 7, 10],
+    "object_vx": [-0.6, 0.0, 0.12, 0.37, 0.8],
+    "noise_rho": [0, 0.5, 0.95],
+    "coverage_rule": ["geometric", "alpha_test", "stochastic"],
+    "guide_rule": ["dominant", "sample", "stochastic_sample"],
+    "phase": [0.0, 0.25, 0.5, 0.75]
+  },
+  "families": "Each OFAT case changes exactly one listed field from reference; fixed and moving coverage controls additionally freeze stated camera/jitter/object fields together as a named intervention",
+  "truth_masks": "Immutable per-frame known-visibility/geometry masks computed before any candidate evaluation; same masks and denominator for all methods",
+  "light_response": "Paired same-seed scenes differing only by global 1.1x linear RGB step; response over first four step frames",
+  "oracle_scope": "Uses inaccessible per-layer lighting including hidden samples and current exact coverage; not deployable",
+  "gpu_executed": false
+}

@@ -1,0 +1,14 @@
+test_outside_crop_never_manufactures_history (__main__.CandidateContract.test_outside_crop_never_manufactures_history) ... FAIL
+
+======================================================================
+FAIL: test_outside_crop_never_manufactures_history (__main__.CandidateContract.test_outside_crop_never_manufactures_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "research/astra20261020/candidates/07-foliage-guides/tests/test_candidate_contract.py", line 55, in test_outside_crop_never_manufactures_history
+    self.assertFalse(np.any(o.temporal_supported))
+AssertionError: np.True_ is not false
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=1)

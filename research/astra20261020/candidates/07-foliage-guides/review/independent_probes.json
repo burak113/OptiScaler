@@ -1,0 +1,90 @@
+{
+  "executor": "/root/skeptic",
+  "gpu_executed": false,
+  "hidden_mixture": {
+    "scope": "analytic identical-observation collision, not a captured scene",
+    "observation_digest_both_worlds": "dac8442de7169139a678a1f35d5deda3660af9809867c7a9e818c0c4ca9604ca",
+    "all_observations_equal": true,
+    "comparable_pixels": 77,
+    "min_multiplier_on_comparable": 1.0,
+    "world_A_max_rgb_change": 0.0,
+    "world_B_max_rgb_change": 0.07999998331069946,
+    "front_coverage_world_B": [
+      0.6000000238418579,
+      0.800000011920929
+    ],
+    "conclusion": "Comparable dominant guides cannot certify composite temporal history or infer minority coverage/motion"
+  },
+  "lighting": {
+    "scope": "independent reviewer synthetic intervention, no output filter or native execution",
+    "seed": 924619,
+    "coverage_fixed_exact": true,
+    "guide_bytes_sha256": "14e924573462a457cb1ae50c60b877997c0c70f26c67c416b7d913d5e97a94e0",
+    "observation_digest_all_three": "0ad5f14b3b513237f5bbac29a14c986b07b7add5796879132b8d71edf8dd8853",
+    "guide_observations_identical": true,
+    "raw_metrics": {
+      "independent": {
+        "mean_truth_luma": 0.37416648864746094,
+        "relative_bias": 0.02294478379189968,
+        "rmse_normalized": 0.6683339476585388,
+        "grain_highpass_rms": 0.7566053867340088,
+        "sparkle_abs_error_p99": 3.5199086666107178,
+        "sparkle_event_fraction": 0.052083333333333336,
+        "flicker_residual_difference_rms": 0.95920729637146,
+        "edge_error_normalized": 0.6896762847900391,
+        "coverage_projection_mae_proxy": 0.30292657017707825,
+        "detail_gradient_transfer": 0.8961357910432677,
+        "rigid_detail_gradient_transfer": 0.9362258807938185,
+        "false_history_support_fraction": 0.0,
+        "history_coverage_mismatch_weight": 0.0,
+        "cross_layer_mixing_weight": 0.0,
+        "motion_region_error_normalized": null,
+        "fixed_score_lower_better": 9.171086852153834,
+        "detail_loss_gate_pass": false,
+        "mask_pixels": 1920
+      },
+      "correlated_rho_095": {
+        "mean_truth_luma": 0.37416648864746094,
+        "relative_bias": 0.017483176663517952,
+        "rmse_normalized": 0.6487269997596741,
+        "grain_highpass_rms": 0.7233622074127197,
+        "sparkle_abs_error_p99": 3.3780734539031982,
+        "sparkle_event_fraction": 0.05364583333333333,
+        "flicker_residual_difference_rms": 0.26871976256370544,
+        "edge_error_normalized": 0.6985097527503967,
+        "coverage_projection_mae_proxy": 0.2799190580844879,
+        "detail_gradient_transfer": 1.1466688609693478,
+        "rigid_detail_gradient_transfer": 1.457678550773674,
+        "false_history_support_fraction": 0.0,
+        "history_coverage_mismatch_weight": 0.0,
+        "cross_layer_mixing_weight": 0.0,
+        "motion_region_error_normalized": null,
+        "fixed_score_lower_better": 7.748228877782822,
+        "detail_loss_gate_pass": true,
+        "mask_pixels": 1920
+      },
+      "moderate_light_step_11": {
+        "mean_truth_luma": 0.3928748369216919,
+        "relative_bias": 0.022824726998806,
+        "rmse_normalized": 0.6672448515892029,
+        "grain_highpass_rms": 0.7543282508850098,
+        "sparkle_abs_error_p99": 3.4257657527923584,
+        "sparkle_event_fraction": 0.053125,
+        "flicker_residual_difference_rms": 0.9596215486526489,
+        "edge_error_normalized": 0.6859611868858337,
+        "coverage_projection_mae_proxy": 0.3029218912124634,
+        "detail_gradient_transfer": 0.8919210282743922,
+        "rigid_detail_gradient_transfer": 0.9314487023342625,
+        "false_history_support_fraction": 0.0,
+        "history_coverage_mismatch_weight": 0.0,
+        "cross_layer_mixing_weight": 0.0,
+        "motion_region_error_normalized": null,
+        "fixed_score_lower_better": 8.997797192024807,
+        "detail_loss_gate_pass": false,
+        "mask_pixels": 1920
+      }
+    },
+    "conclusion": "Noise temporal correlation and true-light response change without any observable guide change"
+  },
+  "elapsed_seconds": 0.22721397500026796
+}
