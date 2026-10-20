@@ -519,8 +519,9 @@ namespace
         stats.Projection = {1.0f, 1.0f, 0.0f, 0.0f};
         stats.Extra = {1.0f, kDepthTolerance, 1.0f, 0.0f};
         stats.Params = {strength, kMinStatic, kMinRecall, 0.0f};
-        stats.KeySlice[0] = {0u, 8u, 8u, 8u};
-        stats.KeySlice[1] = {8u, 8u, 8u, 8u};
+        const uint32_t ringSentinel = PostMotionAnchorMath::kRingSize;
+        stats.KeySlice[0] = {0u, ringSentinel, ringSentinel, ringSentinel};
+        stats.KeySlice[1] = {ringSentinel, ringSentinel, ringSentinel, ringSentinel};
         DirectX::XMFLOAT4X4 relative {};
         DirectX::XMStoreFloat4x4(&relative, PostMotionAnchorMath::LoadDesc(projection) *
             PostMotionAnchorMath::LoadDesc(view) *

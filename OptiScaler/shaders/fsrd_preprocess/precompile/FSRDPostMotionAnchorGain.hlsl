@@ -43,7 +43,7 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     // whose motion the camera alone explains is stored: a moving object must not become the settled level.
     if (Params4.x > 0.5f && cell.z > 0.5f)
     {
-        const int slice = int(clamp(Params4.y, 0.0f, 7.0f));
+        const int slice = int(clamp(Params4.y, 0.0f, max(Params4.z - 1.0f, 0.0f)));
         OutKeyLevel[int3(p, slice)] = float4(cell.x, 0.0f, 0.0f, 0.0f);
         OutKeyDepth[int3(p, slice)] = cell.y;
     }

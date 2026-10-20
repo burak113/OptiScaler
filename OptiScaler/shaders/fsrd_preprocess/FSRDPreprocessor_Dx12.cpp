@@ -2034,8 +2034,11 @@ struct FSRDPreprocessor_Dx12::Impl
             {desc.InvViewMatrix, desc.InvProjMatrix, desc.PrevViewMatrix});
         PostMotionAnchorMath::StatsRecallConstants statsConstants {};
         PostMotionAnchorMath::GainConstants gainConstants {};
+        // The state machine resets the ring when the option is switched on (WasEnabled != enabled): a stale
+        // keyframe from an earlier ON period must not be recalled. Passing a literal true made that branch
+        // unreachable (SA17 D1); the real previous-frame flag is what the reset was written for.
         const bool active = PostMotionAnchorMath::BuildFrame(m_postMotionState, view, projection, previousView,
-            true, desc.PostMotionAnchorStrength, statsConstants, gainConstants);
+            m_postMotionWasEnabled, desc.PostMotionAnchorStrength, statsConstants, gainConstants);
         m_postMotionWasEnabled = true;
         if (!active) return;
         PostMotionAnchorMath::ApplyConstants applyConstants {};

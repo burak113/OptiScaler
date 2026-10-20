@@ -120,7 +120,7 @@ namespace PostMotionAnchorMath
         DirectX::XMFLOAT4 Params;   // x band A, y band tau, z cap extra, w cap hard
         DirectX::XMFLOAT4 Params2;  // x strength, y fallback A, z tap step (cells), w coverage taps
         DirectX::XMFLOAT4 Params3;  // x reject mult, y reject abs, z gain low, w window k
-        DirectX::XMFLOAT4 Params4;  // x refresh (0/1), y ring write slice, zw unused
+        DirectX::XMFLOAT4 Params4;  // x refresh (0/1), y ring write slice, z ring size, w unused
     };
     static_assert(sizeof(GainConstants) == 80, "FSRDPostMotionAnchorGain constants");
 
@@ -250,7 +250,7 @@ namespace PostMotionAnchorMath
         gain.Params = {kBandA, kBandTau, kCapExtra, kCapHard};
         gain.Params2 = {std::clamp(strength, kStrengthMin, kStrengthMax), kFallbackA, kTapStepCells, kCoverageTaps};
         gain.Params3 = {kRejectMult, kRejectAbs, kGainLow, float(state.MotionFrames)};
-        gain.Params4 = {refresh ? 1.0f : 0.0f, float(writeSlice), 0.0f, 0.0f};
+        gain.Params4 = {refresh ? 1.0f : 0.0f, float(writeSlice), float(kRingSize), 0.0f};
         if (state.WasEnabled != enabled)
         {
             // A toggle restarts the ring: a stale keyframe from a previous run must not be recalled.

@@ -122,12 +122,17 @@ void CSMain(uint3 dispatch : SV_DispatchThreadID)
     if (staticCell > 0.5f)
     {
         const float4 v = float4(ViewPosition(centre, z, full), 1.0f);
+        // The host writes the ring size into Params.w (it is 6 since the N1 fix, was 8): the sentinel it puts in
+        // every unused priority slot IS that value, so the check must use it - with a literal 8 the loop would
+        // trust slot 6 and read the constant buffer's stale tail (caught by the anchor fixture after the ring
+        // change: the settled-memory recall returned nothing).
+        const uint ringSize = uint(max(Params.w, 1.0f));
         [loop] for (uint k = 0; k < 8u; ++k)
         {
             const uint slot = k < 4u ? KeySlice[0][k] : KeySlice[1][k - 4u];
             // The host puts a ring-size sentinel in every unused priority slot, so the loop can stop at the end
             // of the valid list; an invalid slot is skipped rather than trusted.
-            if (slot >= 8u || SlotExtra[slot].y < 0.5f) continue;
+            if (slot >= ringSize || SlotExtra[slot].y < 0.5f) continue;
             const float4 clip = float4(dot(KeyRel[slot][0], v), dot(KeyRel[slot][1], v), dot(KeyRel[slot][2], v),
                                        dot(KeyRel[slot][3], v));
             const float keyP32 = SlotExtra[slot].x;
