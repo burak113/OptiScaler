@@ -1,0 +1,44 @@
+[
+  {
+    "name": "independent_contracts",
+    "command": "python -B -m unittest discover -s research/astra20261020/candidates/06-moving-bottle/tests -p test_review_contracts.py -v",
+    "cwd": "repository root",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "elapsed_seconds": 0.12744111699976202,
+    "log_sha256": "1605e3befe8f38f6d8c991ba72ffb57f8aaa1bdb7ba3cd18d3ccc5bf588c5260",
+    "executor": "independent_skeptical_reviewer"
+  },
+  {
+    "name": "post_audit_candidate_suite",
+    "command": "python -B -m unittest discover -s research/astra20261020/candidates/06-moving-bottle/tests -v",
+    "cwd": "repository root",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "elapsed_seconds": 2.279881890000979,
+    "log_sha256": "d35d68dd24ca4385582b9d8e30cc53b0610d61b5c5df421ac06789dc4ff9950a",
+    "executor": "independent_skeptical_reviewer"
+  },
+  {
+    "name": "crop_mutation",
+    "command": "python -B research/astra20261020/candidates/06-moving-bottle/tests/test_tracer.py --mutate-ignore-crop",
+    "cwd": "repository root",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "elapsed_seconds": 0.20727726000041002,
+    "log_sha256": "90af9adcb84010729900084cac0ffd9db62619cf8017dae9c750093605f64dae",
+    "executor": "independent_skeptical_reviewer",
+    "raw_log_sha256": "90cc45a0d7d16cbf3c5b1e1f1e01edf5fcf32219bb2dcea91515b9e67c3873ad",
+    "log_sanitization": "Only machine-specific repository/runtime path prefixes replaced with repository-relative or <site-packages> paths; all assertions, numeric values and exit codes retained."
+  },
+  {
+    "name": "final_metadata_contracts",
+    "command": "python -B -m unittest test_recorded.RecordedContracts.test_explicit_reset_break_invalidates_comparison_only test_recorded.RecordedContracts.test_fractional_render_extent_is_not_silently_truncated -v",
+    "cwd": "research/astra20261020/candidates/06-moving-bottle/tests",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "elapsed_seconds": 0.3598884900002304,
+    "log_sha256": "8f38f00a57e7695d11d7e9850ce43638d42d13720155f6ff8354c56de0f14a09",
+    "executor": "independent_skeptical_reviewer"
+  }
+]

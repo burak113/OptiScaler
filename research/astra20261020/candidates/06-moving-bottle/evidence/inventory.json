@@ -1,0 +1,1391 @@
+{
+  "schema": "astra.job06.available_data.v1",
+  "files": [
+    {
+      "path": "portable/anchor/README.md",
+      "bytes": 2265,
+      "sha256": "29bfc3c9b69df122da8ca42f7d6fbf1bf1933e66edada0962cb85865a833f1bb"
+    },
+    {
+      "path": "portable/anchor/VALIDATION.json",
+      "bytes": 942,
+      "sha256": "94e771e188c6afa0b93c9294039933ddec43046a9f07874cab33d3f87b1d46a4"
+    },
+    {
+      "path": "portable/anchor/anchor_reference.py",
+      "bytes": 7267,
+      "sha256": "54a0e71041fee427721e27972b2b6a5484583c0a89e0166e3fc4cd6d878039b6"
+    },
+    {
+      "path": "portable/anchor/fixtures/combined/22f9ca14.npz",
+      "bytes": 927216,
+      "sha256": "401dc1554502a6fdcf4bf473bd25b39520a2ecb1cabb409180174b0cd5b63b27",
+      "arrays": {
+        "stats": {
+          "shape": [
+            35,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            35,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            35,
+            64,
+            64
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            35,
+            64,
+            64
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            35
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            35
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            35
+          ],
+          "dtype": "<f8"
+        },
+        "counters": {
+          "shape": [
+            35,
+            4
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/combined/2405579e.npz",
+      "bytes": 532809,
+      "sha256": "f19609ac16beeacdb05852addeee879f7a6d35694e20460a914d82c8f199c016",
+      "arrays": {
+        "stats": {
+          "shape": [
+            53,
+            105,
+            16,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            53,
+            105,
+            16,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            53,
+            105,
+            16
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            53,
+            105,
+            16
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            53
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            53
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            53
+          ],
+          "dtype": "<f8"
+        },
+        "counters": {
+          "shape": [
+            53,
+            4
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/combined/87ee1fba.npz",
+      "bytes": 1103676,
+      "sha256": "d67191dd924cc169d3049845aa6292b8c36997653455cd609ea3c75d3e6769b4",
+      "arrays": {
+        "stats": {
+          "shape": [
+            45,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            45,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            45,
+            64,
+            64
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            45,
+            64,
+            64
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            45
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            45
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            45
+          ],
+          "dtype": "<f8"
+        },
+        "counters": {
+          "shape": [
+            45,
+            4
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/manifest.json",
+      "bytes": 115748,
+      "sha256": "b2fb52b660f3775947755d7e5b3a1b5fe1d700d25698eb09c6093c69135def80"
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/22f9ca14.npz",
+      "bytes": 78999,
+      "sha256": "d6b9c9383f59a193d74beb6d7f7468df14f7c7292c085e3b36b3da28a95a4645",
+      "arrays": {
+        "stats": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            3
+          ],
+          "dtype": "<f8"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            3,
+            3
+          ],
+          "dtype": "<f8"
+        },
+        "valid_count": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/2405579e.npz",
+      "bytes": 11221,
+      "sha256": "b28c0c8426567421de1c6f3510bab84b66287da20ccc929ff73f6117bc1b92c4",
+      "arrays": {
+        "stats": {
+          "shape": [
+            1,
+            105,
+            16,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            1,
+            105,
+            16,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            1,
+            105,
+            16
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            1,
+            105,
+            16
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            1
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            1
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            1
+          ],
+          "dtype": "<f8"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            1,
+            3
+          ],
+          "dtype": "<f8"
+        },
+        "valid_count": {
+          "shape": [
+            1
+          ],
+          "dtype": "<i4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/fixtures/native_policy/87ee1fba.npz",
+      "bytes": 73746,
+      "sha256": "c16da09712bd3f4dd0fe363f3e41f7f093b0ddffd341d20a708a1c215fe75982",
+      "arrays": {
+        "stats": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "recalled": {
+          "shape": [
+            3,
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "gain": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "<f2"
+        },
+        "fixed_mask": {
+          "shape": [
+            3,
+            64,
+            64
+          ],
+          "dtype": "|b1"
+        },
+        "frames": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        },
+        "k": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        },
+        "frame_ratio": {
+          "shape": [
+            3
+          ],
+          "dtype": "<f8"
+        },
+        "frame_ratio_bounds": {
+          "shape": [
+            3,
+            3
+          ],
+          "dtype": "<f8"
+        },
+        "valid_count": {
+          "shape": [
+            3
+          ],
+          "dtype": "<i4"
+        }
+      }
+    },
+    {
+      "path": "portable/anchor/requirements.txt",
+      "bytes": 12,
+      "sha256": "a83a2a4ed7ab2e022b9b8a83cfa2b8cf52cc243006c597e8b96f90a8365590ac"
+    },
+    {
+      "path": "portable/anchor/source/FSRDNrdPostMotionAnchorGain.hlsl",
+      "bytes": 7839,
+      "sha256": "16d15e239d6d65bde2df215e00f37a3139dce972f7ca9a5844766dc92314a08d"
+    },
+    {
+      "path": "portable/anchor/source/FSRDNrdPostMotionAnchorStatsRecall.hlsl",
+      "bytes": 12459,
+      "sha256": "0faa3f9460ceee5402133cafe775041069e9f29c4b1dcb9b3007caa9d04254c0"
+    },
+    {
+      "path": "portable/anchor/source/FSRDPostMotionAnchorApply.hlsl",
+      "bytes": 2173,
+      "sha256": "fe45244176f63517b6c3df765383a75078d771e1e2035a69eb4b0488b2d465fc"
+    },
+    {
+      "path": "portable/anchor/source/FSRDPostMotionAnchorConstants.h",
+      "bytes": 17366,
+      "sha256": "7d866e8986d0e535eeeca1cd1c75df04bfbe184730ef94dbf45ce58acf58edfd"
+    },
+    {
+      "path": "portable/anchor/source/FSRDPostMotionAnchorGain.hlsl",
+      "bytes": 7483,
+      "sha256": "a26c62b8eade0d1686d0d784cb32ed50a4f7f551605033bcfb3cc9004c8602d7"
+    },
+    {
+      "path": "portable/anchor/source/FSRDPostMotionAnchorStatsRecall.hlsl",
+      "bytes": 11423,
+      "sha256": "ed2b9c20997c01e3da3c26be106dae9bbe449f2c10f04b87b18f8dc9fbcaebca"
+    },
+    {
+      "path": "portable/anchor/tests/test_reference.py",
+      "bytes": 6525,
+      "sha256": "1c4a5bcbf297bbb8feccfa87069ea2fdee58928e47822a01c61c46c278ea3bfe"
+    },
+    {
+      "path": "portable/colour/OPEN_TASK.md",
+      "bytes": 2692,
+      "sha256": "d2dcdf764c2c98cd4339734d97fad28fb43c31621e33d61771b6c73c066c3cbf"
+    },
+    {
+      "path": "portable/colour/README.md",
+      "bytes": 7000,
+      "sha256": "8e6f346b43b83c7e1a36a3b5a2bc6b59b021ce9aa1614276885bb2dc142c8519"
+    },
+    {
+      "path": "portable/colour/colour_portable.py",
+      "bytes": 9460,
+      "sha256": "6f0703e6b0ef9443005ad0cecd9c00d383093a86aa82ff2a65d66d9ee68055d7"
+    },
+    {
+      "path": "portable/colour/compare.py",
+      "bytes": 4534,
+      "sha256": "9942f36a951fb8d420dc1eea699cd3f73206d93aedae6ad2e1ae9007313cb813"
+    },
+    {
+      "path": "portable/colour/evidence/actual_B4_edge_gpu.json",
+      "bytes": 2497,
+      "sha256": "90f17bf3cb328a3aa3dbff3dfc2bc231f7c9db629629323b41358fcd52c526d0"
+    },
+    {
+      "path": "portable/colour/evidence/depth_edge_phase4.png",
+      "bytes": 15881,
+      "sha256": "d5ddbdb69580ef2e7cae2068ef4188970a310a753194bc1d1c468693a11bb7fd"
+    },
+    {
+      "path": "portable/colour/evidence/fullwarmup_gpu.json",
+      "bytes": 3766,
+      "sha256": "eefb0e3f60213b21c79df0599579f581bdd8a1b41a8c4eec056b7ea3d5d228e6"
+    },
+    {
+      "path": "portable/colour/evidence/normal_edge_phase4.png",
+      "bytes": 15891,
+      "sha256": "eb75fb0db2c041151619b5c55559624eb4cbd6f183b0a00379d8ded8c96331e6"
+    },
+    {
+      "path": "portable/colour/fixtures/provenance.json",
+      "bytes": 8905,
+      "sha256": "4181fa27e57dcbe52e81d66782210a084a72a2c9e7bdf13e82d894f779643d74"
+    },
+    {
+      "path": "portable/colour/fixtures/soft2_gpu_87ee63.npz",
+      "bytes": 9101728,
+      "sha256": "0e5cf3dd35a5a4ae4f39aad4480e7d89cb92d0217530f06a412fb501605a2ec2",
+      "arrays": {
+        "input_rgb": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "rr_rgb": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "depth": {
+          "shape": [
+            512,
+            512
+          ],
+          "dtype": "<f4"
+        },
+        "normals_u32": {
+          "shape": [
+            512,
+            512
+          ],
+          "dtype": "<u4"
+        },
+        "normals_oct": {
+          "shape": [
+            512,
+            512,
+            2
+          ],
+          "dtype": "<f8"
+        },
+        "motion_uv_original": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "motion_uv_roi": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "motion_px": {
+          "shape": [
+            512,
+            512,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "prev_history": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "expected_bilinear": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "expected_soft2": {
+          "shape": [
+            512,
+            512,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "expected_history": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "expected_gain": {
+          "shape": [
+            64,
+            64,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "expected_stats": {
+          "shape": [
+            64,
+            64,
+            4
+          ],
+          "dtype": "<f4"
+        },
+        "expected_packed_normal": {
+          "shape": [
+            64,
+            64
+          ],
+          "dtype": "<f4"
+        }
+      }
+    },
+    {
+      "path": "portable/colour/manifest.json",
+      "bytes": 2625,
+      "sha256": "91c3c053a30bfade5598f05149204c3908e362ccb3ae8a5d956b2bc8442f131c"
+    },
+    {
+      "path": "portable/colour/requirements.txt",
+      "bytes": 14,
+      "sha256": "b278f1339f69781eefd2f8fc58f11e4c07a5fbd9134324562c8c0f65599b34c5"
+    },
+    {
+      "path": "portable/colour/test_colour_portable.py",
+      "bytes": 5387,
+      "sha256": "a8e698434938ddc056a30eca355d5ee98db5c3ec70c9ce397b09f0aa917d6d81"
+    },
+    {
+      "path": "portable/colour/verification/comparison.json",
+      "bytes": 7396,
+      "sha256": "4d45e221cdd35b71225fc4a0f732619597c73e0b6d3cd6cf798e75f738bdef75"
+    },
+    {
+      "path": "portable/colour/verification/equivalence_windows.json",
+      "bytes": 3334,
+      "sha256": "b486210a6f379b9ed7c15cc5cee72a7c2a39c835a4dcb262571d2a9e7ddcc760"
+    },
+    {
+      "path": "portable/colour/verification/isolated_import_windows.json",
+      "bytes": 405,
+      "sha256": "e35668eebc7a45af3ef6df897da2581e60d71633d53287fd71ac316998e21dd9"
+    },
+    {
+      "path": "portable/colour/verification/unittest_windows.txt",
+      "bytes": 1958,
+      "sha256": "b5be489c454d93a107e723eca8d49b0c8c39128c29ad11cb8d0414662f364638"
+    },
+    {
+      "path": "fixtures/clips/README.md",
+      "bytes": 4053,
+      "sha256": "3ad70e067262c3c8c39db6e883cd801d028e8f3108ee34a379a4fbed2409eedc"
+    },
+    {
+      "path": "fixtures/clips/bottle_track7.json",
+      "bytes": 43037,
+      "sha256": "cb81c8fc1fabc973b79b97a324407597127fd23c7dcff4db74ca804d02a3ff39"
+    },
+    {
+      "path": "fixtures/clips/bottle_track7.npz",
+      "bytes": 11109320,
+      "sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f",
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            7,
+            256,
+            128
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            7,
+            256,
+            128,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            7,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            7
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            7,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            7,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            7,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            7,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            7,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            7,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "fixtures/clips/clip_loader.py",
+      "bytes": 2611,
+      "sha256": "d39f9dba3fa42e8a201c5f5ce48cf9fba6ec5284b4fef09f3f0aca98e3ff0ae9"
+    },
+    {
+      "path": "fixtures/clips/export_clips.py",
+      "bytes": 10619,
+      "sha256": "c2dca6f27ae352dee452d68e96597d9c6e17fc24987a989cd4bf49d05e39556c"
+    },
+    {
+      "path": "fixtures/clips/facade16.json",
+      "bytes": 87601,
+      "sha256": "a8099b44c712bab359bfb0cf320c6c5f07014178c62e4896ed69ef9ce2b771fc"
+    },
+    {
+      "path": "fixtures/clips/facade16.npz",
+      "bytes": 6036858,
+      "sha256": "ef7ccd09176f37bab5680f817e5e180127e1e3c78bd8cbb62ae2a48a28301562",
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            16,
+            96,
+            96
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            16,
+            96,
+            96,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            16,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            16
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            16,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            16,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            16,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            16,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            16,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            16,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "fixtures/clips/foliage23.json",
+      "bytes": 122247,
+      "sha256": "cfc567a4adf9d35597bfa384f7ff01fc185dac6ee4fd5f4e4fdfeb7951652568"
+    },
+    {
+      "path": "fixtures/clips/foliage23.npz",
+      "bytes": 12867065,
+      "sha256": "864fb077235159b08202fb2f36e4ede9ba04cacd320b57f75b2ba73c05fac1fd",
+      "arrays": {
+        "input_depth": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<f4"
+        },
+        "input_motion": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_normal_roughness": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<u4"
+        },
+        "recovery_original_normal_roughness": {
+          "shape": [
+            23,
+            64,
+            192
+          ],
+          "dtype": "<u4"
+        },
+        "input_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "input_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "raw_rr_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_diffuse": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "selected_rr_specular": {
+          "shape": [
+            23,
+            64,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "provider_controls": {
+          "shape": [
+            23,
+            46
+          ],
+          "dtype": "<u4"
+        },
+        "frame_indices": {
+          "shape": [
+            23
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_render": {
+          "shape": [
+            23,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "crop_origin_source": {
+          "shape": [
+            23,
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_origin": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "source_roi_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "render_extent": {
+          "shape": [
+            2
+          ],
+          "dtype": "<i4"
+        },
+        "view_u32": {
+          "shape": [
+            23,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "projection_u32": {
+          "shape": [
+            23,
+            4,
+            4
+          ],
+          "dtype": "<u4"
+        },
+        "camera_position_u32": {
+          "shape": [
+            23,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "previous_camera_position_u32": {
+          "shape": [
+            23,
+            3
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "fixtures/clips/test_clips.py",
+      "bytes": 6536,
+      "sha256": "34f788708e06cfa23fc24ff24699948b4adc8ef6f8f83517bd9e671d9db65c96"
+    },
+    {
+      "path": "fixtures/clips/validation.json",
+      "bytes": 1536,
+      "sha256": "ccba46d89c40bffa8b1393905f3c3518fae6765f81a50a0851bab570457ec03a"
+    },
+    {
+      "path": "fixtures/clips/validation_offline.json",
+      "bytes": 1386,
+      "sha256": "339f0724da88e0436e1e5a6a70c0589e496525ace95bf704491e966efd28b15a"
+    },
+    {
+      "path": "fixtures/glass/README.md",
+      "bytes": 2910,
+      "sha256": "bb6fc862759b6b37e43f4c4d45b051a07c78d962a4256cc117513b6376cf01c1"
+    },
+    {
+      "path": "fixtures/glass/full_roi_evidence.json",
+      "bytes": 1558,
+      "sha256": "524b694ade6ac07d4c2804d1b24c4bf771e302fa6c19e2682ea9838ac377abc5"
+    },
+    {
+      "path": "fixtures/glass/glass_crop.npz",
+      "bytes": 19310928,
+      "sha256": "4d70b18245bc585185b3d8b261eafd0077bd7bfbc388f1d701e8748f434f249d",
+      "arrays": {
+        "aligned_raw_spec_rgb": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "aligned_selected_spec_rgb_xor": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "<u4"
+        },
+        "aligned_equal_diffuse_rgb": {
+          "shape": [
+            18,
+            160,
+            192,
+            3
+          ],
+          "dtype": "<f4"
+        },
+        "common_mask": {
+          "shape": [
+            160,
+            192
+          ],
+          "dtype": "|b1"
+        },
+        "original_normal_roughness_u32": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "<u4"
+        },
+        "original_depth_f32": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "<f4"
+        },
+        "original_motion_rgba_f16": {
+          "shape": [
+            18,
+            160,
+            192,
+            4
+          ],
+          "dtype": "<f2"
+        },
+        "aligned_original_eligibility": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "|b1"
+        },
+        "aligned_prior_glass_mask": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "|b1"
+        },
+        "alignment_valid": {
+          "shape": [
+            18,
+            160,
+            192
+          ],
+          "dtype": "|b1"
+        },
+        "camera_view_words_u32": {
+          "shape": [
+            18,
+            16
+          ],
+          "dtype": "<u4"
+        },
+        "camera_projection_words_u32": {
+          "shape": [
+            18,
+            16
+          ],
+          "dtype": "<u4"
+        }
+      }
+    },
+    {
+      "path": "fixtures/glass/glass_fixture.py",
+      "bytes": 15290,
+      "sha256": "1bd8b0707e73ce2331ab687801017853d73fcf02356ffe2639036fe281064d81"
+    },
+    {
+      "path": "fixtures/glass/inventory.json",
+      "bytes": 1355,
+      "sha256": "6d164fbbe69e03821b4b0f2c1b6fe624ef6a7fe6397ea9005e64d50c38d0c118"
+    },
+    {
+      "path": "fixtures/glass/manifest.json",
+      "bytes": 39179,
+      "sha256": "7bbdb9ec78569580adc65f434132c81a357afbf9d0db41032335c71f474d6e41"
+    },
+    {
+      "path": "fixtures/glass/test_fixture.py",
+      "bytes": 1441,
+      "sha256": "175b8bb153633eb1bc191e68a48820cd905f0ac69d597bd2f7c01281d98b897a"
+    },
+    {
+      "path": "fixtures/glass/test_glass.py",
+      "bytes": 86,
+      "sha256": "ee9ec9c9f140b3e582ab776209b9aaf95ab37e2254354638a5d787d313671eed"
+    },
+    {
+      "path": "fixtures/glass/test_result.json",
+      "bytes": 1109,
+      "sha256": "f291654feb8e3d1bfd99cfec89da3ebda53a24990284c9d754f3e9e2fae762bc"
+    }
+  ],
+  "not_available": [
+    "full original captures",
+    "pre-start RR/internal histories",
+    "raw six-slice anchor key textures",
+    "final remod/composition metadata",
+    "converged same-pose truth",
+    "final same-crop game video",
+    "Windows/AMD RR execution"
+  ],
+  "units_and_provenance": "See DATA_CONTRACT.md and each adjacent manifest; hashes establish identity, not correctness.",
+  "independent_capture_count": 4,
+  "independent_noise_samples_in_a_single_recorded_frame": false
+}

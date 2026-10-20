@@ -1,0 +1,72 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "scope": "Recorded fixture f180..186; raw/selected comparison at observed handoff, not physical ground truth. BASE moving support = original motion speed>12 render pixels, 5x5 all erosion. This mask includes hand/arm, not bottle semantics.",
+  "whole_crop_equality": false,
+  "moving_support_equality": true,
+  "rows": [
+    {
+      "frame": 180,
+      "base_mask_pixels": 9275,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 210,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 70
+    },
+    {
+      "frame": 181,
+      "base_mask_pixels": 9430,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 144,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 48
+    },
+    {
+      "frame": 182,
+      "base_mask_pixels": 9560,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 90,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 30
+    },
+    {
+      "frame": 183,
+      "base_mask_pixels": 9864,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 0,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 0
+    },
+    {
+      "frame": 184,
+      "base_mask_pixels": 8730,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 12,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 4
+    },
+    {
+      "frame": 185,
+      "base_mask_pixels": 5479,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 0,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 0
+    },
+    {
+      "frame": 186,
+      "base_mask_pixels": 3114,
+      "whole_crop_diffuse_changed_words": 0,
+      "whole_crop_specular_changed_words": 0,
+      "masked_diffuse_changed_words": 0,
+      "masked_specular_changed_words": 0,
+      "changed_specular_pixels": 0
+    }
+  ],
+  "fixture_sha256": "79928a7dc1b4ec968b592d7f79962584dbb857c88453886683b9dc141229740f"
+}

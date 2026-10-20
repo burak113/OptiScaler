@@ -1,0 +1,131 @@
+{
+  "schema": "astra.job06.identity_preservation.v1",
+  "rows": [
+    {
+      "name": "bottle_track7/selected_rr_diffuse",
+      "dtype": "<f2",
+      "shape": [
+        7,
+        256,
+        128,
+        4
+      ],
+      "bytes_compared": 1835008,
+      "changed_bytes": 0,
+      "input_sha256": "3ec0b2c6bf0218ca13e63071954393c7908e741b163fe2e202e25d5b58851fb1",
+      "output_sha256": "3ec0b2c6bf0218ca13e63071954393c7908e741b163fe2e202e25d5b58851fb1",
+      "input_unchanged": true
+    },
+    {
+      "name": "bottle_track7/selected_rr_specular",
+      "dtype": "<f2",
+      "shape": [
+        7,
+        256,
+        128,
+        4
+      ],
+      "bytes_compared": 1835008,
+      "changed_bytes": 0,
+      "input_sha256": "3f1a1127014cea4e4df08e7072cde9ac6fd373dda0cdaa9cb4bc96234b6baf9f",
+      "output_sha256": "3f1a1127014cea4e4df08e7072cde9ac6fd373dda0cdaa9cb4bc96234b6baf9f",
+      "input_unchanged": true
+    },
+    {
+      "name": "foliage23/selected_rr_diffuse",
+      "dtype": "<f2",
+      "shape": [
+        23,
+        64,
+        192,
+        4
+      ],
+      "bytes_compared": 2260992,
+      "changed_bytes": 0,
+      "input_sha256": "1e901e80569b0331cd8d00f19950ae69c056c03788f18132405f34f3aff958ca",
+      "output_sha256": "1e901e80569b0331cd8d00f19950ae69c056c03788f18132405f34f3aff958ca",
+      "input_unchanged": true
+    },
+    {
+      "name": "foliage23/selected_rr_specular",
+      "dtype": "<f2",
+      "shape": [
+        23,
+        64,
+        192,
+        4
+      ],
+      "bytes_compared": 2260992,
+      "changed_bytes": 0,
+      "input_sha256": "a1ba39741a1050ec55c585e70c52d70193653889f48dc77d9f3fb0ea44a50a7d",
+      "output_sha256": "a1ba39741a1050ec55c585e70c52d70193653889f48dc77d9f3fb0ea44a50a7d",
+      "input_unchanged": true
+    },
+    {
+      "name": "facade16/selected_rr_diffuse",
+      "dtype": "<f2",
+      "shape": [
+        16,
+        96,
+        96,
+        4
+      ],
+      "bytes_compared": 1179648,
+      "changed_bytes": 0,
+      "input_sha256": "7877877f6e5ad11a6da5d003058f76d134d080be99045c59a7ad3895f0ef2fc2",
+      "output_sha256": "7877877f6e5ad11a6da5d003058f76d134d080be99045c59a7ad3895f0ef2fc2",
+      "input_unchanged": true
+    },
+    {
+      "name": "facade16/selected_rr_specular",
+      "dtype": "<f2",
+      "shape": [
+        16,
+        96,
+        96,
+        4
+      ],
+      "bytes_compared": 1179648,
+      "changed_bytes": 0,
+      "input_sha256": "25d3da469b506f435fcde789ed87a15c62c792a9f6b1a41c00c31cd8dbb98382",
+      "output_sha256": "25d3da469b506f435fcde789ed87a15c62c792a9f6b1a41c00c31cd8dbb98382",
+      "input_unchanged": true
+    },
+    {
+      "name": "glass/aligned_selected_spec_rgb",
+      "dtype": "<f4",
+      "shape": [
+        18,
+        160,
+        192,
+        3
+      ],
+      "bytes_compared": 6635520,
+      "changed_bytes": 0,
+      "input_sha256": "439a2d32369ec85bb76c4fdb146cd71210dd0b0ebefbeb9ea71fb88181aae378",
+      "output_sha256": "439a2d32369ec85bb76c4fdb146cd71210dd0b0ebefbeb9ea71fb88181aae378",
+      "input_unchanged": true
+    },
+    {
+      "name": "glass/aligned_equal_diffuse_rgb",
+      "dtype": "<f4",
+      "shape": [
+        18,
+        160,
+        192,
+        3
+      ],
+      "bytes_compared": 6635520,
+      "changed_bytes": 0,
+      "input_sha256": "0b630124d32d4ee063defcce170b61e1f29aab99921fea3d324578b88ae8f357",
+      "output_sha256": "0b630124d32d4ee063defcce170b61e1f29aab99921fea3d324578b88ae8f357",
+      "input_unchanged": true
+    }
+  ],
+  "total_bytes_compared": 23822336,
+  "changed_bytes": 0,
+  "scope": "CPU diagnostic copy identity on stored tensors; no native runtime shader/host execution",
+  "water_control": "No complete chronological water/puddle fixture is bundled; historical receipt is not a rerun. Identity by construction has no pixel transform, but actual native water acceptance remains local.",
+  "performance_ms": null,
+  "gpu_executed": false
+}

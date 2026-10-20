@@ -1,0 +1,22 @@
+{
+  "executor": "independent_skeptical_reviewer",
+  "candidate_results_viewed": false,
+  "gpu_executed": false,
+  "command": "python -B research/astra20261020/candidates/06-moving-bottle/review/reproduce_secondary_controls.py",
+  "coordinate_control": {
+    "correct_max_error_pixels": 0.0,
+    "wrong_sign_error_pixels": 17.88854381999832,
+    "omitted_crop_error_pixels": 8.94427190999916,
+    "roi_instead_of_render_scale_error_pixels": 8.856942732699162,
+    "valid_pixels": 48,
+    "unknown_border_pixels": 15
+  },
+  "brightness_is_not_shape_control": {
+    "lag_pixels": -4.0,
+    "darker_lag_pixels": -4.0,
+    "tail_energy_ratio": 0.5,
+    "support_unchanged_at_threshold_0_2": true,
+    "vacuous_empty_support_at_threshold_0_6": true,
+    "interpretation": "A 50% lower tail energy does not repair the unchanged 4px lag. Empty thresholded support is not success."
+  }
+}

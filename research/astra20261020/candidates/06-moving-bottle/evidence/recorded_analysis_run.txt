@@ -1,0 +1,257 @@
+{
+  "recorded_bottle": {
+    "diffuse": {
+      "full_crop": {
+        "compared_words": 917504,
+        "different_words": 0,
+        "different_rgb_words": 0,
+        "different_alpha_words": 0
+      },
+      "fixed_mask": {
+        "compared_words": 221808,
+        "different_words": 0,
+        "different_rgb_words": 0,
+        "different_alpha_words": 0
+      }
+    },
+    "specular": {
+      "full_crop": {
+        "compared_words": 917504,
+        "different_words": 456,
+        "different_rgb_words": 456,
+        "different_alpha_words": 0
+      },
+      "fixed_mask": {
+        "compared_words": 221808,
+        "different_words": 0,
+        "different_rgb_words": 0,
+        "different_alpha_words": 0
+      }
+    }
+  },
+  "fixed_mask": {
+    "definition": "BASE original motion speed >12 full-render pixels/frame, eroded by 2 pixels; bottle PLUS hand/arm, not object truth",
+    "sha256": "c0996ec8bdda8668ad0e28fc028cb28ac9c8df878817a895aa6a343c88398913",
+    "pixels_per_frame": [
+      9275,
+      9430,
+      9560,
+      9864,
+      8730,
+      5479,
+      3114
+    ],
+    "total_pixels": 55452,
+    "thresholds_native_luma": [
+      0.0,
+      0.0001,
+      0.001,
+      0.01
+    ],
+    "exposure": {
+      "diffuse": 46.81387767914756,
+      "specular": 38.803166579332526
+    },
+    "exposure_definition": ".8 / p99 of all BASE selected-RR luma pixels across supplied sequence, fixed for every stage/frame",
+    "candidate_dependent_mask": false,
+    "frame_looping": false
+  },
+  "geometry": {
+    "original_1x": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 0,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 23.80187205131047,
+        "p50": 20.515565173617652,
+        "p90": 31.266256592468572,
+        "max": 158.38236655712015
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.08018034904262021,
+        "p50": 0.06191779419664643,
+        "p90": 0.09593469130637595,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.7834277737404421,
+        "p50": 0.9408858129714308,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "fixed_common_1x_1p5x": {
+        "normal_angle_deg": {
+          "count": 44828,
+          "mean": 23.817187746599128,
+          "p50": 20.560284550631003,
+          "p90": 30.88890810192515,
+          "max": 158.38236655712015
+        },
+        "relative_depth_error": {
+          "count": 44828,
+          "mean": 0.07831614461691452,
+          "p50": 0.06224190291044544,
+          "p90": 0.09484871621576023,
+          "max": 1.0
+        },
+        "specular_luma_symmetric_error": {
+          "count": 44828,
+          "mean": 0.7830895739316552,
+          "p50": 0.9404829416427998,
+          "p90": 1.0,
+          "max": 1.0
+        }
+      }
+    },
+    "mv_0.5x": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 0,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 51.6576677802769,
+        "p50": 52.91875771542959,
+        "p90": 79.12703205140895,
+        "max": 178.32322434122364
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.20696989122687054,
+        "p50": 0.08444977893866845,
+        "p90": 0.5924422698178289,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.7943760383849481,
+        "p50": 0.949277603566426,
+        "p90": 1.0,
+        "max": 1.0
+      }
+    },
+    "mv_1.5x": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 1349,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 55.95153946394012,
+        "p50": 47.387931843446665,
+        "p90": 106.40243201825085,
+        "max": 180.0
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.6312119263311752,
+        "p50": 1.0,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.8008649244850452,
+        "p50": 0.9595073760143621,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "fixed_common_1x_1p5x": {
+        "normal_angle_deg": {
+          "count": 44828,
+          "mean": 52.218574056981424,
+          "p50": 46.24456835928808,
+          "p90": 99.18576331094519,
+          "max": 169.86046178133947
+        },
+        "relative_depth_error": {
+          "count": 44828,
+          "mean": 0.6201140609037806,
+          "p50": 0.7000074443936793,
+          "p90": 1.0,
+          "max": 1.0
+        },
+        "specular_luma_symmetric_error": {
+          "count": 44828,
+          "mean": 0.7948723926551694,
+          "p50": 0.9530994332940865,
+          "p90": 1.0,
+          "max": 1.0
+        }
+      }
+    },
+    "reversed_mv": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 25329,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 129.84060105385618,
+        "p50": 180.0,
+        "p90": 180.0,
+        "max": 180.0
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.7544584383796344,
+        "p50": 1.0,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.9099303917727244,
+        "p50": 1.0,
+        "p90": 1.0,
+        "max": 1.0
+      }
+    },
+    "crop_extent_scale": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 194,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 58.389694120626615,
+        "p50": 58.27152290488754,
+        "p90": 91.37750563050292,
+        "max": 180.0
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.31715785228101584,
+        "p50": 0.1656029608280973,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.7996616616979298,
+        "p50": 0.950862392458948,
+        "p90": 1.0,
+        "max": 1.0
+      }
+    },
+    "omit_crop_origin": {
+      "fixed_denominator": 46177,
+      "unsupported_pixels": 11678,
+      "normal_angle_deg": {
+        "count": 46177,
+        "mean": 80.39247399737522,
+        "p50": 54.576323815019,
+        "p90": 180.0,
+        "max": 180.0
+      },
+      "relative_depth_error": {
+        "count": 46177,
+        "mean": 0.7380868339347738,
+        "p50": 1.0,
+        "p90": 1.0,
+        "max": 1.0
+      },
+      "specular_luma_symmetric_error": {
+        "count": 46177,
+        "mean": 0.8513359913457933,
+        "p50": 0.9951539098736483,
+        "p90": 1.0,
+        "max": 1.0
+      }
+    }
+  }
+}
