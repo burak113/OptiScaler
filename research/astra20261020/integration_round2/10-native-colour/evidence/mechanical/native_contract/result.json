@@ -1,0 +1,128 @@
+{
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "compiler": "/usr/bin/g++",
+  "compiler_version": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "source_sha256": {
+    "NativeColourContract.h": "9a72d93bdcd85f512dd65f36c7c617aafebca78285f8cad9771f83038d442fa7",
+    "contract_tests.cpp": "93f58b8706eb3bcf4019914340337be469d7636931b4c767f0c3715fa89acd73"
+  },
+  "scope": "portable C++ host validation only; no D3D12 or shader compilation",
+  "checks": [
+    {
+      "name": "baseline",
+      "build": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "/tmp/native-colour-cpp-3tbikx27/baseline/contract_tests.cpp",
+        "-o",
+        "/tmp/native-colour-cpp-3tbikx27/baseline/contract"
+      ],
+      "build_exit": 0,
+      "exit": 0,
+      "expected_exit": 0,
+      "passed": true,
+      "elapsed_seconds": 0.8768673180002224,
+      "header_sha256": "9a72d93bdcd85f512dd65f36c7c617aafebca78285f8cad9771f83038d442fa7",
+      "stdout": "PASS 84 host contract assertions (CPU only; no D3D12 execution)",
+      "stderr": ""
+    },
+    {
+      "name": "force_default_on",
+      "build": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "/tmp/native-colour-cpp-3tbikx27/force_default_on/contract_tests.cpp",
+        "-o",
+        "/tmp/native-colour-cpp-3tbikx27/force_default_on/contract"
+      ],
+      "build_exit": 0,
+      "exit": 1,
+      "expected_exit": 1,
+      "passed": true,
+      "elapsed_seconds": 0.5526397409994388,
+      "header_sha256": "bec373ca7a07ba410f49fbd4c0cd9c5f5515944ff0b5b39967f51f3ab8800ad8",
+      "stdout": "",
+      "stderr": "FAIL: default off"
+    },
+    {
+      "name": "ignore_reset",
+      "build": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "/tmp/native-colour-cpp-3tbikx27/ignore_reset/contract_tests.cpp",
+        "-o",
+        "/tmp/native-colour-cpp-3tbikx27/ignore_reset/contract"
+      ],
+      "build_exit": 0,
+      "exit": 1,
+      "expected_exit": 1,
+      "passed": true,
+      "elapsed_seconds": 0.5009410499997102,
+      "header_sha256": "ea7ad6e6ed3c40517b733f713a3d2c406e9161f07bc2daf40c893f097f105b2a",
+      "stdout": "",
+      "stderr": "FAIL: reset identity"
+    },
+    {
+      "name": "wrong_diffuse_scale",
+      "build": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "/tmp/native-colour-cpp-3tbikx27/wrong_diffuse_scale/contract_tests.cpp",
+        "-o",
+        "/tmp/native-colour-cpp-3tbikx27/wrong_diffuse_scale/contract"
+      ],
+      "build_exit": 0,
+      "exit": 1,
+      "expected_exit": 1,
+      "passed": true,
+      "elapsed_seconds": 0.4779757980004433,
+      "header_sha256": "d2fad8a76e7e8f0af97301b6ecf58a87467210396d563ca00aa3aa54b9184a69",
+      "stdout": "",
+      "stderr": "FAIL: active supported fixture admitted"
+    },
+    {
+      "name": "omit_last_row_padding",
+      "build": [
+        "/usr/bin/g++",
+        "-std=c++17",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "/tmp/native-colour-cpp-3tbikx27/omit_last_row_padding/contract_tests.cpp",
+        "-o",
+        "/tmp/native-colour-cpp-3tbikx27/omit_last_row_padding/contract"
+      ],
+      "build_exit": 0,
+      "exit": 1,
+      "expected_exit": 1,
+      "passed": true,
+      "elapsed_seconds": 0.49404664099984075,
+      "header_sha256": "ae411589f085a24081252bd7a00277a1eb7ca91533ef9c0b58c48f919b5d32de",
+      "stdout": "",
+      "stderr": "FAIL: D3D footprint total omits last row padding"
+    }
+  ],
+  "passed": true
+}

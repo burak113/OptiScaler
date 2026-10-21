@@ -1,0 +1,20 @@
+{
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "applied_to_production": false,
+  "windows_build_executed": false,
+  "patch_sha256": "d4a1e4a1f0eba8af9e129e260d04b9d0f60ba1ff7c52e0c550e1655eca619f82",
+  "files": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": {
+      "base_sha256": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+      "proposed_sha256": "e65344fa9d08c2d8371f0a1caf34b39343b743ffda01db0178e2157f68160aa3"
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": {
+      "base_sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "proposed_sha256": "9afbc230e75f71dcd46989c749afe401e06c862126b2513af7538401ff4aeb78"
+    },
+    "OptiScaler/OptiScaler.vcxproj": {
+      "base_sha256": "0728dca5dedcb333f3041df2b7b21bf1c489f260562afa3ec2d667e878392788",
+      "proposed_sha256": "766a600ae663e0b6cc1017189f3caa88a3bd3a0c40162ce39195b10150cf6a2d"
+    }
+  }
+}

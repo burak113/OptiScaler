@@ -1,0 +1,239 @@
+diff --git a/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h b/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h
+--- a/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h
++++ b/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h
+@@ -10,6 +10,7 @@
+ struct SLConstantsSnapshot;
+ 
+ namespace NrdBridgeStagePerf { struct Sample; }
++namespace NativeColour { struct BridgeRequest; }
+ 
+ namespace NrdBridge
+ {
+@@ -204,6 +205,9 @@
+ // Owned linear, demodulated RGB only. Keep owner alive through every trace/copy submission.
+ struct RRRecordedOutputSnapshot
+ {
++    bool nativeColourActive = false;
++    std::array<uint32_t,2> nativeColourDecision {1u,1u}; // D,S: Decision::Off
++
+     ID3D12Resource *rawSpec = nullptr, *rawDiff = nullptr, *selectedSpec = nullptr, *selectedDiff = nullptr;
+     std::shared_ptr<void> owner;
+     ID3D12GraphicsCommandList* recording = nullptr;
+@@ -254,6 +258,9 @@
+     ~RRWrapper();
+     bool PrepareFrame(const SLConstantsSnapshot&, bool requestedReset, FrameParameters& out, std::string& error);
+     // Record only into owned RR stages. No title output/Consumer binding is consulted.
++    // One-shot research request under existing injection serialization; null is default OFF.
++    // Job09 observations are not certificates; job11 must supply a real producer.
++    void SetNativeColourResearchRequest(std::shared_ptr<const NativeColour::BridgeRequest>);
+     bool RecordOwned(ID3D12GraphicsCommandList*, const ConvertedResources&, const FrameParameters&,
+                      RRRecordedOutputLease& output, std::string& error, NrdBridgeStagePerf::Sample* profiling = nullptr);
+     // Same native recording/frame/generation, one successful commit; caller holds physical borrow/serialization.
+diff --git a/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp b/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp
+--- a/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp
++++ b/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp
+@@ -16,6 +16,7 @@
+ #include "FSRDNrdLobeRecovery_Dx12.h"
+ #include "FSRDNrdFlatAlbedoRecovery_Dx12.h"
+ #include "FSRDNrdPostMotionAnchor_Dx12.h"
++#include "../../../research/astra20261020/integration_round2/10-native-colour/host/NativeColourBridgeRequest.h"
+ #include "FSRDNrdSignalConstants_Dx12.h"
+ #include "precompile/FSRDNrdBridgePureCommit_Shader.h"
+ #include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
+@@ -651,6 +652,8 @@
+     LobeRecovery::Prepared recovery; // Retained before the provider; owns every graph binding.
+     FlatAlbedoRecovery::Prepared flatAlbedo;
+     NativePostMotionAnchor::Prepared inputAnchor;
++    std::array<NativeColour::NativeColourPass::Prepared,2> nativeColour; // D,S
++
+     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
+     std::array<ComPtr<ID3D12Resource>, 7> inputs;
+ };
+@@ -810,6 +813,9 @@
+     bool recoveryFallback = false, nativeCommitPrepared = false;
+     bool flatAlbedoFallback = false;
+     bool inputAnchorFallback = false;
++    bool nativeColourActive = false;
++    std::array<uint32_t,2> nativeColourDecision {uint32_t(NativeColour::Decision::Off),
++        uint32_t(NativeColour::Decision::Off)};
+     std::string inputAnchorError;
+     uint32_t flatAlbedoRoughness = 0;
+     std::string flatAlbedoError;
+@@ -831,6 +837,7 @@
+     std::shared_ptr<Context> context;
+     FSRDRadianceScaleDx12 radianceScale;
+     NativePostMotionAnchor inputAnchor;
++    std::shared_ptr<const NativeColour::BridgeRequest> nativeColourRequest;
+     bool inputAnchorActive = false, inputAnchorFallback = false;
+     std::string inputAnchorError, loggedInputAnchorError;
+     FSRDNrdLightingGuardDx12 lightingGuard;
+@@ -925,6 +932,11 @@
+     return true;
+ }
+ RRWrapper::RRWrapper() = default;
++void RRWrapper::SetNativeColourResearchRequest(std::shared_ptr<const NativeColour::BridgeRequest> request)
++{
++    if (!impl_) impl_ = MakeOwnedShared<Impl>();
++    impl_->nativeColourRequest = std::move(request);
++}
+ RRWrapper::~RRWrapper() = default;
+ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
+ {
+@@ -1225,6 +1237,7 @@
+     error.clear(); output.reset();
+     auto input = sourceInput;
+     if (!impl_) impl_ = MakeOwnedShared<Impl>();
++    auto colourRequest = std::move(impl_->nativeColourRequest);
+     impl_->nativeDebug = {}; impl_->recoveryActive = impl_->recoveryFallback = false;
+     const auto reject = [&](const char* reason) {
+         impl_->resetPending = true; error = reason; return false;
+@@ -1449,6 +1462,87 @@
+         committedSpec = lease->flatAlbedo.specular; committedDiff = lease->flatAlbedo.diffuse;
+         lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
+     }
++    // Job10: prepare both optional colour lobes before provider commands and
++    // before retaining the DispatchLease. No production certificate is guessed.
++    using ColourPass = NativeColour::NativeColourPass;
++    std::array<uint32_t,2> colourDecision {uint32_t(NativeColour::Decision::Off),
++        uint32_t(NativeColour::Decision::Off)};
++    if (colourRequest && colourRequest->config.enabled)
++    {
++        const auto failure = [&](NativeColour::Decision decision) {
++            colourDecision.fill(uint32_t(decision)); lease->nativeColour = {};
++        };
++        try
++        {
++            const auto& request = *colourRequest;
++            const auto identity = RecordedComputeLease::Capture(list);
++            bool snapshotIsolated = true;
++            for (const auto& supplied : request.lobes)
++                for (auto* mutableColour : {input.spec,input.diff,lease->slot->spec.Get(),
++                    lease->slot->diff.Get(),committedSpec,committedDiff})
++                    if (supplied.source.resource == mutableColour) snapshotIsolated = false;
++            const bool nativeRoute = impl_->settings.radianceScale.enabled &&
++                uint32_t(impl_->settings.radianceScale.diffuse) == 16 &&
++                uint32_t(impl_->settings.radianceScale.specular) == 256 &&
++                !impl_->settings.postMotionAnchor && !impl_->settings.turnColourFilter &&
++                !impl_->settings.turnBrightness && !lease->context->debugEnabled;
++            if (!NativeColour::ValidConfig(request.config)) failure(NativeColour::Decision::InvalidConfig);
++            else if (!request.config.acknowledgeRejectedResearch) failure(NativeColour::Decision::Off);
++            else if (request.config.strength == 0 || request.config.maxLogDelta == 0)
++                failure(NativeColour::Decision::ZeroStrength);
++            else if (reset || recreate) failure(NativeColour::Decision::ResetOrResize);
++            else if (!nativeRoute || !snapshotIsolated) failure(NativeColour::Decision::UnsupportedSource);
++            else if (!identity || !identity->id || !request.convertedOwner ||
++                request.streamlineFrame != frame.streamlineFrame ||
++                request.convertedSpec != input.spec || request.convertedDiff != input.diff ||
++                request.convertedDepth != input.linearDepth || request.convertedNormals != input.normals)
++                failure(NativeColour::Decision::InvalidIdentity);
++            else
++            {
++                if (!impl_->recoveryFamily && !impl_->externalRecoveryFamily)
++                    impl_->recoveryFamily = CreateRRRecoveryFamily();
++                if (!impl_->recoveryFamily) failure(NativeColour::Decision::MissingBudget);
++                else
++                {
++                    auto& family = impl_->recoveryFamily->budget;
++                    NativeColour::Budget budget {impl_->recoveryFamily,&family.graphBytes,
++                        &family.retainedPeakBytes,&family.slots.allocatedSlots,
++                        LobeRecovery::Family::GraphByteLimit,NrdBridgeCaptureBudget::Family::Capacity};
++                    const D3D12_SHADER_BYTECODE bytecode {request.shader && !request.shader->empty() ?
++                        request.shader->data() : nullptr,request.shader ? request.shader->size() : 0};
++                    for (size_t lobe = 0; lobe < 2; ++lobe)
++                    {
++                        const auto& provided = request.lobes[lobe];
++                        auto id = provided.evidence.identity;
++                        if (id.frame != frame.frameIndex || id.generation != lease->context->generation ||
++                            id.recording != identity->id || id.activeWidth != input.width ||
++                            id.activeHeight != input.height || uint32_t(id.lobe) != lobe)
++                        { colourDecision[lobe] = uint32_t(NativeColour::Decision::InvalidIdentity); break; }
++                        // Identity render/crop is supplied and certified by the producer.
++                        // It is never reconstructed from alpha, RGB or title dimensions.
++                        auto* raw = lobe ? lease->slot->spec.Get() : lease->slot->diff.Get();
++                        auto* selected = lobe ? committedSpec : committedDiff;
++                        std::shared_ptr<void> selectedOwner = lease->slot;
++                        if (lease->recovery.owner) selectedOwner = lease->recovery.owner;
++                        if (flatPrepared) selectedOwner = lease->flatAlbedo.owner;
++                        NativeColour::Inputs colour;
++                        colour.frame = {id,reset,recreate}; colour.evidence = provided.evidence;
++                        colour.source = provided.source;
++                        colour.authority = provided.authority; colour.support = provided.support;
++                        colour.rawRR = {raw,lease->slot,id,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
++                        colour.selected = {selected,selectedOwner,id,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
++                        colour.depth = {input.linearDepth,request.convertedOwner,id,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
++                        colour.normalRoughness = {input.normals,request.convertedOwner,id,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
++                        colourDecision[lobe] = uint32_t(ColourPass::Prepare(device.Get(),list,colour,
++                            request.config,budget,bytecode,lease->nativeColour[lobe]));
++                    }
++                    // Pair atomicity: a partial prepare cannot change either selected lobe.
++                    if (!lease->nativeColour[0] || !lease->nativeColour[1]) lease->nativeColour = {};
++                }
++            }
++        }
++        catch (...) { failure(NativeColour::Decision::AllocationFailed); }
++    }
+     // Allocate the public opaque owner before any provider commands can be recorded.
+     auto recorded = MakeOwnedShared<RRRecordedOutput>();
+     recorded->wrapper = impl_; recorded->lease = lease; recorded->source = list;
+@@ -1461,6 +1555,7 @@
+     recorded->inputAnchorError = impl_->inputAnchorError;
+     recorded->flatAlbedoRoughness = flatPrepared ? flat.roughness : 0;
+     recorded->flatAlbedoError = impl_->flatAlbedoError;
++    recorded->nativeColourDecision = colourDecision;
+     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(),list,lease))
+         return reject("RR recorded-dispatch lifetime tracking is unavailable");
+     const auto nativeRecording = RecordedComputeLease::Capture(list);
+@@ -1638,6 +1733,31 @@
+     { AbandonOwned(recorded); return Fail(error,"RR dispatch",result); }
+     if (lease->recovery.owner) lease->context->recovery->Record(list,lease->recovery);
+     if (flatPrepared) lease->context->flatAlbedo->RecordOutput(list,lease->flatAlbedo);
++    // Provider restoration RAII, recovery and flat selection have completed.
++    // Revalidate the exact recording before either pass writes. Every owner,
++    // descriptor, upload buffer and budget charge is already in DispatchLease.
++    if (lease->nativeColour[0] && lease->nativeColour[1])
++    {
++        const auto current = RecordedComputeLease::Capture(list);
++        if (current == nativeRecording && current && current->id == recorded->recordingId &&
++            ColourPass::CanRecord(list,current->id,lease->nativeColour[0]) &&
++            ColourPass::CanRecord(list,current->id,lease->nativeColour[1]))
++        {
++            const bool diffRecorded = ColourPass::Record(list,current->id,lease->nativeColour[0]);
++            const bool specRecorded = ColourPass::Record(list,current->id,lease->nativeColour[1]);
++            if (diffRecorded && specRecorded)
++            {
++                committedDiff = lease->nativeColour[0].output;
++                committedSpec = lease->nativeColour[1].output;
++                // Actual descriptor order is SPECULAR then DIFFUSE.
++                lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
++                recorded->selectedSpec = committedSpec; recorded->selectedDiff = committedDiff;
++                recorded->nativeColourActive = true;
++            }
++            else recorded->nativeColourDecision.fill(uint32_t(NativeColour::Decision::InvalidRecording));
++        }
++        else recorded->nativeColourDecision.fill(uint32_t(NativeColour::Decision::InvalidRecording));
++    }
+     lease->context->flatWasActive = flatPrepared;
+     impl_->flatAlbedoActive = flatPrepared; impl_->flatAlbedoFallback = requestFlat && !flatPrepared;
+     // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
+@@ -1680,6 +1800,8 @@
+     result.width = lease->context->width; result.height = lease->context->height;
+     result.contextGeneration = output->contextGeneration;
+     result.outputCommitted = output->phase.load(std::memory_order_acquire) == RRRecordedOutput::Committed;
++    result.nativeColourActive = output->nativeColourActive;
++    result.nativeColourDecision = output->nativeColourDecision;
+     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
+     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
+     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
+diff --git a/OptiScaler/OptiScaler.vcxproj b/OptiScaler/OptiScaler.vcxproj
+--- a/OptiScaler/OptiScaler.vcxproj
++++ b/OptiScaler/OptiScaler.vcxproj
+@@ -686,6 +686,9 @@
+     <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdRawSignals_Dx12.cpp" />
+     <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.cpp" />
+     <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.cpp" />
++    <ClCompile Include="..\research\astra20261020\integration_round2\10-native-colour\native\NativeColourPass_Dx12.cpp">
++      <PrecompiledHeader>NotUsing</PrecompiledHeader>
++    </ClCompile>
+     <ClCompile Include="shaders\fsrd_preprocess\FSRDGameTraceSession.cpp" />
+     <ClCompile Include="upscalers\fsr31\FSRDFeature_Dx12.cpp" />
+     <ClCompile Include="upscalers\fsr31\FSR31Feature_Dx12.cpp" />

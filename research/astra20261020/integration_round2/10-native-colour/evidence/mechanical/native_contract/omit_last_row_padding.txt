@@ -1,0 +1,1 @@
+FAIL: D3D footprint total omits last row padding

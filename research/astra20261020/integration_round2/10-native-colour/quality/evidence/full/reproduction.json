@@ -1,0 +1,2502 @@
+{
+  "scope": "Fresh execution of original benchmark functions and unchanged model. Original writing entrypoints were not invoked.",
+  "elapsed_seconds": 5.7831845390001035,
+  "original_source_sha256": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813",
+  "original_review_sha256": "242b19bb132ee77a11c60b268d7b220c26bed82bedf20a73e0e0c582343e5adf",
+  "original_low_contrast_protocol_sha256": "e9341f7549d178354b8fcc418512e8e52775b992cd71fa4463c78840191c272c",
+  "soft2": {
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "-B",
+      "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/portable/colour/compare.py",
+      "--quality-gate"
+    ],
+    "actual_exit": 1,
+    "expected_exit": 1,
+    "worse_cases": 6,
+    "stdout_sha256": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176"
+  },
+  "dynamics": {
+    "closure": [
+      {
+        "lobe": "diffuse",
+        "method": "raw",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "diffuse",
+        "method": "B4",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "diffuse",
+        "method": "soft2",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "diffuse",
+        "method": "log",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "diffuse",
+        "method": "linear",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "specular",
+        "method": "raw",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "specular",
+        "method": "B4",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "specular",
+        "method": "soft2",
+        "chroma_detail_contrast_ratio": 0.9997773772792958,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": false
+      },
+      {
+        "lobe": "specular",
+        "method": "log",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      },
+      {
+        "lobe": "specular",
+        "method": "linear",
+        "chroma_detail_contrast_ratio": 1.0,
+        "luma_detail_contrast_ratio": 1.0,
+        "RGBA_identical": true
+      }
+    ],
+    "response": [
+      {
+        "lobe": "diffuse",
+        "change": "step",
+        "change_frame": 8,
+        "frames": [
+          0,
+          17
+        ],
+        "methods": {
+          "raw": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004
+            ],
+            "response_fraction_at_change": -0.0009219199198290004,
+            "response_fraction_within_4_frames": -0.0009219199198290004,
+            "post_flash_residual_fraction_max": null
+          },
+          "B4": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              0.24096729110969145,
+              0.43001671852610246,
+              0.5696050252594643,
+              0.6780885696410018,
+              0.7586544526758823,
+              0.8206724154546111,
+              0.8609553569720514,
+              0.9012382984894842,
+              0.922973319750773,
+              0.9385257009266808
+            ],
+            "response_fraction_at_change": 0.24096729110969145,
+            "response_fraction_within_4_frames": 0.6780885696410018,
+            "post_flash_residual_fraction_max": null
+          },
+          "soft2": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              0.2404693065776374,
+              0.43001671852610246,
+              0.5696050252594643,
+              0.6780885696410018,
+              0.7586544526758823,
+              0.8206724154546111,
+              0.8609553569720514,
+              0.9012382984894842,
+              0.922973319750773,
+              0.9385257009266808
+            ],
+            "response_fraction_at_change": 0.2404693065776374,
+            "response_fraction_within_4_frames": 0.6780885696410018,
+            "post_flash_residual_fraction_max": null
+          },
+          "log": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439,
+              0.8980511974843439
+            ],
+            "response_fraction_at_change": 0.8980511974843439,
+            "response_fraction_within_4_frames": 0.8980511974843439,
+            "post_flash_residual_fraction_max": null
+          },
+          "linear": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842,
+              0.9012382984894842
+            ],
+            "response_fraction_at_change": 0.9012382984894842,
+            "response_fraction_within_4_frames": 0.9012382984894842,
+            "post_flash_residual_fraction_max": null
+          }
+        },
+        "gate": "step >=0.90 response fraction within frames8..11"
+      },
+      {
+        "lobe": "diffuse",
+        "change": "flash",
+        "change_frame": 8,
+        "frames": [
+          0,
+          17
+        ],
+        "methods": {
+          "raw": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004
+            ],
+            "response_fraction_at_change": -0.0009219199198290004,
+            "response_fraction_within_4_frames": -0.0009219199198290004,
+            "post_flash_residual_fraction_max": 0.0009219199198290004
+          },
+          "B4": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              0.24096729110969145,
+              0.1819448674111906,
+              0.1324837467281285,
+              0.09838344529606513,
+              0.07046578394939354,
+              0.05191786369324604,
+              0.04254812260274009,
+              0.026995741426838832,
+              0.01762600033629567,
+              0.014630461256070567
+            ],
+            "response_fraction_at_change": 0.24096729110969145,
+            "response_fraction_within_4_frames": 0.24096729110969145,
+            "post_flash_residual_fraction_max": 0.1819448674111906
+          },
+          "soft2": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              -0.007104560005224135,
+              0.2404693065776374,
+              0.1819448674111906,
+              0.1324837467281285,
+              0.09838344529606513,
+              0.07046578394939354,
+              0.05191786369324604,
+              0.04254812260274009,
+              0.026995741426838832,
+              0.01762600033629567,
+              0.014630461256070567
+            ],
+            "response_fraction_at_change": 0.2404693065776374,
+            "response_fraction_within_4_frames": 0.2404693065776374,
+            "post_flash_residual_fraction_max": 0.1819448674111906
+          },
+          "log": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              0.8980511974843439,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004
+            ],
+            "response_fraction_at_change": 0.8980511974843439,
+            "response_fraction_within_4_frames": 0.8980511974843439,
+            "post_flash_residual_fraction_max": 0.0009219199198290004
+          },
+          "linear": {
+            "response_fraction_by_frame": [
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              0.9012382984894842,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004,
+              -0.0009219199198290004
+            ],
+            "response_fraction_at_change": 0.9012382984894842,
+            "response_fraction_within_4_frames": 0.9012382984894842,
+            "post_flash_residual_fraction_max": 0.0009219199198290004
+          }
+        },
+        "gate": "step >=0.90 response fraction within frames8..11"
+      },
+      {
+        "lobe": "specular",
+        "change": "step",
+        "change_frame": 8,
+        "frames": [
+          0,
+          17
+        ],
+        "methods": {
+          "raw": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895
+            ],
+            "response_fraction_at_change": -0.0035139834491661895,
+            "response_fraction_within_4_frames": -0.0035139834491661895,
+            "post_flash_residual_fraction_max": null
+          },
+          "B4": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              0.24458979465324188,
+              0.43570010209811016,
+              0.5752884088314756,
+              0.6786516801293447,
+              0.756094316134052,
+              0.8180803519252892,
+              0.8646097875030806,
+              0.9008348229385607,
+              0.9240995407274532,
+              0.9395561409409086
+            ],
+            "response_fraction_at_change": 0.24458979465324188,
+            "response_fraction_within_4_frames": 0.6786516801293447,
+            "post_flash_residual_fraction_max": null
+          },
+          "soft2": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              0.24458979465324188,
+              0.43570010209811016,
+              0.5752884088314756,
+              0.6786516801293447,
+              0.756094316134052,
+              0.8180803519252892,
+              0.8646097875030806,
+              0.9008348229385607,
+              0.9240995407274532,
+              0.9395561409409086
+            ],
+            "response_fraction_at_change": 0.24458979465324188,
+            "response_fraction_within_4_frames": 0.6786516801293447,
+            "post_flash_residual_fraction_max": null
+          },
+          "log": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329
+            ],
+            "response_fraction_at_change": 0.9033311055054329,
+            "response_fraction_within_4_frames": 0.9033311055054329,
+            "post_flash_residual_fraction_max": null
+          },
+          "linear": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329,
+              0.9033311055054329
+            ],
+            "response_fraction_at_change": 0.9033311055054329,
+            "response_fraction_within_4_frames": 0.9033311055054329,
+            "post_flash_residual_fraction_max": null
+          }
+        },
+        "gate": "step >=0.90 response fraction within frames8..11"
+      },
+      {
+        "lobe": "specular",
+        "change": "flash",
+        "change_frame": 8,
+        "frames": [
+          0,
+          17
+        ],
+        "methods": {
+          "raw": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895
+            ],
+            "response_fraction_at_change": -0.0035139834491661895,
+            "response_fraction_within_4_frames": -0.0035139834491661895,
+            "post_flash_residual_fraction_max": 0.0035139834491661895
+          },
+          "B4": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              0.24458979465324188,
+              0.18260375886197577,
+              0.14122652335533473,
+              0.10500148791986709,
+              0.07908085262668822,
+              0.05847205234208869,
+              0.040359534624348686,
+              0.03520733455317959,
+              0.024902934410885997,
+              0.01959109940230813
+            ],
+            "response_fraction_at_change": 0.24458979465324188,
+            "response_fraction_within_4_frames": 0.24458979465324188,
+            "post_flash_residual_fraction_max": 0.18260375886197577
+          },
+          "soft2": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              -0.0008580659448764552,
+              0.24458979465324188,
+              0.18260375886197577,
+              0.14122652335533473,
+              0.10500148791986709,
+              0.07908085262668822,
+              0.05847205234208869,
+              0.040359534624348686,
+              0.03520733455317959,
+              0.024902934410885997,
+              0.01959109940230813
+            ],
+            "response_fraction_at_change": 0.24458979465324188,
+            "response_fraction_within_4_frames": 0.24458979465324188,
+            "post_flash_residual_fraction_max": 0.18260375886197577
+          },
+          "log": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              0.9033311055054329,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895
+            ],
+            "response_fraction_at_change": 0.9033311055054329,
+            "response_fraction_within_4_frames": 0.9033311055054329,
+            "post_flash_residual_fraction_max": 0.0035139834491661895
+          },
+          "linear": {
+            "response_fraction_by_frame": [
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              0.9033311055054329,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895,
+              -0.0035139834491661895
+            ],
+            "response_fraction_at_change": 0.9033311055054329,
+            "response_fraction_within_4_frames": 0.9033311055054329,
+            "post_flash_residual_fraction_max": 0.0035139834491661895
+          }
+        },
+        "gate": "step >=0.90 response fraction within frames8..11"
+      }
+    ]
+  },
+  "low_contrast_summary": {
+    "raw": {
+      "case_count": 32,
+      "max_unchanged_right_contamination": 0.0,
+      "failures_above_original_storage_envelope": 0
+    },
+    "B4": {
+      "case_count": 32,
+      "max_unchanged_right_contamination": 0.0854353132628153,
+      "failures_above_original_storage_envelope": 32
+    },
+    "soft2": {
+      "case_count": 32,
+      "max_unchanged_right_contamination": 0.0870626525630594,
+      "failures_above_original_storage_envelope": 32
+    },
+    "log": {
+      "case_count": 32,
+      "max_unchanged_right_contamination": 0.06265256305939788,
+      "failures_above_original_storage_envelope": 32
+    },
+    "linear": {
+      "case_count": 32,
+      "max_unchanged_right_contamination": 0.06305084745762712,
+      "failures_above_original_storage_envelope": 32
+    }
+  },
+  "low_contrast_cases": [
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 0,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07567127746135069,
+          "unchanged_side_mean_contamination": 0.058787632221318144,
+          "max_contamination_above_storage_envelope": 0.07078925956061839,
+          "interior_correction_fraction": 0.9398273325843902,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07811228641171684,
+          "unchanged_side_mean_contamination": 0.06468673718470301,
+          "max_contamination_above_storage_envelope": 0.07323026851098455,
+          "interior_correction_fraction": 0.9435980309782175,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007213995117982458,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 1,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07323026851098453,
+          "unchanged_side_mean_contamination": 0.06407648494711148,
+          "max_contamination_above_storage_envelope": 0.06834825061025224,
+          "interior_correction_fraction": 0.9405679737249781,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007119609438567941,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07729861676159479,
+          "unchanged_side_mean_contamination": 0.06509357200976403,
+          "max_contamination_above_storage_envelope": 0.07241659886086249,
+          "interior_correction_fraction": 0.9432799677575994,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 2,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07892595606183889,
+          "unchanged_side_mean_contamination": 0.06712774613506915,
+          "max_contamination_above_storage_envelope": 0.07404393816110659,
+          "interior_correction_fraction": 0.9427286515964092,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07729861676159479,
+          "unchanged_side_mean_contamination": 0.06651749389747763,
+          "max_contamination_above_storage_envelope": 0.07241659886086249,
+          "interior_correction_fraction": 0.9415012597582296,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007213995117982458,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 3,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08136696501220504,
+          "unchanged_side_mean_contamination": 0.06427990235964198,
+          "max_contamination_above_storage_envelope": 0.07648494711147275,
+          "interior_correction_fraction": 0.9490060681979078,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006951993490642322,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07811228641171684,
+          "unchanged_side_mean_contamination": 0.06814483319772172,
+          "max_contamination_above_storage_envelope": 0.07323026851098455,
+          "interior_correction_fraction": 0.9404797344920502,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 4,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07567127746135069,
+          "unchanged_side_mean_contamination": 0.058787632221318144,
+          "max_contamination_above_storage_envelope": 0.07078925956061839,
+          "interior_correction_fraction": 0.9499592770078945,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.080553295362083,
+          "unchanged_side_mean_contamination": 0.06997558991049634,
+          "max_contamination_above_storage_envelope": 0.0756712774613507,
+          "interior_correction_fraction": 0.940897495363442,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 5,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07323026851098453,
+          "unchanged_side_mean_contamination": 0.06407648494711148,
+          "max_contamination_above_storage_envelope": 0.06834825061025224,
+          "interior_correction_fraction": 0.9501305916708366,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007119609438567941,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0821806346623271,
+          "unchanged_side_mean_contamination": 0.07078925956061839,
+          "max_contamination_above_storage_envelope": 0.0772986167615948,
+          "interior_correction_fraction": 0.9401622152201328,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007308380797396973,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 6,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07892595606183889,
+          "unchanged_side_mean_contamination": 0.06712774613506915,
+          "max_contamination_above_storage_envelope": 0.07404393816110659,
+          "interior_correction_fraction": 0.951532714149285,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0821806346623271,
+          "unchanged_side_mean_contamination": 0.06997558991049634,
+          "max_contamination_above_storage_envelope": 0.0772986167615948,
+          "interior_correction_fraction": 0.9487520568762344,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007098972732098272,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 0,
+      "phase": 7,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08136696501220504,
+          "unchanged_side_mean_contamination": 0.06427990235964198,
+          "max_contamination_above_storage_envelope": 0.07648494711147275,
+          "interior_correction_fraction": 0.9564535815924288,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006951993490642322,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.080553295362083,
+          "unchanged_side_mean_contamination": 0.06733116354759967,
+          "max_contamination_above_storage_envelope": 0.0756712774613507,
+          "interior_correction_fraction": 0.9511105866756431,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007004580155650911,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020545158665581778,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007287757884992991,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.04963384865744508,
+          "unchanged_side_mean_contamination": 0.020748576078112285,
+          "max_contamination_above_storage_envelope": 0.044751830756712775,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006668836452402475,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 0,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.0677931301947484,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9377553827974605,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007947925142391473,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08462164361269324,
+          "unchanged_side_mean_contamination": 0.06782354775176232,
+          "max_contamination_above_storage_envelope": 0.07973962571196094,
+          "interior_correction_fraction": 0.9289323437462634,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0008042310821807839,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.06265256305939788,
+          "unchanged_side_mean_contamination": 0.02116301529242679,
+          "max_contamination_above_storage_envelope": 0.05777054515866558,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.06265256305939788,
+          "unchanged_side_mean_contamination": 0.02126187235272199,
+          "max_contamination_above_storage_envelope": 0.05777054515866558,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000775915378356429,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 1,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.0673010276346322,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9440463362598288,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007947925142391473,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0854353132628153,
+          "unchanged_side_mean_contamination": 0.06759485278606515,
+          "max_contamination_above_storage_envelope": 0.080553295362083,
+          "interior_correction_fraction": 0.9357189873423625,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.0209519934906428,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021034867251303383,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000775915378356429,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 2,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06764759063375825,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9431890680098564,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007947925142391473,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0870626525630594,
+          "unchanged_side_mean_contamination": 0.06757978482958141,
+          "max_contamination_above_storage_envelope": 0.0821806346623271,
+          "interior_correction_fraction": 0.9369380479499806,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0008042310821807839,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.020974595425368413,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007434229124307541,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021065003164270863,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007193365308545631,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 3,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06779827019859568,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9458780153955797,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0008042310821807839,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0870626525630594,
+          "unchanged_side_mean_contamination": 0.06756471687309767,
+          "max_contamination_above_storage_envelope": 0.0821806346623271,
+          "interior_correction_fraction": 0.9375848929554276,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021049935207787123,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021140342946689566,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007382150461438501,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 4,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0854353132628153,
+          "unchanged_side_mean_contamination": 0.06762498869903265,
+          "max_contamination_above_storage_envelope": 0.080553295362083,
+          "interior_correction_fraction": 0.947580170858435,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007853539462978807,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0870626525630594,
+          "unchanged_side_mean_contamination": 0.06751951300364645,
+          "max_contamination_above_storage_envelope": 0.0821806346623271,
+          "interior_correction_fraction": 0.941922526486592,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007947925142391473,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.06265256305939788,
+          "unchanged_side_mean_contamination": 0.02129855648976886,
+          "max_contamination_above_storage_envelope": 0.05777054515866558,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.06265256305939788,
+          "unchanged_side_mean_contamination": 0.02140403218515505,
+          "max_contamination_above_storage_envelope": 0.05777054515866558,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007382150461438501,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 5,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06695446463550614,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9529334068878587,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007947925142391473,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06709761022210167,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9452111079004651,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.020914323599433446,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021019799294819636,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007382150461438501,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 6,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.0675571828948558,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9537437504141743,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06780580417683756,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.9490285855182431,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0008042310821807839,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.020974595425368413,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370892,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006794638045967957,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021065003164270867,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370892,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000775915378356429,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "angle": 27,
+      "phase": 7,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.004882017900732303,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08299430431244914,
+          "unchanged_side_mean_contamination": 0.06776813428562817,
+          "max_contamination_above_storage_envelope": 0.07811228641171684,
+          "interior_correction_fraction": 0.953523146838195,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0008042310821807839,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08462164361269324,
+          "unchanged_side_mean_contamination": 0.06803182352409366,
+          "max_contamination_above_storage_envelope": 0.07973962571196094,
+          "interior_correction_fraction": 0.9484208954743019,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007853539462978807,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.020974595425368413,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0007832956386885215,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.05858421480878763,
+          "unchanged_side_mean_contamination": 0.021065003164270867,
+          "max_contamination_above_storage_envelope": 0.053702196908055326,
+          "interior_correction_fraction": 0.9038588768370891,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000775915378356429,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 0,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0752542372881356,
+          "unchanged_side_mean_contamination": 0.058813559322033915,
+          "max_contamination_above_storage_envelope": 0.0711864406779661,
+          "interior_correction_fraction": 0.9400804471311927,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005757288135590883,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07864406779661018,
+          "unchanged_side_mean_contamination": 0.06491525423728814,
+          "max_contamination_above_storage_envelope": 0.07457627118644068,
+          "interior_correction_fraction": 0.9425598758555247,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006212040075456538,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 432
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 1,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07322033898305086,
+          "unchanged_side_mean_contamination": 0.06389830508474577,
+          "max_contamination_above_storage_envelope": 0.06915254237288136,
+          "interior_correction_fraction": 0.940729661469276,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000613338949165872,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07661016949152544,
+          "unchanged_side_mean_contamination": 0.06491525423728815,
+          "max_contamination_above_storage_envelope": 0.07254237288135594,
+          "interior_correction_fraction": 0.9423744420397642,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005504184821277725,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 456
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 2,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0793220338983051,
+          "unchanged_side_mean_contamination": 0.06728813559322035,
+          "max_contamination_above_storage_envelope": 0.0752542372881356,
+          "interior_correction_fraction": 0.9428637843582115,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07728813559322036,
+          "unchanged_side_mean_contamination": 0.06694915254237288,
+          "max_contamination_above_storage_envelope": 0.07322033898305086,
+          "interior_correction_fraction": 0.9413543747754045,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 480
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 3,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08067796610169493,
+          "unchanged_side_mean_contamination": 0.06372881355932204,
+          "max_contamination_above_storage_envelope": 0.07661016949152544,
+          "interior_correction_fraction": 0.949088438346136,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.07728813559322036,
+          "unchanged_side_mean_contamination": 0.0676271186440678,
+          "max_contamination_above_storage_envelope": 0.07322033898305086,
+          "interior_correction_fraction": 0.9398593124559131,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000638644067796461,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 504
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 4,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0752542372881356,
+          "unchanged_side_mean_contamination": 0.058813559322033915,
+          "max_contamination_above_storage_envelope": 0.0711864406779661,
+          "interior_correction_fraction": 0.9499840156937308,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005757288135590883,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08000000000000002,
+          "unchanged_side_mean_contamination": 0.0698305084745763,
+          "max_contamination_above_storage_envelope": 0.07593220338983052,
+          "interior_correction_fraction": 0.9410334499630476,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006211525423728067,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 528
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 5,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.07322033898305086,
+          "unchanged_side_mean_contamination": 0.06389830508474577,
+          "max_contamination_above_storage_envelope": 0.06915254237288136,
+          "interior_correction_fraction": 0.9500897332529067,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000613338949165872,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08271186440677968,
+          "unchanged_side_mean_contamination": 0.07152542372881358,
+          "max_contamination_above_storage_envelope": 0.07864406779661018,
+          "interior_correction_fraction": 0.9403839837702299,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 552
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 6,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0793220338983051,
+          "unchanged_side_mean_contamination": 0.06728813559322035,
+          "max_contamination_above_storage_envelope": 0.0752542372881356,
+          "interior_correction_fraction": 0.9514781660027017,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08271186440677968,
+          "unchanged_side_mean_contamination": 0.06966101694915254,
+          "max_contamination_above_storage_envelope": 0.07864406779661018,
+          "interior_correction_fraction": 0.9471896391463385,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005801158577341763,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 576
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 0,
+      "phase": 7,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08067796610169493,
+          "unchanged_side_mean_contamination": 0.06372881355932204,
+          "max_contamination_above_storage_envelope": 0.07661016949152544,
+          "interior_correction_fraction": 0.9563623000867787,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08000000000000002,
+          "unchanged_side_mean_contamination": 0.06745762711864407,
+          "max_contamination_above_storage_envelope": 0.07593220338983052,
+          "interior_correction_fraction": 0.9520372343208331,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005915066319392498,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.049491525423728824,
+          "unchanged_side_mean_contamination": 0.02067796610169492,
+          "max_contamination_above_storage_envelope": 0.045423728813559335,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.050169491525423736,
+          "unchanged_side_mean_contamination": 0.020847457627118645,
+          "max_contamination_above_storage_envelope": 0.046101694915254246,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 96,
+          "correction_pixels": 600
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 0,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0833898305084746,
+          "unchanged_side_mean_contamination": 0.06752415650245525,
+          "max_contamination_above_storage_envelope": 0.0793220338983051,
+          "interior_correction_fraction": 0.9372250907247679,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006622372881355336,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06784729922382386,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9296379390737283,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006543728813558428,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.0616949152542373,
+          "unchanged_side_mean_contamination": 0.02113733565658166,
+          "max_contamination_above_storage_envelope": 0.05762711864406781,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.06305084745762712,
+          "unchanged_side_mean_contamination": 0.021352764137494065,
+          "max_contamination_above_storage_envelope": 0.058983050847457634,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005853559322032059,
+          "boundary_pixels": 107,
+          "correction_pixels": 432
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 1,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06701192718141871,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9439078996078523,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06732580037664786,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9353530625782428,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006744965582912485,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.02092278719397364,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.021142498430634028,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005853559322032059,
+          "boundary_pixels": 108,
+          "correction_pixels": 456
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 2,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06753295668549907,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9431517855034853,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006543728813558428,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08677966101694917,
+          "unchanged_side_mean_contamination": 0.06750784682988076,
+          "max_contamination_above_storage_envelope": 0.08271186440677968,
+          "interior_correction_fraction": 0.9369570852845281,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006543728813558428,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.020941619585687386,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.021167608286252363,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005836415735596223,
+          "boundary_pixels": 108,
+          "correction_pixels": 487
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 3,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06775266792215946,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9454985575690532,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006666314999114668,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08677966101694917,
+          "unchanged_side_mean_contamination": 0.06727558066541117,
+          "max_contamination_above_storage_envelope": 0.08271186440677968,
+          "interior_correction_fraction": 0.9375174205626882,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006622372881355336,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.020991839296924046,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.02121782799748902,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006072367486988133,
+          "boundary_pixels": 108,
+          "correction_pixels": 516
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 4,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06751412429378532,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.947900270820519,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.000638644067796461,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08677966101694917,
+          "unchanged_side_mean_contamination": 0.0673069679849341,
+          "max_contamination_above_storage_envelope": 0.08271186440677968,
+          "interior_correction_fraction": 0.9416197751516417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006701016949150704,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.0616949152542373,
+          "unchanged_side_mean_contamination": 0.021242937853107352,
+          "max_contamination_above_storage_envelope": 0.05762711864406781,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.06305084745762712,
+          "unchanged_side_mean_contamination": 0.021475204017576903,
+          "max_contamination_above_storage_envelope": 0.058983050847457634,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006072367486988133,
+          "boundary_pixels": 108,
+          "correction_pixels": 540
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 5,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0833898305084746,
+          "unchanged_side_mean_contamination": 0.06673571876961709,
+          "max_contamination_above_storage_envelope": 0.0793220338983051,
+          "interior_correction_fraction": 0.9527550449690735,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006701016949150704,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.08271186440677968,
+          "unchanged_side_mean_contamination": 0.06753295668549908,
+          "max_contamination_above_storage_envelope": 0.07864406779661018,
+          "interior_correction_fraction": 0.9449111244299707,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006543728813558428,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.02087884494664156,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.02110483364720654,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006072367486988133,
+          "boundary_pixels": 108,
+          "correction_pixels": 564
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 6,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.0833898305084746,
+          "unchanged_side_mean_contamination": 0.06760828625235406,
+          "max_contamination_above_storage_envelope": 0.0793220338983051,
+          "interior_correction_fraction": 0.9535163863371978,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006526642410646264,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06765850596359073,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.9490700276809738,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006465084745761519,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.02094161958568739,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.021167608286252363,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006072367486988133,
+          "boundary_pixels": 108,
+          "correction_pixels": 594
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "angle": 27,
+      "phase": 7,
+      "methods": {
+        "raw": {
+          "unchanged_side_max_contamination": 0.0,
+          "unchanged_side_mean_contamination": 0.0,
+          "max_contamination_above_storage_envelope": -0.0040677966101694924,
+          "interior_correction_fraction": 0.0,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "B4": {
+          "unchanged_side_max_contamination": 0.08271186440677968,
+          "unchanged_side_mean_contamination": 0.06736346516007534,
+          "max_contamination_above_storage_envelope": 0.07864406779661018,
+          "interior_correction_fraction": 0.9530815792644589,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006570035836189622,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "soft2": {
+          "unchanged_side_max_contamination": 0.0840677966101695,
+          "unchanged_side_mean_contamination": 0.06788449466415569,
+          "max_contamination_above_storage_envelope": 0.08,
+          "interior_correction_fraction": 0.948478099273505,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006701016949150704,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "log": {
+          "unchanged_side_max_contamination": 0.057627118644067804,
+          "unchanged_side_mean_contamination": 0.02094161958568739,
+          "max_contamination_above_storage_envelope": 0.053559322033898314,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0006290690659252813,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        },
+        "linear": {
+          "unchanged_side_max_contamination": 0.058983050847457634,
+          "unchanged_side_mean_contamination": 0.021167608286252363,
+          "max_contamination_above_storage_envelope": 0.054915254237288144,
+          "interior_correction_fraction": 0.902994340161417,
+          "eligible_fraction": 0.96875,
+          "luma_relative_error_max": 0.0005853559322032059,
+          "boundary_pixels": 108,
+          "correction_pixels": 624
+        }
+      }
+    }
+  ],
+  "quality_pass": false,
+  "failed_original_gates": [
+    "primary_log_diffuse_true_step_response_below_0.90",
+    "32_of_32_low_contrast_boundaries_exceed_original_storage_envelope"
+  ],
+  "historical_local_numbers_reproduced_with_absolute_tolerance": 2e-08
+}

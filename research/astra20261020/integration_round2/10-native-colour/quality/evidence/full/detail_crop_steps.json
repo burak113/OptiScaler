@@ -1,0 +1,1354 @@
+{
+  "thin_cases": [
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8996378819760157
+        },
+        "linear": {
+          "thin_chroma_projection": 1.045237452536396,
+          "actual_dose": 0.8965630372317008
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525093,
+          "actual_dose": 0.8696898986856358
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9542198685031968
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8997926327602819
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0452374525363959,
+          "actual_dose": 0.8965630372317008
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525088,
+          "actual_dose": 0.8702728614751488
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9542198685031968
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8997926327602819
+        },
+        "linear": {
+          "thin_chroma_projection": 1.045237452536396,
+          "actual_dose": 0.8965630372317008
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525088,
+          "actual_dose": 0.8702728614751488
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9542198685031968
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874998,
+          "actual_dose": 0.8996378819760157
+        },
+        "linear": {
+          "thin_chroma_projection": 1.045237452536396,
+          "actual_dose": 0.8965630372317008
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525093,
+          "actual_dose": 0.8696898986856357
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9542198685031968
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8994831311917495
+        },
+        "linear": {
+          "thin_chroma_projection": 1.045237452536396,
+          "actual_dose": 0.8965630372317008
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525093,
+          "actual_dose": 0.8689911312812707
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9540643650184418
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8993283804074834
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0454360485803829,
+          "actual_dose": 0.896717788015967
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525088,
+          "actual_dose": 0.8682923638769056
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0072453939688961,
+          "actual_dose": 0.9542198685031968
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9998411810880611
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874996,
+          "actual_dose": 0.8985923139561706
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0450855849733471,
+          "actual_dose": 0.8952954938305029
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2960515971525088,
+          "actual_dose": 0.8558297495888617
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0068949303618604,
+          "actual_dose": 0.954215465497094
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9997617763523522
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 1,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0183076171874998,
+          "actual_dose": 0.8985923139561706
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0452374525363959,
+          "actual_dose": 0.8954502415485345
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.296051597152509,
+          "actual_dose": 0.8557139472685642
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0070467979249094,
+          "actual_dose": 0.9543709659007005
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9997617763523522
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8959771650403173
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8942737958927899
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636218,
+          "actual_dose": 0.8643807410714257
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555016,
+          "actual_dose": 0.9521234404274117
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9996823747632348
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8961319096922358
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8942737958927899
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636218,
+          "actual_dose": 0.8649636807597276
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555016,
+          "actual_dose": 0.9521234404274117
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9996823747632348
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8959771650403172
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8942737958927899
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636218,
+          "actual_dose": 0.8643807410714257
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555016,
+          "actual_dose": 0.9521234404274116
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9996823747632348
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132469,
+          "actual_dose": 0.8955488452713157
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8942737958927899
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636218,
+          "actual_dose": 0.862983629729954
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555016,
+          "actual_dose": 0.9521234404274116
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9996823747632348
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132469,
+          "actual_dose": 0.8951205255023142
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0422254125359272,
+          "actual_dose": 0.8944285405447083
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1070910873094966,
+          "actual_dose": 0.861316658439993
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555014,
+          "actual_dose": 0.9521234404274116
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9996823747632348
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132467,
+          "actual_dose": 0.8943845715899138
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8931451664611426
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636216,
+          "actual_dose": 0.8554250573534425
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555014,
+          "actual_dose": 0.9518692988368519
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812487,
+          "actual_dose": 0.9996029763205214
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132469,
+          "actual_dose": 0.8938033853602427
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0418342385098924,
+          "actual_dose": 0.8918618432321447
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1077250112260877,
+          "actual_dose": 0.8501166063144993
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555014,
+          "actual_dose": 0.9516151673168248
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 2,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132469,
+          "actual_dose": 0.8938033853602427
+        },
+        "linear": {
+          "thin_chroma_projection": 1.042010266821608,
+          "actual_dose": 0.8920165817522014
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1074397454636216,
+          "actual_dose": 0.8498467570593932
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0081591475555014,
+          "actual_dose": 0.9516151673168248
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8945052524332668
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0381376439638617,
+          "actual_dose": 0.8925406022542695
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0229149395158657,
+          "actual_dose": 0.8651162317820565
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0050212241683751,
+          "actual_dose": 0.9510463983225327
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8945052524332671
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0381376439638614,
+          "actual_dose": 0.8925406022542695
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0229149395158657,
+          "actual_dose": 0.8651162317820565
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0050212241683751,
+          "actual_dose": 0.9510463983225327
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8940769496367265
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0381376439638617,
+          "actual_dose": 0.8925406022542695
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0229149395158657,
+          "actual_dose": 0.8637191758020686
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0050212241683751,
+          "actual_dose": 0.9510463983225327
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8936486468401861
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0383527896781808,
+          "actual_dose": 0.8926953407743263
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0214386736248522,
+          "actual_dose": 0.8613546334921319
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0053698823225006,
+          "actual_dose": 0.9510463983225327
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812493,
+          "actual_dose": 0.999523581024025
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8929127512513974
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0381376439638614,
+          "actual_dose": 0.8915509653880075
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0229149395158657,
+          "actual_dose": 0.8579686320966958
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0050212241683754,
+          "actual_dose": 0.9507922881411451
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.001883300781249,
+          "actual_dose": 0.999444188873559
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8923316172104954
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0381376439638614,
+          "actual_dose": 0.890406635346542
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0229149395158657,
+          "actual_dose": 0.8553039675661064
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0050212241683754,
+          "actual_dose": 0.9502538147999823
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.001883300781249,
+          "actual_dose": 0.9993647998689357
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.012031770413247,
+          "actual_dose": 0.8920240542132505
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0379616156521456,
+          "actual_dose": 0.8892623506472347
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.024122793426695,
+          "actual_dose": 0.8533151931550275
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0047359584059092,
+          "actual_dose": 0.9499997303896806
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.001883300781249,
+          "actual_dose": 0.9992854140099687
+        }
+      }
+    },
+    {
+      "lobe": "diffuse",
+      "thin_width": 3,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0120317704132469,
+          "actual_dose": 0.8920240542132505
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0379616156521456,
+          "actual_dose": 0.8892623506472347
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.024122793426695,
+          "actual_dose": 0.8533151931550275
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0047359584059092,
+          "actual_dose": 0.9499997303896806
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0018833007812489,
+          "actual_dose": 0.9992854140099687
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668692,
+          "actual_dose": 0.8976452424906255
+        },
+        "linear": {
+          "thin_chroma_projection": 1.048183117368649,
+          "actual_dose": 0.8947619919531099
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2958066973289677,
+          "actual_dose": 0.868853264683181
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668695,
+          "actual_dose": 0.8977416152109057
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0481831173686493,
+          "actual_dose": 0.8947619919531099
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.295806697328968,
+          "actual_dose": 0.8690771859577221
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668692,
+          "actual_dose": 0.8977416152109057
+        },
+        "linear": {
+          "thin_chroma_projection": 1.048183117368649,
+          "actual_dose": 0.8947619919531099
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2958066973289677,
+          "actual_dose": 0.8690771859577221
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254173,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668692,
+          "actual_dose": 0.8976452424906255
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0481831173686493,
+          "actual_dose": 0.8947619919531099
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.295806697328968,
+          "actual_dose": 0.868853264683181
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668692,
+          "actual_dose": 0.8975488697703453
+        },
+        "linear": {
+          "thin_chroma_projection": 1.048183117368649,
+          "actual_dose": 0.8947619919531099
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.2958066973289677,
+          "actual_dose": 0.8681790824489921
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668695,
+          "actual_dose": 0.8974524970500651
+        },
+        "linear": {
+          "thin_chroma_projection": 1.048348614071972,
+          "actual_dose": 0.8948896263071665
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.295806697328968,
+          "actual_dose": 0.8675049002148031
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402054,
+          "actual_dose": 0.9544350397975733
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254177,
+          "actual_dose": 0.9995742379972833
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668695,
+          "actual_dose": 0.8968755913168481
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0480565610661086,
+          "actual_dose": 0.8933386792788057
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.295806697328968,
+          "actual_dose": 0.8551627905501161
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402056,
+          "actual_dose": 0.954186550894567
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9993613673384608
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 1,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668695,
+          "actual_dose": 0.8968755913168481
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0481831173686496,
+          "actual_dose": 0.8934663115658815
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.295806697328968,
+          "actual_dose": 0.8547125368822418
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0076029727402056,
+          "actual_dose": 0.954186550894567
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254177,
+          "actual_dose": 0.9993613673384608
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668706,
+          "actual_dose": 0.8950108566208107
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367477,
+          "actual_dose": 0.8917567384155882
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337505,
+          "actual_dose": 0.8647655324536696
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9534753183779594
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9991485035742157
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668706,
+          "actual_dose": 0.8951072262197158
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367479,
+          "actual_dose": 0.8917567384155882
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337507,
+          "actual_dose": 0.8649894464757196
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549935,
+          "actual_dose": 0.9534753183779594
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254177,
+          "actual_dose": 0.9991485035742157
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668706,
+          "actual_dose": 0.8950108566208107
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367477,
+          "actual_dose": 0.8917567384155883
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337505,
+          "actual_dose": 0.8647655324536696
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9534753183779594
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9991485035742157
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668706,
+          "actual_dose": 0.8947869425987607
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367479,
+          "actual_dose": 0.8917567384155883
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337507,
+          "actual_dose": 0.8637404713851219
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549935,
+          "actual_dose": 0.9534753183779594
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254177,
+          "actual_dose": 0.9991485035742157
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668703,
+          "actual_dose": 0.8945630285767103
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0476757706320137,
+          "actual_dose": 0.8918843686357502
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1132901328102087,
+          "actual_dose": 0.8622653955938996
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9534753183779594
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9991485035742157
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668706,
+          "actual_dose": 0.8938711323185642
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367479,
+          "actual_dose": 0.8903576666538139
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337505,
+          "actual_dose": 0.8562245172986739
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9531111670227795
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.998935646704213
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668703,
+          "actual_dose": 0.8932756249469583
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0473497922769845,
+          "actual_dose": 0.8888310141179775
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.114346672671194,
+          "actual_dose": 0.8504077414225794
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.010830158454993,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281174
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 2,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0160600307668703,
+          "actual_dose": 0.8932756249469583
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0474964825367474,
+          "actual_dose": 0.8889586402045124
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.1138712297337505,
+          "actual_dose": 0.8499577412747682
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.010830158454993,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281174
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 0,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0082152222990546,
+          "actual_dose": 0.8937020824746882
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328082088996626,
+          "actual_dose": 0.8911114569909038
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0212899030787472,
+          "actual_dose": 0.8654221603946192
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281175
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 1,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0082152222990546,
+          "actual_dose": 0.8937020824746882
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328082088996626,
+          "actual_dose": 0.8911114569909038
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.021289903078747,
+          "actual_dose": 0.8654221603946191
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281175
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 2,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0082152222990546,
+          "actual_dose": 0.8934781757046593
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328082088996626,
+          "actual_dose": 0.8911114569909038
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0212899030787472,
+          "actual_dose": 0.8643971325252633
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281175
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 3,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0082832500278158,
+          "actual_dose": 0.8931579674122646
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328762366284236,
+          "actual_dose": 0.8911427815510741
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0195466123081216,
+          "actual_dose": 0.8621220862526936
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.952747027461561
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9987227967281175
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 4,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.008215222299055,
+          "actual_dose": 0.8925811685910101
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328082088996626,
+          "actual_dose": 0.8900816793286641
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0212899030787472,
+          "actual_dose": 0.8587077005379862
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9523828996937309
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9985099536455945
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 5,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0082152222990548,
+          "actual_dose": 0.8919857013944802
+        },
+        "linear": {
+          "thin_chroma_projection": 1.0328082088996626,
+          "actual_dose": 0.889020611471617
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0212899030787472,
+          "actual_dose": 0.8556074820098036
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549935,
+          "actual_dose": 0.9520187837187166
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.998297117456309
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 6,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.0081595632482498,
+          "actual_dose": 0.8916328361287587
+        },
+        "linear": {
+          "thin_chroma_projection": 1.032752549848858,
+          "actual_dose": 0.8879595779782632
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.0227162318910772,
+          "actual_dose": 0.8532182904386618
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9516546795359447
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9980842881599263
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "thin_width": 3,
+      "phase": 7,
+      "methods": {
+        "original_log": {
+          "thin_chroma_projection": 1.00815956324825,
+          "actual_dose": 0.8916328361287587
+        },
+        "linear": {
+          "thin_chroma_projection": 1.032752549848858,
+          "actual_dose": 0.8879595779782632
+        },
+        "tight_rr_support": {
+          "thin_chroma_projection": 1.022716231891077,
+          "actual_dose": 0.8532182904386618
+        },
+        "wide_support": {
+          "thin_chroma_projection": 1.0108301584549932,
+          "actual_dose": 0.9516546795359447
+        },
+        "no_sample_prior": {
+          "thin_chroma_projection": 1.0043757870254175,
+          "actual_dose": 0.9980842881599263
+        }
+      }
+    }
+  ],
+  "crop_checks": [
+    {
+      "variant": "original_log",
+      "checked_RGBA_words": 5376,
+      "mismatches": 0
+    },
+    {
+      "variant": "linear",
+      "checked_RGBA_words": 5376,
+      "mismatches": 0
+    },
+    {
+      "variant": "tight_rr_support",
+      "checked_RGBA_words": 5376,
+      "mismatches": 0
+    },
+    {
+      "variant": "wide_support",
+      "checked_RGBA_words": 5376,
+      "mismatches": 0
+    },
+    {
+      "variant": "no_sample_prior",
+      "checked_RGBA_words": 5376,
+      "mismatches": 0
+    }
+  ],
+  "luminance_step_checks": [
+    {
+      "variant": "original_log",
+      "existing_raw_luminance_step_retention": 1.0010892353099632,
+      "source_only_luminance_step_is_not_reconstructed": true
+    },
+    {
+      "variant": "linear",
+      "existing_raw_luminance_step_retention": 1.0013755337187937,
+      "source_only_luminance_step_is_not_reconstructed": true
+    },
+    {
+      "variant": "tight_rr_support",
+      "existing_raw_luminance_step_retention": 1.0010892353099632,
+      "source_only_luminance_step_is_not_reconstructed": true
+    },
+    {
+      "variant": "wide_support",
+      "existing_raw_luminance_step_retention": 1.0006025280149466,
+      "source_only_luminance_step_is_not_reconstructed": true
+    },
+    {
+      "variant": "no_sample_prior",
+      "existing_raw_luminance_step_retention": 0.9994241497913263,
+      "source_only_luminance_step_is_not_reconstructed": true
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "protected_sources": {
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDColourTrackTrack.hlsl": {
+      "git_blob_sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944",
+      "working_bytes_sha256": "5c36bfd68a823fa0f547288c96ce4e4a0da0fe4fe23e0c48e722973abe942944",
+      "only_checkout_line_endings_differ": false
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdFlatAlbedoRecovery_Dx12.h": {
+      "git_blob_sha256": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+      "working_bytes_sha256": "1c019a3ababe3cf3b84728d876b1ed0abbeb08d1ebe9e28c16004a5db6e2ec10",
+      "only_checkout_line_endings_differ": false
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": {
+      "git_blob_sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "working_bytes_sha256": "a628b189f0dd6cf73956481a3c7aef702dae17d9de40fbc6511ac987266805fa",
+      "only_checkout_line_endings_differ": false
+    },
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": {
+      "git_blob_sha256": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+      "working_bytes_sha256": "002ca4b04437e76b6317a5ba3c6cd93ca1cb68e8679c45dfe3782349438abe77",
+      "only_checkout_line_endings_differ": false
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDNrdFlatHybridApply.hlsl": {
+      "git_blob_sha256": "8d090231399d96de869624bfe7ea225a0799a6e075d1ca1015a4af61d80e0ff9",
+      "working_bytes_sha256": "8d090231399d96de869624bfe7ea225a0799a6e075d1ca1015a4af61d80e0ff9",
+      "only_checkout_line_endings_differ": false
+    },
+    "OptiScaler/shaders/fsrd_preprocess/precompile/FSRDFlatDetailBindings.hlsli": {
+      "git_blob_sha256": "dad0f645927f161b26319e6787e16dfd3362c1832ef97be562099df642010696",
+      "working_bytes_sha256": "dad0f645927f161b26319e6787e16dfd3362c1832ef97be562099df642010696",
+      "only_checkout_line_endings_differ": false
+    }
+  },
+  "exact_patch_payloads_verified": true,
+  "production_written": false,
+  "gpu_executed": false
+}

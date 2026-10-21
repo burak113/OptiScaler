@@ -1,0 +1,91 @@
+{
+  "schema": "native-colour-quality-execution-v1",
+  "started_utc": "2026-10-21T11:39:02.274850+00:00",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "section": "all",
+  "executor": "colour_numerical agent, current Linux container; fresh CPU execution",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-B",
+    "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/quality/run_quality.py",
+    "--output",
+    "research/astra20261020/integration_round2/10-native-colour/quality/evidence/full",
+    "--quality-gate"
+  ],
+  "protocol_sha256_before": "0ee9b7496b8ed3075b58979984d427194b3cbeb4821ebf21a7869db749e3cf06",
+  "source_hashes": {
+    "experiment.py": "dc3163f2b9b5ade30a7cfe68752f6c21b2ce0c1d84a0d5b824de0ffd9ee11bf8",
+    "run_quality.py": "326ff3413e6dbb61dfdde0c32ec2d2f360d9af043074d5d63de83e2d899306b8",
+    "frozen_native_colour.py": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813"
+  },
+  "gpu_executed": false,
+  "game_executed": false,
+  "quality_accepted": false,
+  "original_rejection_reproduced": true,
+  "holdout_numeric_boundary_cases": 144,
+  "holdout_noise_sequences": 64,
+  "boundary_summary": {
+    "original_log": {
+      "numeric_cases": 144,
+      "full_failures_above_original_storage_envelope": 144,
+      "full_worst_unchanged_side_contamination": 0.06672091131000814,
+      "matched0.8_cases": 96,
+      "matched0.8_failures_above_original_storage_envelope": 96,
+      "matched0.8_worst_unchanged_side_contamination": 0.05966101694915255
+    },
+    "linear": {
+      "numeric_cases": 144,
+      "full_failures_above_original_storage_envelope": 144,
+      "full_worst_unchanged_side_contamination": 0.06779661016949154,
+      "matched0.8_cases": 48,
+      "matched0.8_failures_above_original_storage_envelope": 48,
+      "matched0.8_worst_unchanged_side_contamination": 0.060211554109031735
+    },
+    "tight_rr_support": {
+      "numeric_cases": 144,
+      "full_failures_above_original_storage_envelope": 48,
+      "full_worst_unchanged_side_contamination": 0.014237288135593223,
+      "matched0.8_cases": 96,
+      "matched0.8_failures_above_original_storage_envelope": 0,
+      "matched0.8_worst_unchanged_side_contamination": 0.0
+    },
+    "wide_support": {
+      "numeric_cases": 144,
+      "full_failures_above_original_storage_envelope": 144,
+      "full_worst_unchanged_side_contamination": 0.07322033898305086,
+      "matched0.8_cases": 120,
+      "matched0.8_failures_above_original_storage_envelope": 120,
+      "matched0.8_worst_unchanged_side_contamination": 0.061838893409275834
+    },
+    "no_sample_prior": {
+      "numeric_cases": 144,
+      "full_failures_above_original_storage_envelope": 144,
+      "full_worst_unchanged_side_contamination": 0.0745762711864407,
+      "matched0.8_cases": 120,
+      "matched0.8_failures_above_original_storage_envelope": 120,
+      "matched0.8_worst_unchanged_side_contamination": 0.060338983050847464
+    }
+  },
+  "controls_pass": true,
+  "all_variants_rejected": true,
+  "immutable_files_checked": 612,
+  "immutable_files_unchanged": true,
+  "protocol_unchanged": true,
+  "elapsed_seconds": 115.45765647499957,
+  "mechanical_experiment_execution_pass": true,
+  "quality_gate_exit_code": 1,
+  "output_sha256": {
+    "boundary_holdout.json": "0687b54d9bc42dd87298f5786a8c0a1c50a8a414a79257c73a902dc7f63274c6",
+    "detail_crop_steps.json": "cb96c176c6e2bcd25346888ee34267a0aa98b4c2846cecd1c303fed08e30e0af",
+    "identifiability_twins.json": "4f64f12a5ee821fc85da8341a1314a7639c7749c52d31d40c5b942cc0a1a2226",
+    "known_bad_controls.json": "acc5c26cf186e41332215185be5f4c5c89d9837567a4e4f7a59a08b5d8189918",
+    "noise_holdout.json": "8a6b16c1a346d28ac86b0d7f61c1af6d43474baa1ba16773d961945215e184f9",
+    "reproduction.json": "0c7dbbdcee6a94d9236c785a1da1574b0c08bbc9a069c6066f7b88d761c1721a",
+    "soft2_stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "soft2_stdout.json": "776176c7d68569e76ff49d242f6f338e68ed9640203f55ec05c0ae7e8a93a176",
+    "step_mechanism.json": "ccd914998db39720e290cd40da09d473a05a178e9c38f0ac070dafed84eb3c24"
+  }
+}

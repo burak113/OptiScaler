@@ -1,0 +1,1 @@
+{"passed": true, "checks": 5, "result": "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/native_contract/result.json"}

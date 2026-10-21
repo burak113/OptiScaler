@@ -1,0 +1,162 @@
+{
+  "schema": "astra10-delivery-result-v1",
+  "base_tag": "astra-audit-20261020",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "scope": "research/astra20261020/integration_round2/10-native-colour only",
+  "decision": "retain default-off research infrastructure; reject visual algorithm adoption; native execution pending",
+  "default_enabled": false,
+  "quality_accepted": false,
+  "automatic_merge": false,
+  "game_deployed": false,
+  "mechanical": {
+    "cpu_passed": true,
+    "new_runner_stages": 14,
+    "packed_unittests_passed": 19,
+    "alpha_word_patterns_on_active_rgb": 65536,
+    "quality_metrology_unittests_passed": 8,
+    "cpp_contract_assertions_passed": 84,
+    "cpp_compiled_known_bad_rejected": 4,
+    "portable_known_bad_assertions_rejected": 6,
+    "frozen_aggregate_stages_passed": 21,
+    "frozen_aggregate_successful_unittest_cases_from_full_logs": 361,
+    "frozen_aggregate_deliberately_broken_controls_rejected": 6,
+    "frozen_aggregate_intake_files_unchanged": 559,
+    "tag_blob_identity_files_checked": 650,
+    "tag_blob_identity_unchanged": true,
+    "receipt": "evidence/mechanical/execution.json",
+    "receipt_sha256": "0cb51c3dc1bd5d603ec4d481c54b7bdebef17de426aa21275b8758fee72bffb9"
+  },
+  "quality": {
+    "execution_scope": "frozen native_colour.py CPU algorithm ablations; not direct new HLSL/pass quality execution",
+    "mechanical_experiment_execution_pass": true,
+    "expected_quality_gate_exit": 1,
+    "original_diffuse_step_response": 0.8980511974843439,
+    "original_specular_step_response": 0.9033311055054329,
+    "unchanged_step_minimum": 0.9,
+    "original_low_contrast_failures": 32,
+    "original_low_contrast_cases": 32,
+    "original_worst_low_contrast_contamination": 0.06265256305939788,
+    "numeric_boundary_cases": 144,
+    "noise_sequences": 64,
+    "frames_per_noise_sequence": 12,
+    "thin_detail_cases": 48,
+    "all_five_variants_rejected": true,
+    "boundary_summary": {
+      "original_log": {
+        "numeric_cases": 144,
+        "full_failures_above_original_storage_envelope": 144,
+        "full_worst_unchanged_side_contamination": 0.06672091131000814,
+        "matched0.8_cases": 96,
+        "matched0.8_failures_above_original_storage_envelope": 96,
+        "matched0.8_worst_unchanged_side_contamination": 0.05966101694915255
+      },
+      "linear": {
+        "numeric_cases": 144,
+        "full_failures_above_original_storage_envelope": 144,
+        "full_worst_unchanged_side_contamination": 0.06779661016949154,
+        "matched0.8_cases": 48,
+        "matched0.8_failures_above_original_storage_envelope": 48,
+        "matched0.8_worst_unchanged_side_contamination": 0.060211554109031735
+      },
+      "tight_rr_support": {
+        "numeric_cases": 144,
+        "full_failures_above_original_storage_envelope": 48,
+        "full_worst_unchanged_side_contamination": 0.014237288135593223,
+        "matched0.8_cases": 96,
+        "matched0.8_failures_above_original_storage_envelope": 0,
+        "matched0.8_worst_unchanged_side_contamination": 0.0
+      },
+      "wide_support": {
+        "numeric_cases": 144,
+        "full_failures_above_original_storage_envelope": 144,
+        "full_worst_unchanged_side_contamination": 0.07322033898305086,
+        "matched0.8_cases": 120,
+        "matched0.8_failures_above_original_storage_envelope": 120,
+        "matched0.8_worst_unchanged_side_contamination": 0.061838893409275834
+      },
+      "no_sample_prior": {
+        "numeric_cases": 144,
+        "full_failures_above_original_storage_envelope": 144,
+        "full_worst_unchanged_side_contamination": 0.0745762711864407,
+        "matched0.8_cases": 120,
+        "matched0.8_failures_above_original_storage_envelope": 120,
+        "matched0.8_worst_unchanged_side_contamination": 0.060338983050847464
+      }
+    },
+    "narrow_support_matched_subset_warning": "0/96 leaks excludes exactly48 failed gap0.02 cases whose half-stored scalar dose match missed tolerance; not acceptance",
+    "step_mechanism": "instantaneous sample-prior attenuation; removing prior is word-identical to original at matched response on measured interior",
+    "receipt": "quality/evidence/full/execution.json",
+    "receipt_sha256": "4d416cca454bbd4df9096ec03a6b92507b3141da27346efa725d418eb0972a80",
+    "protocol_sha256": "0ee9b7496b8ed3075b58979984d427194b3cbeb4821ebf21a7869db749e3cf06"
+  },
+  "native": {
+    "windows_adapter_compiled": false,
+    "hlsl_compiled": false,
+    "gpu_executed": false,
+    "game_executed": false,
+    "direct_class_cases_supplied": 24,
+    "direct_class_rejections_supplied": 22,
+    "direct_class_active_cases_supplied": 2,
+    "shader_transport_cases_supplied": 15,
+    "production_support_producer_supplied": false,
+    "diagnostic_numeric_confidence_neff_gpu_parity": "pending; runner checks exact eligibility/support only"
+  },
+  "scaling": {
+    "scope": "Exhaustive half RGB arithmetic/storage model of the frozen clamp; not D3D12 execution",
+    "gpu_proven": false,
+    "source_snapshot_required_before_provider": true,
+    "cases": [
+      {
+        "lobe": "diffuse",
+        "factor": 16,
+        "input_word_count": 31745,
+        "unsaturated_count": 27649,
+        "exact_roundtrip_count": 27649,
+        "saturated_nonroundtrip_count": 4096,
+        "largest_exact_positive_input": 4094.0,
+        "first_nonroundtrip_input": 4096.0,
+        "zero_and_negative_zero_words_preserved": true,
+        "all_finite_exact_mutant_rejected": true
+      },
+      {
+        "lobe": "specular",
+        "factor": 256,
+        "input_word_count": 31745,
+        "unsaturated_count": 23553,
+        "exact_roundtrip_count": 23553,
+        "saturated_nonroundtrip_count": 8192,
+        "largest_exact_positive_input": 255.875,
+        "first_nonroundtrip_input": 256.0,
+        "zero_and_negative_zero_words_preserved": true,
+        "all_finite_exact_mutant_rejected": true
+      }
+    ]
+  },
+  "host_integration": {
+    "patch": "host/integration.patch",
+    "patch_sha256": "d4a1e4a1f0eba8af9e129e260d04b9d0f60ba1ff7c52e0c550e1655eca619f82",
+    "applied_to_production": false,
+    "verified_on_temporary_frozen_copy": true,
+    "combined_with_job09": false,
+    "compiled": false,
+    "publish_order": "specular,diffuse",
+    "producer_lifetime_requirement": "independently retain prior recorded source/sidecar/converted copies even when optional colour rejects/OFF"
+  },
+  "fixtures": {
+    "cases": 15,
+    "archive_sha256": "2ad1aaec492e5f326ec0752902f9c5940266cdc820702b85a84d442d529ccbdd",
+    "archive_bytes": 1273125,
+    "deterministic_repeat_identical": true
+  },
+  "remaining_acceptance_gates": [
+    "Fresh current-source Windows MSVC/DXC builds, including combined job09+10 host",
+    "Direct-class and shader-chain GPU execution with complete byte/state/debug evidence",
+    "Confidence/effective-sample GPU numerical parity",
+    "Fault injection and multiple retained recordings, actual source producer lifetime",
+    "Independent physical snapshot and valid external authority/support provenance",
+    "Real native D16/S256 provider round trip, saturation and alpha behavior",
+    "Pair-atomic selected pointer and S,D descriptor publication in actual bridge",
+    "Blind real captures with equal achieved dose and unchanged quality gates",
+    "Actual memory/residency/timing and final game observation"
+  ]
+}

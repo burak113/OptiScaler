@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py", line 63, in <module>
+    main()
+  File "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py", line 58, in main
+    verify(c,bad)
+  File "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/verify_output.py", line 31, in verify
+    assert np.array_equal(returned[guard],initial[guard]),'padding/canary/inactive extent changed'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: padding/canary/inactive extent changed

@@ -1,0 +1,51 @@
+Known-bad soft2: expected exit 1 confirmed
+Original failures reproduced: diffuse step < 0.90; 32/32 low-contrast leaks
+Step/prior and known-bad controls complete
+Twins, thin detail, crop and illumination probes complete
+Blind boundary sweep and achieved-dose matches complete
+Blind noise sequences: 8/64
+Blind noise sequences: 16/64
+Blind noise sequences: 24/64
+Blind noise sequences: 32/64
+Blind noise sequences: 40/64
+Blind noise sequences: 48/64
+Blind noise sequences: 56/64
+Blind noise sequences: 64/64
+{
+  "schema": "native-colour-quality-execution-v1",
+  "started_utc": "2026-10-21T11:39:02.274850+00:00",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "section": "all",
+  "executor": "colour_numerical agent, current Linux container; fresh CPU execution",
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-B",
+    "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/quality/run_quality.py",
+    "--output",
+    "research/astra20261020/integration_round2/10-native-colour/quality/evidence/full",
+    "--quality-gate"
+  ],
+  "protocol_sha256_before": "0ee9b7496b8ed3075b58979984d427194b3cbeb4821ebf21a7869db749e3cf06",
+  "source_hashes": {
+    "experiment.py": "dc3163f2b9b5ade30a7cfe68752f6c21b2ce0c1d84a0d5b824de0ffd9ee11bf8",
+    "run_quality.py": "326ff3413e6dbb61dfdde0c32ec2d2f360d9af043074d5d63de83e2d899306b8",
+    "frozen_native_colour.py": "b75342a7eae8c3942849b9d1e469b89afeff5f600a9467045364b38fc20ca813"
+  },
+  "gpu_executed": false,
+  "game_executed": false,
+  "quality_accepted": false,
+  "original_rejection_reproduced": true,
+  "holdout_numeric_boundary_cases": 144,
+  "holdout_noise_sequences": 64,
+  "controls_pass": true,
+  "all_variants_rejected": true,
+  "immutable_files_checked": 612,
+  "immutable_files_unchanged": true,
+  "protocol_unchanged": true,
+  "elapsed_seconds": 115.45765647499957,
+  "mechanical_experiment_execution_pass": true,
+  "quality_gate_exit_code": 1
+}

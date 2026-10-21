@@ -1,0 +1,20 @@
+{
+  "schema": "native-colour-direct-pass-execution-v1",
+  "runtime": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39"
+  },
+  "sources": {
+    "review/native_pass_smoke.cpp": "52d6765af59726fc9ed7ab59ad29de736a32e023e1967d5e8f465f65b1449802",
+    "review/run_native_smoke.py": "cc3cd319c924dc800ee6ee14dc46be7d1b8870fc2fe5440c7c8844c2dcf08e66",
+    "native/NativeColourContract.h": "9a72d93bdcd85f512dd65f36c7c617aafebca78285f8cad9771f83038d442fa7",
+    "native/NativeColourPass_Dx12.h": "4c1cc35a31fcec3ce6b4d61af67b0af151f0e13e9f7ac21b79ebf3a22a7c2776",
+    "native/NativeColourPass_Dx12.cpp": "5fa9fd44ce0e8ceb895b2fb7719cb1c154b0495215bb83f03a788f8d7b153c84",
+    "native/NativeColourPacked.hlsl": "31463c4aafa43629e97afb5c5cecf085b9b2d69c2d5665f5f04e59f70877b1d1"
+  },
+  "windows_compile_executed": false,
+  "gpu_executed": false,
+  "quality_accepted": false,
+  "stages": [],
+  "status": "pending_windows_d3d12_msvc_dxc"
+}

@@ -1,0 +1,42 @@
+{
+  "schema": "native-colour-independent-scale-domain-v1",
+  "scope": "Exhaustive half RGB arithmetic/storage model of the frozen clamp; not D3D12 execution",
+  "gpu_executed": false,
+  "native_alpha_payload_contract_proven": false,
+  "source_snapshot_required_before_provider": true,
+  "runtime": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "numpy": "2.3.5"
+  },
+  "review_source_sha256": "9391d1ae5433b83682bb1eca9cbae858335540175ec79816335810a94f0fd3d6",
+  "frozen_scale_shader_sha256": "b8d05dd2bcf45d800412a47f342d202316dbdc87e26ad72599e8ea382defc56a",
+  "cases": [
+    {
+      "lobe": "diffuse",
+      "factor": 16,
+      "input_word_count": 31745,
+      "unsaturated_count": 27649,
+      "exact_roundtrip_count": 27649,
+      "saturated_nonroundtrip_count": 4096,
+      "largest_exact_positive_input": 4094.0,
+      "first_nonroundtrip_input": 4096.0,
+      "zero_and_negative_zero_words_preserved": true,
+      "all_finite_exact_mutant_rejected": true
+    },
+    {
+      "lobe": "specular",
+      "factor": 256,
+      "input_word_count": 31745,
+      "unsaturated_count": 23553,
+      "exact_roundtrip_count": 23553,
+      "saturated_nonroundtrip_count": 8192,
+      "largest_exact_positive_input": 255.875,
+      "first_nonroundtrip_input": 256.0,
+      "zero_and_negative_zero_words_preserved": true,
+      "all_finite_exact_mutant_rejected": true
+    }
+  ],
+  "wrong_lobe_scale_mutant_rejected": true,
+  "passed": true
+}

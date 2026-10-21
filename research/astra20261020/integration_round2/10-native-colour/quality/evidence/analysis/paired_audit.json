@@ -1,0 +1,3146 @@
+{
+  "scope": "Postprocessing of completed immutable evidence, no candidate rerun or tuning.",
+  "source_sha256": "7cd0246f187425d2ff086959805103b99dbf3f434fbf44d0ec6807679d51585a",
+  "input_sha256": {
+    "boundary_holdout.json": "0687b54d9bc42dd87298f5786a8c0a1c50a8a414a79257c73a902dc7f63274c6",
+    "noise_holdout.json": "8a6b16c1a346d28ac86b0d7f61c1af6d43474baa1ba16773d961945215e184f9"
+  },
+  "boundary_missing_inventory": {
+    "original_log": [
+      {
+        "lobe": "diffuse",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.9101364848823154,
+          0.9101364848823159
+        ],
+        "achieved_match_search_range": [
+          0.792969542157555,
+          0.7929695421575554
+        ],
+        "full_output_boundary_failures": 24
+      },
+      {
+        "lobe": "specular",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.8843194579460016,
+          0.8843194579460022
+        ],
+        "achieved_match_search_range": [
+          0.810706000353262,
+          0.8107060003532625
+        ],
+        "full_output_boundary_failures": 24
+      }
+    ],
+    "linear": [
+      {
+        "lobe": "diffuse",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.9101364848823154,
+          0.9101364848823159
+        ],
+        "achieved_match_search_range": [
+          0.792969542157555,
+          0.7929695421575554
+        ],
+        "full_output_boundary_failures": 24
+      },
+      {
+        "lobe": "diffuse",
+        "gap": 0.06,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.891090409864742,
+          0.8910904098647423
+        ],
+        "achieved_match_search_range": [
+          0.8053409846488925,
+          0.805340984648893
+        ],
+        "full_output_boundary_failures": 24
+      },
+      {
+        "lobe": "specular",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.8843194579460016,
+          0.8843194579460022
+        ],
+        "achieved_match_search_range": [
+          0.810706000353262,
+          0.8107060003532625
+        ],
+        "full_output_boundary_failures": 24
+      },
+      {
+        "lobe": "specular",
+        "gap": 0.12,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.9005826348068202,
+          0.9005826348068207
+        ],
+        "achieved_match_search_range": [
+          0.796981796473729,
+          0.7969817964737294
+        ],
+        "full_output_boundary_failures": 24
+      }
+    ],
+    "tight_rr_support": [
+      {
+        "lobe": "diffuse",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.9101364848823154,
+          0.9101364848823159
+        ],
+        "achieved_match_search_range": [
+          0.792969542157555,
+          0.7929695421575554
+        ],
+        "full_output_boundary_failures": 24
+      },
+      {
+        "lobe": "specular",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.8843194579460016,
+          0.8843194579460022
+        ],
+        "achieved_match_search_range": [
+          0.810706000353262,
+          0.8107060003532625
+        ],
+        "full_output_boundary_failures": 24
+      }
+    ],
+    "wide_support": [
+      {
+        "lobe": "diffuse",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.9394372314176264,
+          0.9394372314176269
+        ],
+        "achieved_match_search_range": [
+          0.8064162859401107,
+          0.8064162859401112
+        ],
+        "full_output_boundary_failures": 24
+      }
+    ],
+    "no_sample_prior": [
+      {
+        "lobe": "diffuse",
+        "gap": 0.02,
+        "cases": 24,
+        "angles": [
+          0,
+          27,
+          61
+        ],
+        "phases": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "reasons": {
+          "quantized_target_unreachable": 24
+        },
+        "full_dose_range": [
+          0.998044526999561,
+          0.9980445269995616
+        ],
+        "achieved_match_search_range": [
+          0.8065064243719139,
+          0.8065064243719143
+        ],
+        "full_output_boundary_failures": 24
+      }
+    ]
+  },
+  "boundary_paired_intersections_against_original": [
+    {
+      "variant": "original_log",
+      "paired_case_count": 96,
+      "unpaired_cases": 48,
+      "original_failures_on_same_cases": 96,
+      "variant_failures_on_same_cases": 96,
+      "paired_cases": [
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        }
+      ]
+    },
+    {
+      "variant": "linear",
+      "paired_case_count": 48,
+      "unpaired_cases": 96,
+      "original_failures_on_same_cases": 48,
+      "variant_failures_on_same_cases": 48,
+      "paired_cases": [
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        }
+      ]
+    },
+    {
+      "variant": "tight_rr_support",
+      "paired_case_count": 96,
+      "unpaired_cases": 48,
+      "original_failures_on_same_cases": 96,
+      "variant_failures_on_same_cases": 0,
+      "paired_cases": [
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        }
+      ]
+    },
+    {
+      "variant": "wide_support",
+      "paired_case_count": 96,
+      "unpaired_cases": 48,
+      "original_failures_on_same_cases": 96,
+      "variant_failures_on_same_cases": 96,
+      "paired_cases": [
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        }
+      ]
+    },
+    {
+      "variant": "no_sample_prior",
+      "paired_case_count": 96,
+      "unpaired_cases": 48,
+      "original_failures_on_same_cases": 96,
+      "variant_failures_on_same_cases": 96,
+      "paired_cases": [
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "diffuse",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.06,
+          "angle": 61,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 0,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 27,
+          "phase": 7
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 0
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 1
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 2
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 3
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 4
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 5
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 6
+        },
+        {
+          "lobe": "specular",
+          "gap_parameter": 0.12,
+          "angle": 61,
+          "phase": 7
+        }
+      ]
+    }
+  ],
+  "interpretation": "Narrow RR support's 0/96 matched leaks omit all48 low-gap failures. The same paired original cases leak96/96. Neither fact removes narrow support's48 full-output failures.",
+  "matching_language": "The original receipt reason quantized_target_unreachable means the specified scalar matching search did not attain the tolerance. It is not a global mathematical impossibility claim. A failed match is excluded from equal-dose claims and remains in full-output quality gates.",
+  "insufficient_pairs_for_useful_interval": [
+    {
+      "lobe": "diffuse",
+      "family": "sparse_tail",
+      "variant": "linear",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "diffuse",
+      "family": "sparse_tail",
+      "variant": "tight_rr_support",
+      "target_dose": 0.8,
+      "paired_seeds": [],
+      "unmatched_seed_count": 8
+    },
+    {
+      "lobe": "diffuse",
+      "family": "sparse_tail",
+      "variant": "wide_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "diffuse",
+      "family": "sparse_tail",
+      "variant": "no_sample_prior",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "diffuse",
+      "family": "spatial_temporal_correlated",
+      "variant": "linear",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    },
+    {
+      "lobe": "diffuse",
+      "family": "spatial_temporal_correlated",
+      "variant": "tight_rr_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "diffuse",
+      "family": "spatial_temporal_correlated",
+      "variant": "wide_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    },
+    {
+      "lobe": "diffuse",
+      "family": "spatial_temporal_correlated",
+      "variant": "no_sample_prior",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    },
+    {
+      "lobe": "specular",
+      "family": "sparse_tail",
+      "variant": "linear",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "specular",
+      "family": "sparse_tail",
+      "variant": "tight_rr_support",
+      "target_dose": 0.8,
+      "paired_seeds": [],
+      "unmatched_seed_count": 8
+    },
+    {
+      "lobe": "specular",
+      "family": "sparse_tail",
+      "variant": "wide_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "specular",
+      "family": "sparse_tail",
+      "variant": "no_sample_prior",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420083
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "specular",
+      "family": "spatial_temporal_correlated",
+      "variant": "linear",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    },
+    {
+      "lobe": "specular",
+      "family": "spatial_temporal_correlated",
+      "variant": "tight_rr_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029
+      ],
+      "unmatched_seed_count": 7
+    },
+    {
+      "lobe": "specular",
+      "family": "spatial_temporal_correlated",
+      "variant": "wide_support",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    },
+    {
+      "lobe": "specular",
+      "family": "spatial_temporal_correlated",
+      "variant": "no_sample_prior",
+      "target_dose": 0.8,
+      "paired_seeds": [
+        420029,
+        420083
+      ],
+      "unmatched_seed_count": 6
+    }
+  ],
+  "uncertainty_caveat": "A one-seed bootstrap is a degenerate resampling of that single observation, not an inferential confidence interval. Two-seed intervals are also too weak for a general superiority claim. All such strata are listed explicitly here; no candidate is promoted."
+}
