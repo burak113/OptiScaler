@@ -1,0 +1,316 @@
+{
+  "schema": "astra10-local-mechanical-checks-v1",
+  "started_utc": "2026-10-21T11:53:41.492043+00:00",
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "command": [
+    "research/astra20261020/integration_round2/10-native-colour/run_checks.py",
+    "--output",
+    "research/astra20261020/integration_round2/10-native-colour/evidence/mechanical"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "executor": "current host running run_checks.py",
+  "quality_accepted": false,
+  "gpu_executed": false,
+  "native_windows_compiled": false,
+  "shader_compiled": false,
+  "commands": [
+    {
+      "name": "packed_tests",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/tests",
+        "-p",
+        "test_packed.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": 19,
+      "elapsed_seconds": 0.32724911399964185,
+      "log_sha256": "d9e406d3e12c289bc61234e475f6d0efb8370f1069ec01d12bf81e3d34650e4c"
+    },
+    {
+      "name": "quality_metrology",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/quality",
+        "-p",
+        "test_quality.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": 8,
+      "elapsed_seconds": 0.4791738230005649,
+      "log_sha256": "db84c273d8da2fd8f3ecf4e66ed5cf7c10034d8fe40cf0c8b9b5728ee4bc9d3d"
+    },
+    {
+      "name": "native_contract",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/native/run_contract_tests.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/native_contract"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 2.9515690620000896,
+      "log_sha256": "e9ac40c972bd6b3bdc629829f8d04b50b5f4c4f5e863702eefbdd1aa30e523ef"
+    },
+    {
+      "name": "reject_forced_off",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "forced_off"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: eligible RGB differs beyond half-ULP gate",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.12100781300068775,
+      "log_sha256": "16b7ef173ce6fed9d91e79d43f54782dcd7ccb4b0f110e5cd8dc583f7c84cd85"
+    },
+    {
+      "name": "reject_alpha_repack",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "alpha_repack"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: native alpha words changed",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.12129395400006615,
+      "log_sha256": "ef3a3b3dea5a8334d242ed561607cde8581373ca679dd4897cf45678eb5703c9"
+    },
+    {
+      "name": "reject_truthy_evidence",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "truthy_evidence"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: protected/invalid pixels changed",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.14705801899981452,
+      "log_sha256": "b57207ec8c21913a118f5fd233f285fa92f0e7a6e2a0b0f7881d18ef22c1b25d"
+    },
+    {
+      "name": "reject_wrong_row_pitch",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "wrong_row_pitch"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: native alpha words changed",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.11962176700035343,
+      "log_sha256": "ef3a3b3dea5a8334d242ed561607cde8581373ca679dd4897cf45678eb5703c9"
+    },
+    {
+      "name": "reject_missing_prefill",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "missing_prefill"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: padding/canary/inactive extent changed",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.1138781409999865,
+      "log_sha256": "8fd5a3192c19dc99c851f57eff724acbaeed90d2e39e38c7091f3de146c5d652"
+    },
+    {
+      "name": "reject_raw_over_selection",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/known_bad.py",
+        "raw_over_selection"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "required_assertion": "AssertionError: protected/invalid pixels changed",
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.11730239099961182,
+      "log_sha256": "b57207ec8c21913a118f5fd233f285fa92f0e7a6e2a0b0f7881d18ef22c1b25d"
+    },
+    {
+      "name": "scale_domain",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/review/check_scale_domain.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/scale_domain.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.11161264699967433,
+      "log_sha256": "5a6e027864f97f2feee66d316c9f3bda741ecc2a3f384911efa5c9aad0a08bb1"
+    },
+    {
+      "name": "host_patch",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/host/verify_patch.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/host_patch.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.05392618800033233,
+      "log_sha256": "e9c28ddbd881ae9ac13e2c3fff45247067b840c95c8f957e50b323be136ddfd6"
+    },
+    {
+      "name": "fixtures",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/package_fixtures.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/native-fixtures.zip",
+        "--manifest",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/fixture_manifest.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.24683724799979245,
+      "log_sha256": "43f0e387bee337c715819caa0aecb9a5d9551bba92352f01f10c44e64f4670d8"
+    },
+    {
+      "name": "shader_unavailable",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/portable/gpu_shader.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/shader_pending"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.10804863700013811,
+      "log_sha256": "424b02850d896b01292e3f2841da6a0b897ff31e1107a03b672df0a3180899ea"
+    },
+    {
+      "name": "native_unavailable",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-B",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/review/run_native_smoke.py",
+        "--output",
+        "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/native_pending"
+      ],
+      "exit_code": 2,
+      "expected_exit_code": 2,
+      "required_assertion": null,
+      "passed": true,
+      "unittest_count": null,
+      "elapsed_seconds": 0.03241543500007538,
+      "log_sha256": "140b5bc64199a10c75ff9e2d0baa7255531638062ad9ba3b00774d440ccb0ea8"
+    }
+  ],
+  "source_sha256": {
+    "host/NativeColourBridgeRequest.h": "5b56a35f26c61f21a246199bbfedfc5b2e602e2de16addd058a3cf3a56e773b7",
+    "host/integration.patch": "d4a1e4a1f0eba8af9e129e260d04b9d0f60ba1ff7c52e0c550e1655eca619f82",
+    "host/make_patch.py": "53b0bf0fd1aaf7456d9e1fcf4ba4a6cbb94a382d2a577d6339129cad24ab5778",
+    "host/patch_manifest.json": "9f7d10764be24da1c0c16be353d1120bb30cfaeca722c6be5385b8ed08b7d849",
+    "host/verify_patch.py": "9777d954cdac85de9ca8f9f997285a18f273180102f99bc6384b025d1822a33e",
+    "native/NativeColourContract.h": "9a72d93bdcd85f512dd65f36c7c617aafebca78285f8cad9771f83038d442fa7",
+    "native/NativeColourPacked.hlsl": "31463c4aafa43629e97afb5c5cecf085b9b2d69c2d5665f5f04e59f70877b1d1",
+    "native/NativeColourPass_Dx12.cpp": "5fa9fd44ce0e8ceb895b2fb7719cb1c154b0495215bb83f03a788f8d7b153c84",
+    "native/NativeColourPass_Dx12.h": "4c1cc35a31fcec3ce6b4d61af67b0af151f0e13e9f7ac21b79ebf3a22a7c2776",
+    "native/contract_tests.cpp": "93f58b8706eb3bcf4019914340337be469d7636931b4c767f0c3715fa89acd73",
+    "native/run_contract_tests.py": "b1ac5f0c69886696971dda1ecb094a03db6d81ecdade6336fd9868121af97381",
+    "portable/fixtures.py": "dc0fed612238dddf3ef2ce9218643107fa4ddcaeebf3d4f79c65b24b1dadc259",
+    "portable/gpu_shader.py": "4988d978778acac6eca301579f45ec94089f5f973282ef3ca858b372c047021a",
+    "portable/known_bad.py": "5ae49dbaa834b092c02b6d68144c2c6c85250018ce77e85500182bec862a7631",
+    "portable/package_fixtures.py": "c096f606d53a215cb566bf5600d675953a0bcc26a386f21ec64a98c31b0851d3",
+    "portable/packed_model.py": "291ea6b95fb8d4ee2e7d0ce773728bb1a9f20ba81a02654805cdb87d63a3e68e",
+    "portable/verify_output.py": "acab28af8918c2bb1cb8b3353c891046fc8e91036fffd1b1ac1378d50956fc25",
+    "quality/PROTOCOL.json": "0ee9b7496b8ed3075b58979984d427194b3cbeb4821ebf21a7869db749e3cf06",
+    "quality/experiment.py": "dc3163f2b9b5ade30a7cfe68752f6c21b2ce0c1d84a0d5b824de0ffd9ee11bf8",
+    "quality/run_quality.py": "326ff3413e6dbb61dfdde0c32ec2d2f360d9af043074d5d63de83e2d899306b8",
+    "quality/summarize_evidence.py": "7cd0246f187425d2ff086959805103b99dbf3f434fbf44d0ec6807679d51585a",
+    "quality/test_quality.py": "eca13ee92511b44eae94f280622c8c9bffc3f55a17f282454e860a3d4ea8d473",
+    "review/check_scale_domain.py": "9391d1ae5433b83682bb1eca9cbae858335540175ec79816335810a94f0fd3d6",
+    "review/native_pass_smoke.cpp": "52d6765af59726fc9ed7ab59ad29de736a32e023e1967d5e8f465f65b1449802",
+    "review/run_native_smoke.py": "cc3cd319c924dc800ee6ee14dc46be7d1b8870fc2fe5440c7c8844c2dcf08e66",
+    "run_checks.py": "18b295c0764c9ddc6c287fb5d657528aefc2ce7f8ce19e3f460591a3c2a9f2b9",
+    "tests/test_packed.py": "e42d7b6d7766f5c1f15c19e5f5aa9f84fd09ac6842613dafd09dba98cd87de88",
+    "verify_delivery.py": "f6e7f674acc0422b6203601238ba8f8930f9e0c29f8f7f94e9d66b791249fe62"
+  },
+  "native_contract_assertions": 84,
+  "fixtures": {
+    "cases": 15,
+    "archive_sha256": "2ad1aaec492e5f326ec0752902f9c5940266cdc820702b85a84d442d529ccbdd",
+    "archive_bytes": 1273125,
+    "deterministic_repeat_identical": true
+  },
+  "verified_saved_evidence": {
+    "action": "verified existing fresh receipts and bound sources/outputs; no suite re-execution",
+    "frozen_aggregate_stages": 21,
+    "frozen_receipt_sha256": "597cb3ad23d9da1c997c2ae18f00add9a3e11d817295dc09e43661252e57688e",
+    "quality_receipt_sha256": "4d416cca454bbd4df9096ec03a6b92507b3141da27346efa725d418eb0972a80",
+    "quality_numeric_boundary_cases": 144,
+    "quality_noise_sequences": 64,
+    "quality_accepted": false
+  },
+  "pending_platform_checks": "expected exit2; pending is not a passed GPU gate",
+  "passed": true,
+  "immutable_files_checked": 650,
+  "immutable_files_unchanged": true,
+  "immutable_inventory_sha256": "afa36fdbfe419e792938260b1d8ac1a60050f313f55dcf178bf5d7b0f9286ab6",
+  "source_unchanged": true,
+  "status": "cpu_mechanics_passed_quality_rejected_native_pending"
+}

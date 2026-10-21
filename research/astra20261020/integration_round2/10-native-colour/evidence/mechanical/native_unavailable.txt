@@ -1,0 +1,1 @@
+{"status": "pending_windows_d3d12_msvc_dxc", "receipt": "/workspace/scratch/a9ed1aeb93b8/OptiScaler/research/astra20261020/integration_round2/10-native-colour/evidence/mechanical/native_pending/execution.json"}

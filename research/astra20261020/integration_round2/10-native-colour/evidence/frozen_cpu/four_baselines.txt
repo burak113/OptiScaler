@@ -1,0 +1,128 @@
+
+=== Portable CPU suite: anchor ===
+combined actual-CSO parity: 133 frames; max_abs 0.00048828125
+native-policy actual-CSO parity: 7 frames; max_abs 0.00048828125
+
+=== Portable CPU suite: colour ===
+
+=== Portable CPU suite: clips ===
+{
+  "pass": true,
+  "synthetic_origin_and_invalid_border": "PASS",
+  "fixtures": [
+    {
+      "fixture": "bottle_track7",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": [
+        {
+          "frame": 181,
+          "pixels": 9430,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 182,
+          "pixels": 9560,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 183,
+          "pixels": 9864,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 184,
+          "pixels": 8730,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 185,
+          "pixels": 5479,
+          "prior_inside_track_fraction": 1.0
+        },
+        {
+          "frame": 186,
+          "pixels": 3114,
+          "prior_inside_track_fraction": 1.0
+        }
+      ]
+    },
+    {
+      "fixture": "foliage23",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": []
+    },
+    {
+      "fixture": "facade16",
+      "offline_hash_dtype_shape_finite": "PASS",
+      "source_bit_checks": 0,
+      "bottle_motion_support": []
+    }
+  ],
+  "npz_bytes": 30013243,
+  "source_access_required_offline": false
+}
+
+=== Portable CPU suite: glass ===
+{
+  "passed": true,
+  "fixture_common_pixels": 6497,
+  "full_roi_evidence_is_separate": 8048,
+  "variants": {
+    "Glass Off (captured NZR)": {
+      "fine_temporal_cv_p50": 0.08453057706356049,
+      "hp_temporal_cv_p50": 0.03238876536488533,
+      "detail": 0.0006692720926366746,
+      "level": 0.004335098899900913
+    },
+    "Glass RR": {
+      "fine_temporal_cv_p50": 0.05390767753124237,
+      "hp_temporal_cv_p50": 0.022178910672664642,
+      "detail": 0.0003178186889272183,
+      "level": 0.004591844044625759
+    },
+    "Glass Blend 0.5": {
+      "fine_temporal_cv_p50": 0.060510072857141495,
+      "hp_temporal_cv_p50": 0.025623515248298645,
+      "detail": 0.00047470733989030123,
+      "level": 0.004463471472263336
+    },
+    "Glass Blend 0.75": {
+      "fine_temporal_cv_p50": 0.07079374045133591,
+      "hp_temporal_cv_p50": 0.028289545327425003,
+      "detail": 0.0005692339036613703,
+      "level": 0.004399285186082125
+    }
+  }
+}
+All 4 portable CPU suites passed in 5.840s.
+test_actual_combined_shader_parity_all_133_frames (test_reference.ReferenceTests.test_actual_combined_shader_parity_all_133_frames) ... ok
+test_actual_native_policy_shader_parity_7_frames (test_reference.ReferenceTests.test_actual_native_policy_shader_parity_7_frames) ... ok
+test_antithetic_null_against_frozen_prior_cpu_result (test_reference.ReferenceTests.test_antithetic_null_against_frozen_prior_cpu_result) ... ok
+test_identity_and_no_input_mutation (test_reference.ReferenceTests.test_identity_and_no_input_mutation) ... ok
+test_moderate_real_light_change_is_a_known_baseline_falsifier (test_reference.ReferenceTests.test_moderate_real_light_change_is_a_known_baseline_falsifier) ... ok
+test_native_local_identity_vs_combined_global_fallback (test_reference.ReferenceTests.test_native_local_identity_vs_combined_global_fallback) ... ok
+test_payload_hashes (test_reference.ReferenceTests.test_payload_hashes) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.283s
+
+OK
+test_captured_stats_history_gain_packing_and_bilinear_exact (test_colour_portable.CapturedFixtureContracts.test_captured_stats_history_gain_packing_and_bilinear_exact) ... ok
+test_soft2_fixture_precision_caveat_is_bounded (test_colour_portable.CapturedFixtureContracts.test_soft2_fixture_precision_caveat_is_bounded) ... ok
+test_all_11bit_payloads_are_exact_half_values (test_colour_portable.NumericContracts.test_all_11bit_payloads_are_exact_half_values) ... ok
+test_apply_preserves_luma_within_half_storage_error (test_colour_portable.NumericContracts.test_apply_preserves_luma_within_half_storage_error) ... ok
+test_gray_identity_and_signed_depth (test_colour_portable.NumericContracts.test_gray_identity_and_signed_depth) ... ok
+test_ideal_bilinear_has_known_values_and_edge_clamp (test_colour_portable.NumericContracts.test_ideal_bilinear_has_known_values_and_edge_clamp) ... ok
+test_module_imports_only_numpy_and_standard_library (test_colour_portable.NumericContracts.test_module_imports_only_numpy_and_standard_library) ... ok
+test_normal_pack_preserves_axes_and_all_decodes_are_unit (test_colour_portable.NumericContracts.test_normal_pack_preserves_axes_and_all_decodes_are_unit) ... ok
+test_normalized_16bit_payload_cannot_survive_half_storage (test_colour_portable.NumericContracts.test_normalized_16bit_payload_cannot_survive_half_storage) ... ok
+test_rtz_never_overshoots_and_is_idempotent (test_colour_portable.NumericContracts.test_rtz_never_overshoots_and_is_idempotent) ... ok
+test_all_32_phase_cases_are_present (test_colour_portable.RejectedCandidateContracts.test_all_32_phase_cases_are_present) ... ok
+test_candidate_remains_rejected_on_shifted_geometry_edges (test_colour_portable.RejectedCandidateContracts.test_candidate_remains_rejected_on_shifted_geometry_edges) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 2.598s
+
+OK

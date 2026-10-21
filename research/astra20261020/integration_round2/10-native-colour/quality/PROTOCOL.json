@@ -1,0 +1,68 @@
+{
+  "schema": "native-colour-round2-quality-v1",
+  "frozen_before_new_experiment_execution": true,
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "scope": "Synthetic falsification and causal ablation only. No AMD RR, native host, GPU, captured truth, or game quality claim.",
+  "calibration_seeds": [410011],
+  "holdout_seeds": [420001, 420013, 420029, 420037, 420053, 420067, 420083, 420097],
+  "lobe_levels": {"diffuse": 0.3, "specular": 0.045},
+  "frame_count": 12,
+  "active_extent": [40, 24],
+  "allocation_extent": [47, 29],
+  "noise_families": ["independent", "sparse_tail", "spatial_temporal_correlated", "rare_chromatic_tail"],
+  "boundary_angles_degrees": [0, 27, 61],
+  "boundary_phases_pixels": [0, 1, 2, 3, 4, 5, 6, 7],
+  "boundary_relative_gaps": [0.02, 0.06, 0.12],
+  "boundary_labels": ["material", "illumination"],
+  "crop_origins": [[0, 0], [1, 0], [3, 1], [5, 2]],
+  "thin_widths_pixels": [1, 2, 3],
+  "variants": {
+    "original_log": {"representation": "log"},
+    "linear": {"representation": "linear"},
+    "tight_rr_support": {"representation": "log", "guide_chroma_radius": 0.07},
+    "wide_support": {"representation": "log", "radius": 5, "spatial_sigma": 3.0},
+    "no_sample_prior": {"representation": "log", "support_prior": 0.0}
+  },
+  "variant_policy": "Frozen causal interventions, not a tuning search and not approved production algorithms. Do not change constants in response to holdout.",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "claim": "The original four-frame response failure is temporal lag.",
+      "prediction": "A stateless correction with identical current inputs must have the same output at frame8 and frame11. Removing the sample prior changes the amplitude immediately; matched-achieved-dose attenuation removes that apparent gain."
+    },
+    {
+      "id": "H2",
+      "claim": "Changing log to linear coordinates alone removes low-contrast cross-boundary contamination.",
+      "prediction": "At equal achieved interior correction, both representations still leak when their unchanged common support crosses a true boundary."
+    },
+    {
+      "id": "H3",
+      "claim": "Tightening raw-RR chroma support distinguishes all true low-contrast edges from estimation noise.",
+      "prediction": "Clean larger gaps can improve, while smaller gaps still mix. Spatially correlated RR error can mimic a boundary. An identical-observation two-world test has identical output but incompatible correct answers."
+    },
+    {
+      "id": "H4",
+      "claim": "More support or less sample-prior attenuation is a free grain/response improvement.",
+      "prediction": "Measure matched-achieved-dose grain and flicker separately from full-dose response, boundary contamination, glint and thin-detail retention. Any unmatchable/nonpositive dose is explicitly reported, never called a win."
+    }
+  ],
+  "dose": {
+    "definition": "Projection of applied opponent chroma change onto analytic desired raw-to-truth direction, divided by squared desired direction, on the immutable original eligible interior mask.",
+    "matched_targets": [0.5, 0.8],
+    "primary_matched_target": 0.8,
+    "tolerance_absolute": 0.003,
+    "method": "Each full-output correction ray is attenuated by one global scalar for the whole sequence; explicit half RTZ storage is included in bisection. Ground truth chooses this EVALUATION-ONLY matched-dose null, never candidate output or runtime support. No extrapolation beyond full output. If full dose is too small/nonpositive, mark unmatched.",
+    "acceptance_policy": "Matching is only a noise comparison. Full-output candidates must independently pass the original >=0.90 true-step and >=0.95 detail gates; matching down does not waive those gates."
+  },
+  "masks": "Derived and hashed before outputs from baseline coordinates, raw/selected word equality, explicit authority and analytic stimulus labels; no candidate-derived mask/denominator. Same masks for every variant. Quiet, interior-bias, boundary, thin-detail and glint supports are disjoint or explicitly named.",
+  "metrics": ["achieved_correction_dose", "spatial_high_frequency_error_RMS", "temporal_adjacent_error_RMS", "quiet_sparkle_p99", "unchanged_boundary_max_and_mean_contamination", "thin_chroma_projection", "glint_luma_peak_ratio", "true_colour_step_response", "true_luminance_step_response", "protected_alpha_padding_words"],
+  "uncertainty": "Eight independently seeded sequences per lobe/noise stratum. Report per-seed values and paired bootstrap mean confidence intervals with fixed seed98731 and2048 resamples. Two lobe scales reuse the same underlying random factors and are not independent observations. No confidence interval is a guarantee over unseen games or distributions.",
+  "hard_gates_unchanged": {
+    "true_step_response_min_within_4_frames": 0.9,
+    "thin_detail_ratio_min": 0.95,
+    "boundary_extra_error_max": "original local FP16 storage envelope",
+    "alpha_protected_padding_word_changes": 0,
+    "identity_is_quality_improvement": false
+  },
+  "required_known_bad_controls": ["frozen_soft2_expected_exit1", "original_diffuse_step_below0.90", "original_low_contrast32_of32", "identity_zero_dose", "frozen_frame_zero_step_response", "blur_loses_thin_detail", "candidate_derived_mask_rejected", "unmatched_dose_not_claimed"]
+}

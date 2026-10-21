@@ -1,0 +1,14 @@
+{
+  "identity_correction_dose": 0.0,
+  "identity_unmatched_at0.8": {
+    "matched": false,
+    "target": 0.8,
+    "full_dose": 0.0,
+    "reason": "full_output_does_not_reach_target",
+    "amount": null
+  },
+  "frozen_output_step_response": 0.0,
+  "blur_thin_detail_contrast_ratio": 0.0,
+  "candidate_derived_mask_mutant_rejected": true,
+  "controls_pass": true
+}

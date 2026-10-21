@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "base_commit": "5fe436dd9a21cb9cc69dec371521a055c9af049d",
+  "patch_sha256": "d4a1e4a1f0eba8af9e129e260d04b9d0f60ba1ff7c52e0c550e1655eca619f82",
+  "proposed_files": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h": "e65344fa9d08c2d8371f0a1caf34b39343b743ffda01db0178e2157f68160aa3",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp": "9afbc230e75f71dcd46989c749afe401e06c862126b2513af7538401ff4aeb78",
+    "OptiScaler/OptiScaler.vcxproj": "766a600ae663e0b6cc1017189f3caa88a3bd3a0c40162ce39195b10150cf6a2d"
+  },
+  "production_files_unchanged": true,
+  "patch_applied_only_in_temporary_copy": true,
+  "windows_compile_executed": false,
+  "gpu_executed": false
+}

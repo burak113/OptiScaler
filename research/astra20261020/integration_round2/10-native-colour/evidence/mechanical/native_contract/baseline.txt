@@ -1,0 +1,1 @@
+PASS 84 host contract assertions (CPU only; no D3D12 execution)

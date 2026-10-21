@@ -1,0 +1,17 @@
+{
+  "schema": "astra10-packed-shader-gpu-v1",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "gpu_executed": false,
+  "shader_compiled": false,
+  "quality_accepted": false,
+  "cases": [],
+  "commands": [],
+  "source_sha256": {
+    "native/NativeColourPacked.hlsl": "31463c4aafa43629e97afb5c5cecf085b9b2d69c2d5665f5f04e59f70877b1d1",
+    "portable/packed_model.py": "291ea6b95fb8d4ee2e7d0ce773728bb1a9f20ba81a02654805cdb87d63a3e68e",
+    "portable/fixtures.py": "dc0fed612238dddf3ef2ce9218643107fa4ddcaeebf3d4f79c65b24b1dadc259",
+    "portable/gpu_shader.py": "4988d978778acac6eca301579f45ec94089f5f973282ef3ca858b372c047021a"
+  },
+  "status": "pending_windows_d3d12_dxc_msvc"
+}

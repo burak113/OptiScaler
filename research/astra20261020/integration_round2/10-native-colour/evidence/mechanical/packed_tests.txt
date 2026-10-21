@@ -1,0 +1,24 @@
+test_cbv_layout_and_output_initialization (test_packed.PackedContracts.test_cbv_layout_and_output_initialization) ... ok
+test_constant_values_that_break_gpu_denominators_are_rejected (test_packed.PackedContracts.test_constant_values_that_break_gpu_denominators_are_rejected) ... ok
+test_crop_translation_is_not_reprojection (test_packed.PackedContracts.test_crop_translation_is_not_reprojection) ... ok
+test_d16_s256_metadata_does_not_change_physical_rgb (test_packed.PackedContracts.test_d16_s256_metadata_does_not_change_physical_rgb) ... ok
+test_deterministic_fixture_output (test_packed.PackedContracts.test_deterministic_fixture_output) ... ok
+test_each_texture_allocation_must_fit_native_dimension_limit (test_packed.PackedContracts.test_each_texture_allocation_must_fit_native_dimension_limit) ... ok
+test_every_alpha_word_survives_active_correction (test_packed.PackedContracts.test_every_alpha_word_survives_active_correction) ... ok
+test_exact_passthrough_for_all_admission_failures (test_packed.PackedContracts.test_exact_passthrough_for_all_admission_failures) ... ok
+test_full_pitched_buffer_padding_and_inactive_texels_preserved (test_packed.PackedContracts.test_full_pitched_buffer_padding_and_inactive_texels_preserved) ... ok
+test_invalid_centres_passthrough_and_do_not_poison_neighbours (test_packed.PackedContracts.test_invalid_centres_passthrough_and_do_not_poison_neighbours) ... ok
+test_layout_rejects_truncation_alignment_and_uint32_overflow (test_packed.PackedContracts.test_layout_rejects_truncation_alignment_and_uint32_overflow) ... ok
+test_noncontiguous_snapshot_alias_still_rejected (test_packed.PackedContracts.test_noncontiguous_snapshot_alias_still_rejected) ... ok
+test_off_needs_no_optional_input (test_packed.PackedContracts.test_off_needs_no_optional_input) ... ok
+test_reserved_authority_and_support_codes_are_not_truthy (test_packed.PackedContracts.test_reserved_authority_and_support_codes_are_not_truthy) ... ok
+test_selection_includes_alpha_and_one_ulp (test_packed.PackedContracts.test_selection_includes_alpha_and_one_ulp) ... ok
+test_snapshot_alias_cannot_survive_later_provider_writes (test_packed.PackedContracts.test_snapshot_alias_cannot_survive_later_provider_writes) ... ok
+test_sources_are_immutable (test_packed.PackedContracts.test_sources_are_immutable) ... ok
+test_support_producer_version_must_fit_native_uint64 (test_packed.PackedContracts.test_support_producer_version_must_fit_native_uint64) ... ok
+test_unequal_allocations_same_active_inputs_are_invariant (test_packed.PackedContracts.test_unequal_allocations_same_active_inputs_are_invariant) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 0.216s
+
+OK

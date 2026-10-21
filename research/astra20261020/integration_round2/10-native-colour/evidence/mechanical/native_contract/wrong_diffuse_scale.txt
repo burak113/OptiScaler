@@ -1,0 +1,1 @@
+FAIL: active supported fixture admitted

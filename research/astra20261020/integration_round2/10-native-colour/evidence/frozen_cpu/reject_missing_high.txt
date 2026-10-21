@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "<repo>/research/astra20261020/candidates/01-numerical-contract/mutants.py", line 40, in <module>
+    run(parser.parse_args().mutant)
+  File "<repo>/research/astra20261020/candidates/01-numerical-contract/mutants.py", line 28, in run
+    assert (exact&0xffffffff)==exact,'missing high word loses64 natural carries'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: missing high word loses64 natural carries

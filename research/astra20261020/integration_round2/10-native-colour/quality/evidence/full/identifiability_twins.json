@@ -1,0 +1,99 @@
+{
+  "world_boundary": "Raw's subtle chromatic discontinuity is real; the one current source observation has a matching stochastic opposite fluctuation. Keep the boundary.",
+  "world_flat": "True physical lobe is flat; raw has a correlated chroma-estimation discontinuity and source is the exact value. Remove the apparent boundary.",
+  "scope": "Same observed arrays and metadata admit incompatible truths. This is an identifiability witness under the declared observation uncertainty, not a claim that independent calibrated evidence can never help.",
+  "rows": [
+    {
+      "lobe": "diffuse",
+      "input_hashes_identical_between_worlds": [
+        "66debfb6483982cf33e7f48397cfeddde56ac19ee3d80b6ce44cf87926363be0",
+        "be7ba3fa2fc10d96bdce267dd259a1aca38b34fed3e34f858517db96c75795f9",
+        "ba76d658ff4848568d25848cae667a139e0d22f2877c61da5b13b20c4f293811",
+        "dd634610a6c67bfd8ccdd505a355de94d87ee5f0a22a9fa5f496c463481878c9",
+        "621cd342a17e8065d6b12676d1f9c3a65699e1f9da276b69d5f3da69a03ad856",
+        "0d37fdd3340adf7c2671b79393fd1a78a81b834d7b8aa837cdc4cef6ed2bd009",
+        "92d2599adc8680ba199bc17748b7ea0a2ff7fc0e14c332ae9e7e006b35fb1128"
+      ],
+      "truth_separation": 0.05859156288906667,
+      "at_least_one_world_error_lower_bound": 0.029295781444533334,
+      "methods": {
+        "original_log": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.053682286657367746,
+          "error_true_flat": 0.005017393659372273,
+          "max_world_error": 0.053682286657367746
+        },
+        "linear": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.053682286657367746,
+          "error_true_flat": 0.005017393659372273,
+          "max_world_error": 0.053682286657367746
+        },
+        "tight_rr_support": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.053682286657367746,
+          "error_true_flat": 0.005017393659372273,
+          "max_world_error": 0.053682286657367746
+        },
+        "wide_support": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.056683576892759185,
+          "error_true_flat": 0.0023021380969647865,
+          "max_world_error": 0.056683576892759185
+        },
+        "no_sample_prior": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.05937218168984916,
+          "error_true_flat": 0.0014097659137464087,
+          "max_world_error": 0.05937218168984916
+        }
+      }
+    },
+    {
+      "lobe": "specular",
+      "input_hashes_identical_between_worlds": [
+        "ccb6fa2541fa287fa73735fe3c5ac14f6d3b2770a4df189c69ab8c9214da2365",
+        "bab859494ded22b86a07e2263111ab621decf95a729e05f53b4ca64604635c8b",
+        "f7778072ed6b25efda37a40809409b244fa45ea177e0a989510a14dbdad2948e",
+        "dd634610a6c67bfd8ccdd505a355de94d87ee5f0a22a9fa5f496c463481878c9",
+        "621cd342a17e8065d6b12676d1f9c3a65699e1f9da276b69d5f3da69a03ad856",
+        "0d37fdd3340adf7c2671b79393fd1a78a81b834d7b8aa837cdc4cef6ed2bd009",
+        "92d2599adc8680ba199bc17748b7ea0a2ff7fc0e14c332ae9e7e006b35fb1128"
+      ],
+      "truth_separation": 0.05862462531336207,
+      "at_least_one_world_error_lower_bound": 0.029312312656681036,
+      "methods": {
+        "original_log": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.0530898003023812,
+          "error_true_flat": 0.0055498703155095475,
+          "max_world_error": 0.0530898003023812
+        },
+        "linear": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.0530898003023812,
+          "error_true_flat": 0.0055498703155095475,
+          "max_world_error": 0.0530898003023812
+        },
+        "tight_rr_support": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.0530898003023812,
+          "error_true_flat": 0.0055498703155095475,
+          "max_world_error": 0.0530898003023812
+        },
+        "wide_support": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.05618201782788754,
+          "error_true_flat": 0.0025369356508398158,
+          "max_world_error": 0.05618201782788754
+        },
+        "no_sample_prior": {
+          "outputs_byte_identical": true,
+          "error_true_boundary": 0.059275791734644374,
+          "error_true_flat": 0.0011743730086885306,
+          "max_world_error": 0.059275791734644374
+        }
+      }
+    }
+  ]
+}

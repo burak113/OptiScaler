@@ -1,0 +1,41 @@
+{
+  "rows": [
+    {
+      "lobe": "diffuse",
+      "original_response": 0.8980511974843439,
+      "original_confidence_mean": 0.9008408188819885,
+      "original_n_eff_mean": 37.339237213134766,
+      "response_by_variant_full_output": {
+        "original_log": 0.8980511974843439,
+        "linear": 0.9012382984894842,
+        "tight_rr_support": 0.8980511974843439,
+        "wide_support": 0.9504793138842789,
+        "no_sample_prior": 0.9973565627002674
+      },
+      "no_prior_matched_response": 0.8980511974843439,
+      "no_prior_matched_strength": 0.900390625,
+      "no_prior_matched_RGBA_differing_words": 0,
+      "identical_current_inputs_at_frame8_and11_give_identical_RGBA": true,
+      "frozen_true_step_gate": 0.9
+    },
+    {
+      "lobe": "specular",
+      "original_response": 0.9033311055054329,
+      "original_confidence_mean": 0.9008408188819885,
+      "original_n_eff_mean": 37.339237213134766,
+      "response_by_variant_full_output": {
+        "original_log": 0.9033311055054329,
+        "linear": 0.9033311055054329,
+        "tight_rr_support": 0.9033311055054329,
+        "wide_support": 0.9550127411543641,
+        "no_sample_prior": 0.9963899766610005
+      },
+      "no_prior_matched_response": 0.9033311055054329,
+      "no_prior_matched_strength": 0.90625,
+      "no_prior_matched_RGBA_differing_words": 0,
+      "identical_current_inputs_at_frame8_and11_give_identical_RGBA": true,
+      "frozen_true_step_gate": 0.9
+    }
+  ],
+  "finding": "Original failure is immediate attenuation, not accumulating temporal lag. Removing the prior changes achieved dose; the matched-dose control prevents crediting that increase as a noise improvement."
+}

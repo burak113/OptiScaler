@@ -1,0 +1,13 @@
+test_dose_matching_measures_stored_output_and_keeps_alpha (test_quality.QualityMetrologyTests.test_dose_matching_measures_stored_output_and_keeps_alpha) ... ok
+test_false_independence_cannot_be_hidden_by_pooled_lobes (test_quality.QualityMetrologyTests.test_false_independence_cannot_be_hidden_by_pooled_lobes) ... ok
+test_full_native_word_protection_in_padded_noise_sequence (test_quality.QualityMetrologyTests.test_full_native_word_protection_in_padded_noise_sequence) ... ok
+test_identical_observation_twins_have_incompatible_truths (test_quality.QualityMetrologyTests.test_identical_observation_twins_have_incompatible_truths) ... ok
+test_identity_cannot_match_nonzero_dose (test_quality.QualityMetrologyTests.test_identity_cannot_match_nonzero_dose) ... ok
+test_known_bad_nulls_are_actually_rejected (test_quality.QualityMetrologyTests.test_known_bad_nulls_are_actually_rejected) ... ok
+test_masks_are_baseline_frozen_and_mutation_is_detected (test_quality.QualityMetrologyTests.test_masks_are_baseline_frozen_and_mutation_is_detected) ... ok
+test_moving_crop_alignment_does_not_call_static_error_flicker (test_quality.QualityMetrologyTests.test_moving_crop_alignment_does_not_call_static_error_flicker) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.355s
+
+OK
