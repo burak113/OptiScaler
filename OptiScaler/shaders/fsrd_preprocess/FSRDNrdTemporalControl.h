@@ -25,7 +25,8 @@ inline bool ValidMotionStability(const MotionStabilitySettings& s) noexcept
 inline float NextMotionStability(const MotionStabilitySettings& s, float previous, bool validPrevious,
                                  float degrees, float metres) noexcept
 {
-    if (!validPrevious || !std::isfinite(degrees) || !std::isfinite(metres) ||
+    if (!validPrevious || !std::isfinite(previous) || !std::isfinite(degrees) || !std::isfinite(metres) ||
+        degrees < 0 || metres < 0 ||
         degrees > s.rotationDegrees || metres > s.translationMetres) return s.moving;
     return std::min(s.still, std::max(s.moving, previous) + s.ramp);
 }
