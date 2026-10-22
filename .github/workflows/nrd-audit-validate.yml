@@ -1,0 +1,95 @@
+name: NRD consolidated candidate validation
+on:
+  push:
+    branches: [astra/nrd-rr-audit-workbench-20261022]
+    paths: ['.github/workflows/nrd-audit-validate.yml', '.audit-workbench/**']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          path: payload
+      - uses: actions/checkout@v4
+        with:
+          ref: 9533a9fd3490f5d65fdcbdc1caf6159159e97c02
+          fetch-depth: 1
+          persist-credentials: false
+          path: candidate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify and apply exact candidate
+        shell: python
+        run: |
+          import base64, hashlib, lzma, pathlib, subprocess
+          p = pathlib.Path('payload/.audit-workbench')
+          encoded = ''.join((p / ('payload-%d.b64' % i)).read_text().strip() for i in range(3))
+          data = lzma.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(data).hexdigest() == '25b5461e6c9ad5ade9955707cf1d87180c0a69b6d9f5e253fe5033fe2a589e1c'
+          pathlib.Path('candidate.patch').write_bytes(data)
+          subprocess.run(['git','-C','candidate','config','core.autocrlf','false'],check=True)
+          subprocess.run(['git','-C','candidate','apply','--unidiff-zero','--check','../candidate.patch'],check=True)
+          subprocess.run(['git','-C','candidate','apply','--unidiff-zero','../candidate.patch'],check=True)
+          for extra in sorted(p.glob('extra-*.patch')):
+              subprocess.run(['git','-C','candidate','apply','--unidiff-zero','--check',str(extra.resolve())],check=True)
+              subprocess.run(['git','-C','candidate','apply','--unidiff-zero',str(extra.resolve())],check=True)
+          for extra in sorted(p.glob('files/**/*')):
+              if extra.is_file():
+                  dest = pathlib.Path('candidate') / extra.relative_to(p/'files')
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  dest.write_bytes(extra.read_bytes())
+      - name: Fetch pinned SDK headers
+        working-directory: candidate
+        run: git submodule update --init --recursive external/FidelityFX-SDK
+      - name: Install official pinned DXC
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, urllib.request, zipfile
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'audit-dxc'
+          root.mkdir(exist_ok=True)
+          req = urllib.request.Request('https://api.github.com/repos/microsoft/DirectXShaderCompiler/releases/tags/v1.8.2505.1',headers={'User-Agent':'NRD-audit-validation'})
+          with urllib.request.urlopen(req,timeout=60) as response:
+              release = json.load(response)
+          assets = [a for a in release['assets'] if a['name'].startswith('dxc_') and a['name'].endswith('.zip')]
+          assert len(assets) == 1, assets
+          a = assets[0]; dest = root / a['name']
+          urllib.request.urlretrieve(a['browser_download_url'],dest)
+          with zipfile.ZipFile(dest) as archive: archive.extractall(root)
+          exe = root/'bin/x64/dxc.exe'
+          assert exe.is_file()
+          with open(os.environ['GITHUB_ENV'],'a') as env:
+              env.write('DXC='+str(exe)+'\nFSRD_DXC='+str(exe)+'\n')
+          pathlib.Path('candidate/dxc-provenance.json').write_text(json.dumps({'tag':release['tag_name'],'url':a['browser_download_url'],'sha256':hashlib.sha256(dest.read_bytes()).hexdigest()},indent=2))
+      - run: python -m pip install numpy
+      - name: Build and execute available gates
+        working-directory: candidate
+        run: python tests/nrd_audit/run_windows.py --output ../windows-evidence
+      - name: Archive exact result
+        if: always()
+        shell: python
+        run: |
+          import hashlib,json,pathlib,subprocess,zipfile
+          out=pathlib.Path('windows-evidence');out.mkdir(exist_ok=True)
+          root=pathlib.Path('candidate')
+          if (root/'dxc-provenance.json').exists(): (out/'dxc-provenance.json').write_bytes((root/'dxc-provenance.json').read_bytes())
+          files=subprocess.check_output(['git','-C','candidate','ls-files','-m','-o','--exclude-standard'],text=True).splitlines()
+          rows={}
+          with zipfile.ZipFile(out/'candidate-changes.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
+              for name in sorted(set(files)):
+                  p=root/name
+                  if p.is_file() and not name.startswith('F:'):
+                      data=p.read_bytes();z.writestr(name,data);rows[name]=hashlib.sha256(data).hexdigest()
+          (out/'candidate-hashes.json').write_text(json.dumps(rows,indent=2)+'\n')
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nrd-windows-evidence-${{ github.run_id }}
+          path: windows-evidence
+          retention-days: 7
+          if-no-files-found: error
