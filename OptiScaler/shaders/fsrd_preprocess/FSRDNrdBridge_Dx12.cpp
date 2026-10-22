@@ -1061,6 +1061,10 @@ RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_p
                     ownership->token->abandoned.load(std::memory_order_acquire),gSoftIncompleteSubmissions.load(std::memory_order_relaxed));
             ownership->history->uncertain.store(true,std::memory_order_release);
             ownership->history->discardPending.store(true,std::memory_order_release);
+            // An incomplete RR commit must never be submitted after the native
+            // denoiser has been suppressed: no valid output producer remains.
+            RecordedComputeLease::DenySubmission(E_FAIL);
+            return false;
         }
         NativeCommitDiagnostic diagnostic;
         if (outputComplete && ownership->nativeProof && !ValidateNativeCommitProof(*ownership->nativeProof,info,diagnostic))
@@ -1074,6 +1078,8 @@ RecordedComputeLease::SubmissionCallbacks RecordingCallbacks(const std::shared_p
             ownership->token->skipInvalidated.store(true,std::memory_order_release);
             ownership->history->uncertain.store(true,std::memory_order_release);
             ownership->history->discardPending.store(true,std::memory_order_release);
+            RecordedComputeLease::DenySubmission(E_FAIL);
+            return false;
         }
         auto& domain = *ownership->history;
         RecordedComputeLease::FencePointPtr retiredPoint;
