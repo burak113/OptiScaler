@@ -1,0 +1,49 @@
+name: NRD audit workbench snapshot
+on:
+  push:
+    branches: [astra/nrd-rr-audit-workbench-20261022]
+    paths: ['.github/workflows/nrd-audit-workbench.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 9533a9fd3490f5d65fdcbdc1caf6159159e97c02
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Export exact audit input
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/nrd-audit-input"
+          git archive --format=zip HEAD -o "$RUNNER_TEMP/nrd-audit-input/source.zip"
+          git rev-parse HEAD > "$RUNNER_TEMP/nrd-audit-input/source-commit.txt"
+          git ls-tree -r HEAD > "$RUNNER_TEMP/nrd-audit-input/source-tree.txt"
+      - name: Fetch official portable DXC
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, urllib.request
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'nrd-audit-input'
+          api = 'https://api.github.com/repos/microsoft/DirectXShaderCompiler/releases/tags/v1.8.2505.1'
+          req = urllib.request.Request(api, headers={'User-Agent': 'NRD-audit-workbench'})
+          with urllib.request.urlopen(req, timeout=60) as response:
+              release = json.load(response)
+          assets = [a for a in release['assets'] if a['name'].startswith('linux_dxc') and a['name'].endswith('.tar.gz')]
+          if len(assets) != 1:
+              raise RuntimeError('Expected exactly one official Linux DXC asset')
+          asset = assets[0]
+          dest = root / asset['name']
+          urllib.request.urlretrieve(asset['browser_download_url'], dest)
+          (root / 'dxc-provenance.json').write_text(json.dumps({'tag': release['tag_name'], 'url': asset['browser_download_url'], 'asset_id': asset['id'], 'sha256': hashlib.sha256(dest.read_bytes()).hexdigest()}, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nrd-audit-input-9533a9fd
+          path: ${{ runner.temp }}/nrd-audit-input
+          retention-days: 3
+          if-no-files-found: error
