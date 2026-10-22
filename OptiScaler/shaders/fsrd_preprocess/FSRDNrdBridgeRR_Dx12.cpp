@@ -101,7 +101,8 @@ bool LobeRecoveryCapacityText(const std::string& text) noexcept
 {
     return text.find("family exceeds") != std::string::npos ||
         text.find("retained recording slots") != std::string::npos ||
-        text.find("slot capacity is exhausted") != std::string::npos;
+        text.find("slot capacity is exhausted") != std::string::npos ||
+        text.find("family capacity") != std::string::npos;
 }
 bool BooleanIsSet(sl::Boolean value)
 {
